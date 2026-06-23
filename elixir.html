@@ -1,0 +1,2564 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ELIXIR — UA Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%235B4BF5'/><text x='16' y='23' font-family='Inter,sans-serif' font-size='14' font-weight='700' fill='white' text-anchor='middle'>EX</text></svg>">
+<style>
+:root{
+  --bg:#08080c;
+  --bg-elevated:#111118;
+  --surface:rgba(255,255,255,0.04);
+  --surface-hover:rgba(255,255,255,0.07);
+  --border:rgba(255,255,255,0.08);
+  --border-strong:rgba(255,255,255,0.14);
+  --accent:#6C5CE7;
+  --accent-hover:#5B4BF5;
+  --accent-glow:rgba(108,92,231,0.35);
+  --accent-soft:rgba(108,92,231,0.12);
+  --text:#f4f4f5;
+  --text-muted:rgba(255,255,255,0.45);
+  --text-dim:rgba(255,255,255,0.28);
+  --success:#22C55E;
+  --danger:#EF4444;
+  --radius:14px;
+  --radius-lg:18px;
+  --shadow:0 8px 32px rgba(0,0,0,0.35);
+  --font-display:'Plus Jakarta Sans',Inter,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(108,92,231,0.35);border-radius:10px}
+html{font-family:Inter,sans-serif;background:var(--bg);color:var(--text)}
+body{
+  font-family:Inter,sans-serif;
+  background:var(--bg);
+  background-image:
+    radial-gradient(ellipse 70% 45% at 10% -5%,rgba(108,92,231,0.18),transparent),
+    radial-gradient(ellipse 50% 35% at 95% 105%,rgba(108,92,231,0.1),transparent);
+  color:var(--text);
+  overflow-x:hidden;
+  min-height:100vh;
+}
+
+/* ── SIDEBAR ── */
+#sidebar{position:fixed;top:0;left:0;width:240px;height:100vh;background:rgba(12,12,18,0.85);backdrop-filter:blur(20px);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;z-index:200;transition:transform 0.28s cubic-bezier(.4,0,.2,1)}
+.logo-wrap{padding:24px 20px 20px;border-bottom:1px solid var(--border);flex-shrink:0}
+.logo{font-family:var(--font-display);font-size:20px;font-weight:700;letter-spacing:0.06em;color:var(--text);display:flex;align-items:center;gap:10px}
+.logo-mark{width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#8B7CF8);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;letter-spacing:0}
+.logo-sub{font-size:11px;color:var(--text-dim);margin-top:6px;padding-left:42px}
+.nav-section{padding:20px 16px 8px;font-size:10px;font-weight:600;color:var(--text-dim);letter-spacing:0.1em;text-transform:uppercase;flex-shrink:0}
+.nav-item{display:flex;align-items:center;gap:11px;padding:10px 14px;margin:2px 10px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:500;color:var(--text-muted);transition:all 0.15s ease;user-select:none}
+.nav-item:hover{background:var(--surface-hover);color:var(--text)}
+.nav-item.active{background:var(--accent-soft);color:#a29bfe;box-shadow:inset 0 0 0 1px rgba(108,92,231,0.25)}
+.nav-item .icon{font-size:16px;width:22px;text-align:center;flex-shrink:0}
+.nav-item .label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav-item-add{margin-top:4px;border:1px dashed rgba(108,92,231,0.35);color:#a29bfe;background:rgba(108,92,231,0.06)}
+.nav-item-add:hover{background:rgba(108,92,231,0.14);border-color:rgba(108,92,231,0.5)}
+.sidebar-footer{margin-top:auto;padding:16px 20px;border-top:1px solid var(--border);flex-shrink:0}
+.version{font-size:11px;color:var(--text-dim)}
+#sidebar-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:190;backdrop-filter:blur(2px)}
+
+/* ── MAIN ── */
+#main{margin-left:240px}
+.topbar{padding:16px 32px;background:rgba(12,12,18,0.75);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:nowrap;position:sticky;top:0;z-index:100}
+.topbar-left{display:flex;align-items:center;gap:14px;min-width:0;overflow:hidden}
+.project-title{font-family:var(--font-display);font-size:18px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tabs-row{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
+.tab-btn{padding:4px 13px;border-radius:20px;font-size:12px;font-weight:500;border:1px solid rgba(255,255,255,0.12);background:transparent;cursor:pointer;transition:all 0.15s ease;color:rgba(255,255,255,0.4);font-family:'Inter',sans-serif}
+.tab-btn:hover{border-color:rgba(91,75,245,0.4);color:rgba(255,255,255,0.8)}
+.tab-btn.active{background:#5B4BF5;color:#fff;border-color:#5B4BF5}
+.topbar-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.btn-icon{padding:7px 13px;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;transition:all 0.15s ease;font-family:'Inter',sans-serif;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.btn-refresh{border:1px solid var(--border-strong);background:var(--surface);color:var(--text-muted)}
+.btn-refresh:hover{background:var(--surface-hover);color:var(--text)}
+.btn-refresh.spinning svg{animation:spin 0.9s linear infinite}
+.btn-admin{border:1px solid rgba(108,92,231,0.35);background:var(--accent-soft);color:#a29bfe}
+.btn-admin:hover{background:rgba(108,92,231,0.2)}
+.btn-admin.is-admin{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 4px 16px var(--accent-glow)}
+.btn-add-top{border:1px solid rgba(108,92,231,0.4);background:linear-gradient(135deg,rgba(108,92,231,0.2),rgba(108,92,231,0.08));color:#c4b5fd}
+.btn-add-top:hover{background:linear-gradient(135deg,rgba(108,92,231,0.35),rgba(108,92,231,0.15));color:#fff}
+.btn-hamburger{display:none;background:transparent;border:none;cursor:pointer;padding:6px;color:rgba(255,255,255,0.6);flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── CONTENT — normal flow, page scrolls ── */
+#content{padding:28px 32px;display:flex;flex-direction:column;gap:20px;min-height:calc(100vh - 65px)}
+
+/* ── MOBILE ── */
+@media(max-width:768px){
+  #sidebar{transform:translateX(-100%)}
+  #sidebar.open{transform:translateX(0)}
+  #sidebar-backdrop.show{display:block}
+  #main{margin-left:0}
+  .btn-hamburger{display:flex}
+  .topbar{padding:12px 16px;gap:8px}
+  .project-title{font-size:15px}
+  .topbar-right .btn-refresh .btn-label{display:none}
+  #content{padding:14px 14px 32px;gap:14px}
+  .overview-grid{grid-template-columns:1fr}
+  .metrics-grid{grid-template-columns:1fr 1fr}
+  .tile-metrics{grid-template-columns:1fr 1fr}
+  .month-switcher{gap:8px}
+  .month-btn{padding:8px 14px;min-width:75px}
+  .month-btn-name{font-size:12px}
+  .chart-wrap{height:170px}
+  .modal{padding:20px;border-radius:12px;max-height:88vh}
+  .form-row{grid-template-columns:1fr}
+  table{font-size:12px}
+  td,th{padding:7px 10px}
+}
+
+/* ── OVERVIEW GRID ── */
+.overview-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:18px}
+.proj-tile{background:rgba(18,18,26,0.7);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:var(--radius-lg);padding:0;transition:all 0.22s ease;position:relative;overflow:hidden;box-shadow:var(--shadow)}
+.proj-tile:hover{border-color:rgba(108,92,231,0.4);transform:translateY(-2px);box-shadow:0 12px 40px rgba(0,0,0,0.4),0 0 0 1px rgba(108,92,231,0.15)}
+.proj-tile::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent),transparent);opacity:0;transition:opacity 0.22s}
+.proj-tile:hover::before{opacity:1}
+.tile-body{padding:20px 22px 0;cursor:pointer}
+.tile-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.tile-name{display:flex;align-items:center;gap:12px;font-family:var(--font-display);font-size:15px;font-weight:600;color:var(--text)}
+.tile-icon-wrap{width:40px;height:40px;border-radius:12px;background:var(--accent-soft);border:1px solid rgba(108,92,231,0.2);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.tile-icon{font-size:20px}
+.tile-badge{font-size:10px;font-weight:600;color:#a29bfe;background:rgba(108,92,231,0.15);border-radius:6px;padding:3px 8px;letter-spacing:0.04em}
+/* month tabs inside tile */
+.tile-month-tabs{display:flex;gap:4px;flex-wrap:wrap;padding:0 16px 12px;border-bottom:1px solid rgba(255,255,255,0.05)}
+.tile-tab{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:500;border:1px solid rgba(255,255,255,0.1);background:transparent;cursor:pointer;color:rgba(255,255,255,0.35);font-family:'Inter',sans-serif;transition:all 0.12s ease}
+.tile-tab:hover{border-color:rgba(91,75,245,0.4);color:rgba(255,255,255,0.7)}
+.tile-tab.active{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 2px 8px var(--accent-glow)}
+/* Month switcher in detail view */
+.month-switcher{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px}
+.month-btn{display:flex;flex-direction:column;align-items:center;padding:10px 20px;border-radius:12px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.03);cursor:pointer;transition:all 0.15s ease;font-family:'Inter',sans-serif;min-width:90px}
+.month-btn:hover{border-color:rgba(91,75,245,0.5);background:rgba(91,75,245,0.08)}
+.month-btn.active{border-color:var(--accent);background:var(--accent-soft);box-shadow:inset 0 0 0 1px rgba(108,92,231,0.2)}
+.month-btn-name{font-size:13px;font-weight:600;color:rgba(255,255,255,0.85);line-height:1}
+.month-btn.active .month-btn-name{color:#fff}
+.month-btn-count{font-size:10px;color:rgba(255,255,255,0.3);margin-top:4px}
+.month-btn.active .month-btn-count{color:rgba(91,75,245,0.9)}
+.date-cell{font-weight:500;color:rgba(255,255,255,0.6);font-variant-numeric:tabular-nums}
+.row-alt td{background:rgba(255,255,255,0.015)}
+.tile-metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:14px 20px 0}
+.tile-metric{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:11px 13px}
+.tile-metric.accent .tile-metric-label{color:rgba(162,155,254,0.85)}
+.tile-metric.accent .tile-metric-value{color:#c4b5fd}
+.tile-metric-label{font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-dim);margin-bottom:5px}
+.tile-metric-value{font-size:17px;font-weight:600;color:var(--text);line-height:1}
+.tile-footer{display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding:12px 22px;border-top:1px solid var(--border);cursor:pointer}
+.tile-cta{font-size:12px;color:var(--accent);font-weight:600}
+.tile-arrow{color:rgba(108,92,231,0.5);font-size:14px}
+.tile-loading{display:flex;align-items:center;gap:8px;color:var(--text-dim);font-size:12px;padding:20px}
+.tile-error{font-size:12px;color:var(--danger);padding:14px 20px}
+.add-proj-tile{background:rgba(108,92,231,0.04);border:2px dashed rgba(108,92,231,0.25);border-radius:var(--radius-lg);min-height:220px;padding:20px;cursor:pointer;transition:all 0.18s ease;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
+.add-proj-tile:hover{border-color:rgba(108,92,231,0.5);background:rgba(108,92,231,0.08)}
+.add-proj-plus{width:48px;height:48px;border-radius:14px;background:var(--accent-soft);border:1px solid rgba(108,92,231,0.3);color:var(--accent);font-size:24px;display:flex;align-items:center;justify-content:center;transition:all 0.15s}
+.add-proj-tile:hover .add-proj-plus{background:rgba(108,92,231,0.25)}
+.add-proj-label{font-size:13px;font-weight:500;color:var(--text-muted);text-align:center}
+
+/* ── SECTION HEADER ── */
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.section-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.3)}
+
+/* ── METRICS ── */
+.metrics-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px}
+.metric-card{background:rgba(18,18,26,0.8);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;transition:all 0.15s ease}
+.metric-card:hover{border-color:rgba(108,92,231,0.25)}
+.chart-card,.overview-chart-card,.table-card{background:rgba(18,18,26,0.8);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+.chart-card,.overview-chart-card{padding:20px 24px}
+.table-card{overflow:hidden}
+.admin-panel{background:var(--accent-soft);border:1px solid rgba(108,92,231,0.25);border-radius:var(--radius)}
+.metric-card.accent .metric-label{color:rgba(91,75,245,0.7)}
+.metric-card.accent .metric-value{color:#9B8FFD}
+.metric-label{font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.35);margin-bottom:9px}
+.metric-value{font-size:24px;font-weight:600;color:#F0F0F0;line-height:1}
+
+/* ── CHART ── */
+.chart-card{background:#161616;border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:18px 22px}
+.card-title{font-size:11px;font-weight:600;color:rgba(255,255,255,0.5);margin-bottom:14px;text-transform:uppercase;letter-spacing:0.08em}
+.chart-wrap{position:relative;height:210px}
+.overview-chart-card{background:#161616;border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:18px 22px;margin-bottom:4px}
+.overview-chart-wrap{position:relative;height:220px}
+.overview-chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+.overview-chart-month{font-size:11px;color:rgba(255,255,255,0.35);font-weight:500}
+
+/* ── TABLE ── */
+.table-card{background:#161616;border:1px solid rgba(255,255,255,0.07);border-radius:12px;overflow:hidden}
+.table-header{padding:14px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.05)}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead tr{background:#111111}
+thead th{padding:9px 13px;text-align:right;font-size:10px;font-weight:600;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:0.06em;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,0.05)}
+thead th:first-child{text-align:left}
+tbody tr{border-top:1px solid rgba(255,255,255,0.04);transition:background 0.1s}
+tbody tr:hover{background:rgba(91,75,245,0.05)}
+td{padding:9px 13px;text-align:right;color:rgba(255,255,255,0.65);white-space:nowrap}
+td:first-child{text-align:left;color:#F0F0F0;font-weight:500}
+.total-row{background:rgba(91,75,245,0.07)!important;border-top:1px solid rgba(91,75,245,0.18)!important}
+.total-row td{font-weight:700;color:#F0F0F0}
+
+/* ── ANALYTICS ── */
+.analytics-section{display:flex;flex-direction:column;gap:14px}
+.analytics-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.analytics-card{background:rgba(18,18,26,0.85);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px}
+.analytics-card-wide{grid-column:1/-1}
+.analytics-card-title{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:14px}
+.budget-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.budget-stat{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.budget-stat-label{font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim);margin-bottom:6px}
+.budget-stat-value{font-size:18px;font-weight:600;color:var(--text)}
+.budget-progress{height:8px;background:rgba(255,255,255,0.06);border-radius:99px;overflow:hidden;margin-bottom:8px}
+.budget-progress-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--accent),#8B7CF8);transition:width 0.3s ease}
+.budget-progress-fill.warn{background:linear-gradient(90deg,#F59E0B,#EF4444)}
+.budget-progress-meta{display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted)}
+.budget-input-row{display:flex;gap:8px;margin-top:12px;align-items:center}
+.budget-input-row input{flex:1;padding:10px 12px;border:1px solid var(--border-strong);border-radius:8px;background:var(--surface);color:var(--text);font-size:14px;font-family:Inter,sans-serif;outline:none}
+.budget-input-row input:focus{border-color:rgba(108,92,231,0.5)}
+.budget-hint{font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.45}
+.btn-budget-save{padding:9px 14px;border-radius:8px;border:1px solid rgba(108,92,231,0.4);background:var(--accent-soft);color:#c4b5fd;font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;white-space:nowrap}
+.btn-budget-save:hover{background:rgba(108,92,231,0.25)}
+.compare-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.compare-item{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:11px 13px}
+.compare-label{font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim);margin-bottom:5px}
+.compare-value{font-size:16px;font-weight:600;color:var(--text);margin-bottom:4px}
+.compare-delta{font-size:11px;font-weight:600}
+.compare-delta.up{color:var(--success)}
+.compare-delta.down{color:var(--danger)}
+.compare-delta.neutral{color:var(--text-muted)}
+.funnel-steps{display:flex;flex-direction:column;gap:10px}
+.funnel-step{display:flex;align-items:center;gap:12px}
+.funnel-step-label{min-width:110px;font-size:12px;color:var(--text-muted)}
+.funnel-bar-wrap{flex:1;height:8px;background:rgba(255,255,255,0.06);border-radius:99px;overflow:hidden}
+.funnel-bar{height:100%;border-radius:99px;background:linear-gradient(90deg,#22C55E,#06B6D4)}
+.funnel-step-val{min-width:52px;text-align:right;font-size:12px;font-weight:600;color:var(--text)}
+.insights-list{display:flex;flex-direction:column;gap:8px}
+.insight-row{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;font-size:12px}
+.insight-row span:first-child{color:var(--text-muted)}
+.insight-row span:last-child{font-weight:600;color:var(--text)}
+.insight-row.best span:last-child{color:var(--success)}
+.insight-row.worst span:last-child{color:#F59E0B}
+.tile-budget{margin:0 16px 12px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:10px}
+.tile-budget-top{display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-bottom:6px}
+.tile-budget-bar{height:5px;background:rgba(255,255,255,0.06);border-radius:99px;overflow:hidden}
+.tile-budget-fill{height:100%;border-radius:99px;background:var(--accent)}
+@media(max-width:768px){
+  .budget-stats{grid-template-columns:1fr}
+  .analytics-grid{grid-template-columns:1fr}
+}
+.empty-state{text-align:center;padding:36px;color:rgba(255,255,255,0.22);font-size:13px}
+.error-state{text-align:center;padding:36px;color:#EF4444;font-size:13px}
+
+/* ── SPINNER ── */
+.spinner-wrap{display:flex;align-items:center;justify-content:center;padding:60px;flex-direction:column;gap:14px}
+.spinner{width:32px;height:32px;border:2px solid rgba(91,75,245,0.2);border-top-color:#5B4BF5;border-radius:50%;animation:spin 0.8s linear infinite}
+.spinner-text{font-size:12px;color:rgba(255,255,255,0.35)}
+.mini-spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(91,75,245,0.2);border-top-color:#5B4BF5;border-radius:50%;animation:spin 0.8s linear infinite;vertical-align:middle;margin-right:6px}
+
+/* ── ADMIN PANEL ── */
+.admin-panel{background:rgba(91,75,245,0.06);border:1px solid rgba(91,75,245,0.2);border-radius:12px;padding:18px 22px}
+.admin-panel-title{font-size:11px;font-weight:600;color:#7B6FF8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.admin-links{display:flex;flex-direction:column;gap:6px}
+.admin-link{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;text-decoration:none;color:#F0F0F0;font-size:13px;font-weight:500;transition:all 0.15s ease}
+.admin-link:hover{background:rgba(91,75,245,0.1);border-color:rgba(91,75,245,0.25)}
+.admin-link-left{display:flex;align-items:center;gap:8px}
+.admin-link-ext{color:rgba(255,255,255,0.25);font-size:11px}
+.admin-actions{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap}
+.btn-sm{padding:7px 14px;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;font-family:'Inter',sans-serif;transition:all 0.15s ease}
+.btn-logout{border:1px solid rgba(255,255,255,0.1);background:transparent;color:rgba(255,255,255,0.45)}
+.btn-logout:hover{border-color:rgba(239,68,68,0.4);color:#EF4444;background:rgba(239,68,68,0.05)}
+.btn-add-proj{border:1px solid rgba(91,75,245,0.4);background:rgba(91,75,245,0.12);color:#7B6FF8}
+.btn-add-proj:hover{background:rgba(91,75,245,0.22)}
+
+/* ── OVERLAY & MODALS ── */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:1000;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
+.overlay.show{display:flex}
+.modal{background:#1A1A1A;border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:28px;width:440px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,0.6)}
+.modal-lg{width:520px}
+.modal h3{font-size:16px;font-weight:600;margin-bottom:6px;color:#F0F0F0}
+.modal-sub{font-size:13px;color:rgba(255,255,255,0.35);margin-bottom:22px}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:11px;font-weight:500;color:rgba(255,255,255,0.4);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em}
+.form-group input,.form-group select{width:100%;padding:10px 13px;border:1px solid rgba(255,255,255,0.1);border-radius:8px;font-size:13px;font-family:'Inter',sans-serif;color:#F0F0F0;background:rgba(255,255,255,0.05);transition:all 0.15s ease;outline:none;appearance:none}
+.form-group input:focus,.form-group select:focus{border-color:#5B4BF5;background:rgba(91,75,245,0.07)}
+.form-group select option{background:#1A1A1A;color:#F0F0F0}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.form-hint{font-size:11px;color:rgba(255,255,255,0.25);margin-top:5px;line-height:1.5}
+.modal-error{font-size:12px;color:#EF4444;margin-bottom:10px;display:none;padding:8px 12px;background:rgba(239,68,68,0.08);border-radius:6px;border:1px solid rgba(239,68,68,0.2)}
+.modal-actions{display:flex;gap:8px;margin-top:20px;justify-content:flex-end}
+.btn-cancel{padding:9px 18px;border:1px solid rgba(255,255,255,0.1);border-radius:8px;background:transparent;font-size:13px;font-weight:500;cursor:pointer;color:rgba(255,255,255,0.45);transition:all 0.15s ease;font-family:'Inter',sans-serif}
+.btn-cancel:hover{color:#F0F0F0;border-color:rgba(255,255,255,0.25)}
+.btn-primary{padding:9px 22px;border:none;border-radius:8px;background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s ease;font-family:'Inter',sans-serif}
+.btn-primary:hover{background:var(--accent-hover)}
+.btn-danger{padding:7px 14px;border:1px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.07);color:#EF4444;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;font-family:'Inter',sans-serif;transition:all 0.15s ease}
+.btn-danger:hover{background:rgba(239,68,68,0.15)}
+
+/* ── DIVIDER ── */
+.proj-divider{display:flex;align-items:center;gap:10px;margin:4px 0}
+.proj-divider-line{flex:1;height:1px;background:rgba(255,255,255,0.05)}
+.proj-divider-text{font-size:10px;color:rgba(255,255,255,0.2);text-transform:uppercase;letter-spacing:0.08em}
+.metrics-editor{display:flex;flex-direction:column;gap:6px}
+.metric-editor-row{display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px}
+.metric-editor-row.disabled{opacity:0.45}
+.metric-editor-row input[type=checkbox]{accent-color:#5B4BF5;width:15px;height:15px;cursor:pointer;flex-shrink:0}
+.metric-editor-label{flex:1;padding:7px 10px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;font-size:12px;font-family:Inter,sans-serif;color:#F0F0F0;background:rgba(255,255,255,0.05);outline:none}
+.metric-editor-label:focus{border-color:#5B4BF5}
+.metric-editor-label:disabled{opacity:0.5;cursor:not-allowed}
+.metric-editor-key{font-size:10px;color:rgba(255,255,255,0.25);min-width:72px;font-family:monospace}
+.metric-move-btn{width:26px;height:26px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;background:transparent;color:rgba(255,255,255,0.4);cursor:pointer;font-size:11px;flex-shrink:0}
+.metric-move-btn:hover{border-color:rgba(91,75,245,0.4);color:#7B6FF8}
+.metric-move-btn:disabled{opacity:0.25;cursor:not-allowed}
+.btn-reset-metrics{padding:5px 10px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;background:transparent;color:rgba(255,255,255,0.4);font-size:11px;cursor:pointer;font-family:Inter,sans-serif;margin-top:6px}
+.btn-reset-metrics:hover{border-color:rgba(91,75,245,0.35);color:#7B6FF8}
+
+/* ── INLINE METRIC EDIT (admin) ── */
+body.admin-mode .tile-metric-label-wrap,
+body.admin-mode .metric-label-wrap,
+body.admin-mode .th-label-wrap{position:relative;display:inline-flex;align-items:center;gap:4px;max-width:100%}
+body.admin-mode .tile-metric-label-wrap{padding-right:18px}
+body.admin-mode .metric-label-wrap{padding-right:20px}
+body.admin-mode .th-label-wrap{padding-right:18px}
+body.admin-mode .metric-edit-btn{
+  position:absolute;right:0;top:50%;transform:translateY(-50%);
+  width:20px;height:20px;border:none;border-radius:5px;
+  background:rgba(91,75,245,0.15);color:#9B8FFD;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;transition:opacity 0.15s ease;flex-shrink:0;padding:0
+}
+body.admin-mode .tile-metric-label-wrap:hover .metric-edit-btn,
+body.admin-mode .metric-label-wrap:hover .metric-edit-btn,
+body.admin-mode .th-label-wrap:hover .metric-edit-btn,
+body.admin-mode .metric-edit-btn:focus{opacity:1}
+body.admin-mode .metric-edit-btn:hover{background:rgba(91,75,245,0.35);color:#fff}
+body.admin-mode .tile-metric.admin-editable:hover,
+body.admin-mode .metric-card.admin-editable:hover{outline:1px dashed rgba(91,75,245,0.35);outline-offset:2px}
+body.admin-mode .tile-metrics.admin-zone{cursor:default}
+body.admin-mode th.th-editable:hover{background:rgba(91,75,245,0.06)}
+.metric-edit-popover{
+  display:none;position:fixed;z-index:1100;
+  background:#1f1f1f;border:1px solid rgba(91,75,245,0.35);border-radius:10px;
+  padding:14px 16px;min-width:240px;box-shadow:0 12px 32px rgba(0,0,0,0.5)
+}
+.metric-edit-popover.show{display:block}
+.mep-title{font-size:10px;font-weight:600;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px}
+.mep-input{width:100%;padding:8px 10px;border:1px solid rgba(255,255,255,0.12);border-radius:7px;font-size:13px;font-family:Inter,sans-serif;color:#F0F0F0;background:rgba(255,255,255,0.05);outline:none;margin-bottom:10px}
+.mep-input:focus{border-color:#5B4BF5}
+.mep-check{display:flex;align-items:center;gap:8px;font-size:12px;color:rgba(255,255,255,0.55);margin-bottom:12px;cursor:pointer}
+.mep-check input{accent-color:#5B4BF5;width:14px;height:14px}
+.mep-actions{display:flex;gap:6px;justify-content:flex-end}
+.mep-btn{padding:6px 12px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;font-family:Inter,sans-serif}
+.mep-cancel{border:1px solid rgba(255,255,255,0.1);background:transparent;color:rgba(255,255,255,0.45)}
+.mep-cancel:hover{color:#F0F0F0}
+.mep-save{border:none;background:#5B4BF5;color:#fff}
+.mep-save:hover{background:var(--accent-hover)}
+
+/* ── WIZARD MODAL ── */
+.modal-wizard{width:560px;padding:0;overflow:hidden}
+.wizard-head{padding:24px 28px 0;border-bottom:1px solid var(--border)}
+.wizard-head h3{font-family:var(--font-display);font-size:18px;margin-bottom:4px}
+.wizard-head .modal-sub{margin-bottom:16px}
+.wizard-steps{display:flex;gap:6px;margin-bottom:20px}
+.wizard-step{flex:1;display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-dim);font-weight:500}
+.wizard-step-num{width:22px;height:22px;border-radius:50%;border:1px solid var(--border-strong);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0;transition:all 0.2s}
+.wizard-step.active{color:var(--text)}
+.wizard-step.active .wizard-step-num{background:var(--accent);border-color:var(--accent);color:#fff}
+.wizard-step.done{color:#a29bfe}
+.wizard-step.done .wizard-step-num{background:rgba(108,92,231,0.2);border-color:rgba(108,92,231,0.4);color:#a29bfe}
+.wizard-body{padding:24px 28px;max-height:55vh;overflow-y:auto}
+.wizard-pane{display:none}
+.wizard-pane.active{display:block}
+.wizard-foot{padding:16px 28px 24px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.wizard-foot .spacer{flex:1}
+.emoji-picker{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.emoji-btn{width:36px;height:36px;border:1px solid var(--border);border-radius:8px;background:var(--surface);font-size:18px;cursor:pointer;transition:all 0.12s;display:flex;align-items:center;justify-content:center}
+.emoji-btn:hover{border-color:rgba(108,92,231,0.4);background:var(--accent-soft)}
+.emoji-btn.selected{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 2px rgba(108,92,231,0.25)}
+.type-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+.type-card{padding:14px 16px;border:1px solid var(--border);border-radius:12px;background:var(--surface);cursor:pointer;transition:all 0.15s;text-align:left}
+.type-card:hover{border-color:rgba(108,92,231,0.35);background:var(--accent-soft)}
+.type-card.selected{border-color:var(--accent);background:rgba(108,92,231,0.15);box-shadow:0 0 0 1px rgba(108,92,231,0.3)}
+.type-card-icon{font-size:22px;margin-bottom:8px}
+.type-card-name{font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px}
+.type-card-desc{font-size:11px;color:var(--text-dim);line-height:1.4}
+.sheet-paste-wrap{position:relative}
+.sheet-paste-input{width:100%;padding:14px 16px 14px 44px;border:1px solid var(--border);border-radius:12px;font-size:13px;font-family:Inter,sans-serif;color:var(--text);background:var(--surface);outline:none;transition:all 0.15s}
+.sheet-paste-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(108,92,231,0.15)}
+.sheet-paste-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:18px;opacity:0.5}
+.sheet-tabs{margin-top:14px}
+.sheet-tabs-label{font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px}
+.tab-chips{display:flex;flex-wrap:wrap;gap:8px}
+.tab-chip{padding:8px 14px;border-radius:20px;border:1px solid var(--border);background:var(--surface);font-size:12px;font-weight:500;color:var(--text-muted);cursor:pointer;transition:all 0.12s;font-family:Inter,sans-serif}
+.tab-chip:hover{border-color:rgba(108,92,231,0.4)}
+.tab-chip.selected{background:var(--accent);border-color:var(--accent);color:#fff}
+.col-chips{display:flex;flex-wrap:wrap;gap:6px}
+.col-chip{padding:6px 12px;border-radius:8px;border:1px solid rgba(34,197,94,0.3);background:rgba(34,197,94,0.1);font-size:11px;font-weight:500;color:#86efac}
+.sheet-status{font-size:12px;color:var(--text-dim);margin-top:10px;min-height:18px}
+.sheet-status.ok{color:var(--success)}
+.sheet-status.err{color:var(--danger)}
+.wizard-summary{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:12px}
+.wizard-summary-row{display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid var(--border)}
+.wizard-summary-row:last-child{border-bottom:none}
+.wizard-summary-label{color:var(--text-dim)}
+.wizard-summary-val{font-weight:600;color:var(--text)}
+.edit-section{margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--border)}
+.edit-section:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
+.edit-section-title{font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px}
+#proj-urls-list.advanced-only{margin-top:8px}
+.btn-link{background:none;border:none;color:#a29bfe;font-size:12px;cursor:pointer;font-family:Inter,sans-serif;padding:0;margin-top:8px}
+.btn-link:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+
+<div id="sidebar-backdrop" onclick="closeSidebar()"></div>
+<div id="sidebar">
+  <div class="logo-wrap">
+    <div class="logo"><span class="logo-mark">EX</span> Elixir</div>
+    <div class="logo-sub">UA Dashboard</div>
+  </div>
+  <div class="nav-section">Обзор</div>
+  <div class="nav-item active" data-view="overview" onclick="switchView('overview')">
+    <span class="icon">⚡</span><span class="label">Все проекты</span>
+  </div>
+  <div class="nav-section">Проекты</div>
+  <div id="nav-projects"></div>
+  <div class="sidebar-footer">
+    <div class="version">Elixir UA · 2026</div>
+  </div>
+</div>
+
+<div id="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="btn-hamburger" onclick="toggleSidebar()" aria-label="Меню">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div id="project-title" class="project-title">⚡ Все проекты</div>
+      <div class="tabs-row" id="tabs-row"></div>
+    </div>
+    <div class="topbar-right">
+      <button class="btn-icon btn-add-top" id="btn-add-proj" onclick="openAddProject()" style="display:none">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <span class="btn-label">Проект</span>
+      </button>
+      <button class="btn-icon btn-refresh" id="btn-refresh" onclick="refreshData()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        <span class="btn-label">Обновить</span>
+      </button>
+      <button class="btn-icon btn-admin" id="btn-admin" onclick="adminClick()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        Admin
+      </button>
+    </div>
+  </div>
+  <div id="content"></div>
+</div>
+
+<!-- Login Modal -->
+<div class="overlay" id="overlay-login">
+  <div class="modal">
+    <h3>Вход в Admin</h3>
+    <div class="modal-sub">Доступ к управлению проектами</div>
+    <div class="form-group">
+      <label>Пароль</label>
+      <input type="password" id="pw-input" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div class="modal-error" id="login-error">Неверный пароль</div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeAllModals()">Отмена</button>
+      <button class="btn-primary" onclick="doLogin()">Войти</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Project Modal -->
+<div class="overlay" id="overlay-proj">
+  <div class="modal modal-wizard" id="proj-modal">
+    <div class="wizard-head">
+      <h3 id="proj-modal-title">Новый проект</h3>
+      <div class="modal-sub" id="proj-modal-sub">Подключите Google Sheets за 3 шага</div>
+      <div class="wizard-steps" id="wizard-steps">
+        <div class="wizard-step active" data-step="1"><span class="wizard-step-num">1</span> Основное</div>
+        <div class="wizard-step" data-step="2"><span class="wizard-step-num">2</span> Таблица</div>
+        <div class="wizard-step" data-step="3"><span class="wizard-step-num">3</span> Тип</div>
+      </div>
+    </div>
+
+    <div class="wizard-body">
+      <!-- Step 1 -->
+      <div class="wizard-pane active" data-step="1">
+        <div class="form-group">
+          <label>Название проекта</label>
+          <input type="text" id="proj-name" placeholder="Например: StreamFi" onkeydown="if(event.key==='Enter')wizardNext()">
+        </div>
+        <div class="form-group">
+          <label>Иконка</label>
+          <input type="hidden" id="proj-icon" value="📊">
+          <div class="emoji-picker" id="emoji-picker"></div>
+        </div>
+        <div class="form-group">
+          <label>Валюта</label>
+          <select id="proj-currency">
+            <option value="$">$ Доллар</option>
+            <option value="₽">₽ Рубль</option>
+            <option value="€">€ Евро</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Остаток бюджета <span style="font-weight:400;text-transform:none;color:var(--text-dim)">(необязательно)</span></label>
+          <input type="text" id="proj-budget-remainder" placeholder="Например: 2833" inputmode="decimal">
+          <div class="form-hint">Укажите текущий остаток — бюджет и % расхода посчитаются автоматически: потрачено + остаток</div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="wizard-pane" data-step="2">
+        <div class="form-group">
+          <label>Ссылка на Google Sheets</label>
+          <div class="sheet-paste-wrap">
+            <span class="sheet-paste-icon">📋</span>
+            <input type="text" id="proj-sheet-url" class="sheet-paste-input" placeholder="Вставьте ссылку из браузера — листы подтянутся сами" onpaste="setTimeout(onSheetUrlInput,50)" onblur="onSheetUrlInput()">
+          </div>
+          <div class="sheet-status" id="sheet-status"></div>
+        </div>
+        <div class="sheet-tabs" id="sheet-tabs-wrap" style="display:none">
+          <div class="sheet-tabs-label">Листы <span style="font-weight:400;text-transform:none">(вкладки таблицы)</span></div>
+          <div class="tab-chips" id="tab-chips"></div>
+        </div>
+        <div class="sheet-tabs" id="sheet-cols-wrap" style="display:none">
+          <div class="sheet-tabs-label">Колонки <span style="font-weight:400;text-transform:none">(блоки данных на листе)</span></div>
+          <div class="col-chips" id="col-chips"></div>
+          <div class="sheet-status" id="col-detect-status"></div>
+        </div>
+        <div id="proj-urls-list" class="advanced-only" style="display:none"></div>
+        <button type="button" class="btn-link" id="btn-advanced-urls" onclick="toggleAdvancedUrls()">Расширенные настройки URL</button>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="wizard-pane" data-step="3">
+        <div class="form-group">
+          <label>Тип данных в таблице</label>
+          <input type="hidden" id="proj-type" value="generic">
+          <div class="type-cards" id="type-cards"></div>
+        </div>
+        <div class="wizard-summary" id="wizard-summary"></div>
+      </div>
+
+      <!-- Edit-only sections -->
+      <div id="edit-mode-sections" style="display:none">
+        <div class="edit-section">
+          <div class="edit-section-title">Основное</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Иконка</label>
+              <input type="text" id="proj-icon-edit" placeholder="📊" maxlength="4">
+            </div>
+            <div class="form-group">
+              <label>Название</label>
+              <input type="text" id="proj-name-edit">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Валюта</label>
+              <select id="proj-currency-edit">
+                <option value="$">$ Доллар</option>
+                <option value="₽">₽ Рубль</option>
+                <option value="€">€ Евро</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Тип таблицы</label>
+              <select id="proj-type-edit" onchange="onProjTypeChangeEdit()">
+                <option value="planto">Planto</option>
+                <option value="quadcode">Quadcode</option>
+                <option value="streamfi">StreamFi</option>
+                <option value="generic">Generic</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Остаток бюджета</label>
+            <input type="text" id="proj-budget-remainder-edit" placeholder="Текущий остаток на счёте" inputmode="decimal">
+            <div class="form-hint">Обновляйте вручную — дашборд сам посчитает общий бюджет и % использования</div>
+          </div>
+        </div>
+        <div class="edit-section">
+          <div class="edit-section-title">Google Sheets</div>
+          <div class="sheet-paste-wrap">
+            <span class="sheet-paste-icon">📋</span>
+            <input type="text" id="proj-sheet-url-edit" class="sheet-paste-input" placeholder="Ссылка на таблицу" onpaste="setTimeout(()=>onSheetUrlInput(true),50)" onblur="onSheetUrlInput(true)">
+          </div>
+          <div class="sheet-status" id="sheet-status-edit"></div>
+          <div class="sheet-tabs" id="sheet-tabs-wrap-edit" style="display:none;margin-top:12px">
+            <div class="sheet-tabs-label">Листы</div>
+            <div class="tab-chips" id="tab-chips-edit"></div>
+          </div>
+          <div class="sheet-tabs" id="sheet-cols-wrap-edit" style="display:none;margin-top:12px">
+            <div class="sheet-tabs-label">Колонки</div>
+            <div class="col-chips" id="col-chips-edit"></div>
+            <div class="sheet-status" id="col-detect-status-edit"></div>
+          </div>
+          <div id="proj-urls-list-edit" style="display:none"></div>
+        </div>
+        <div class="edit-section" id="proj-metrics-section">
+          <div class="edit-section-title" style="display:flex;justify-content:space-between;align-items:center">
+            <span>Метрики</span>
+            <button type="button" class="btn-reset-metrics" onclick="resetMetricsEditor()">Сбросить</button>
+          </div>
+          <div class="form-hint" style="margin-bottom:8px">Или наведите на метрику на карточке — ✏️</div>
+          <div id="proj-metrics-list" class="metrics-editor"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-error" id="proj-error" style="margin:0 28px"></div>
+    <div class="wizard-foot">
+      <button class="btn-danger" id="proj-delete-btn" onclick="deleteCurrentProject()" style="display:none">Удалить</button>
+      <div class="spacer"></div>
+      <button class="btn-cancel" id="wizard-back" onclick="wizardBack()" style="display:none">Назад</button>
+      <button class="btn-cancel" onclick="closeAllModals()">Отмена</button>
+      <button class="btn-primary" id="wizard-next" onclick="wizardNext()">Далее</button>
+      <button class="btn-primary" id="wizard-save" onclick="saveProject()" style="display:none">Создать проект</button>
+      <button class="btn-primary" id="edit-save" onclick="saveProject()" style="display:none">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Inline metric edit popover -->
+<div id="metric-edit-popover" class="metric-edit-popover">
+  <div class="mep-title">Метрика</div>
+  <input type="text" id="metric-edit-input" class="mep-input" placeholder="Название" onkeydown="if(event.key==='Enter')saveMetricEdit();if(event.key==='Escape')closeMetricEdit()">
+  <label class="mep-check"><input type="checkbox" id="metric-edit-enabled"> Показывать</label>
+  <div class="mep-actions">
+    <button type="button" class="mep-btn mep-cancel" onclick="closeMetricEdit()">Отмена</button>
+    <button type="button" class="mep-btn mep-save" onclick="saveMetricEdit()">Сохранить</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════════════
+// Fetch strategies tried in order
+const FETCHERS = [
+  // 1. Direct — works when deployed (Netlify/Vercel) or if Google sends CORS headers
+  url => fetch(url),
+  // 2-4. CORS proxies — fallback for local/restricted environments
+  url => fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`),
+  url => fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`),
+  url => fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`),
+];
+const ADMIN_PW = 'elixir2026';
+const ADMIN_KEY = 'elixir_admin';
+const PROJ_KEY  = 'elixir_projects';
+
+// ═══════════════════════════════════════════════════════════════
+// JSONBIN SYNC
+// ═══════════════════════════════════════════════════════════════
+const JB_KEY = '$2a$10$DTMqDZjDfAIYhD74cno3MOxfk.FqSX0r89AzJWgalJtDWxxsxdHWO';
+const JB_BIN = '6a2d1063f5f4af5e29eaccbd';
+const JB_API = 'https://api.jsonbin.io/v3';
+
+async function jbLoad() {
+  const res = await fetch(`${JB_API}/b/${JB_BIN}/latest`, {
+    headers: { 'X-Master-Key': JB_KEY }
+  });
+  if (!res.ok) throw new Error(`JSONBin ${res.status}`);
+  const data = await res.json();
+  return (data.record || []).map(p => ({ ...p, urls: p.urls || (p.url ? [p.url] : []) }));
+}
+
+async function jbSave(arr) {
+  await fetch(`${JB_API}/b/${JB_BIN}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'X-Master-Key': JB_KEY },
+    body: JSON.stringify(arr)
+  });
+}
+
+const DEFAULT_PROJECTS = [
+  { id: 'planto',   name: 'Planto',      icon: '🌱', currency: '₽', type: 'planto',
+    urls: ['https://docs.google.com/spreadsheets/d/1WE2biOwVHwU-VkkjCPnuvHvGkorf3ZWT/export?format=csv'] },
+  { id: 'quadcode', name: 'Quadcode AI', icon: '💻', currency: '$', type: 'quadcode',
+    urls: ['https://docs.google.com/spreadsheets/d/1GRLgK6CnvH4innf7n4k8K_bhQ9nsTl2Q/export?format=csv'] },
+  { id: 'streamfi', name: 'StreamFi',    icon: '📡', currency: '$', type: 'streamfi',
+    urls: ['https://docs.google.com/spreadsheets/d/1j3HKzBOB_4vejxNNgMGTFTnAana1Xoqo/export?format=csv'] },
+];
+
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+let projects = loadProjectsLocal(); // start with local cache, server overwrites
+let cache      = {};
+let tileMonths = {};
+let view         = 'overview';
+let currentMonth = null;
+let chartInstance = null;
+let overviewChartInstance = null;
+let editingProjId = null;
+let wizardStep = 1;
+let isEditMode = false;
+let discoveredTabsCache = { add: [], edit: [] };
+let sheetPreviewCache = { headers: [], type: 'generic', rowCount: 0 };
+
+const EMOJI_OPTIONS = ['📊','📡','🌱','💻','🚀','📱','💰','🎯','⚡','🔥','📈','🎮','🛒','💎','🌍','✨'];
+const TYPE_TEMPLATES = [
+  { id: 'streamfi', icon: '📡', name: 'StreamFi / UA', desc: 'Спенд + целевые действия / регистрации' },
+  { id: 'planto',   icon: '🌱', name: 'Planto',   desc: 'Installs, Trials, FB' },
+  { id: 'quadcode', icon: '💻', name: 'Quadcode', desc: 'Regs, Installs, Purchases' },
+  { id: 'generic',  icon: '📊', name: 'Generic',  desc: 'Только Spend' },
+];
+
+// ═══════════════════════════════════════════════════════════════
+// PROJECTS STORAGE
+// ═══════════════════════════════════════════════════════════════
+function loadProjectsLocal() {
+  try {
+    const saved = localStorage.getItem(PROJ_KEY);
+    if (saved) {
+      const arr = JSON.parse(saved);
+      return arr.map(p => ({ ...p, urls: p.urls || (p.url ? [p.url] : []) }));
+    }
+  } catch(e) {}
+  return JSON.parse(JSON.stringify(DEFAULT_PROJECTS));
+}
+
+async function loadProjects() {
+  try {
+    const remote = await jbLoad();
+    if (remote && remote.length) {
+      projects = remote;
+      localStorage.setItem(PROJ_KEY, JSON.stringify(projects)); // update local cache
+      return;
+    }
+  } catch(e) { console.warn('JSONBin load failed, using local:', e.message); }
+  projects = loadProjectsLocal();
+}
+
+function saveProjects() {
+  localStorage.setItem(PROJ_KEY, JSON.stringify(projects));
+  jbSave(projects).catch(e => console.warn('JSONBin save failed:', e.message));
+}
+function genId(name) {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').slice(0, 20) + '_' + Date.now();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CSV PARSING
+// ═══════════════════════════════════════════════════════════════
+function parseCSV(text) {
+  return text.split('\n').map(line => {
+    line = line.trim();
+    if (!line) return null;
+    const cols = []; let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') { inQ = !inQ; continue; }
+      if (c === ',' && !inQ) { cols.push(cur.trim()); cur = ''; } else cur += c;
+    }
+    cols.push(cur.trim());
+    return cols;
+  }).filter(Boolean);
+}
+
+function parseDate(str) {
+  if (!str) return null;
+  str = str.trim();
+  const m = str.match(/^(\d{1,2})[\/\.](\d{1,2})[\/\.](\d{4})$/);
+  if (!m) return null;
+  const d = +m[1], mo = +m[2], y = +m[3];
+  if (d < 1 || d > 31 || mo < 1 || mo > 12) return null;
+  const dt = new Date(y, mo - 1, d);
+  return isNaN(dt.getTime()) ? null : dt;
+}
+
+function dateToMonthKey(dt) {
+  return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`;
+}
+
+function fmtDateStr(dt) {
+  return `${String(dt.getDate()).padStart(2,'0')}.${String(dt.getMonth()+1).padStart(2,'0')}.${dt.getFullYear()}`;
+}
+
+function parseNum(s) {
+  if (!s) return 0;
+  s = String(s).trim();
+  if (!s || s === '-' || /^#/.test(s)) return 0;
+  s = s.replace(/[₽$€\s]/g, '');
+  if (s.includes('.') && s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  else if (s.includes(',')) s = s.replace(',', '.');
+  s = s.replace(/[^\d.\-]/g, '');
+  return parseFloat(s) || 0;
+}
+
+function hasData(obj) {
+  return Object.entries(obj).some(([k,v]) => k !== 'date' && k !== 'dateStr' && v !== 0);
+}
+
+function parsePlantoRows(rows) {
+  return rows.slice(1).map(r => {
+    const dateStr = r[0] || '';
+    if (/итого|total/i.test(dateStr) || !dateStr.trim()) return null;
+    const dt = parseDate(dateStr);
+    if (!dt) return null;
+    const obj = { date: dt, dateStr: fmtDateStr(dt),
+      spend: parseNum(r[1]), installs: parseNum(r[2]), trials: parseNum(r[4]), fb: parseNum(r[7]) };
+    return hasData(obj) ? obj : null;
+  }).filter(Boolean);
+}
+
+function parseQuadcodeRows(rows) {
+  return rows.slice(1).map(r => {
+    const dateStr = r[0] || '';
+    if (/итого|total/i.test(dateStr) || !dateStr.trim()) return null;
+    const dt = parseDate(dateStr);
+    if (!dt) return null;
+    const obj = { date: dt, dateStr: fmtDateStr(dt),
+      spend: parseNum(r[1]), regs: parseNum(r[2]), installs: parseNum(r[3]), purchases: parseNum(r[6]) };
+    return hasData(obj) ? obj : null;
+  }).filter(Boolean);
+}
+
+function findCol(headers, keywords, exclude = []) {
+  for (let i = 0; i < headers.length; i++) {
+    const h = (headers[i] || '').toLowerCase().trim();
+    if (exclude.some(e => h.includes(e))) continue;
+    if (keywords.some(k => h.includes(k))) return i;
+  }
+  return -1;
+}
+
+function detectSheetType(headerRow) {
+  const headers = (headerRow || []).map(h => (h || '').toLowerCase().trim());
+  if (findCol(headers, ['install', 'trial', 'fb'], ['cost', 'цена']) >= 0) return 'planto';
+  if (findCol(headers, ['purchase', 'purch'], []) >= 0 && findCol(headers, ['reg'], ['целев', 'цена']) >= 0) return 'quadcode';
+  if (findCol(headers, ['целев', 'результат', 'действ', 'ключев', 'qual', 'qreg', 'target'], ['цена', 'cost', 'cpa', 'цел. рег', 'целевая рег', '/']) >= 0) return 'streamfi';
+  if (findCol(headers, ['спенд', 'spend', 'расход'], []) >= 0) return 'streamfi';
+  return 'generic';
+}
+
+function isCostHeader(h) {
+  h = (h || '').toLowerCase();
+  return /цена|cost|cpa|cpc|cpl|cpr|за\s|\/\s*reg|per\s/i.test(h) || /^цена\s/.test(h);
+}
+
+function findStreamfiColumns(headerRow) {
+  const headers = headerRow.map(h => (h || '').toLowerCase().trim());
+  const dateCol = Math.max(findCol(headers, ['дата', 'date']), 0);
+  const spendCol = findCol(headers, ['спенд', 'spend', 'расход']);
+
+  const qregExclude = ['цена', 'cost', 'cpa', 'cpc', 'cpl', 'за ', 'цел действ', 'цел. действ', 'целевой рег', 'целевая рег', 'цел.рег', '/'];
+  let qregCol = -1;
+  const qregPriority = [
+    ['целевые рег'], ['целевые дей'], ['ключевые дей'], ['ключев'], ['целев рег'],
+    ['qualified'], ['qregs'], ['результат'], ['target reg'], ['target'],
+  ];
+  for (const keys of qregPriority) {
+    const i = findCol(headers, keys, qregExclude);
+    if (i >= 0 && !isCostHeader(headers[i])) { qregCol = i; break; }
+  }
+  if (qregCol < 0) {
+    qregCol = findCol(headers, ['целев', 'действ', 'результат', 'qual', 'qreg'], qregExclude);
+    if (qregCol >= 0 && isCostHeader(headers[qregCol])) qregCol = -1;
+  }
+
+  let regCol = findCol(headers, ['регистрац', 'regs', 'registrations'], ['целев', 'цена', 'cost', 'действ', 'ключев', 'результат']);
+  if (regCol === qregCol) regCol = -1;
+
+  // Один столбец «регистрации» без отдельных целевых — считаем его ключевой метрикой
+  if (qregCol < 0 && regCol >= 0) {
+    qregCol = regCol;
+    regCol = -1;
+  }
+
+  // Fallback: первый не-cost столбец после spend
+  if (qregCol < 0 && spendCol >= 0) {
+    for (let i = spendCol + 1; i < headers.length; i++) {
+      if (!isCostHeader(headers[i]) && !/дата|date/i.test(headers[i])) { qregCol = i; break; }
+    }
+  }
+
+  const sc = spendCol >= 0 ? spendCol : 1;
+  const qc = qregCol >= 0 ? qregCol : 2;
+  const rc = regCol >= 0 && regCol !== qc ? regCol : -1;
+  return { dateCol, sc, qc, rc };
+}
+
+function parseStreamfiRows(rows) {
+  if (!rows.length) return [];
+  const { dateCol, sc, qc, rc } = findStreamfiColumns(rows[0]);
+
+  return rows.slice(1).map(r => {
+    const dateStr = (r[dateCol] || '').trim();
+    if (/итого|total/i.test(dateStr) || !dateStr) return null;
+    const dt = parseDate(dateStr);
+    if (!dt) return null;
+    const obj = { date: dt, dateStr: fmtDateStr(dt),
+      spend: parseNum(r[sc]), qregs: parseNum(r[qc]) };
+    if (rc >= 0) obj.regs = parseNum(r[rc]);
+    return obj;
+  }).filter(Boolean);
+}
+
+function parseGenericRows(rows) {
+  return rows.slice(1).map(r => {
+    const dateStr = r[0] || '';
+    if (/итого|total/i.test(dateStr) || !dateStr.trim()) return null;
+    const dt = parseDate(dateStr);
+    if (!dt) return null;
+    const obj = { date: dt, dateStr: fmtDateStr(dt), spend: parseNum(r[1]) };
+    return hasData(obj) ? obj : null;
+  }).filter(Boolean);
+}
+
+function parseSheet(text, type) {
+  const rows = parseCSV(text);
+  if (!rows.length) return [];
+  let t = type;
+  if (t === 'generic') {
+    const d = detectSheetType(rows[0]);
+    if (d !== 'generic') t = d;
+  }
+  if (t === 'planto')   return parsePlantoRows(rows);
+  if (t === 'quadcode') return parseQuadcodeRows(rows);
+  if (t === 'streamfi') return parseStreamfiRows(rows);
+  return parseGenericRows(rows);
+}
+
+function getEffectiveType(proj, rows) {
+  if (proj.type !== 'generic') return proj.type;
+  if (!rows || !rows.length) return proj.type;
+  const s = rows[0];
+  if ('qregs' in s) return 'streamfi';
+  if ('installs' in s) return 'planto';
+  if ('purchases' in s) return 'quadcode';
+  if ('regs' in s) return 'streamfi';
+  return proj.type;
+}
+
+function withEffectiveType(proj, rows) {
+  const type = getEffectiveType(proj, rows);
+  return type === proj.type ? proj : { ...proj, type };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FETCH
+// ═══════════════════════════════════════════════════════════════
+async function fetchWithFallback(url) {
+  let lastErr;
+  for (const fetcher of FETCHERS) {
+    try {
+      const resp = await fetcher(url);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const text = await resp.text();
+      if (text.trim().startsWith('<!')) throw new Error('Got HTML instead of CSV');
+      if (text.trim().length < 10) throw new Error('Empty response');
+      return text;
+    } catch(e) { lastErr = e; console.warn('Fetch attempt failed:', e.message); }
+  }
+  throw lastErr;
+}
+
+async function fetchProject(proj) {
+  const urls = proj.urls && proj.urls.length ? proj.urls : (proj.url ? [proj.url] : []);
+  const results = await Promise.allSettled(urls.map(u => fetchWithFallback(u)));
+  const all = [];
+  results.forEach((r, i) => {
+    if (r.status === 'fulfilled') {
+      const rows = parseSheet(r.value, proj.type);
+      rows.forEach(row => all.push(row));
+    } else {
+      console.warn(`URL[${i}] failed:`, r.reason);
+    }
+  });
+  if (!all.length && results.every(r => r.status === 'rejected')) throw results[0].reason;
+  // deduplicate by dateStr, last write wins
+  const map = new Map();
+  all.forEach(r => map.set(r.dateStr, r));
+  return [...map.values()].sort((a, b) => a.date - b.date);
+}
+
+async function loadAll() {
+  projects.forEach(p => { cache[p.id] = 'loading'; });
+  renderSidebar();
+  renderContent();
+  await Promise.allSettled(projects.map(async p => {
+    try { cache[p.id] = await fetchProject(p); }
+    catch(e) { console.error(p.id, e); cache[p.id] = null; }
+    if (view === 'overview') renderContent();
+    else if (view === p.id) renderContent();
+  }));
+  if (view === 'overview') renderContent();
+}
+
+async function refreshData() {
+  const btn = document.getElementById('btn-refresh');
+  btn.classList.add('spinning'); btn.disabled = true;
+  try { await loadAll(); } finally {
+    btn.classList.remove('spinning'); btn.disabled = false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// METRICS / TABLE / CHART CONFIG PER TYPE
+// ═══════════════════════════════════════════════════════════════
+const METRIC_CATALOG = {
+  planto: [
+    { key: 'spend', label: 'Total Spend', accent: false },
+    { key: 'installs', label: 'Installs', accent: false },
+    { key: 'cost_install', label: 'Cost / Install', accent: true },
+    { key: 'trials', label: 'Trials', accent: false },
+    { key: 'cost_trial', label: 'Cost / Trial', accent: true },
+    { key: 'fb', label: 'FB (Purchases)', accent: false },
+  ],
+  quadcode: [
+    { key: 'spend', label: 'Total Spend', accent: false },
+    { key: 'regs', label: 'Registrations', accent: false },
+    { key: 'cost_reg', label: 'Cost / Reg', accent: true },
+    { key: 'installs', label: 'Installs', accent: false },
+    { key: 'cost_install', label: 'Cost / Install', accent: true },
+    { key: 'purchases', label: 'Purchases', accent: false },
+    { key: 'cost_purchase', label: 'Cost / Purchase', accent: true },
+  ],
+  streamfi: [
+    { key: 'spend', label: 'Total Spend', accent: false },
+    { key: 'regs', label: 'Регистрации', accent: false },
+    { key: 'qregs', label: 'Целевые действия', accent: false },
+    { key: 'cost_qreg', label: 'Cost / Цел. действие', accent: true },
+    { key: 'conv_rate', label: 'Conv. Rate', accent: false },
+  ],
+  generic: [
+    { key: 'spend', label: 'Total Spend', accent: false },
+  ],
+};
+
+function sum(rows, key) { return rows.reduce((a,r) => a + (r[key]||0), 0); }
+
+function fmtMoney(n, cur) {
+  if (!n && n !== 0) return '—';
+  const abs = Math.abs(n);
+  const s = abs >= 1000 ? abs.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,' ') : abs.toFixed(2);
+  return cur === '$' ? '$'+s : s+' '+cur;
+}
+function fmtMoneyFull(n, cur) {
+  if (!n && n !== 0) return '—';
+  return cur === '$' ? '$'+Math.abs(n).toFixed(2) : Math.abs(n).toFixed(2)+' '+cur;
+}
+function fmtInt(n) { return Math.round(n||0).toLocaleString('ru-RU'); }
+
+function computeMetricValue(key, type, rows, cur) {
+  const sp = sum(rows, 'spend');
+  switch (key) {
+    case 'spend': return fmtMoney(sp, cur);
+    case 'installs': return fmtInt(sum(rows, 'installs'));
+    case 'trials': return fmtInt(sum(rows, 'trials'));
+    case 'fb': return fmtInt(sum(rows, 'fb'));
+    case 'regs': return fmtInt(sum(rows, 'regs'));
+    case 'qregs': return fmtInt(sum(rows, 'qregs'));
+    case 'purchases': return fmtInt(sum(rows, 'purchases'));
+    case 'cost_install': { const v = sum(rows, 'installs'); return v ? fmtMoney(sp / v, cur) : '—'; }
+    case 'cost_trial': { const v = sum(rows, 'trials'); return v ? fmtMoney(sp / v, cur) : '—'; }
+    case 'cost_reg': { const v = sum(rows, 'regs'); return v ? fmtMoney(sp / v, cur) : '—'; }
+    case 'cost_purchase': { const v = sum(rows, 'purchases'); return v ? fmtMoney(sp / v, cur) : '—'; }
+    case 'cost_qreg': { const v = sum(rows, 'qregs'); return v ? fmtMoney(sp / v, cur) : '—'; }
+    case 'conv_rate': {
+      const rg = sum(rows, 'regs'), qg = sum(rows, 'qregs');
+      return rg ? ((qg / rg * 100).toFixed(1) + '%') : '—';
+    }
+    default: return '—';
+  }
+}
+
+function mergeMetricsConfig(type, saved, catalogOverride) {
+  const catalog = catalogOverride || METRIC_CATALOG[type] || METRIC_CATALOG.generic;
+  const catalogMap = Object.fromEntries(catalog.map(m => [m.key, m]));
+  const merged = [];
+  const used = new Set();
+
+  (saved || []).forEach(s => {
+    if (!catalogMap[s.key]) return;
+    const base = catalogMap[s.key];
+    merged.push({
+      key: s.key,
+      label: s.label || base.label,
+      accent: base.accent,
+      enabled: s.enabled !== false,
+    });
+    used.add(s.key);
+  });
+
+  catalog.forEach(m => {
+    if (!used.has(m.key)) merged.push({ ...m, enabled: true });
+  });
+  return merged;
+}
+
+function sheetHasRegs(proj, rows) {
+  if (proj.sheetColumns && proj.sheetColumns.length) {
+    const h = proj.sheetColumns.map(c => (c || '').toLowerCase());
+    const { rc } = findStreamfiColumns(proj.sheetColumns);
+    return rc >= 0;
+  }
+  return rows && rows.length && rows.some(r => 'regs' in r && r.regs > 0);
+}
+
+function getMetricsCatalogForProj(proj, rows) {
+  const type = rows ? getEffectiveType(proj, rows) : proj.type;
+  let catalog = METRIC_CATALOG[type] || METRIC_CATALOG.generic;
+  if (type === 'streamfi' && !sheetHasRegs(proj, rows)) {
+    catalog = catalog.filter(m => m.key !== 'regs' && m.key !== 'conv_rate');
+  }
+  return catalog;
+}
+
+function getProjectMetricsConfig(proj, rows) {
+  const type = rows ? getEffectiveType(proj, rows) : proj.type;
+  const catalog = getMetricsCatalogForProj({ ...proj, type }, rows);
+  return mergeMetricsConfig(type, proj.metrics, catalog);
+}
+
+function getMetricLabel(proj, key, fallback, rows) {
+  const cfg = getProjectMetricsConfig(proj, rows).find(m => m.key === key);
+  return cfg ? cfg.label : fallback;
+}
+
+function getMetrics(proj, rows) {
+  const p = withEffectiveType(proj, rows);
+  return getProjectMetricsConfig(p, rows)
+    .filter(m => m.enabled !== false)
+    .map(m => ({
+      label: m.label,
+      value: computeMetricValue(m.key, p.type, rows, p.currency),
+      accent: m.accent,
+      key: m.key,
+    }));
+}
+
+function getTileMetrics(proj, rows) {
+  return getMetrics(proj, rows);
+}
+
+function getTableConfig(proj, rows) {
+  const p = withEffectiveType(proj, rows || []);
+  const cur = p.currency;
+  const type = p.type;
+  const L = (key, fb) => getMetricLabel(p, key, fb, rows);
+  let tbl, colKeys;
+
+  if (type === 'planto') {
+    colKeys = ['date', 'spend', 'installs', 'cost_install', 'trials', 'cost_trial', 'fb'];
+    tbl = {
+    headers: ['Дата', `Spend (${cur})`, L('installs','Installs'), L('cost_install','Cost/Install'), L('trials','Trials'), L('cost_trial','Cost/Trial'), L('fb','FB')],
+    row: (r) => [r.dateStr, fmtMoneyFull(r.spend,cur), fmtInt(r.installs), r.installs?fmtMoney(r.spend/r.installs,cur):'—', fmtInt(r.trials), r.trials?fmtMoney(r.spend/r.trials,cur):'—', fmtInt(r.fb)],
+    total: (rows) => { const sp=sum(rows,'spend'),ins=sum(rows,'installs'),tr=sum(rows,'trials'),fb=sum(rows,'fb');
+      return ['Итого',fmtMoneyFull(sp,cur),fmtInt(ins),ins?fmtMoney(sp/ins,cur):'—',fmtInt(tr),tr?fmtMoney(sp/tr,cur):'—',fmtInt(fb)]; }
+    };
+  } else if (type === 'quadcode') {
+    colKeys = ['date', 'spend', 'regs', 'cost_reg', 'installs', 'cost_install', 'purchases', 'cost_purchase'];
+    tbl = {
+    headers: ['Дата', `Spend (${cur})`, L('regs','Regs'), L('cost_reg','Cost/Reg'), L('installs','Installs'), L('cost_install','Cost/Install'), L('purchases','Purchases'), L('cost_purchase','Cost/Purchase')],
+    row: (r) => [r.dateStr, fmtMoneyFull(r.spend,cur), fmtInt(r.regs), r.regs?fmtMoney(r.spend/r.regs,cur):'—', fmtInt(r.installs), r.installs?fmtMoney(r.spend/r.installs,cur):'—', fmtInt(r.purchases), r.purchases?fmtMoney(r.spend/r.purchases,cur):'—'],
+    total: (rows) => { const sp=sum(rows,'spend'),rg=sum(rows,'regs'),ins=sum(rows,'installs'),pu=sum(rows,'purchases');
+      return ['Итого',fmtMoneyFull(sp,cur),fmtInt(rg),rg?fmtMoney(sp/rg,cur):'—',fmtInt(ins),ins?fmtMoney(sp/ins,cur):'—',fmtInt(pu),pu?fmtMoney(sp/pu,cur):'—']; }
+    };
+  } else if (type === 'streamfi') {
+    const hasRegs = sheetHasRegs(p, rows);
+    colKeys = hasRegs
+      ? ['date', 'spend', 'regs', 'qregs', 'cost_qreg']
+      : ['date', 'spend', 'qregs', 'cost_qreg'];
+    tbl = {
+    headers: hasRegs
+      ? ['Дата', `Spend (${cur})`, L('regs','Регистрации'), L('qregs','Целевые действия'), L('cost_qreg','Cost/Цел.действие')]
+      : ['Дата', `Spend (${cur})`, L('qregs','Целевые действия'), L('cost_qreg','Cost/Цел.действие')],
+    row: (r) => {
+      const cols = [r.dateStr, fmtMoneyFull(r.spend,cur)];
+      if (hasRegs) cols.push(fmtInt(r.regs||0));
+      cols.push(fmtInt(r.qregs), r.qregs?fmtMoney(r.spend/r.qregs,cur):'—');
+      return cols;
+    },
+    total: (rows) => {
+      const sp=sum(rows,'spend'), qg=sum(rows,'qregs'), rg=sum(rows,'regs');
+      const cols = ['Итого',fmtMoneyFull(sp,cur)];
+      if (hasRegs) cols.push(fmtInt(rg));
+      cols.push(fmtInt(qg), qg?fmtMoney(sp/qg,cur):'—');
+      return cols;
+    }
+    };
+  } else {
+    colKeys = ['date', 'spend'];
+    tbl = {
+    headers: ['Дата', `Spend (${cur})`],
+    row: (r) => [r.dateStr, fmtMoneyFull(r.spend,cur)],
+    total: (rows) => ['Итого', fmtMoneyFull(sum(rows,'spend'),cur)]
+    };
+  }
+  return filterTableByMetrics(p, tbl, colKeys, rows);
+}
+
+function filterTableByMetrics(proj, tbl, colKeys, rows) {
+  const enabled = new Set(getProjectMetricsConfig(proj, rows).filter(m => m.enabled !== false).map(m => m.key));
+  const indices = colKeys.map((k, i) => (k === 'date' || k === 'spend' || enabled.has(k)) ? i : -1).filter(i => i >= 0);
+  return {
+    headers: indices.map(i => tbl.headers[i]),
+    columnKeys: indices.map(i => colKeys[i]),
+    row: (r) => indices.map(i => tbl.row(r)[i]),
+    total: (rows) => indices.map(i => tbl.total(rows)[i]),
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ANALYTICS (auto-calculated)
+// ═══════════════════════════════════════════════════════════════
+function parseBudgetRemainder(val) {
+  if (val === '' || val == null || val === undefined) return null;
+  const n = parseNum(String(val));
+  return n > 0 || val === '0' || val === 0 ? n : null;
+}
+
+function getBudgetRemainder(proj) {
+  const n = proj.budgetRemainder;
+  return n != null && !isNaN(n) ? n : null;
+}
+
+function computeBudgetAnalytics(proj, allData) {
+  const remainder = getBudgetRemainder(proj);
+  if (remainder == null) return null;
+  const spent = sum(allData || [], 'spend');
+  const total = spent + remainder;
+  if (total <= 0) return null;
+  const usedPct = Math.min(100, (spent / total) * 100);
+  return { remainder, spent, total, usedPct, leftPct: 100 - usedPct };
+}
+
+function getPrevMonthKey(mk) {
+  const [y, m] = mk.split('-').map(Number);
+  return dateToMonthKey(new Date(y, m - 2, 1));
+}
+
+function fmtDelta(cur, prev, lowerIsBetter = false) {
+  if (prev == null || prev === 0) return { text: '—', cls: 'neutral' };
+  const diff = cur - prev;
+  const pct = (diff / prev) * 100;
+  const improved = lowerIsBetter ? diff < 0 : diff > 0;
+  const sign = diff > 0 ? '+' : '';
+  return {
+    text: `${sign}${pct.toFixed(1)}%`,
+    cls: Math.abs(pct) < 0.05 ? 'neutral' : (improved ? 'up' : 'down'),
+  };
+}
+
+function computePeriodComparison(proj, allData, monthKey) {
+  if (!monthKey || !allData?.length) return null;
+  const prevKey = getPrevMonthKey(monthKey);
+  const months = getMonths(allData);
+  if (!months.includes(prevKey)) return null;
+  const p = withEffectiveType(proj, rowsForMonth(allData, monthKey));
+  const curRows = rowsForMonth(allData, monthKey);
+  const prevRows = rowsForMonth(allData, prevKey);
+  if (!curRows.length || !prevRows.length) return null;
+
+  const curSpend = sum(curRows, 'spend');
+  const prevSpend = sum(prevRows, 'spend');
+  const curResult = getPrimaryResult(p.type, curRows);
+  const prevResult = getPrimaryResult(p.type, prevRows);
+  const curCpa = curResult ? curSpend / curResult : null;
+  const prevCpa = prevResult ? prevSpend / prevResult : null;
+
+  const items = [
+    { label: 'Spend', cur: fmtMoney(curSpend, p.currency), delta: fmtDelta(curSpend, prevSpend, true) },
+    { label: 'Результат', cur: fmtInt(curResult), delta: fmtDelta(curResult, prevResult) },
+  ];
+  if (curCpa != null && prevCpa != null) {
+    items.push({ label: 'CPA / CPI', cur: fmtMoney(curCpa, p.currency), delta: fmtDelta(curCpa, prevCpa, true) });
+  }
+  return { prevLabel: formatMonthKey(prevKey), items };
+}
+
+function computeFunnels(proj, rows) {
+  if (!rows?.length) return [];
+  const p = withEffectiveType(proj, rows);
+  const type = p.type;
+  const steps = [];
+
+  if (type === 'quadcode') {
+    const rg = sum(rows, 'regs'), ins = sum(rows, 'installs'), pu = sum(rows, 'purchases');
+    if (rg > 0) steps.push({ label: 'Reg → Install', pct: (ins / rg) * 100, count: `${fmtInt(ins)} / ${fmtInt(rg)}` });
+    if (ins > 0) steps.push({ label: 'Install → Purchase', pct: (pu / ins) * 100, count: `${fmtInt(pu)} / ${fmtInt(ins)}` });
+    if (rg > 0 && pu > 0) steps.push({ label: 'Reg → Purchase', pct: (pu / rg) * 100, count: `${fmtInt(pu)} / ${fmtInt(rg)}` });
+  } else if (type === 'streamfi') {
+    const rg = sum(rows, 'regs'), qg = sum(rows, 'qregs');
+    if (sheetHasRegs(p, rows) && rg > 0) {
+      steps.push({ label: 'Reg → Целевое', pct: (qg / rg) * 100, count: `${fmtInt(qg)} / ${fmtInt(rg)}` });
+    }
+  } else if (type === 'planto') {
+    const ins = sum(rows, 'installs'), tr = sum(rows, 'trials'), fb = sum(rows, 'fb');
+    if (ins > 0) steps.push({ label: 'Install → Trial', pct: (tr / ins) * 100, count: `${fmtInt(tr)} / ${fmtInt(ins)}` });
+    if (tr > 0) steps.push({ label: 'Trial → FB', pct: (fb / tr) * 100, count: `${fmtInt(fb)} / ${fmtInt(tr)}` });
+    if (ins > 0 && fb > 0) steps.push({ label: 'Install → FB', pct: (fb / ins) * 100, count: `${fmtInt(fb)} / ${fmtInt(ins)}` });
+  }
+  return steps;
+}
+
+function getRowPrimaryResult(type, row) {
+  if (type === 'streamfi') return row.qregs || 0;
+  if (type === 'quadcode') return row.regs || 0;
+  if (type === 'planto') return row.installs || 0;
+  return 0;
+}
+
+function computeDayInsights(proj, rows) {
+  if (!rows?.length) return null;
+  const p = withEffectiveType(proj, rows);
+  const type = p.type;
+  const withResult = rows.map(r => {
+    const res = getRowPrimaryResult(type, r);
+    const cpa = res > 0 ? r.spend / res : null;
+    return { dateStr: r.dateStr, spend: r.spend, result: res, cpa };
+  }).filter(r => r.spend > 0);
+
+  if (!withResult.length) return null;
+
+  const best = withResult.filter(r => r.result > 0).sort((a, b) => a.cpa - b.cpa)[0];
+  const worstSpend = [...withResult].sort((a, b) => b.spend - a.spend)[0];
+  const zeroResult = withResult.filter(r => r.result === 0);
+  const avgDailySpend = sum(withResult, 'spend') / withResult.length;
+
+  return {
+    best: best ? { date: best.dateStr, value: fmtMoney(best.cpa, p.currency) } : null,
+    topSpend: worstSpend ? { date: worstSpend.dateStr, value: fmtMoney(worstSpend.spend, p.currency) } : null,
+    zeroDays: zeroResult.length,
+    avgDailySpend: fmtMoney(avgDailySpend, p.currency),
+  };
+}
+
+function renderBudgetCard(proj, allData, compact) {
+  const cur = proj.currency;
+  const budget = computeBudgetAnalytics(proj, allData);
+  const remainder = getBudgetRemainder(proj);
+
+  if (compact) {
+    if (!budget) return '';
+    return `<div class="tile-budget">
+      <div class="tile-budget-top"><span>Бюджет: ${budget.usedPct.toFixed(0)}% использовано</span><span>${fmtMoney(budget.remainder, cur)} остаток</span></div>
+      <div class="tile-budget-bar"><div class="tile-budget-fill" style="width:${budget.usedPct}%"></div></div>
+    </div>`;
+  }
+
+  let inner = '';
+  if (budget) {
+    const warn = budget.usedPct >= 85;
+    inner = `<div class="budget-stats">
+      <div class="budget-stat"><div class="budget-stat-label">Потрачено</div><div class="budget-stat-value">${fmtMoney(budget.spent, cur)}</div></div>
+      <div class="budget-stat"><div class="budget-stat-label">Остаток</div><div class="budget-stat-value">${fmtMoney(budget.remainder, cur)}</div></div>
+      <div class="budget-stat"><div class="budget-stat-label">Бюджет всего</div><div class="budget-stat-value">${fmtMoney(budget.total, cur)}</div></div>
+    </div>
+    <div class="budget-progress"><div class="budget-progress-fill${warn ? ' warn' : ''}" style="width:${budget.usedPct.toFixed(1)}%"></div></div>
+    <div class="budget-progress-meta"><span>Использовано ${budget.usedPct.toFixed(1)}%</span><span>Осталось ${budget.leftPct.toFixed(1)}%</span></div>`;
+  } else {
+    inner = `<div class="budget-hint">Укажите текущий остаток бюджета — дашборд автоматически посчитает общий бюджет и долю расхода.</div>`;
+  }
+
+  const inputVal = remainder != null ? remainder : '';
+  const adminInput = isAdmin()
+    ? `<div class="budget-input-row">
+        <input type="text" id="budget-remainder-input" placeholder="Остаток (${cur})" value="${inputVal}" inputmode="decimal" onkeydown="if(event.key==='Enter')saveBudgetRemainder('${proj.id}')">
+        <button type="button" class="btn-budget-save" onclick="saveBudgetRemainder('${proj.id}')">Сохранить</button>
+      </div>`
+    : (remainder != null ? '' : '<div class="budget-hint">Остаток не задан — попросите админа указать в настройках проекта.</div>');
+
+  return `<div class="analytics-card">
+    <div class="analytics-card-title">Бюджет</div>
+    ${inner}
+    ${adminInput}
+    ${budget ? '<div class="budget-hint">Формула: бюджет всего = потрачено по таблице + ваш остаток</div>' : ''}
+  </div>`;
+}
+
+function renderAnalyticsSection(proj, allData, rows, monthKey) {
+  const compare = computePeriodComparison(proj, allData, monthKey);
+  const funnels = computeFunnels(proj, rows);
+  const insights = computeDayInsights(proj, rows);
+  const budgetHtml = renderBudgetCard(proj, allData, false);
+
+  let compareHtml = '';
+  if (compare) {
+    compareHtml = `<div class="analytics-card">
+      <div class="analytics-card-title">Сравнение с ${compare.prevLabel}</div>
+      <div class="compare-grid">${compare.items.map(it => `
+        <div class="compare-item">
+          <div class="compare-label">${escHtml(it.label)}</div>
+          <div class="compare-value">${it.cur}</div>
+          <div class="compare-delta ${it.delta.cls}">${it.delta.text}</div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  let funnelHtml = '';
+  if (funnels.length) {
+    funnelHtml = `<div class="analytics-card">
+      <div class="analytics-card-title">Воронка конверсии</div>
+      <div class="funnel-steps">${funnels.map(s => `
+        <div class="funnel-step">
+          <div class="funnel-step-label">${escHtml(s.label)}</div>
+          <div class="funnel-bar-wrap"><div class="funnel-bar" style="width:${Math.min(100, s.pct)}%"></div></div>
+          <div class="funnel-step-val">${s.pct.toFixed(1)}%</div>
+        </div>
+        <div style="font-size:10px;color:var(--text-dim);margin:-6px 0 0 122px">${escHtml(s.count)}</div>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  let insightsHtml = '';
+  if (insights) {
+    insightsHtml = `<div class="analytics-card">
+      <div class="analytics-card-title">Инсайты за период</div>
+      <div class="insights-list">
+        ${insights.best ? `<div class="insight-row best"><span>Лучший CPA</span><span>${insights.best.date} · ${insights.best.value}</span></div>` : ''}
+        ${insights.topSpend ? `<div class="insight-row"><span>Макс. spend за день</span><span>${insights.topSpend.date} · ${insights.topSpend.value}</span></div>` : ''}
+        <div class="insight-row"><span>Средний spend / день</span><span>${insights.avgDailySpend}</span></div>
+        ${insights.zeroDays ? `<div class="insight-row worst"><span>Дней без результата</span><span>${insights.zeroDays}</span></div>` : ''}
+      </div>
+    </div>`;
+  }
+
+  if (!budgetHtml && !compareHtml && !funnelHtml && !insightsHtml) return '';
+
+  return `<div class="analytics-section">
+    <div class="section-header"><span class="section-title">Аналитика</span></div>
+    <div class="analytics-grid">
+      ${budgetHtml}
+      ${compareHtml}
+      ${funnelHtml}
+      ${insightsHtml}
+    </div>
+  </div>`;
+}
+
+function saveBudgetRemainder(projId) {
+  const input = document.getElementById('budget-remainder-input');
+  if (!input) return;
+  const idx = projects.findIndex(p => p.id === projId);
+  if (idx < 0) return;
+  const val = parseBudgetRemainder(input.value.trim());
+  projects[idx] = { ...projects[idx], budgetRemainder: val };
+  saveProjects();
+  renderContent();
+}
+
+const METRIC_EDIT_ICON = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>`;
+let metricEditCtx = null;
+
+function renderEditableLabel(projId, key, label, wrapClass) {
+  if (!isAdmin() || key === 'date') return escHtml(label);
+  return `<span class="${wrapClass}">
+    <span class="metric-label-text">${escHtml(label)}</span>
+    <button type="button" class="metric-edit-btn" onclick="openMetricEdit(event,'${projId}','${key}')" title="Изменить">${METRIC_EDIT_ICON}</button>
+  </span>`;
+}
+
+function getMetricConfigEntry(proj, key, rows) {
+  return getProjectMetricsConfig(proj, rows).find(m => m.key === key);
+}
+
+function openMetricEdit(e, projId, key) {
+  e.preventDefault();
+  e.stopPropagation();
+  const p = projects.find(x => x.id === projId);
+  if (!p) return;
+  const entry = getMetricConfigEntry(p, key);
+  if (!entry) return;
+
+  metricEditCtx = { projId, key };
+  const pop = document.getElementById('metric-edit-popover');
+  const input = document.getElementById('metric-edit-input');
+  const enabled = document.getElementById('metric-edit-enabled');
+  input.value = entry.label;
+  enabled.checked = entry.enabled !== false;
+  pop.classList.add('show');
+
+  const btn = e.currentTarget;
+  const rect = btn.getBoundingClientRect();
+  let top = rect.bottom + 6;
+  let left = rect.left - 180;
+  if (left < 8) left = 8;
+  if (top + 160 > window.innerHeight) top = rect.top - 160;
+  pop.style.top = top + 'px';
+  pop.style.left = left + 'px';
+  setTimeout(() => input.focus(), 30);
+}
+
+function closeMetricEdit() {
+  document.getElementById('metric-edit-popover').classList.remove('show');
+  metricEditCtx = null;
+}
+
+function saveMetricEdit() {
+  if (!metricEditCtx) return;
+  const { projId, key } = metricEditCtx;
+  const label = document.getElementById('metric-edit-input').value.trim();
+  const enabled = document.getElementById('metric-edit-enabled').checked;
+  if (!label) return;
+
+  const idx = projects.findIndex(p => p.id === projId);
+  if (idx < 0) return;
+
+  const config = getProjectMetricsConfig(projects[idx]);
+  const metrics = config.map(m => m.key === key
+    ? { key: m.key, label, enabled }
+    : { key: m.key, label: m.label, enabled: m.enabled !== false }
+  );
+  projects[idx] = { ...projects[idx], metrics };
+  saveProjects();
+  closeMetricEdit();
+  renderContent();
+}
+
+document.addEventListener('click', e => {
+  const pop = document.getElementById('metric-edit-popover');
+  if (pop.classList.contains('show') && !pop.contains(e.target) && !e.target.closest('.metric-edit-btn')) {
+    closeMetricEdit();
+  }
+});
+
+function getChartDatasets(proj, rows) {
+  const p = withEffectiveType(proj, rows);
+  const L = (key, fb) => getMetricLabel(p, key, fb);
+  const base = [{
+    label: L('spend', 'Spend'), data: rows.map(r=>r.spend), borderColor:'#5B4BF5', backgroundColor:'rgba(91,75,245,0.1)',
+    fill:true, yAxisID:'y', tension:0.3, borderWidth:2, pointRadius:3, pointBackgroundColor:'#5B4BF5'
+  }];
+  const cfg = getProjectMetricsConfig(p, rows).filter(m => m.enabled !== false);
+  const chartKeys = cfg.map(m => m.key).filter(k => k !== 'spend' && !k.startsWith('cost_') && k !== 'conv_rate');
+  const colors = ['#22C55E', '#F59E0B', '#EC4899', '#06B6D4'];
+
+  chartKeys.forEach((key, i) => {
+    base.push({
+      label: L(key, key), data: rows.map(r => r[key] || 0),
+      borderColor: colors[i % colors.length], backgroundColor: 'transparent',
+      fill: false, yAxisID: 'y1', tension: 0.3, borderWidth: 2, pointRadius: 3,
+      pointBackgroundColor: colors[i % colors.length],
+    });
+  });
+
+  return base;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MONTHS HELPERS
+// ═══════════════════════════════════════════════════════════════
+function getMonths(data) {
+  if (!data || !data.length) return [];
+  return [...new Set(data.map(r => dateToMonthKey(r.date)))].sort();
+}
+
+function formatMonthKey(mk) {
+  const [y, m] = mk.split('-');
+  const names = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
+  return names[+m-1] + ' ' + y;
+}
+
+function getLatestMonth(data) {
+  const months = getMonths(data);
+  return months.length ? months[months.length-1] : null;
+}
+
+function rowsForMonth(data, mk) {
+  if (!data) return [];
+  return data.filter(r => dateToMonthKey(r.date) === mk).sort((a,b) => a.date-b.date);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RENDER SIDEBAR
+// ═══════════════════════════════════════════════════════════════
+function renderSidebar() {
+  const container = document.getElementById('nav-projects');
+  let html = projects.map(p => `
+    <div class="nav-item ${view===p.id?'active':''}" data-view="${p.id}" onclick="switchView('${p.id}')">
+      <span class="icon">${p.icon}</span>
+      <span class="label">${p.name}</span>
+    </div>`).join('');
+  if (isAdmin()) {
+    html += `<div class="nav-item nav-item-add" onclick="openAddProject()">
+      <span class="icon">+</span><span class="label">Новый проект</span>
+    </div>`;
+  }
+  container.innerHTML = html;
+  document.querySelectorAll('.nav-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.view === view);
+  });
+}
+
+function getPrimaryResult(type, rows) {
+  if (type === 'streamfi') return sum(rows, 'qregs');
+  if (type === 'quadcode') return sum(rows, 'regs');
+  if (type === 'planto') return sum(rows, 'installs');
+  return 0;
+}
+
+function getOverviewMonth() {
+  let latest = null;
+  projects.forEach(p => {
+    const data = cache[p.id];
+    if (!data || data === 'loading' || data === null) return;
+    const m = getLatestMonth(data);
+    if (m && (!latest || m > latest)) latest = m;
+  });
+  return latest;
+}
+
+function getOverviewChartData() {
+  const mk = getOverviewMonth();
+  if (!mk) return null;
+  const items = [];
+  projects.forEach(p => {
+    const data = cache[p.id];
+    if (!data || data === 'loading' || data === null) return;
+    const rows = rowsForMonth(data, mk);
+    if (!rows.length) return;
+    items.push({
+      label: `${p.icon} ${p.name}`,
+      spend: sum(rows, 'spend'),
+      result: getPrimaryResult(p.type, rows),
+      currency: p.currency,
+      type: p.type,
+    });
+  });
+  return items.length ? { month: mk, items } : null;
+}
+
+function renderOverviewChart() {
+  if (overviewChartInstance) { overviewChartInstance.destroy(); overviewChartInstance = null; }
+  const ctx = document.getElementById('overviewChart');
+  if (!ctx) return;
+  const chartData = getOverviewChartData();
+  if (!chartData) return;
+
+  const colors = ['#5B4BF5', '#22C55E', '#F59E0B', '#EC4899', '#06B6D4', '#A78BFA'];
+  overviewChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: chartData.items.map(i => i.label),
+      datasets: [
+        {
+          label: 'Spend',
+          data: chartData.items.map(i => i.spend),
+          backgroundColor: chartData.items.map((_, i) => colors[i % colors.length] + 'CC'),
+          borderColor: chartData.items.map((_, i) => colors[i % colors.length]),
+          borderWidth: 1,
+          borderRadius: 6,
+          yAxisID: 'y',
+        },
+        {
+          label: 'Результат',
+          data: chartData.items.map(i => i.result),
+          backgroundColor: 'rgba(34,197,94,0.35)',
+          borderColor: '#22C55E',
+          borderWidth: 1,
+          borderRadius: 6,
+          yAxisID: 'y1',
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', labels: { color: 'rgba(255,255,255,0.55)', font: { family: 'Inter', size: 12 }, boxWidth: 10, padding: 14 } },
+        tooltip: {
+          callbacks: {
+            label(ctx) {
+              const item = chartData.items[ctx.dataIndex];
+              if (ctx.datasetIndex === 0) return ` Spend: ${fmtMoney(ctx.parsed.y, item.currency)}`;
+              return ` Результат: ${fmtInt(ctx.parsed.y)}`;
+            },
+          },
+        },
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: 'rgba(255,255,255,0.45)', font: { family: 'Inter', size: 11 } } },
+        y: { type: 'linear', position: 'left', grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: 'rgba(91,75,245,0.8)', font: { family: 'Inter', size: 11 } }, title: { display: true, text: 'Spend', color: 'rgba(91,75,245,0.6)', font: { family: 'Inter', size: 11 } } },
+        y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, ticks: { color: 'rgba(34,197,94,0.8)', font: { family: 'Inter', size: 11 } }, title: { display: true, text: 'Результат', color: 'rgba(34,197,94,0.6)', font: { family: 'Inter', size: 11 } } },
+      },
+    },
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RENDER OVERVIEW
+// ═══════════════════════════════════════════════════════════════
+function tileSwitchMonth(projId, mk, e) {
+  e.stopPropagation();
+  tileMonths[projId] = mk;
+  renderContent();
+}
+
+function renderOverview() {
+  document.getElementById('project-title').textContent = '⚡ Все проекты';
+  document.getElementById('tabs-row').innerHTML = '';
+
+  let html = '';
+  if (isAdmin()) html += renderAdminPanel();
+
+  const chartData = getOverviewChartData();
+  const anyLoading = projects.some(p => cache[p.id] === 'loading');
+  if (chartData || anyLoading) {
+    html += `<div class="overview-chart-card">
+      <div class="overview-chart-header">
+        <div class="card-title" style="margin:0">Сводка по продуктам</div>
+        ${chartData ? `<span class="overview-chart-month">${formatMonthKey(chartData.month)}</span>` : ''}
+      </div>
+      <div class="overview-chart-wrap">
+        ${anyLoading && !chartData
+          ? '<div class="tile-loading" style="justify-content:center;height:100%"><span class="mini-spinner"></span>Загрузка данных…</div>'
+          : '<canvas id="overviewChart"></canvas>'}
+      </div>
+    </div>`;
+  }
+
+  html += '<div class="overview-grid">';
+
+  projects.forEach(p => {
+    const data = cache[p.id];
+    const isLoading = data === 'loading';
+    const isError = data === null;
+
+    if (isLoading) {
+      html += `<div class="proj-tile">
+        <div class="tile-body">
+          <div class="tile-header">
+            <div class="tile-name"><span class="tile-icon-wrap">${p.icon}</span>${p.name}</div>
+            <span class="tile-badge">${p.currency}</span>
+          </div>
+        </div>
+        <div class="tile-loading"><span class="mini-spinner"></span>Загрузка…</div>
+      </div>`;
+      return;
+    }
+
+    if (isError) {
+      html += `<div class="proj-tile" onclick="switchView('${p.id}')">
+        <div class="tile-body">
+          <div class="tile-header">
+            <div class="tile-name"><span class="tile-icon-wrap">${p.icon}</span>${p.name}</div>
+            <span class="tile-badge">${p.currency}</span>
+          </div>
+        </div>
+        <div class="tile-error">Ошибка загрузки данных</div>
+      </div>`;
+      return;
+    }
+
+    const months = getMonths(data);
+    const selMk = tileMonths[p.id] && months.includes(tileMonths[p.id])
+      ? tileMonths[p.id]
+      : (tileMonths[p.id] = months[months.length - 1] || null);
+    const rows = selMk ? rowsForMonth(data, selMk) : [];
+    const metrics = getMetrics(p, rows);
+
+    // month tabs — show if any data
+    const monthTabsHtml = months.length > 0
+      ? `<div class="tile-month-tabs">${months.map(m => {
+          const cnt = rowsForMonth(data, m).length;
+          return `<button class="tile-tab ${m === selMk ? 'active' : ''}" onclick="tileSwitchMonth('${p.id}','${m}',event)" title="${cnt} дней">${formatMonthKey(m)}</button>`;
+        }).join('')}</div>`
+      : '';
+
+    // all metrics — cost ones accented
+    const metricsHtml = metrics.map(m => {
+      const isCost = m.accent || m.label.toLowerCase().includes('cost') || m.label.toLowerCase().includes('цена');
+      const adminCls = isAdmin() ? ' admin-editable' : '';
+      return `<div class="tile-metric${isCost ? ' accent' : ''}${adminCls}">
+        <div class="tile-metric-label">${renderEditableLabel(p.id, m.key, m.label, 'tile-metric-label-wrap')}</div>
+        <div class="tile-metric-value">${m.value}</div>
+      </div>`;
+    }).join('');
+
+    const budgetTile = renderBudgetCard(p, data, true);
+
+    html += `<div class="proj-tile">
+      <div class="tile-body" onclick="switchView('${p.id}')">
+        <div class="tile-header">
+          <div class="tile-name"><span class="tile-icon-wrap">${p.icon}</span>${p.name}</div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <span class="tile-badge">${p.currency}</span>
+          </div>
+        </div>
+      </div>
+      ${monthTabsHtml}
+      ${budgetTile}
+      <div class="tile-metrics${isAdmin()?' admin-zone':''}" style="padding-bottom:14px" ${isAdmin()?'onclick="event.stopPropagation()"':''}>${metricsHtml}</div>
+      <div class="tile-footer" onclick="switchView('${p.id}')">
+        <span class="tile-cta">Открыть детали →</span>
+        <span class="tile-arrow">›</span>
+      </div>
+    </div>`;
+  });
+
+  if (isAdmin()) {
+    html += `<div class="add-proj-tile" onclick="openAddProject()">
+      <div class="add-proj-plus">+</div>
+      <div class="add-proj-label">Новый проект</div>
+    </div>`;
+  }
+
+  html += '</div>';
+  document.getElementById('content').innerHTML = html;
+  if (chartData) renderOverviewChart();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RENDER PROJECT DETAIL
+// ═══════════════════════════════════════════════════════════════
+function renderProjectDetail(projId) {
+  const p = projects.find(x => x.id === projId);
+  if (!p) { switchView('overview'); return; }
+
+  const data = cache[projId];
+  const months = (data && data !== 'loading' && data !== null) ? getMonths(data) : [];
+  if (!currentMonth || !months.includes(currentMonth)) currentMonth = months[months.length-1] || null;
+
+  document.getElementById('project-title').textContent = `${p.icon} ${p.name}`;
+  // Clear topbar tabs — month navigation lives in content now
+  document.getElementById('tabs-row').innerHTML = '';
+
+  const content = document.getElementById('content');
+
+  if (data === 'loading') {
+    content.innerHTML = `<div class="spinner-wrap"><div class="spinner"></div><div class="spinner-text">Загрузка данных…</div></div>`;
+    return;
+  }
+
+  let html = '';
+  if (isAdmin()) html += renderAdminPanel(p);
+
+  if (data === null) {
+    content.innerHTML = html + `<div class="table-card"><div class="error-state">Не удалось загрузить данные. Проверьте URL таблицы.</div></div>`;
+    return;
+  }
+
+  // ── Month switcher (prominent, in content) ──────────────────
+  if (months.length > 0) {
+    html += `<div class="month-switcher">`;
+    months.forEach(m => {
+      const cnt = rowsForMonth(data, m).length;
+      html += `<button class="month-btn ${m===currentMonth?'active':''}" onclick="switchMonth('${m}')">
+        <span class="month-btn-name">${formatMonthKey(m)}</span>
+        <span class="month-btn-count">${cnt} дн.</span>
+      </button>`;
+    });
+    html += `</div>`;
+  }
+
+  const rows = currentMonth ? rowsForMonth(data, currentMonth) : (data || []);
+  const metrics = getMetrics(p, rows);
+  const tbl = getTableConfig(p, rows);
+
+  // ── Metrics ─────────────────────────────────────────────────
+  html += `<div class="metrics-grid">${metrics.map(m=>`
+    <div class="metric-card${m.accent?' accent':''}${isAdmin()?' admin-editable':''}">
+      <div class="metric-label">${renderEditableLabel(p.id, m.key, m.label, 'metric-label-wrap')}</div>
+      <div class="metric-value">${m.value}</div>
+    </div>`).join('')}</div>`;
+
+  // ── Analytics (auto) ────────────────────────────────────────
+  html += renderAnalyticsSection(p, data, rows, currentMonth);
+
+  // ── Chart ───────────────────────────────────────────────────
+  if (rows.length) {
+    html += `<div class="chart-card">
+      <div class="card-title">Динамика по дням — ${currentMonth ? formatMonthKey(currentMonth) : 'все данные'}</div>
+      <div class="chart-wrap"><canvas id="mainChart"></canvas></div>
+    </div>`;
+  }
+
+  // ── Daily table ─────────────────────────────────────────────
+  let tbody = '';
+  if (!rows.length) {
+    tbody = `<tr><td colspan="${tbl.headers.length}" class="empty-state">Нет данных за этот период</td></tr>`;
+  } else {
+    tbody = rows.map((r,i) => `<tr class="${i%2===0?'':'row-alt'}">${tbl.row(r).map((c,j)=>`<td${j===0?' class="date-cell"':''}>${c}</td>`).join('')}</tr>`).join('');
+    tbody += `<tr class="total-row">${tbl.total(rows).map(c=>`<td>${c}</td>`).join('')}</tr>`;
+  }
+
+  html += `<div class="table-card">
+    <div class="table-header">
+      <span class="card-title">По дням — ${rows.length} строк${currentMonth ? ' · '+formatMonthKey(currentMonth) : ''}</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>${tbl.headers.map((h, i) => {
+          const key = tbl.columnKeys[i];
+          const editable = isAdmin() && key && key !== 'date';
+          return `<th${editable ? ' class="th-editable"' : ''}>${editable ? renderEditableLabel(p.id, key, h, 'th-label-wrap') : escHtml(h)}</th>`;
+        }).join('')}</tr></thead>
+        <tbody>${tbody}</tbody>
+      </table>
+    </div>
+  </div>`;
+
+  content.innerHTML = html;
+  if (rows.length) renderChart(p, rows);
+}
+
+function renderChart(proj, rows) {
+  if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+  const ctx = document.getElementById('mainChart');
+  if (!ctx) return;
+  chartInstance = new Chart(ctx, {
+    type: 'line',
+    data: { labels: rows.map(r=>r.dateStr.slice(0,5)), datasets: getChartDatasets(proj, rows) },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins: {
+        legend:{ position:'top', labels:{ color:'rgba(255,255,255,0.55)', font:{family:'Inter',size:12}, boxWidth:10, padding:14 } },
+        tooltip:{ mode:'index', intersect:false, backgroundColor:'#1f1f1f', borderColor:'rgba(255,255,255,0.08)', borderWidth:1, titleColor:'#F0F0F0', bodyColor:'rgba(255,255,255,0.65)' }
+      },
+      scales:{
+        x:{ grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'rgba(255,255,255,0.35)',font:{family:'Inter',size:11}} },
+        y:{ type:'linear', position:'left', min:0, grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'rgba(91,75,245,0.8)',font:{family:'Inter',size:11}}, title:{display:true,text:'Spend',color:'rgba(91,75,245,0.6)',font:{family:'Inter',size:11}} },
+        y1:{ type:'linear', position:'right', min:0, grid:{drawOnChartArea:false}, ticks:{color:'rgba(34,197,94,0.8)',font:{family:'Inter',size:11}}, title:{display:true,text:'Метрики',color:'rgba(34,197,94,0.6)',font:{family:'Inter',size:11}} }
+      }
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ADMIN PANEL HTML
+// ═══════════════════════════════════════════════════════════════
+function renderAdminPanel(proj) {
+  let links = '';
+  if (proj) {
+    const projUrls = proj.urls && proj.urls.length ? proj.urls : (proj.url ? [proj.url] : []);
+    links = `<div class="admin-links">${projUrls.map((u, i) => `
+      <a class="admin-link" href="${u}" target="_blank" rel="noopener">
+        <div class="admin-link-left"><span>${proj.icon}</span><span>${proj.name}${projUrls.length > 1 ? ` — лист ${i + 1}` : ''}</span></div>
+        <span class="admin-link-ext">↗ Google Sheets</span>
+      </a>`).join('')}
+    </div>
+    <div class="admin-actions">
+      <button class="btn-sm btn-add-proj" onclick="openEditProject('${proj.id}')">✏️ Редактировать проект</button>
+      <button class="btn-sm btn-logout" onclick="adminLogout()">Выйти из Admin</button>
+    </div>
+    <div style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:10px">Наведите на название метрики — появится ✏️ для переименования и скрытия</div>`;
+  } else {
+    // overview: show all sheets
+    links = `<div class="admin-links">${projects.map(p => {
+      const pu = p.urls && p.urls.length ? p.urls : (p.url ? [p.url] : []);
+      return pu.map((u, i) => `
+        <a class="admin-link" href="${u}" target="_blank" rel="noopener">
+          <div class="admin-link-left"><span>${p.icon}</span><span>${p.name}${pu.length > 1 ? ` — лист ${i+1}` : ''}</span></div>
+          <span class="admin-link-ext">↗ Google Sheets</span>
+        </a>`).join('');
+    }).join('')}
+    </div>
+    <div class="admin-actions">
+      <button class="btn-sm btn-add-proj" onclick="openAddProject()">+ Добавить проект</button>
+      <button class="btn-sm btn-logout" onclick="adminLogout()">Выйти из Admin</button>
+    </div>
+    <div style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:10px">Наведите на метрику на карточке — ✏️ для редактирования</div>`;
+  }
+  return `<div class="admin-panel">
+    <div class="admin-panel-title">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      Admin панель
+    </div>
+    ${links}
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════════
+function switchView(v) {
+  view = v;
+  currentMonth = null;
+  if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+  if (overviewChartInstance) { overviewChartInstance.destroy(); overviewChartInstance = null; }
+  closeSidebar();
+  renderSidebar();
+  renderContent();
+}
+
+function switchMonth(m) {
+  currentMonth = m;
+  renderContent();
+}
+
+function renderContent() {
+  if (view === 'overview') renderOverview();
+  else renderProjectDetail(view);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ADMIN AUTH
+// ═══════════════════════════════════════════════════════════════
+function isAdmin() { return sessionStorage.getItem(ADMIN_KEY) === '1'; }
+
+function adminClick() {
+  if (isAdmin()) { adminLogout(); return; }
+  document.getElementById('pw-input').value = '';
+  document.getElementById('login-error').style.display = 'none';
+  document.getElementById('overlay-login').classList.add('show');
+  setTimeout(() => document.getElementById('pw-input').focus(), 80);
+}
+
+function doLogin() {
+  if (document.getElementById('pw-input').value === ADMIN_PW) {
+    sessionStorage.setItem(ADMIN_KEY, '1');
+    updateAdminBtn();
+    closeAllModals();
+    renderSidebar();
+    renderContent();
+  } else {
+    document.getElementById('login-error').style.display = 'block';
+  }
+}
+
+function adminLogout() {
+  sessionStorage.removeItem(ADMIN_KEY);
+  updateAdminBtn();
+  renderSidebar();
+  renderContent();
+}
+
+function updateAdminBtn() {
+  const btn = document.getElementById('btn-admin');
+  const addBtn = document.getElementById('btn-add-proj');
+  document.body.classList.toggle('admin-mode', isAdmin());
+  if (addBtn) addBtn.style.display = isAdmin() ? 'flex' : 'none';
+  if (isAdmin()) {
+    btn.classList.add('is-admin');
+    btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Admin ✓`;
+  } else {
+    btn.classList.remove('is-admin');
+    btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Admin`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ADD / EDIT PROJECT
+// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// TAB DISCOVERY
+// ═══════════════════════════════════════════════════════════════
+async function fetchHtmlWithFallback(url) {
+  let lastErr;
+  for (const fetcher of FETCHERS) {
+    try {
+      const resp = await fetcher(url);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const text = await resp.text();
+      if (text.trim().length < 50) throw new Error('Empty response');
+      return text;
+    } catch(e) { lastErr = e; console.warn('HTML fetch attempt failed:', e.message); }
+  }
+  throw lastErr;
+}
+function extractSheetId(url) {
+  const m = url.match(/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  return m ? m[1] : null;
+}
+
+function sheetCsvUrl(id, gid) {
+  return `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}`;
+}
+
+async function discoverSheetTabs(sheetUrl) {
+  const id = extractSheetId(sheetUrl);
+  if (!id) throw new Error('Не удалось распознать ID таблицы');
+  const html = await fetchHtmlWithFallback(`https://docs.google.com/spreadsheets/d/${id}/edit`);
+  let tabs = [];
+  const p1 = [...html.matchAll(/"sheetId":(\d+),"title":"([^"]+)"/g)];
+  if (p1.length) tabs = p1.map(m => ({ gid: m[1], title: m[2], csvUrl: sheetCsvUrl(id, m[1]) }));
+  if (!tabs.length) {
+    const p2 = [...html.matchAll(/\[\"([^"]+)\",null,(\d+),/g)];
+    if (p2.length) tabs = p2.map(m => ({ gid: m[2], title: m[1], csvUrl: sheetCsvUrl(id, m[2]) }));
+  }
+  if (!tabs.length) {
+    const p3 = [...html.matchAll(/[#&]gid=(\d+)/g)];
+    const gids = [...new Set(p3.map(m => m[1]))];
+    if (gids.length) tabs = gids.map(g => ({ gid: g, title: `Лист ${g}`, csvUrl: sheetCsvUrl(id, g) }));
+  }
+  const seen = new Set();
+  tabs = tabs.filter(t => { if (seen.has(t.gid)) return false; seen.add(t.gid); return true; });
+  if (!tabs.length) {
+    const gidMatch = sheetUrl.match(/[#&?]gid=(\d+)/);
+    tabs = [{ gid: gidMatch ? gidMatch[1] : '0', title: 'Лист 1', csvUrl: sheetCsvUrl(id, gidMatch ? gidMatch[1] : '0') }];
+  }
+  return tabs;
+}
+
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function initEmojiPicker(selected) {
+  const picker = document.getElementById('emoji-picker');
+  picker.innerHTML = EMOJI_OPTIONS.map(e =>
+    `<button type="button" class="emoji-btn ${e===selected?'selected':''}" onclick="selectEmoji('${e}')">${e}</button>`
+  ).join('');
+}
+
+function selectEmoji(emoji) {
+  document.getElementById('proj-icon').value = emoji;
+  document.querySelectorAll('.emoji-btn').forEach(b => b.classList.toggle('selected', b.textContent === emoji));
+}
+
+function initTypeCards(selected) {
+  const container = document.getElementById('type-cards');
+  container.innerHTML = TYPE_TEMPLATES.map(t => `
+    <button type="button" class="type-card ${t.id===selected?'selected':''}" data-type="${t.id}" onclick="selectType('${t.id}')">
+      <div class="type-card-icon">${t.icon}</div>
+      <div class="type-card-name">${t.name}</div>
+      <div class="type-card-desc">${t.desc}</div>
+    </button>`).join('');
+}
+
+function selectType(type) {
+  document.getElementById('proj-type').value = type;
+  document.querySelectorAll('.type-card').forEach(c => c.classList.toggle('selected', c.dataset.type === type));
+  const tpl = TYPE_TEMPLATES.find(t => t.id === type);
+  if (tpl && !editingProjId) selectEmoji(tpl.icon);
+  updateWizardSummary();
+}
+
+function setWizardUI() {
+  const stepsEl = document.getElementById('wizard-steps');
+  const panes = document.querySelectorAll('.wizard-pane');
+  const editSections = document.getElementById('edit-mode-sections');
+  stepsEl.style.display = isEditMode ? 'none' : 'flex';
+  panes.forEach(p => {
+    if (isEditMode) { p.style.display = 'none'; p.classList.remove('active'); }
+    else { p.style.display = ''; p.classList.toggle('active', +p.dataset.step === wizardStep); }
+  });
+  editSections.style.display = isEditMode ? 'block' : 'none';
+  document.getElementById('wizard-back').style.display = (!isEditMode && wizardStep > 1) ? 'inline-block' : 'none';
+  document.getElementById('wizard-next').style.display = (!isEditMode && wizardStep < 3) ? 'inline-block' : 'none';
+  document.getElementById('wizard-save').style.display = (!isEditMode && wizardStep === 3) ? 'inline-block' : 'none';
+  document.getElementById('edit-save').style.display = isEditMode ? 'inline-block' : 'none';
+  document.querySelectorAll('.wizard-step').forEach(s => {
+    const n = +s.dataset.step;
+    s.classList.toggle('active', !isEditMode && n === wizardStep);
+    s.classList.toggle('done', !isEditMode && n < wizardStep);
+  });
+  if (!isEditMode && wizardStep === 3) updateWizardSummary();
+}
+
+function updateWizardSummary() {
+  const name = document.getElementById('proj-name').value.trim() || '—';
+  const icon = document.getElementById('proj-icon').value;
+  const cur = document.getElementById('proj-currency').value;
+  const type = document.getElementById('proj-type').value;
+  const tpl = TYPE_TEMPLATES.find(t => t.id === type);
+  const urls = getSelectedSheetUrls(false);
+  document.getElementById('wizard-summary').innerHTML = `
+    <div class="wizard-summary-row"><span class="wizard-summary-label">Проект</span><span class="wizard-summary-val">${icon} ${escHtml(name)}</span></div>
+    <div class="wizard-summary-row"><span class="wizard-summary-label">Валюта</span><span class="wizard-summary-val">${cur}</span></div>
+    <div class="wizard-summary-row"><span class="wizard-summary-label">Тип</span><span class="wizard-summary-val">${tpl ? tpl.name : type}</span></div>
+    <div class="wizard-summary-row"><span class="wizard-summary-label">Листов</span><span class="wizard-summary-val">${urls.length || '—'}</span></div>`;
+}
+
+function wizardNext() {
+  const err = document.getElementById('proj-error');
+  err.style.display = 'none';
+  if (wizardStep === 1) {
+    if (!document.getElementById('proj-name').value.trim()) {
+      err.textContent = 'Введите название проекта'; err.style.display = 'block'; return;
+    }
+    wizardStep = 2;
+  } else if (wizardStep === 2) {
+    const urls = getSelectedSheetUrls(false);
+    if (!urls.length) {
+      err.textContent = 'Вставьте ссылку на Google Sheets и выберите хотя бы один лист'; err.style.display = 'block'; return;
+    }
+    wizardStep = 3;
+    initTypeCards(document.getElementById('proj-type').value);
+  }
+  setWizardUI();
+}
+
+function wizardBack() {
+  if (wizardStep > 1) { wizardStep--; setWizardUI(); }
+  document.getElementById('proj-error').style.display = 'none';
+}
+
+async function onSheetUrlInput(isEdit) {
+  const urlEl = document.getElementById(isEdit ? 'proj-sheet-url-edit' : 'proj-sheet-url');
+  const statusEl = document.getElementById(isEdit ? 'sheet-status-edit' : 'sheet-status');
+  const url = urlEl.value.trim();
+  if (!url || !extractSheetId(url)) return;
+  statusEl.textContent = 'Ищу вкладки…';
+  statusEl.className = 'sheet-status';
+  try {
+    const tabs = await discoverSheetTabs(url);
+    const key = isEdit ? 'edit' : 'add';
+    discoveredTabsCache[key] = tabs;
+    renderTabChips(tabs, isEdit, tabs.map(t => t.gid));
+    statusEl.textContent = `✓ Найдено ${tabs.length} вкладок`;
+    statusEl.className = 'sheet-status ok';
+  } catch(e) {
+    statusEl.textContent = 'Не удалось загрузить вкладки — проверьте ссылку';
+    statusEl.className = 'sheet-status err';
+  }
+}
+
+function renderTabChips(tabs, isEdit, selectedGids) {
+  const wrap = document.getElementById(isEdit ? 'sheet-tabs-wrap-edit' : 'sheet-tabs-wrap');
+  const chips = document.getElementById(isEdit ? 'tab-chips-edit' : 'tab-chips');
+  const sel = new Set(selectedGids || []);
+  if (!tabs.length) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  chips.innerHTML = tabs.map(t => `
+    <button type="button" class="tab-chip ${sel.has(t.gid)?'selected':''}" data-gid="${t.gid}" data-url="${escHtml(t.csvUrl)}" onclick="toggleTabChip(this, ${isEdit})">${escHtml(t.title)}</button>
+  `).join('');
+  const first = tabs.find(t => sel.has(t.gid)) || tabs[0];
+  if (first) previewSheetColumns(first.csvUrl, isEdit);
+}
+
+async function previewSheetColumns(csvUrl, isEdit) {
+  const colWrap = document.getElementById(isEdit ? 'sheet-cols-wrap-edit' : 'sheet-cols-wrap');
+  const colChips = document.getElementById(isEdit ? 'col-chips-edit' : 'col-chips');
+  const colStatus = document.getElementById(isEdit ? 'col-detect-status-edit' : 'col-detect-status');
+  if (!csvUrl) { colWrap.style.display = 'none'; return; }
+  colStatus.textContent = 'Читаю колонки…';
+  colStatus.className = 'sheet-status';
+  try {
+    const text = await fetchWithFallback(csvUrl);
+    const rows = parseCSV(text);
+    if (!rows.length) throw new Error('empty');
+    const rawHeaders = rows[0].map(h => (h || '').trim()).filter(Boolean);
+    const type = detectSheetType(rows[0]);
+    const parsed = type === 'streamfi' ? parseStreamfiRows(rows)
+      : type === 'planto' ? parsePlantoRows(rows)
+      : type === 'quadcode' ? parseQuadcodeRows(rows)
+      : parseGenericRows(rows);
+    sheetPreviewCache = { headers: rows[0].map(h => (h || '').trim()), type, rowCount: parsed.length };
+
+    colWrap.style.display = 'block';
+    colChips.innerHTML = rawHeaders.map(h => `<span class="col-chip">${escHtml(h)}</span>`).join('');
+    const tpl = TYPE_TEMPLATES.find(t => t.id === type);
+    colStatus.textContent = `✓ Тип: ${tpl ? tpl.name : type} · ${parsed.length} строк с данными`;
+    colStatus.className = 'sheet-status ok';
+
+    if (!isEdit) {
+      document.getElementById('proj-type').value = type;
+      initTypeCards(type);
+    } else {
+      const typeEl = document.getElementById('proj-type-edit');
+      if (typeEl && type !== 'generic') { typeEl.value = type; buildMetricsEditor(type, null); }
+    }
+  } catch(e) {
+    colStatus.textContent = 'Не удалось прочитать колонки — проверьте доступ к таблице';
+    colStatus.className = 'sheet-status err';
+    colWrap.style.display = 'none';
+  }
+}
+
+function toggleTabChip(el, isEdit) {
+  el.classList.toggle('selected');
+  if (el.classList.contains('selected')) previewSheetColumns(el.dataset.url, isEdit);
+}
+
+function buildDefaultMetrics(type, headerRow) {
+  const fakeProj = { type, sheetColumns: (headerRow || []).map(h => (h || '').trim()) };
+  const catalog = getMetricsCatalogForProj(fakeProj, []);
+  const config = mergeMetricsConfig(type, null, catalog);
+  const headers = (headerRow || []).map(h => (h || '').trim());
+  const hdrLower = headers.map(h => h.toLowerCase());
+  return config.map(m => {
+    let label = m.label;
+    if (m.key === 'qregs' && type === 'streamfi') {
+      const qi = findCol(hdrLower, ['целев', 'результат', 'действ', 'qual', 'qreg'], ['цена', 'cost', 'cpa']);
+      if (qi >= 0 && headers[qi]) label = headers[qi];
+    }
+    if (m.key === 'spend' && type === 'streamfi') {
+      const si = findCol(hdrLower, ['спенд', 'spend', 'расход'], []);
+      if (si >= 0 && headers[si]) label = 'Total ' + headers[si].charAt(0).toUpperCase() + headers[si].slice(1);
+    }
+    return { key: m.key, label, enabled: m.enabled !== false };
+  });
+}
+
+function getSelectedSheetUrls(isEdit) {
+  const chips = document.querySelectorAll(isEdit ? '#tab-chips-edit .tab-chip.selected' : '#tab-chips .tab-chip.selected');
+  if (chips.length) return [...chips].map(c => c.dataset.url);
+  const listId = isEdit ? 'proj-urls-list-edit' : 'proj-urls-list';
+  const inputs = [...document.querySelectorAll(`#${listId} .proj-url-input`)];
+  if (inputs.length) return inputs.map(el => normalizeToCSVUrl(el.value.trim())).filter(Boolean);
+  const url = document.getElementById(isEdit ? 'proj-sheet-url-edit' : 'proj-sheet-url').value.trim();
+  if (url) return [normalizeToCSVUrl(url)];
+  return [];
+}
+
+function toggleAdvancedUrls() {
+  const list = document.getElementById('proj-urls-list');
+  const btn = document.getElementById('btn-advanced-urls');
+  const show = list.style.display === 'none';
+  list.style.display = show ? 'block' : 'none';
+  btn.textContent = show ? 'Скрыть расширенные настройки' : 'Расширенные настройки URL';
+  if (show && !list.children.length) buildUrlFields([], 'proj-urls-list');
+}
+
+function buildUrlFields(urls, listId) {
+  listId = listId || 'proj-urls-list';
+  const list = document.getElementById(listId);
+  if (!list) return;
+  list.innerHTML = '';
+  (urls.length ? urls : ['']).forEach((u, i) => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:6px;margin-bottom:8px;align-items:center';
+    row.innerHTML = `<input class="proj-url-input" type="text" value="${escHtml(u)}" placeholder="URL листа" style="flex:1;padding:10px 13px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:Inter,sans-serif;color:var(--text);background:var(--surface);outline:none">
+    ${i > 0 ? `<button type="button" onclick="this.parentElement.remove()" style="flex-shrink:0;width:30px;height:36px;border:1px solid rgba(239,68,68,0.3);border-radius:7px;background:transparent;color:#EF4444;cursor:pointer">×</button>` : ''}`;
+    list.appendChild(row);
+  });
+}
+
+function sheetUrlFromProjectUrls(urls) {
+  if (!urls || !urls.length) return '';
+  const m = urls[0].match(/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  return m ? `https://docs.google.com/spreadsheets/d/${m[1]}/edit` : '';
+}
+
+function gidsFromUrls(urls) {
+  return (urls || []).map(u => { const m = u.match(/gid=(\d+)/); return m ? m[1] : '0'; });
+}
+
+function openAddProject() {
+  editingProjId = null;
+  isEditMode = false;
+  wizardStep = 1;
+  document.getElementById('proj-modal-title').textContent = 'Новый проект';
+  document.getElementById('proj-modal-sub').textContent = 'Подключите Google Sheets за 3 шага';
+  document.getElementById('proj-name').value = '';
+  document.getElementById('proj-icon').value = '📊';
+  document.getElementById('proj-currency').value = '$';
+  document.getElementById('proj-budget-remainder').value = '';
+  document.getElementById('proj-type').value = 'generic';
+  document.getElementById('proj-sheet-url').value = '';
+  document.getElementById('sheet-status').textContent = '';
+  document.getElementById('sheet-tabs-wrap').style.display = 'none';
+  document.getElementById('sheet-cols-wrap').style.display = 'none';
+  sheetPreviewCache = { headers: [], type: 'generic', rowCount: 0 };
+  document.getElementById('proj-urls-list').style.display = 'none';
+  document.getElementById('btn-advanced-urls').textContent = 'Расширенные настройки URL';
+  document.getElementById('proj-error').style.display = 'none';
+  document.getElementById('proj-delete-btn').style.display = 'none';
+  discoveredTabsCache.add = [];
+  initEmojiPicker('📊');
+  initTypeCards('generic');
+  setWizardUI();
+  document.getElementById('overlay-proj').classList.add('show');
+  setTimeout(() => document.getElementById('proj-name').focus(), 80);
+}
+
+function openEditProject(projId) {
+  const p = projects.find(x => x.id === projId);
+  if (!p) return;
+  editingProjId = projId;
+  isEditMode = true;
+  document.getElementById('proj-modal-title').textContent = 'Редактировать проект';
+  document.getElementById('proj-modal-sub').textContent = p.name;
+  document.getElementById('proj-icon-edit').value = p.icon;
+  document.getElementById('proj-name-edit').value = p.name;
+  document.getElementById('proj-currency-edit').value = p.currency;
+  const rem = getBudgetRemainder(p);
+  document.getElementById('proj-budget-remainder-edit').value = rem != null ? rem : '';
+  let editType = p.type;
+  if (p.sheetColumns && p.sheetColumns.length) {
+    const detected = detectSheetType(p.sheetColumns);
+    if (detected !== 'generic') editType = detected;
+  }
+  document.getElementById('proj-type-edit').value = editType;
+  sheetPreviewCache.headers = p.sheetColumns || [];
+  buildMetricsEditor(editType, p.metrics);
+  document.getElementById('proj-sheet-url-edit').value = sheetUrlFromProjectUrls(p.urls);
+  document.getElementById('sheet-status-edit').textContent = '';
+  document.getElementById('proj-error').style.display = 'none';
+  document.getElementById('proj-delete-btn').style.display = 'block';
+  const gids = gidsFromUrls(p.urls);
+  if (p.urls && p.urls.length) {
+    onSheetUrlInput(true).then(() => {
+      if (discoveredTabsCache.edit.length) renderTabChips(discoveredTabsCache.edit, true, gids);
+    });
+  }
+  setWizardUI();
+  document.getElementById('overlay-proj').classList.add('show');
+}
+
+function onProjTypeChangeEdit() {
+  buildMetricsEditor(document.getElementById('proj-type-edit').value, null);
+}
+
+function normalizeToCSVUrl(url) {
+  url = (url || '').trim();
+  if (!url) return '';
+  if (/format=csv/.test(url)) return url;
+  const idMatch = url.match(/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  if (!idMatch) return url;
+  const id = idMatch[1];
+  const gidMatch = url.match(/[#&?]gid=(\d+)/);
+  let out = `https://docs.google.com/spreadsheets/d/${id}/export?format=csv`;
+  if (gidMatch) out += `&gid=${gidMatch[1]}`;
+  return out;
+}
+
+function getUrlFieldValues() {
+  return getSelectedSheetUrls(isEditMode);
+}
+
+function buildMetricsEditor(type, saved) {
+  const list = document.getElementById('proj-metrics-list');
+  if (!list) return;
+  const config = mergeMetricsConfig(type, saved);
+  list.innerHTML = config.map((m, i) => `
+    <div class="metric-editor-row ${m.enabled === false ? 'disabled' : ''}" data-key="${m.key}">
+      <input type="checkbox" class="metric-enabled" ${m.enabled !== false ? 'checked' : ''} onchange="toggleMetricRow(this)">
+      <span class="metric-editor-key">${m.key}</span>
+      <input type="text" class="metric-editor-label" value="${escHtml(m.label)}" ${m.enabled === false ? 'disabled' : ''} placeholder="Название метрики">
+      <button type="button" class="metric-move-btn" onclick="moveMetricRow(${i},-1)" ${i === 0 ? 'disabled' : ''}>↑</button>
+      <button type="button" class="metric-move-btn" onclick="moveMetricRow(${i},1)" ${i === config.length - 1 ? 'disabled' : ''}>↓</button>
+    </div>`).join('');
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebar-backdrop').classList.toggle('show');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-backdrop').classList.remove('show');
+}
+
+function toggleMetricRow(cb) {
+  const row = cb.closest('.metric-editor-row');
+  const label = row.querySelector('.metric-editor-label');
+  row.classList.toggle('disabled', !cb.checked);
+  label.disabled = !cb.checked;
+}
+
+function moveMetricRow(idx, dir) {
+  const list = document.getElementById('proj-metrics-list');
+  const rows = [...list.querySelectorAll('.metric-editor-row')];
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= rows.length) return;
+  if (dir < 0) list.insertBefore(rows[idx], rows[newIdx]);
+  else list.insertBefore(rows[newIdx], rows[idx]);
+  rebuildMetricMoveButtons();
+}
+
+function rebuildMetricMoveButtons() {
+  const rows = [...document.querySelectorAll('#proj-metrics-list .metric-editor-row')];
+  rows.forEach((row, i) => {
+    const btns = row.querySelectorAll('.metric-move-btn');
+    btns[0].disabled = i === 0;
+    btns[1].disabled = i === rows.length - 1;
+    btns[0].setAttribute('onclick', `moveMetricRow(${i},-1)`);
+    btns[1].setAttribute('onclick', `moveMetricRow(${i},1)`);
+  });
+}
+
+function resetMetricsEditor() {
+  const type = isEditMode ? document.getElementById('proj-type-edit').value : document.getElementById('proj-type').value;
+  buildMetricsEditor(type, null);
+}
+
+function getMetricsFromEditor() {
+  return [...document.querySelectorAll('#proj-metrics-list .metric-editor-row')].map(row => ({
+    key: row.dataset.key,
+    label: row.querySelector('.metric-editor-label').value.trim(),
+    enabled: row.querySelector('.metric-enabled').checked,
+  })).filter(m => m.label);
+}
+
+function saveProject() {
+  const errEl = document.getElementById('proj-error');
+  let icon, name, currency, type, urls, metrics, budgetRemainder;
+
+  if (isEditMode) {
+    icon = document.getElementById('proj-icon-edit').value.trim() || '📊';
+    name = document.getElementById('proj-name-edit').value.trim();
+    currency = document.getElementById('proj-currency-edit').value;
+    type = document.getElementById('proj-type-edit').value;
+    urls = getSelectedSheetUrls(true);
+    metrics = getMetricsFromEditor();
+    budgetRemainder = parseBudgetRemainder(document.getElementById('proj-budget-remainder-edit').value.trim());
+  } else {
+    icon = document.getElementById('proj-icon').value.trim() || '📊';
+    name = document.getElementById('proj-name').value.trim();
+    currency = document.getElementById('proj-currency').value;
+    type = document.getElementById('proj-type').value;
+    urls = getSelectedSheetUrls(false);
+    metrics = buildDefaultMetrics(type, sheetPreviewCache.headers);
+    budgetRemainder = parseBudgetRemainder(document.getElementById('proj-budget-remainder').value.trim());
+  }
+  const sheetColumns = sheetPreviewCache.headers.length ? sheetPreviewCache.headers : undefined;
+
+  if (!name) { errEl.textContent = 'Введите название проекта'; errEl.style.display='block'; return; }
+  if (!urls.length) { errEl.textContent = 'Подключите Google Sheets и выберите листы'; errEl.style.display='block'; return; }
+
+  if (editingProjId) {
+    const idx = projects.findIndex(x => x.id === editingProjId);
+    if (idx >= 0) { projects[idx] = { ...projects[idx], icon, name, currency, type, urls, metrics, sheetColumns, budgetRemainder }; cache[editingProjId] = 'loading'; }
+  } else {
+    const id = genId(name);
+    projects.push({ id, name, icon, currency, type, urls, metrics, sheetColumns, budgetRemainder });
+    cache[id] = 'loading';
+  }
+
+  saveProjects();
+  closeAllModals();
+  renderSidebar();
+
+  const projToFetch = editingProjId ? projects.find(x => x.id === editingProjId) : projects[projects.length - 1];
+  renderContent();
+  fetchProject(projToFetch).then(data => { cache[projToFetch.id] = data; renderContent(); })
+    .catch(e => { console.error(e); cache[projToFetch.id] = null; renderContent(); });
+}
+
+function deleteCurrentProject() {
+  if (!editingProjId) return;
+  const p = projects.find(x => x.id === editingProjId);
+  if (!p) return;
+  if (!confirm(`Удалить проект "${p.name}"? Это действие необратимо.`)) return;
+  projects = projects.filter(x => x.id !== editingProjId);
+  delete cache[editingProjId];
+  saveProjects();
+  closeAllModals();
+  view = 'overview';
+  currentMonth = null;
+  renderSidebar();
+  renderContent();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MODALS
+// ═══════════════════════════════════════════════════════════════
+function closeAllModals() {
+  document.querySelectorAll('.overlay').forEach(el => el.classList.remove('show'));
+  closeMetricEdit();
+}
+document.querySelectorAll('.overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) closeAllModals(); });
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAllModals(); });
+
+// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+if (isAdmin()) updateAdminBtn();
+else document.body.classList.remove('admin-mode');
+
+// Show skeleton while loading config from server
+document.getElementById('content').innerHTML = `<div class="spinner-wrap"><div class="spinner"></div><div class="spinner-text">Загрузка конфигурации…</div></div>`;
+renderSidebar();
+
+(async () => {
+  await loadProjects();   // fetch from JSONBin (overwrites local cache if server has data)
+  renderSidebar();        // re-render with actual projects
+  await loadAll();        // fetch CSV data for all projects
+})();
+</script>
+</body>
+</html>

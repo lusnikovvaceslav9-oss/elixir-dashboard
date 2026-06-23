@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DOX UA Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23FF6B00'/><text x='16' y='23' font-family='Inter,sans-serif' font-size='20' font-weight='700' fill='white' text-anchor='middle'>D</text></svg>">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#FF6B00;border-radius:10px}
+body{font-family:'Inter',sans-serif;background:#F8F8F8;color:#1A1A1A;display:flex;height:100vh;overflow:hidden}
+
+/* SIDEBAR */
+#sidebar{width:220px;min-width:220px;background:#fff;border-right:1px solid #E8E8E8;display:flex;flex-direction:column;height:100vh;overflow-y:auto}
+.sidebar-logo{padding:24px 20px 20px;border-bottom:1px solid #E8E8E8}
+.sidebar-logo .dox{font-size:20px;font-weight:700;color:#FF6B00;letter-spacing:-0.5px}
+.sidebar-logo .sub{font-size:11px;color:#6B6B6B;margin-top:2px;letter-spacing:0.04em}
+.sidebar-section{padding:16px 12px 8px;font-size:10px;font-weight:600;color:#6B6B6B;letter-spacing:0.08em;text-transform:uppercase}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;margin:2px 8px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;color:#6B6B6B;transition:all 0.15s ease;border-left:3px solid transparent}
+.nav-item:hover{background:rgba(255,107,0,0.05);color:#FF6B00}
+.nav-item.active{background:rgba(255,107,0,0.08);color:#FF6B00;border-left-color:#FF6B00}
+.nav-item .icon{font-size:16px;width:20px;text-align:center}
+
+/* MAIN */
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{padding:20px 32px;background:#fff;border-bottom:1px solid #E8E8E8;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.topbar-left{display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+.project-title{font-size:20px;font-weight:700;color:#1A1A1A}
+.tabs-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.tab-btn{padding:5px 14px;border-radius:20px;font-size:12px;font-weight:500;border:1px solid #E8E8E8;background:#fff;cursor:pointer;transition:all 0.15s ease;color:#6B6B6B}
+.tab-btn:hover{border-color:#FF6B00;color:#FF6B00}
+.tab-btn.active{background:#FF6B00;color:#fff;border-color:#FF6B00}
+.add-month-btn{padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500;border:1px dashed #E8E8E8;background:transparent;cursor:pointer;color:#6B6B6B;transition:all 0.15s ease}
+.add-month-btn:hover{border-color:#FF6B00;color:#FF6B00}
+.add-btn{padding:8px 18px;background:#FF6B00;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s ease;white-space:nowrap}
+.add-btn:hover{background:#E05A00}
+
+/* CONTENT */
+#content{flex:1;overflow-y:auto;padding:28px 32px;display:flex;flex-direction:column;gap:20px}
+
+/* METRICS */
+.metrics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.metric-card{background:#fff;border:1px solid #E8E8E8;border-radius:12px;padding:18px 20px;transition:all 0.15s ease}
+.metric-card:hover{box-shadow:0 4px 12px rgba(0,0,0,0.06)}
+.metric-label{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:0.06em;color:#6B6B6B;margin-bottom:8px}
+.metric-value{font-size:26px;font-weight:700;color:#1A1A1A;line-height:1}
+.metric-sub{font-size:12px;color:#6B6B6B;margin-top:4px}
+
+/* CHART */
+.chart-card{background:#fff;border:1px solid #E8E8E8;border-radius:12px;padding:20px 24px}
+.card-title{font-size:14px;font-weight:600;color:#1A1A1A;margin-bottom:16px}
+.chart-wrap{position:relative;height:220px}
+
+/* TABLE */
+.table-card{background:#fff;border:1px solid #E8E8E8;border-radius:12px;overflow:hidden}
+.table-header{padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #E8E8E8}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead tr{background:#F8F8F8}
+thead th{padding:10px 14px;text-align:right;font-size:11px;font-weight:600;color:#6B6B6B;text-transform:uppercase;letter-spacing:0.04em;white-space:nowrap}
+thead th:first-child{text-align:left}
+tbody tr{border-top:1px solid #F0F0F0;transition:background 0.1s}
+tbody tr:hover{background:#FFFAF5}
+tbody tr:hover .del-btn{opacity:1}
+td{padding:10px 14px;text-align:right;color:#1A1A1A;white-space:nowrap}
+td:first-child{text-align:left;font-weight:500}
+.total-row{background:rgba(255,107,0,0.04)!important;border-top:2px solid #E8E8E8!important}
+.total-row td{font-weight:700;color:#1A1A1A}
+.del-btn{opacity:0;background:none;border:none;cursor:pointer;color:#BBBBBB;font-size:16px;padding:2px 6px;border-radius:4px;transition:all 0.15s ease;line-height:1}
+.del-btn:hover{color:#EF4444;background:rgba(239,68,68,0.1)}
+
+/* MODAL */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:1000;align-items:center;justify-content:center}
+.overlay.show{display:flex}
+.modal{background:#fff;border-radius:16px;padding:32px;width:420px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,0.15)}
+.modal h3{font-size:17px;font-weight:700;margin-bottom:24px;color:#1A1A1A}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:12px;font-weight:500;color:#6B6B6B;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.04em}
+.form-group input{width:100%;padding:10px 14px;border:1px solid #E8E8E8;border-radius:8px;font-size:14px;font-family:'Inter',sans-serif;color:#1A1A1A;transition:all 0.15s ease;outline:none}
+.form-group input:focus{border-color:#FF6B00;box-shadow:0 0 0 3px rgba(255,107,0,0.1)}
+.modal-actions{display:flex;gap:10px;margin-top:24px;justify-content:flex-end}
+.btn-cancel{padding:10px 20px;border:1px solid #E8E8E8;border-radius:8px;background:#fff;font-size:13px;font-weight:500;cursor:pointer;color:#6B6B6B;transition:all 0.15s ease}
+.btn-cancel:hover{border-color:#1A1A1A;color:#1A1A1A}
+.btn-save{padding:10px 24px;border:none;border-radius:8px;background:#FF6B00;color:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s ease}
+.btn-save:hover{background:#E05A00}
+
+.empty-state{text-align:center;padding:40px;color:#6B6B6B;font-size:14px}
+
+.currency-badge{font-size:11px;font-weight:600;color:#fff;background:#FF6B00;border-radius:4px;padding:2px 6px;margin-left:6px;vertical-align:middle}
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+  <div class="sidebar-logo">
+    <div class="dox">DOX</div>
+    <div class="sub">UA Dashboard</div>
+  </div>
+  <div class="sidebar-section">Проекты</div>
+  <div id="nav-items"></div>
+</div>
+
+<div id="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div id="project-title" class="project-title"></div>
+      <div class="tabs-row" id="tabs-row"></div>
+    </div>
+    <button class="add-btn" onclick="openModal()">+ Добавить день</button>
+  </div>
+  <div id="content"></div>
+</div>
+
+<div class="overlay" id="overlay" onclick="closeModal(e)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3 id="modal-title">Добавить запись</h3>
+    <div id="modal-fields"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Отмена</button>
+      <button class="btn-save" onclick="saveEntry()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const PROJECTS = {
+  planto: {
+    name: 'Planto',
+    icon: '🌱',
+    currency: '₽',
+    fields: [
+      { key: 'date', label: 'Дата (ДД.ММ.ГГГГ)', type: 'text', placeholder: '05.06.2026' },
+      { key: 'spend', label: 'Spend (₽)', type: 'number', placeholder: '0' },
+      { key: 'installs', label: 'Installs', type: 'number', placeholder: '0' },
+      { key: 'trials', label: 'Trials', type: 'number', placeholder: '0' },
+      { key: 'bills', label: 'Bills', type: 'number', placeholder: '0' },
+    ],
+    tableHeaders: ['Дата','Spend','Installs','Trials','Bills','Cost/Install','Cost/Trial'],
+    metrics: (rows) => {
+      const spend = sum(rows,'spend'), installs = sum(rows,'installs'), trials = sum(rows,'trials'), bills = sum(rows,'bills');
+      return [
+        { label:'Spend', value: fmt(spend,'₽'), raw: spend },
+        { label:'Installs', value: fmtN(installs) },
+        { label:'Trials', value: fmtN(trials) },
+        { label:'Bills', value: fmtN(bills) },
+        { label:'Cost/Install', value: installs ? fmt(spend/installs,'₽',2) : '—' },
+        { label:'Cost/Trial', value: trials ? fmt(spend/trials,'₽',2) : '—' },
+      ];
+    },
+    tableRow: (r) => [r.date, fmt(r.spend,'₽',2), fmtN(r.installs), fmtN(r.trials), fmtN(r.bills), r.installs?fmt(r.spend/r.installs,'₽',2):'—', r.trials?fmt(r.spend/r.trials,'₽',2):'—'],
+    totalRow: (rows) => {
+      const spend=sum(rows,'spend'), installs=sum(rows,'installs'), trials=sum(rows,'trials'), bills=sum(rows,'bills');
+      return ['Итого', fmt(spend,'₽',2), fmtN(installs), fmtN(trials), fmtN(bills), installs?fmt(spend/installs,'₽',2):'—', trials?fmt(spend/trials,'₽',2):'—'];
+    },
+    chartKeys: ['spend','installs','trials'],
+    chartLabels: ['Spend','Installs','Trials'],
+  },
+  quadcode: {
+    name: 'Quadcode AI',
+    icon: '💻',
+    currency: '$',
+    fields: [
+      { key: 'date', label: 'Дата (ДД.ММ.ГГГГ)', type: 'text', placeholder: '09.06.2026' },
+      { key: 'spend', label: 'Spend ($)', type: 'number', placeholder: '0' },
+      { key: 'regs', label: 'Registrations', type: 'number', placeholder: '0' },
+      { key: 'installs', label: 'Installs', type: 'number', placeholder: '0' },
+      { key: 'purchases', label: 'Purchases', type: 'number', placeholder: '0' },
+    ],
+    tableHeaders: ['Дата','Spend','Regs','Installs','Purchases','Cost/Reg','Cost/Purchase'],
+    metrics: (rows) => {
+      const spend=sum(rows,'spend'), regs=sum(rows,'regs'), installs=sum(rows,'installs'), purchases=sum(rows,'purchases');
+      return [
+        { label:'Spend', value: fmt(spend,'$') },
+        { label:'Regs', value: fmtN(regs) },
+        { label:'Installs', value: fmtN(installs) },
+        { label:'Purchases', value: fmtN(purchases) },
+        { label:'Cost/Reg', value: regs?fmt(spend/regs,'$',2):'—' },
+        { label:'Cost/Purchase', value: purchases?fmt(spend/purchases,'$',2):'—' },
+      ];
+    },
+    tableRow: (r) => [r.date, fmt(r.spend,'$',2), fmtN(r.regs), fmtN(r.installs), fmtN(r.purchases), r.regs?fmt(r.spend/r.regs,'$',2):'—', r.purchases?fmt(r.spend/r.purchases,'$',2):'—'],
+    totalRow: (rows) => {
+      const spend=sum(rows,'spend'), regs=sum(rows,'regs'), installs=sum(rows,'installs'), purchases=sum(rows,'purchases');
+      return ['Итого', fmt(spend,'$',2), fmtN(regs), fmtN(installs), fmtN(purchases), regs?fmt(spend/regs,'$',2):'—', purchases?fmt(spend/purchases,'$',2):'—'];
+    },
+    chartKeys: ['spend','regs','installs'],
+    chartLabels: ['Spend','Regs','Installs'],
+  },
+  streamfi: {
+    name: 'StreamFi',
+    icon: '📡',
+    currency: '$',
+    fields: [
+      { key: 'date', label: 'Дата (ДД.ММ.ГГГГ)', type: 'text', placeholder: '01.06.2026' },
+      { key: 'spend', label: 'Spend ($)', type: 'number', placeholder: '0' },
+      { key: 'regs', label: 'Registrations', type: 'number', placeholder: '0' },
+      { key: 'qregs', label: 'Qualified Regs', type: 'number', placeholder: '0' },
+    ],
+    tableHeaders: ['Дата','Spend','Regs','Qual.Regs','Cost/Reg','Cost/QReg','Conv.Rate'],
+    metrics: (rows) => {
+      const spend=sum(rows,'spend'), regs=sum(rows,'regs'), qregs=sum(rows,'qregs');
+      return [
+        { label:'Spend', value: fmt(spend,'$') },
+        { label:'Regs', value: fmtN(regs) },
+        { label:'Qual.Regs', value: fmtN(qregs) },
+        { label:'Cost/Reg', value: regs?fmt(spend/regs,'$',2):'—' },
+        { label:'Cost/QReg', value: qregs?fmt(spend/qregs,'$',2):'—' },
+        { label:'Conv.Rate', value: regs?((qregs/regs*100).toFixed(1)+'%'):'—' },
+      ];
+    },
+    tableRow: (r) => [r.date, fmt(r.spend,'$',2), fmtN(r.regs), fmtN(r.qregs), r.regs?fmt(r.spend/r.regs,'$',2):'—', r.qregs?fmt(r.spend/r.qregs,'$',2):'—', r.regs?((r.qregs/r.regs*100).toFixed(1)+'%'):'—'],
+    totalRow: (rows) => {
+      const spend=sum(rows,'spend'), regs=sum(rows,'regs'), qregs=sum(rows,'qregs');
+      return ['Итого', fmt(spend,'$',2), fmtN(regs), fmtN(qregs), regs?fmt(spend/regs,'$',2):'—', qregs?fmt(spend/qregs,'$',2):'—', regs?((qregs/regs*100).toFixed(1)+'%'):'—'];
+    },
+    chartKeys: ['spend','regs','qregs'],
+    chartLabels: ['Spend','Regs','Qual.Regs'],
+  }
+};
+
+const SEED = {
+  'dox_planto_2026-06': [
+    {date:'05.06.2026',spend:318.09,installs:2,trials:0,bills:0},
+    {date:'06.06.2026',spend:656.52,installs:64,trials:0,bills:0},
+    {date:'07.06.2026',spend:683.19,installs:63,trials:1,bills:0},
+    {date:'08.06.2026',spend:1383.26,installs:118,trials:0,bills:0},
+    {date:'09.06.2026',spend:1541.37,installs:137,trials:5,bills:0},
+    {date:'10.06.2026',spend:1868.51,installs:127,trials:0,bills:0},
+    {date:'11.06.2026',spend:1584.42,installs:113,trials:0,bills:0},
+    {date:'12.06.2026',spend:2233.46,installs:166,trials:0,bills:0},
+  ],
+  'dox_quadcode_2026-06': [
+    {date:'09.06.2026',spend:14.07,regs:1,installs:0,purchases:0},
+    {date:'10.06.2026',spend:83.00,regs:3,installs:0,purchases:0},
+    {date:'11.06.2026',spend:96.82,regs:2,installs:0,purchases:0},
+    {date:'12.06.2026',spend:188.92,regs:7,installs:2,purchases:0},
+  ],
+  'dox_streamfi_2026-06': [
+    {date:'01.06.2026',spend:129.29,regs:9,qregs:0},
+    {date:'02.06.2026',spend:118.10,regs:7,qregs:0},
+    {date:'03.06.2026',spend:94.63,regs:3,qregs:0},
+    {date:'04.06.2026',spend:115.38,regs:7,qregs:0},
+    {date:'05.06.2026',spend:97.37,regs:2,qregs:0},
+    {date:'06.06.2026',spend:104.53,regs:9,qregs:0},
+    {date:'07.06.2026',spend:152.16,regs:12,qregs:0},
+    {date:'08.06.2026',spend:76.08,regs:5,qregs:0},
+    {date:'09.06.2026',spend:116.86,regs:5,qregs:0},
+    {date:'10.06.2026',spend:127.21,regs:8,qregs:0},
+    {date:'11.06.2026',spend:141.82,regs:13,qregs:0},
+    {date:'12.06.2026',spend:118.84,regs:4,qregs:0},
+  ],
+};
+
+// seed if empty
+Object.entries(SEED).forEach(([k,v]) => { if(!localStorage.getItem(k)) localStorage.setItem(k, JSON.stringify(v)); });
+
+let currentProject = 'planto';
+let currentMonth = '2026-06';
+let chartInstance = null;
+
+function lsKey(proj, month) { return `dox_${proj}_${month}`; }
+function getRows(proj, month) { return JSON.parse(localStorage.getItem(lsKey(proj,month)) || '[]'); }
+function setRows(proj, month, rows) { localStorage.setItem(lsKey(proj,month), JSON.stringify(rows)); }
+
+function sum(rows, key) { return rows.reduce((a,r) => a + (parseFloat(r[key])||0), 0); }
+function fmtN(n) { return n === undefined || n === null ? '0' : Number(n).toLocaleString('ru-RU'); }
+function fmt(n, cur, decimals) {
+  if(n === undefined || isNaN(n)) return '—';
+  const d = decimals !== undefined ? decimals : 0;
+  const abs = Math.abs(n);
+  let str;
+  if(d === 0) str = Math.round(abs).toLocaleString('ru-RU');
+  else str = abs.toFixed(d).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  return cur === '$' ? '$' + str : str + ' ' + cur;
+}
+
+function getMonths(proj) {
+  const keys = Object.keys(localStorage).filter(k => k.startsWith(`dox_${proj}_`));
+  const months = keys.map(k => k.replace(`dox_${proj}_`,'')).sort();
+  return months;
+}
+
+function renderNav() {
+  const c = document.getElementById('nav-items');
+  c.innerHTML = Object.entries(PROJECTS).map(([k,p]) => `
+    <div class="nav-item ${k===currentProject?'active':''}" onclick="switchProject('${k}')">
+      <span class="icon">${p.icon}</span>
+      <span>${p.name}</span>
+    </div>
+  `).join('');
+}
+
+function renderTopbar() {
+  const p = PROJECTS[currentProject];
+  document.getElementById('project-title').innerHTML = `${p.icon} ${p.name} <span class="currency-badge">${p.currency}</span>`;
+  const months = getMonths(currentProject);
+  if(!months.includes(currentMonth)) currentMonth = months[months.length-1] || '2026-06';
+  const tabs = document.getElementById('tabs-row');
+  tabs.innerHTML = months.map(m => `<button class="tab-btn ${m===currentMonth?'active':''}" onclick="switchMonth('${m}')">${formatMonth(m)}</button>`).join('') +
+    `<button class="add-month-btn" onclick="addMonth()">+ месяц</button>`;
+}
+
+function formatMonth(m) {
+  const [y,mo] = m.split('-');
+  const names = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
+  return names[parseInt(mo)-1] + ' ' + y;
+}
+
+function renderContent() {
+  const p = PROJECTS[currentProject];
+  const rows = getRows(currentProject, currentMonth).sort((a,b) => parseDate(a.date)-parseDate(b.date));
+  const metrics = p.metrics(rows);
+
+  const metricsHtml = `<div class="metrics-grid">${metrics.map(m=>`
+    <div class="metric-card">
+      <div class="metric-label">${m.label}</div>
+      <div class="metric-value">${m.value}</div>
+    </div>`).join('')}</div>`;
+
+  const chartHtml = `<div class="chart-card">
+    <div class="card-title">Динамика по дням</div>
+    <div class="chart-wrap"><canvas id="mainChart"></canvas></div>
+  </div>`;
+
+  let tableBody = '';
+  if(rows.length === 0) {
+    tableBody = `<tr><td colspan="${p.tableHeaders.length+1}" class="empty-state">Нет данных. Нажмите «+ Добавить день».</td></tr>`;
+  } else {
+    tableBody = rows.map(r => {
+      const cells = p.tableRow(r);
+      return `<tr>
+        ${cells.map((c,i) => `<td>${i===0?`<button class="del-btn" onclick="deleteRow('${r.date}')" title="Удалить">✕</button> ${c}`:c}</td>`).join('')}
+      </tr>`;
+    }).join('');
+    if(rows.length > 0) {
+      const total = p.totalRow(rows);
+      tableBody += `<tr class="total-row">${total.map(c=>`<td>${c}</td>`).join('')}</tr>`;
+    }
+  }
+
+  const tableHtml = `<div class="table-card">
+    <div class="table-header"><span class="card-title">Данные по дням</span></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          ${p.tableHeaders.map(h=>`<th>${h}</th>`).join('')}
+        </tr></thead>
+        <tbody>${tableBody}</tbody>
+      </table>
+    </div>
+  </div>`;
+
+  document.getElementById('content').innerHTML = metricsHtml + chartHtml + tableHtml;
+  renderChart(rows);
+}
+
+function renderChart(rows) {
+  if(chartInstance) { chartInstance.destroy(); chartInstance = null; }
+  const p = PROJECTS[currentProject];
+  const sorted = [...rows].sort((a,b)=>parseDate(a.date)-parseDate(b.date));
+  const labels = sorted.map(r => r.date.substring(0,5));
+  const [k0,k1,k2] = p.chartKeys;
+  const colors = ['#FF6B00','#3B82F6','#22C55E'];
+
+  const datasets = [
+    {
+      label: p.chartLabels[0],
+      data: sorted.map(r=>parseFloat(r[k0])||0),
+      borderColor: colors[0],
+      backgroundColor: 'rgba(255,107,0,0.08)',
+      fill: true,
+      yAxisID: 'y',
+      tension: 0.3,
+      borderWidth: 2,
+      pointRadius: 4,
+      pointBackgroundColor: colors[0],
+    }
+  ];
+  if(k1) datasets.push({
+    label: p.chartLabels[1],
+    data: sorted.map(r=>parseFloat(r[k1])||0),
+    borderColor: colors[1],
+    backgroundColor: 'transparent',
+    fill: false,
+    yAxisID: 'y1',
+    tension: 0.3,
+    borderWidth: 2,
+    pointRadius: 4,
+    pointBackgroundColor: colors[1],
+  });
+  if(k2) datasets.push({
+    label: p.chartLabels[2],
+    data: sorted.map(r=>parseFloat(r[k2])||0),
+    borderColor: colors[2],
+    backgroundColor: 'transparent',
+    fill: false,
+    yAxisID: 'y1',
+    tension: 0.3,
+    borderWidth: 2,
+    pointRadius: 4,
+    pointBackgroundColor: colors[2],
+  });
+
+  const ctx = document.getElementById('mainChart');
+  if(!ctx) return;
+  chartInstance = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', labels: { font: { family: 'Inter', size: 12 }, boxWidth: 12, padding: 16 } },
+        tooltip: { mode: 'index', intersect: false }
+      },
+      scales: {
+        x: { grid: { color: '#F0F0F0' }, ticks: { font: { family: 'Inter', size: 11 } } },
+        y: {
+          type: 'linear', position: 'left',
+          grid: { color: '#F0F0F0' },
+          ticks: { font: { family: 'Inter', size: 11 } },
+          title: { display: true, text: p.chartLabels[0], font: { family: 'Inter', size: 11 }, color: '#FF6B00' }
+        },
+        y1: {
+          type: 'linear', position: 'right',
+          grid: { drawOnChartArea: false },
+          ticks: { font: { family: 'Inter', size: 11 } },
+          title: { display: true, text: p.chartLabels[1] + (p.chartLabels[2]?'/'+p.chartLabels[2]:''), font: { family: 'Inter', size: 11 }, color: '#3B82F6' }
+        }
+      }
+    }
+  });
+}
+
+function parseDate(str) {
+  if(!str) return 0;
+  const [d,m,y] = str.split('.');
+  return new Date(y,m-1,d).getTime();
+}
+
+function switchProject(p) {
+  currentProject = p;
+  const months = getMonths(p);
+  currentMonth = months[months.length-1] || '2026-06';
+  render();
+}
+
+function switchMonth(m) {
+  currentMonth = m;
+  renderTopbar();
+  renderContent();
+}
+
+function addMonth() {
+  const input = prompt('Введите месяц в формате ГГГГ-ММ (например, 2026-07):');
+  if(!input || !/^\d{4}-\d{2}$/.test(input.trim())) { if(input) alert('Неверный формат. Используйте ГГГГ-ММ'); return; }
+  const m = input.trim();
+  if(!localStorage.getItem(lsKey(currentProject, m))) setRows(currentProject, m, []);
+  currentMonth = m;
+  render();
+}
+
+function openModal() {
+  const p = PROJECTS[currentProject];
+  document.getElementById('modal-title').textContent = 'Добавить запись — ' + p.name;
+  document.getElementById('modal-fields').innerHTML = p.fields.map(f => `
+    <div class="form-group">
+      <label>${f.label}</label>
+      <input id="field_${f.key}" type="${f.type}" placeholder="${f.placeholder}" step="any">
+    </div>`).join('');
+  document.getElementById('overlay').classList.add('show');
+  const first = document.querySelector('#modal-fields input');
+  if(first) setTimeout(() => first.focus(), 50);
+}
+
+function closeModal() {
+  document.getElementById('overlay').classList.remove('show');
+}
+
+document.getElementById('overlay').addEventListener('click', function(e) {
+  if(e.target === this) closeModal();
+});
+
+function saveEntry() {
+  const p = PROJECTS[currentProject];
+  const entry = {};
+  let valid = true;
+  p.fields.forEach(f => {
+    const el = document.getElementById('field_' + f.key);
+    if(!el) return;
+    const val = el.value.trim();
+    if(f.key === 'date') {
+      if(!/^\d{2}\.\d{2}\.\d{4}$/.test(val)) { el.style.borderColor='#EF4444'; valid=false; return; }
+      entry[f.key] = val;
+    } else {
+      entry[f.key] = parseFloat(val) || 0;
+    }
+    el.style.borderColor='';
+  });
+  if(!valid) { alert('Введите дату в формате ДД.ММ.ГГГГ'); return; }
+  if(!entry.date) { alert('Дата обязательна'); return; }
+
+  let rows = getRows(currentProject, currentMonth);
+  const idx = rows.findIndex(r => r.date === entry.date);
+  if(idx >= 0) rows[idx] = entry; else rows.push(entry);
+  setRows(currentProject, currentMonth, rows);
+  closeModal();
+  renderContent();
+}
+
+function deleteRow(date) {
+  if(!confirm(`Удалить запись за ${date}?`)) return;
+  let rows = getRows(currentProject, currentMonth);
+  rows = rows.filter(r => r.date !== date);
+  setRows(currentProject, currentMonth, rows);
+  renderContent();
+}
+
+function render() {
+  renderNav();
+  renderTopbar();
+  renderContent();
+}
+
+render();
+</script>
+</body>
+</html>
