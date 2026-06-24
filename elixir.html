@@ -436,7 +436,7 @@ body.admin-mode th.th-editable:hover{background:rgba(91,75,245,0.06)}
   <div class="nav-section">Проекты</div>
   <div id="nav-projects"></div>
   <div class="sidebar-footer">
-    <div class="version">Elixir UA · 2026 · planto fix</div>
+    <div class="version">Elixir UA · 2026 · gid fix</div>
   </div>
 </div>
 
@@ -739,10 +739,13 @@ const TYPE_TEMPLATES = [
 // PROJECTS STORAGE
 // ═══════════════════════════════════════════════════════════════
 function normalizeProject(p) {
+  const urls = (p.urls || (p.url ? [p.url] : [])).map(normalizeToCSVUrl).filter(Boolean);
   return {
     ...p,
-    urls: p.urls || (p.url ? [p.url] : []),
-    monthlySheets: (p.monthlySheets || []).filter(ms => ms && ms.month && ms.url),
+    urls,
+    monthlySheets: (p.monthlySheets || [])
+      .filter(ms => ms && ms.month && ms.url)
+      .map(ms => ({ month: ms.month, url: normalizeToCSVUrl(ms.url) })),
     type: p.type || 'auto',
   };
 }
@@ -759,8 +762,8 @@ async function loadProjects() {
   try {
     const remote = await jbLoad();
     if (remote && remote.length) {
-      projects = remote;
-      localStorage.setItem(PROJ_KEY, JSON.stringify(projects)); // update local cache
+      projects = remote.map(normalizeProject);
+      localStorage.setItem(PROJ_KEY, JSON.stringify(projects));
       return;
     }
   } catch(e) { console.warn('JSONBin load failed, using local:', e.message); }
@@ -779,6 +782,7 @@ function genId(name) {
 // CSV PARSING
 // ═══════════════════════════════════════════════════════════════
 function parseCSV(text) {
+  text = String(text || '').replace(/^\uFEFF/, '');
   return text.split('\n').map(line => {
     line = line.trim();
     if (!line) return null;
@@ -1130,6 +1134,39 @@ async function fetchWithFallback(url) {
   throw lastErr || new Error('Fetch failed');
 }
 
+function csvUrlVariants(url) {
+  const variants = [];
+  const normalized = normalizeToCSVUrl(url);
+  if (normalized) variants.push(normalized);
+  const id = extractSheetId(url);
+  if (id) {
+    const gidMatch = String(url).match(/[#&?]gid=(\d+)/);
+    const gid = gidMatch && gidMatch[1] !== '0' ? gidMatch[1] : null;
+    const exportBase = `https://docs.google.com/spreadsheets/d/${id}/export?format=csv`;
+    const gvizBase = `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv`;
+    if (gid) {
+      variants.push(`${exportBase}&gid=${gid}`);
+      variants.push(`${gvizBase}&gid=${gid}`);
+    }
+    variants.push(exportBase);
+    variants.push(gvizBase);
+  }
+  return [...new Set(variants.filter(Boolean))];
+}
+
+async function fetchCsvWithFallback(url) {
+  let lastErr;
+  for (const u of csvUrlVariants(url)) {
+    try {
+      return await fetchWithFallback(u);
+    } catch(e) {
+      lastErr = e;
+      console.warn('CSV variant failed:', u, e.message);
+    }
+  }
+  throw lastErr || new Error('Fetch failed');
+}
+
 async function fetchProject(proj) {
   const sources = [];
   (proj.monthlySheets || []).forEach(ms => {
@@ -1139,7 +1176,7 @@ async function fetchProject(proj) {
     const urls = proj.urls && proj.urls.length ? proj.urls : (proj.url ? [proj.url] : []);
     urls.forEach(u => sources.push({ url: u, month: null }));
   }
-  const results = await Promise.allSettled(sources.map(s => fetchWithFallback(s.url)));
+  const results = await Promise.allSettled(sources.map(s => fetchCsvWithFallback(s.url)));
   const all = [];
   results.forEach((r, i) => {
     if (r.status === 'fulfilled') {
@@ -2489,9 +2526,9 @@ async function fetchHtmlWithFallback(url) {
   let lastErr;
   for (const fetcher of FETCHERS) {
     try {
-      const resp = await fetcher(url);
+      const resp = await fetchWithTimeout(fetcher(url), 12000);
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const text = await resp.text();
+      const text = await fetchWithTimeout(resp.text(), 8000);
       if (text.trim().length < 50) throw new Error('Empty response');
       return text;
     } catch(e) { lastErr = e; console.warn('HTML fetch attempt failed:', e.message); }
@@ -2504,7 +2541,17 @@ function extractSheetId(url) {
 }
 
 function sheetCsvUrl(id, gid) {
-  return `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}`;
+  const base = `https://docs.google.com/spreadsheets/d/${id}/export?format=csv`;
+  if (gid != null && gid !== '' && String(gid) !== '0' && gid !== 'default') return `${base}&gid=${gid}`;
+  return base;
+}
+
+function defaultSheetTab(sheetUrl) {
+  const id = extractSheetId(sheetUrl);
+  if (!id) return null;
+  const gidMatch = sheetUrl.match(/[#&?]gid=(\d+)/);
+  const gid = gidMatch && gidMatch[1] !== '0' ? gidMatch[1] : 'default';
+  return { gid, title: 'Лист 1', csvUrl: sheetCsvUrl(id, gidMatch && gidMatch[1] !== '0' ? gidMatch[1] : null) };
 }
 
 async function discoverSheetTabs(sheetUrl) {
@@ -2526,8 +2573,8 @@ async function discoverSheetTabs(sheetUrl) {
   const seen = new Set();
   tabs = tabs.filter(t => { if (seen.has(t.gid)) return false; seen.add(t.gid); return true; });
   if (!tabs.length) {
-    const gidMatch = sheetUrl.match(/[#&?]gid=(\d+)/);
-    tabs = [{ gid: gidMatch ? gidMatch[1] : '0', title: 'Лист 1', csvUrl: sheetCsvUrl(id, gidMatch ? gidMatch[1] : '0') }];
+    const fallback = defaultSheetTab(sheetUrl);
+    if (fallback) tabs = [fallback];
   }
   return tabs;
 }
@@ -2626,18 +2673,26 @@ async function onSheetUrlInput(isEdit) {
   const statusEl = document.getElementById(isEdit ? 'sheet-status-edit' : 'sheet-status');
   const url = urlEl.value.trim();
   if (!url || !extractSheetId(url)) return;
+  const key = isEdit ? 'edit' : 'add';
   statusEl.textContent = 'Ищу вкладки…';
   statusEl.className = 'sheet-status';
   try {
     const tabs = await discoverSheetTabs(url);
-    const key = isEdit ? 'edit' : 'add';
     discoveredTabsCache[key] = tabs;
     renderTabChips(tabs, isEdit, tabs.map(t => t.gid));
     statusEl.textContent = `✓ Найдено ${tabs.length} вкладок`;
     statusEl.className = 'sheet-status ok';
   } catch(e) {
-    statusEl.textContent = 'Не удалось загрузить вкладки — проверьте ссылку';
-    statusEl.className = 'sheet-status err';
+    const fallback = defaultSheetTab(url);
+    if (fallback) {
+      discoveredTabsCache[key] = [fallback];
+      renderTabChips(discoveredTabsCache[key], isEdit, [fallback.gid]);
+      statusEl.textContent = '✓ Подключено';
+      statusEl.className = 'sheet-status ok';
+    } else {
+      statusEl.textContent = 'Не удалось загрузить вкладки — проверьте ссылку';
+      statusEl.className = 'sheet-status err';
+    }
   }
 }
 
@@ -2674,7 +2729,7 @@ async function previewSheetColumns(csvUrl, isEdit) {
   colStatus.textContent = 'Читаю колонки…';
   colStatus.className = 'sheet-status';
   try {
-    const text = await fetchWithFallback(csvUrl);
+    const text = await fetchCsvWithFallback(csvUrl);
     const rows = parseCSV(text);
     if (!rows.length) throw new Error('empty');
     const rawHeaders = rows[0].map(h => (h || '').trim()).filter(Boolean);
@@ -2764,7 +2819,10 @@ function sheetUrlFromProjectUrls(urls) {
 }
 
 function gidsFromUrls(urls) {
-  return (urls || []).map(u => { const m = u.match(/gid=(\d+)/); return m ? m[1] : '0'; });
+  return (urls || []).map(u => {
+    const m = u.match(/gid=(\d+)/);
+    return m && m[1] !== '0' ? m[1] : 'default';
+  });
 }
 
 function openAddProject() {
@@ -2807,22 +2865,18 @@ function openEditProject(projId) {
   document.getElementById('proj-currency-edit').value = p.currency;
   const rem = getBudgetRemainder(p);
   document.getElementById('proj-budget-remainder-edit').value = rem != null ? rem : '';
-  const editType = p.sheetColumns?.length ? detectSheetType(p.sheetColumns) : getEffectiveType(p, cache[p.id] || []);
-  document.getElementById('proj-type-edit').value = 'auto';
-  updateAutoTypeDisplay(editType, null);
+  document.getElementById('proj-type-auto-display').textContent = 'Определяется из таблицы…';
   sheetPreviewCache.headers = p.sheetColumns || [];
-  sheetPreviewCache.type = editType;
-  buildMetricsEditor(editType, p.metrics);
+  sheetPreviewCache.type = p.sheetColumns?.length ? detectSheetType(p.sheetColumns) : 'auto';
+  document.getElementById('proj-type-edit').value = 'auto';
+  buildMetricsEditor(sheetPreviewCache.type !== 'auto' ? sheetPreviewCache.type : 'planto', p.metrics);
   renderMonthlySheetsEditor(p.monthlySheets || []);
   document.getElementById('proj-sheet-url-edit').value = sheetUrlFromProjectUrls(p.urls);
   document.getElementById('sheet-status-edit').textContent = '';
   document.getElementById('proj-error').style.display = 'none';
   document.getElementById('proj-delete-btn').style.display = 'block';
-  const gids = gidsFromUrls(p.urls);
   if (p.urls && p.urls.length) {
-    onSheetUrlInput(true).then(() => {
-      if (discoveredTabsCache.edit.length) renderTabChips(discoveredTabsCache.edit, true, gids);
-    });
+    onSheetUrlInput(true);
   }
   setWizardUI();
   document.getElementById('overlay-proj').classList.add('show');
@@ -2835,14 +2889,14 @@ function onProjTypeChangeEdit() {
 function normalizeToCSVUrl(url) {
   url = (url || '').trim();
   if (!url) return '';
-  if (/format=csv/.test(url)) return url;
   const idMatch = url.match(/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
   if (!idMatch) return url;
   const id = idMatch[1];
   const gidMatch = url.match(/[#&?]gid=(\d+)/);
-  let out = `https://docs.google.com/spreadsheets/d/${id}/export?format=csv`;
-  if (gidMatch) out += `&gid=${gidMatch[1]}`;
-  return out;
+  const gid = gidMatch && gidMatch[1] !== '0' ? gidMatch[1] : null;
+  return gid
+    ? `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}`
+    : `https://docs.google.com/spreadsheets/d/${id}/export?format=csv`;
 }
 
 function getUrlFieldValues() {
