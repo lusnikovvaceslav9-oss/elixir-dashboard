@@ -436,7 +436,7 @@ body.admin-mode th.th-editable:hover{background:rgba(91,75,245,0.06)}
   <div class="nav-section">Проекты</div>
   <div id="nav-projects"></div>
   <div class="sidebar-footer">
-    <div class="version">Elixir UA · 2026 · chart types</div>
+    <div class="version">Elixir UA · 2026 · planto fix</div>
   </div>
 </div>
 
@@ -829,25 +829,44 @@ function parseNum(s) {
   if (!s) return 0;
   s = String(s).trim();
   if (!s || s === '-' || /^#/.test(s)) return 0;
-  s = s.replace(/[₽$€\s]/g, '');
+  s = s.replace(/[₽$€\s\u00a0\u202f]/g, '');
   if (s.includes('.') && s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
   else if (s.includes(',')) s = s.replace(',', '.');
   s = s.replace(/[^\d.\-]/g, '');
   return parseFloat(s) || 0;
 }
 
-function hasData(obj) {
-  return Object.entries(obj).some(([k,v]) => k !== 'date' && k !== 'dateStr' && v !== 0);
+function findPlantoColumns(headerRow) {
+  const headers = headerRow.map(h => (h || '').toLowerCase().trim());
+  return {
+    dateCol: Math.max(findCol(headers, ['дата', 'date']), 0),
+    spendCol: findCol(headers, ['спенд', 'spend', 'расход']),
+    installCol: findCol(headers, ['install', 'inst'], ['cost', 'цена', '/']),
+    trialCol: findCol(headers, ['trial'], ['cost', 'цена', '/', 'fb', 'inst']),
+    fbCol: findCol(headers, ['fb'], ['cost', 'цена', '/', 'trial']),
+    clicksCol: findCol(headers, ['click'], ['ctr']),
+    impressionsCol: findCol(headers, ['impression', 'impress'], []),
+  };
 }
 
 function parsePlantoRows(rows) {
+  if (!rows.length) return [];
+  const cols = findPlantoColumns(rows[0]);
+  const sc = cols.spendCol >= 0 ? cols.spendCol : 1;
   return rows.slice(1).map(r => {
-    const dateStr = r[0] || '';
-    if (/итого|total/i.test(dateStr) || !dateStr.trim()) return null;
+    const dateStr = (r[cols.dateCol] || '').trim();
+    if (/итого|total/i.test(dateStr) || !dateStr) return null;
     const dt = parseDate(dateStr);
     if (!dt) return null;
-    const obj = { date: dt, dateStr: fmtDateStr(dt),
-      spend: parseNum(r[1]), installs: parseNum(r[2]), trials: parseNum(r[4]), fb: parseNum(r[7]) };
+    const obj = {
+      date: dt, dateStr: fmtDateStr(dt),
+      spend: parseNum(r[sc]),
+      installs: cols.installCol >= 0 ? parseNum(r[cols.installCol]) : 0,
+      trials: cols.trialCol >= 0 ? parseNum(r[cols.trialCol]) : 0,
+      fb: cols.fbCol >= 0 ? parseNum(r[cols.fbCol]) : 0,
+    };
+    if (cols.impressionsCol >= 0) obj.impressions = parseNum(r[cols.impressionsCol]);
+    if (cols.clicksCol >= 0) obj.clicks = parseNum(r[cols.clicksCol]);
     return hasData(obj) ? obj : null;
   }).filter(Boolean);
 }
@@ -873,13 +892,25 @@ function findCol(headers, keywords, exclude = []) {
   return -1;
 }
 
+function hasData(obj) {
+  return Object.entries(obj).some(([k,v]) => k !== 'date' && k !== 'dateStr' && v !== 0);
+}
+
+function isPlantoSheet(headers) {
+  const hasInstall = findCol(headers, ['install', 'inst'], ['cost', 'цена', '/']) >= 0;
+  const hasTrial = findCol(headers, ['trial'], ['cost', 'цена', '/']) >= 0;
+  const hasFb = findCol(headers, ['fb'], ['cost', 'цена', '/']) >= 0;
+  return hasInstall && (hasTrial || hasFb);
+}
+
 function detectSheetType(headerRow) {
   const headers = (headerRow || []).map(h => (h || '').toLowerCase().trim());
+  if (isPlantoSheet(headers)) return 'planto';
   const hasSpend = findCol(headers, ['спенд', 'spend', 'расход'], []) >= 0;
   const hasImpressions = findCol(headers, ['impression', 'impress'], []) >= 0;
   const hasClicks = findCol(headers, ['click'], ['ctr']) >= 0;
   if (hasSpend && (hasImpressions || hasClicks)) return 'campaign';
-  if (findCol(headers, ['install', 'trial', 'fb'], ['cost', 'цена']) >= 0) return 'planto';
+  if (findCol(headers, ['install', 'inst', 'trial', 'fb'], ['cost', 'цена', '/']) >= 0) return 'planto';
   if (findCol(headers, ['purchase', 'purch'], []) >= 0 && findCol(headers, ['reg'], ['целев', 'цена']) >= 0) return 'quadcode';
   if (findCol(headers, ['целев', 'результат', 'действ', 'ключев', 'qual', 'qreg', 'target'], ['цена', 'cost', 'cpa', 'цел. рег', 'целевая рег', '/']) >= 0) return 'streamfi';
   if (findCol(headers, ['спенд', 'spend', 'расход'], []) >= 0) return 'streamfi';
@@ -1046,11 +1077,12 @@ function parseSheet(text) {
 function detectTypeFromRows(rows) {
   if (!rows?.length) return 'generic';
   const s = rows[0];
+  if ('installs' in s && ('trials' in s || 'fb' in s)) return 'planto';
+  if ('installs' in s && !('regs' in s) && !('qregs' in s)) return 'planto';
   if ('impressions' in s || 'clicks' in s) return 'campaign';
   if (s.campaign && s.campaign !== '—') return 'campaign';
   if ('purchases' in s && 'installs' in s) return 'quadcode';
   if ('purchases' in s) return 'quadcode';
-  if ('installs' in s && ('trials' in s || 'fb' in s)) return 'planto';
   if ('installs' in s) return 'quadcode';
   if ('qregs' in s || 'regs' in s) return 'streamfi';
   if ('spend' in s) return 'generic';
@@ -1058,15 +1090,8 @@ function detectTypeFromRows(rows) {
 }
 
 function getEffectiveType(proj, rows) {
-  if (rows?.length) {
-    const fromRows = detectTypeFromRows(rows);
-    if (proj.sheetColumns?.length) {
-      const fromHeaders = detectSheetType(proj.sheetColumns);
-      if (fromHeaders === 'campaign' || fromRows === 'campaign') return 'campaign';
-    }
-    return fromRows;
-  }
   if (proj.sheetColumns?.length) return detectSheetType(proj.sheetColumns);
+  if (rows?.length) return detectTypeFromRows(rows);
   return proj.type && proj.type !== 'auto' ? proj.type : 'generic';
 }
 
@@ -1078,19 +1103,31 @@ function withEffectiveType(proj, rows) {
 // ═══════════════════════════════════════════════════════════════
 // FETCH
 // ═══════════════════════════════════════════════════════════════
+async function fetchWithTimeout(promise, ms = 12000) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error('Timeout')), ms);
+  });
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function fetchWithFallback(url) {
   let lastErr;
   for (const fetcher of FETCHERS) {
     try {
-      const resp = await fetcher(url);
+      const resp = await fetchWithTimeout(fetcher(url), 12000);
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const text = await resp.text();
+      const text = await fetchWithTimeout(resp.text(), 8000);
       if (text.trim().startsWith('<!')) throw new Error('Got HTML instead of CSV');
       if (text.trim().length < 10) throw new Error('Empty response');
       return text;
     } catch(e) { lastErr = e; console.warn('Fetch attempt failed:', e.message); }
   }
-  throw lastErr;
+  throw lastErr || new Error('Fetch failed');
 }
 
 async function fetchProject(proj) {
