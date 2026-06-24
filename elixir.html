@@ -285,6 +285,7 @@ td:first-child{text-align:left;color:#F0F0F0;font-weight:500}
 .form-group select option{background:#1A1A1A;color:#F0F0F0}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .form-hint{font-size:11px;color:rgba(255,255,255,0.25);margin-top:5px;line-height:1.5}
+.auto-type-badge{font-size:13px;color:#a29bfe;background:rgba(108,92,231,0.12);border:1px solid rgba(108,92,231,0.25);border-radius:8px;padding:10px 14px}
 .modal-error{font-size:12px;color:#EF4444;margin-bottom:10px;display:none;padding:8px 12px;background:rgba(239,68,68,0.08);border-radius:6px;border:1px solid rgba(239,68,68,0.2)}
 .modal-actions{display:flex;gap:8px;margin-top:20px;justify-content:flex-end}
 .btn-cancel{padding:9px 18px;border:1px solid rgba(255,255,255,0.1);border-radius:8px;background:transparent;font-size:13px;font-weight:500;cursor:pointer;color:rgba(255,255,255,0.45);transition:all 0.15s ease;font-family:'Inter',sans-serif}
@@ -477,11 +478,10 @@ body.admin-mode th.th-editable:hover{background:rgba(91,75,245,0.06)}
   <div class="modal modal-wizard" id="proj-modal">
     <div class="wizard-head">
       <h3 id="proj-modal-title">Новый проект</h3>
-      <div class="modal-sub" id="proj-modal-sub">Подключите Google Sheets за 3 шага</div>
+      <div class="modal-sub" id="proj-modal-sub">Подключите Google Sheets за 2 шага</div>
       <div class="wizard-steps" id="wizard-steps">
         <div class="wizard-step active" data-step="1"><span class="wizard-step-num">1</span> Основное</div>
         <div class="wizard-step" data-step="2"><span class="wizard-step-num">2</span> Таблица</div>
-        <div class="wizard-step" data-step="3"><span class="wizard-step-num">3</span> Тип</div>
       </div>
     </div>
 
@@ -533,16 +533,8 @@ body.admin-mode th.th-editable:hover{background:rgba(91,75,245,0.06)}
         </div>
         <div id="proj-urls-list" class="advanced-only" style="display:none"></div>
         <button type="button" class="btn-link" id="btn-advanced-urls" onclick="toggleAdvancedUrls()">Расширенные настройки URL</button>
-      </div>
-
-      <!-- Step 3 -->
-      <div class="wizard-pane" data-step="3">
-        <div class="form-group">
-          <label>Тип данных в таблице</label>
-          <input type="hidden" id="proj-type" value="generic">
-          <div class="type-cards" id="type-cards"></div>
-        </div>
-        <div class="wizard-summary" id="wizard-summary"></div>
+        <input type="hidden" id="proj-type" value="auto">
+        <div class="wizard-summary" id="wizard-summary" style="margin-top:16px"></div>
       </div>
 
       <!-- Edit-only sections -->
@@ -569,13 +561,9 @@ body.admin-mode th.th-editable:hover{background:rgba(91,75,245,0.06)}
               </select>
             </div>
             <div class="form-group">
-              <label>Тип таблицы</label>
-              <select id="proj-type-edit" onchange="onProjTypeChangeEdit()">
-                <option value="planto">Planto</option>
-                <option value="quadcode">Quadcode</option>
-                <option value="streamfi">StreamFi</option>
-                <option value="generic">Generic</option>
-              </select>
+              <label>Тип данных</label>
+              <div id="proj-type-auto-display" class="auto-type-badge">Определяется из таблицы автоматически</div>
+              <input type="hidden" id="proj-type-edit" value="auto">
             </div>
           </div>
           <div class="form-group">
@@ -706,6 +694,7 @@ let sheetPreviewCache = { headers: [], type: 'generic', rowCount: 0 };
 const EMOJI_OPTIONS = ['📊','📡','🌱','💻','🚀','📱','💰','🎯','⚡','🔥','📈','🎮','🛒','💎','🌍','✨'];
 const TYPE_TEMPLATES = [
   { id: 'streamfi', icon: '📡', name: 'StreamFi / UA', desc: 'Спенд + целевые действия / регистрации' },
+  { id: 'campaign', icon: '🎯', name: 'Campaign / Ads', desc: 'Reg, Spend, Impressions, Clicks, CPC, CPM' },
   { id: 'planto',   icon: '🌱', name: 'Planto',   desc: 'Installs, Trials, FB' },
   { id: 'quadcode', icon: '💻', name: 'Quadcode', desc: 'Regs, Installs, Purchases' },
   { id: 'generic',  icon: '📊', name: 'Generic',  desc: 'Только Spend' },
@@ -845,6 +834,8 @@ function findCol(headers, keywords, exclude = []) {
 
 function detectSheetType(headerRow) {
   const headers = (headerRow || []).map(h => (h || '').toLowerCase().trim());
+  if (findCol(headers, ['campaign', 'кампани']) >= 0 &&
+      (findCol(headers, ['impression', 'impress']) >= 0 || findCol(headers, ['click'], ['ctr']) >= 0)) return 'campaign';
   if (findCol(headers, ['install', 'trial', 'fb'], ['cost', 'цена']) >= 0) return 'planto';
   if (findCol(headers, ['purchase', 'purch'], []) >= 0 && findCol(headers, ['reg'], ['целев', 'цена']) >= 0) return 'quadcode';
   if (findCol(headers, ['целев', 'результат', 'действ', 'ключев', 'qual', 'qreg', 'target'], ['цена', 'cost', 'cpa', 'цел. рег', 'целевая рег', '/']) >= 0) return 'streamfi';
@@ -948,6 +939,45 @@ function parseStreamfiRows(rows) {
   return [...byDate.values()].sort((a, b) => a.date - b.date);
 }
 
+function findCampaignExtraColumns(headerRow) {
+  const headers = headerRow.map(h => (h || '').toLowerCase().trim());
+  return {
+    campaignCol: findCol(headers, ['campaign', 'кампани']),
+    impressionsCol: findCol(headers, ['impression', 'impress']),
+    clicksCol: findCol(headers, ['click'], ['ctr']),
+  };
+}
+
+function parseCampaignRows(rows) {
+  if (!rows.length) return [];
+  const { dateCol, sc, qc, rc } = findStreamfiColumns(rows[0]);
+  const extra = findCampaignExtraColumns(rows[0]);
+  const out = [];
+
+  rows.slice(1).forEach(r => {
+    const dateStr = (r[dateCol] || '').trim();
+    if (/итого|total/i.test(dateStr) || !dateStr) return;
+    const dt = parseDate(dateStr);
+    if (!dt) return;
+    const spend = parseNum(r[sc]);
+    const qregs = parseNum(r[qc]);
+    const regs = rc >= 0 ? parseNum(r[rc]) : 0;
+    const impressions = extra.impressionsCol >= 0 ? parseNum(r[extra.impressionsCol]) : 0;
+    const clicks = extra.clicksCol >= 0 ? parseNum(r[extra.clicksCol]) : 0;
+    const campaign = extra.campaignCol >= 0 ? (r[extra.campaignCol] || '').trim() : '';
+    if (!spend && !qregs && !regs && !impressions && !clicks) return;
+
+    const obj = {
+      date: dt, dateStr: fmtDateStr(dt), spend, qregs, impressions, clicks,
+      campaign: campaign || '—',
+    };
+    if (rc >= 0) obj.regs = regs;
+    out.push(obj);
+  });
+
+  return out.sort((a, b) => a.date - b.date || (a.campaign || '').localeCompare(b.campaign || ''));
+}
+
 function parseGenericRows(rows) {
   return rows.slice(1).map(r => {
     const dateStr = r[0] || '';
@@ -959,29 +989,34 @@ function parseGenericRows(rows) {
   }).filter(Boolean);
 }
 
-function parseSheet(text, type) {
+function parseSheet(text) {
   const rows = parseCSV(text);
   if (!rows.length) return [];
-  let t = type;
-  if (t === 'generic') {
-    const d = detectSheetType(rows[0]);
-    if (d !== 'generic') t = d;
-  }
+  const t = detectSheetType(rows[0]);
   if (t === 'planto')   return parsePlantoRows(rows);
   if (t === 'quadcode') return parseQuadcodeRows(rows);
+  if (t === 'campaign') return parseCampaignRows(rows);
   if (t === 'streamfi') return parseStreamfiRows(rows);
   return parseGenericRows(rows);
 }
 
-function getEffectiveType(proj, rows) {
-  if (proj.type !== 'generic') return proj.type;
-  if (!rows || !rows.length) return proj.type;
+function detectTypeFromRows(rows) {
+  if (!rows?.length) return 'generic';
   const s = rows[0];
-  if ('qregs' in s) return 'streamfi';
-  if ('installs' in s) return 'planto';
+  if ('impressions' in s || (s.campaign && s.campaign !== '—')) return 'campaign';
+  if ('purchases' in s && 'installs' in s) return 'quadcode';
   if ('purchases' in s) return 'quadcode';
-  if ('regs' in s) return 'streamfi';
-  return proj.type;
+  if ('installs' in s && ('trials' in s || 'fb' in s)) return 'planto';
+  if ('installs' in s) return 'quadcode';
+  if ('qregs' in s || 'regs' in s) return 'streamfi';
+  if ('spend' in s) return 'generic';
+  return 'generic';
+}
+
+function getEffectiveType(proj, rows) {
+  if (rows?.length) return detectTypeFromRows(rows);
+  if (proj.sheetColumns?.length) return detectSheetType(proj.sheetColumns);
+  return proj.type && proj.type !== 'auto' ? proj.type : 'generic';
 }
 
 function withEffectiveType(proj, rows) {
@@ -1013,17 +1048,19 @@ async function fetchProject(proj) {
   const all = [];
   results.forEach((r, i) => {
     if (r.status === 'fulfilled') {
-      const rows = parseSheet(r.value, proj.type);
+      const rows = parseSheet(r.value);
       rows.forEach(row => all.push(row));
     } else {
       console.warn(`URL[${i}] failed:`, r.reason);
     }
   });
   if (!all.length && results.every(r => r.status === 'rejected')) throw results[0].reason;
-  // deduplicate by dateStr, last write wins
   const map = new Map();
-  all.forEach(r => map.set(r.dateStr, r));
-  return [...map.values()].sort((a, b) => a.date - b.date);
+  all.forEach(r => {
+    const key = r.campaign ? `${r.dateStr}|${r.campaign}` : r.dateStr;
+    map.set(key, r);
+  });
+  return [...map.values()].sort((a, b) => a.date - b.date || (a.campaign || '').localeCompare(b.campaign || ''));
 }
 
 async function loadAll() {
@@ -1075,6 +1112,16 @@ const METRIC_CATALOG = {
     { key: 'cost_qreg', label: 'Cost / Цел. действие', accent: true },
     { key: 'conv_rate', label: 'Conv. Rate', accent: false },
   ],
+  campaign: [
+    { key: 'spend', label: 'Total Spend', accent: false },
+    { key: 'qregs', label: 'Reg', accent: false },
+    { key: 'cost_qreg', label: 'Cost / Reg', accent: true },
+    { key: 'impressions', label: 'Impressions', accent: false },
+    { key: 'clicks', label: 'Clicks', accent: false },
+    { key: 'cpc', label: 'CPC', accent: true },
+    { key: 'cpm', label: 'CPM', accent: true },
+    { key: 'ctr', label: 'CTR', accent: false },
+  ],
   generic: [
     { key: 'spend', label: 'Total Spend', accent: false },
   ],
@@ -1093,6 +1140,7 @@ function fmtMoneyFull(n, cur) {
   return cur === '$' ? '$'+Math.abs(n).toFixed(2) : Math.abs(n).toFixed(2)+' '+cur;
 }
 function fmtInt(n) { return Math.round(n||0).toLocaleString('ru-RU'); }
+function fmtPct(n) { return n != null && !isNaN(n) ? n.toFixed(2) + '%' : '—'; }
 
 function computeMetricValue(key, type, rows, cur) {
   const sp = sum(rows, 'spend');
@@ -1104,11 +1152,19 @@ function computeMetricValue(key, type, rows, cur) {
     case 'regs': return fmtInt(sum(rows, 'regs'));
     case 'qregs': return fmtInt(sum(rows, 'qregs'));
     case 'purchases': return fmtInt(sum(rows, 'purchases'));
+    case 'impressions': return fmtInt(sum(rows, 'impressions'));
+    case 'clicks': return fmtInt(sum(rows, 'clicks'));
     case 'cost_install': { const v = sum(rows, 'installs'); return v ? fmtMoney(sp / v, cur) : '—'; }
     case 'cost_trial': { const v = sum(rows, 'trials'); return v ? fmtMoney(sp / v, cur) : '—'; }
     case 'cost_reg': { const v = sum(rows, 'regs'); return v ? fmtMoney(sp / v, cur) : '—'; }
     case 'cost_purchase': { const v = sum(rows, 'purchases'); return v ? fmtMoney(sp / v, cur) : '—'; }
     case 'cost_qreg': { const v = sum(rows, 'qregs'); return v ? fmtMoney(sp / v, cur) : '—'; }
+    case 'cpc': { const v = sum(rows, 'clicks'); return v ? fmtMoney(sp / v, cur) : '—'; }
+    case 'cpm': { const v = sum(rows, 'impressions'); return v ? fmtMoney(sp / v * 1000, cur) : '—'; }
+    case 'ctr': {
+      const imp = sum(rows, 'impressions'), cl = sum(rows, 'clicks');
+      return imp ? fmtPct(cl / imp * 100) : '—';
+    }
     case 'conv_rate': {
       const rg = sum(rows, 'regs'), qg = sum(rows, 'qregs');
       return rg ? ((qg / rg * 100).toFixed(1) + '%') : '—';
@@ -1150,11 +1206,32 @@ function sheetHasRegs(proj, rows) {
   return rows && rows.length && rows.some(r => 'regs' in r && r.regs > 0);
 }
 
+function typeLabel(type) {
+  const tpl = TYPE_TEMPLATES.find(t => t.id === type);
+  return tpl ? tpl.name : (type === 'auto' ? 'Авто' : type);
+}
+
+function isMetricRelevant(key, rows) {
+  if (key === 'spend') return true;
+  const field = {
+    installs: 'installs', trials: 'trials', fb: 'fb', regs: 'regs', qregs: 'qregs',
+    purchases: 'purchases', impressions: 'impressions', clicks: 'clicks',
+    cost_install: 'installs', cost_trial: 'trials', cost_reg: 'regs', cost_qreg: 'qregs',
+    cost_purchase: 'purchases', cpc: 'clicks', cpm: 'impressions', ctr: 'impressions',
+  }[key];
+  if (key === 'conv_rate') return rows.some(r => 'regs' in r && 'qregs' in r);
+  if (!field) return true;
+  return rows.some(r => field in r);
+}
+
 function getMetricsCatalogForProj(proj, rows) {
-  const type = rows ? getEffectiveType(proj, rows) : proj.type;
+  const type = getEffectiveType(proj, rows);
   let catalog = METRIC_CATALOG[type] || METRIC_CATALOG.generic;
   if (type === 'streamfi' && !sheetHasRegs(proj, rows)) {
     catalog = catalog.filter(m => m.key !== 'regs' && m.key !== 'conv_rate');
+  }
+  if (rows?.length) {
+    catalog = catalog.filter(m => isMetricRelevant(m.key, rows));
   }
   return catalog;
 }
@@ -1209,6 +1286,23 @@ function getTableConfig(proj, rows) {
     total: (rows) => { const sp=sum(rows,'spend'),rg=sum(rows,'regs'),ins=sum(rows,'installs'),pu=sum(rows,'purchases');
       return ['Итого',fmtMoneyFull(sp,cur),fmtInt(rg),rg?fmtMoney(sp/rg,cur):'—',fmtInt(ins),ins?fmtMoney(sp/ins,cur):'—',fmtInt(pu),pu?fmtMoney(sp/pu,cur):'—']; }
     };
+  } else if (type === 'campaign') {
+    colKeys = ['date', 'campaign', 'spend', 'qregs', 'cost_qreg', 'impressions', 'clicks', 'cpc', 'cpm', 'ctr'];
+    const rowCpc = (r) => r.clicks ? fmtMoney(r.spend / r.clicks, cur) : '—';
+    const rowCpm = (r) => r.impressions ? fmtMoney(r.spend / r.impressions * 1000, cur) : '—';
+    const rowCtr = (r) => r.impressions ? fmtPct(r.clicks / r.impressions * 100) : '—';
+    tbl = {
+    headers: ['Дата', 'Campaign', `Spend (${cur})`, L('qregs','Reg'), L('cost_qreg','Cost/Reg'),
+      L('impressions','Impressions'), L('clicks','Clicks'), L('cpc','CPC'), L('cpm','CPM'), L('ctr','CTR')],
+    row: (r) => [r.dateStr, r.campaign || '—', fmtMoneyFull(r.spend,cur), fmtInt(r.qregs),
+      r.qregs ? fmtMoney(r.spend/r.qregs,cur) : '—', fmtInt(r.impressions||0), fmtInt(r.clicks||0),
+      rowCpc(r), rowCpm(r), rowCtr(r)],
+    total: (rows) => {
+      const sp=sum(rows,'spend'), qg=sum(rows,'qregs'), imp=sum(rows,'impressions'), cl=sum(rows,'clicks');
+      return ['Итого','',fmtMoneyFull(sp,cur),fmtInt(qg),qg?fmtMoney(sp/qg,cur):'—',
+        fmtInt(imp),fmtInt(cl),cl?fmtMoney(sp/cl,cur):'—',imp?fmtMoney(sp/imp*1000,cur):'—',imp?fmtPct(cl/imp*100):'—'];
+    }
+    };
   } else if (type === 'streamfi') {
     const hasRegs = sheetHasRegs(p, rows);
     colKeys = hasRegs
@@ -1245,7 +1339,7 @@ function getTableConfig(proj, rows) {
 
 function filterTableByMetrics(proj, tbl, colKeys, rows) {
   const enabled = new Set(getProjectMetricsConfig(proj, rows).filter(m => m.enabled !== false).map(m => m.key));
-  const indices = colKeys.map((k, i) => (k === 'date' || k === 'spend' || enabled.has(k)) ? i : -1).filter(i => i >= 0);
+  const indices = colKeys.map((k, i) => (k === 'date' || k === 'spend' || k === 'campaign' || enabled.has(k)) ? i : -1).filter(i => i >= 0);
   return {
     headers: indices.map(i => tbl.headers[i]),
     columnKeys: indices.map(i => colKeys[i]),
@@ -1638,7 +1732,7 @@ function renderSidebar() {
 }
 
 function getPrimaryResult(type, rows) {
-  if (type === 'streamfi') return sum(rows, 'qregs');
+  if (type === 'campaign' || type === 'streamfi') return sum(rows, 'qregs');
   if (type === 'quadcode') return sum(rows, 'regs');
   if (type === 'planto') return sum(rows, 'installs');
   return 0;
@@ -2180,28 +2274,30 @@ function setWizardUI() {
   });
   editSections.style.display = isEditMode ? 'block' : 'none';
   document.getElementById('wizard-back').style.display = (!isEditMode && wizardStep > 1) ? 'inline-block' : 'none';
-  document.getElementById('wizard-next').style.display = (!isEditMode && wizardStep < 3) ? 'inline-block' : 'none';
-  document.getElementById('wizard-save').style.display = (!isEditMode && wizardStep === 3) ? 'inline-block' : 'none';
+  document.getElementById('wizard-next').style.display = (!isEditMode && wizardStep < 2) ? 'inline-block' : 'none';
+  document.getElementById('wizard-save').style.display = (!isEditMode && wizardStep === 2) ? 'inline-block' : 'none';
   document.getElementById('edit-save').style.display = isEditMode ? 'inline-block' : 'none';
   document.querySelectorAll('.wizard-step').forEach(s => {
     const n = +s.dataset.step;
     s.classList.toggle('active', !isEditMode && n === wizardStep);
     s.classList.toggle('done', !isEditMode && n < wizardStep);
   });
-  if (!isEditMode && wizardStep === 3) updateWizardSummary();
+  if (!isEditMode && wizardStep === 2) updateWizardSummary();
 }
 
 function updateWizardSummary() {
   const name = document.getElementById('proj-name').value.trim() || '—';
   const icon = document.getElementById('proj-icon').value;
   const cur = document.getElementById('proj-currency').value;
-  const type = document.getElementById('proj-type').value;
-  const tpl = TYPE_TEMPLATES.find(t => t.id === type);
+  const type = sheetPreviewCache.type || 'auto';
   const urls = getSelectedSheetUrls(false);
-  document.getElementById('wizard-summary').innerHTML = `
+  const sumEl = document.getElementById('wizard-summary');
+  if (!sumEl) return;
+  sumEl.innerHTML = `
     <div class="wizard-summary-row"><span class="wizard-summary-label">Проект</span><span class="wizard-summary-val">${icon} ${escHtml(name)}</span></div>
     <div class="wizard-summary-row"><span class="wizard-summary-label">Валюта</span><span class="wizard-summary-val">${cur}</span></div>
-    <div class="wizard-summary-row"><span class="wizard-summary-label">Тип</span><span class="wizard-summary-val">${tpl ? tpl.name : type}</span></div>
+    <div class="wizard-summary-row"><span class="wizard-summary-label">Тип</span><span class="wizard-summary-val">${typeLabel(type)} (авто)</span></div>
+    <div class="wizard-summary-row"><span class="wizard-summary-label">Строк данных</span><span class="wizard-summary-val">${sheetPreviewCache.rowCount ?? '—'}</span></div>
     <div class="wizard-summary-row"><span class="wizard-summary-label">Листов</span><span class="wizard-summary-val">${urls.length || '—'}</span></div>`;
 }
 
@@ -2213,13 +2309,6 @@ function wizardNext() {
       err.textContent = 'Введите название проекта'; err.style.display = 'block'; return;
     }
     wizardStep = 2;
-  } else if (wizardStep === 2) {
-    const urls = getSelectedSheetUrls(false);
-    if (!urls.length) {
-      err.textContent = 'Вставьте ссылку на Google Sheets и выберите хотя бы один лист'; err.style.display = 'block'; return;
-    }
-    wizardStep = 3;
-    initTypeCards(document.getElementById('proj-type').value);
   }
   setWizardUI();
 }
@@ -2262,6 +2351,18 @@ function renderTabChips(tabs, isEdit, selectedGids) {
   if (first) previewSheetColumns(first.csvUrl, isEdit);
 }
 
+function getDetectedTypeFromCache() {
+  if (sheetPreviewCache.type) return sheetPreviewCache.type;
+  if (sheetPreviewCache.headers?.length) return detectSheetType(sheetPreviewCache.headers);
+  return 'generic';
+}
+
+function updateAutoTypeDisplay(type, rowCount) {
+  const el = document.getElementById('proj-type-auto-display');
+  if (!el) return;
+  el.textContent = `✓ ${typeLabel(type)} · ${rowCount ?? 0} строк — определяется автоматически`;
+}
+
 async function previewSheetColumns(csvUrl, isEdit) {
   const colWrap = document.getElementById(isEdit ? 'sheet-cols-wrap-edit' : 'sheet-cols-wrap');
   const colChips = document.getElementById(isEdit ? 'col-chips-edit' : 'col-chips');
@@ -2275,24 +2376,19 @@ async function previewSheetColumns(csvUrl, isEdit) {
     if (!rows.length) throw new Error('empty');
     const rawHeaders = rows[0].map(h => (h || '').trim()).filter(Boolean);
     const type = detectSheetType(rows[0]);
-    const parsed = type === 'streamfi' ? parseStreamfiRows(rows)
-      : type === 'planto' ? parsePlantoRows(rows)
-      : type === 'quadcode' ? parseQuadcodeRows(rows)
-      : parseGenericRows(rows);
+    const parsed = parseSheet(text);
     sheetPreviewCache = { headers: rows[0].map(h => (h || '').trim()), type, rowCount: parsed.length };
 
     colWrap.style.display = 'block';
     colChips.innerHTML = rawHeaders.map(h => `<span class="col-chip">${escHtml(h)}</span>`).join('');
-    const tpl = TYPE_TEMPLATES.find(t => t.id === type);
-    colStatus.textContent = `✓ Тип: ${tpl ? tpl.name : type} · ${parsed.length} строк с данными`;
+    colStatus.textContent = `✓ ${typeLabel(type)} · ${parsed.length} строк · колонки определены автоматически`;
     colStatus.className = 'sheet-status ok';
 
-    if (!isEdit) {
-      document.getElementById('proj-type').value = type;
-      initTypeCards(type);
+    if (isEdit) {
+      updateAutoTypeDisplay(type, parsed.length);
+      buildMetricsEditor(type, null);
     } else {
-      const typeEl = document.getElementById('proj-type-edit');
-      if (typeEl && type !== 'generic') { typeEl.value = type; buildMetricsEditor(type, null); }
+      updateWizardSummary();
     }
   } catch(e) {
     colStatus.textContent = 'Не удалось прочитать колонки — проверьте доступ к таблице';
@@ -2307,18 +2403,16 @@ function toggleTabChip(el, isEdit) {
 }
 
 function buildDefaultMetrics(type, headerRow) {
-  const fakeProj = { type, sheetColumns: (headerRow || []).map(h => (h || '').trim()) };
-  const catalog = getMetricsCatalogForProj(fakeProj, []);
-  const config = mergeMetricsConfig(type, null, catalog);
   const headers = (headerRow || []).map(h => (h || '').trim());
   const hdrLower = headers.map(h => h.toLowerCase());
+  const fakeProj = { type: type || 'auto', sheetColumns: headers };
+  const catalog = getMetricsCatalogForProj(fakeProj, []);
+  const config = mergeMetricsConfig(type, null, catalog);
   return config.map(m => {
     let label = m.label;
-    if (m.key === 'qregs' && type === 'streamfi') {
-      const qi = findCol(hdrLower, ['целев', 'результат', 'действ', 'qual', 'qreg'], ['цена', 'cost', 'cpa']);
-      if (qi >= 0 && headers[qi]) label = headers[qi];
-    }
-    if (m.key === 'spend' && type === 'streamfi') {
+    const regIdx = findRegColumn(hdrLower);
+    if (m.key === 'qregs' && regIdx >= 0 && headers[regIdx]) label = headers[regIdx];
+    if (m.key === 'spend') {
       const si = findCol(hdrLower, ['спенд', 'spend', 'расход'], []);
       if (si >= 0 && headers[si]) label = 'Total ' + headers[si].charAt(0).toUpperCase() + headers[si].slice(1);
     }
@@ -2375,12 +2469,12 @@ function openAddProject() {
   isEditMode = false;
   wizardStep = 1;
   document.getElementById('proj-modal-title').textContent = 'Новый проект';
-  document.getElementById('proj-modal-sub').textContent = 'Подключите Google Sheets за 3 шага';
+  document.getElementById('proj-modal-sub').textContent = 'Подключите Google Sheets за 2 шага';
   document.getElementById('proj-name').value = '';
   document.getElementById('proj-icon').value = '📊';
   document.getElementById('proj-currency').value = '$';
   document.getElementById('proj-budget-remainder').value = '';
-  document.getElementById('proj-type').value = 'generic';
+  document.getElementById('proj-type').value = 'auto';
   document.getElementById('proj-sheet-url').value = '';
   document.getElementById('sheet-status').textContent = '';
   document.getElementById('sheet-tabs-wrap').style.display = 'none';
@@ -2392,7 +2486,6 @@ function openAddProject() {
   document.getElementById('proj-delete-btn').style.display = 'none';
   discoveredTabsCache.add = [];
   initEmojiPicker('📊');
-  initTypeCards('generic');
   setWizardUI();
   document.getElementById('overlay-proj').classList.add('show');
   setTimeout(() => document.getElementById('proj-name').focus(), 80);
@@ -2410,13 +2503,11 @@ function openEditProject(projId) {
   document.getElementById('proj-currency-edit').value = p.currency;
   const rem = getBudgetRemainder(p);
   document.getElementById('proj-budget-remainder-edit').value = rem != null ? rem : '';
-  let editType = p.type;
-  if (p.sheetColumns && p.sheetColumns.length) {
-    const detected = detectSheetType(p.sheetColumns);
-    if (detected !== 'generic') editType = detected;
-  }
-  document.getElementById('proj-type-edit').value = editType;
+  const editType = p.sheetColumns?.length ? detectSheetType(p.sheetColumns) : getEffectiveType(p, cache[p.id] || []);
+  document.getElementById('proj-type-edit').value = 'auto';
+  updateAutoTypeDisplay(editType, null);
   sheetPreviewCache.headers = p.sheetColumns || [];
+  sheetPreviewCache.type = editType;
   buildMetricsEditor(editType, p.metrics);
   document.getElementById('proj-sheet-url-edit').value = sheetUrlFromProjectUrls(p.urls);
   document.getElementById('sheet-status-edit').textContent = '';
@@ -2505,8 +2596,7 @@ function rebuildMetricMoveButtons() {
 }
 
 function resetMetricsEditor() {
-  const type = isEditMode ? document.getElementById('proj-type-edit').value : document.getElementById('proj-type').value;
-  buildMetricsEditor(type, null);
+  buildMetricsEditor(getDetectedTypeFromCache(), null);
 }
 
 function getMetricsFromEditor() {
@@ -2519,13 +2609,13 @@ function getMetricsFromEditor() {
 
 function saveProject() {
   const errEl = document.getElementById('proj-error');
-  let icon, name, currency, type, urls, metrics, budgetRemainder;
+  let icon, name, currency, urls, metrics, budgetRemainder;
+  const detectedType = getDetectedTypeFromCache();
 
   if (isEditMode) {
     icon = document.getElementById('proj-icon-edit').value.trim() || '📊';
     name = document.getElementById('proj-name-edit').value.trim();
     currency = document.getElementById('proj-currency-edit').value;
-    type = document.getElementById('proj-type-edit').value;
     urls = getSelectedSheetUrls(true);
     metrics = getMetricsFromEditor();
     budgetRemainder = parseBudgetRemainder(document.getElementById('proj-budget-remainder-edit').value.trim());
@@ -2533,11 +2623,12 @@ function saveProject() {
     icon = document.getElementById('proj-icon').value.trim() || '📊';
     name = document.getElementById('proj-name').value.trim();
     currency = document.getElementById('proj-currency').value;
-    type = document.getElementById('proj-type').value;
     urls = getSelectedSheetUrls(false);
-    metrics = buildDefaultMetrics(type, sheetPreviewCache.headers);
+    if (!urls.length) { errEl.textContent = 'Подключите Google Sheets и выберите лист'; errEl.style.display='block'; return; }
+    metrics = buildDefaultMetrics(detectedType, sheetPreviewCache.headers);
     budgetRemainder = parseBudgetRemainder(document.getElementById('proj-budget-remainder').value.trim());
   }
+  const type = 'auto';
   const sheetColumns = sheetPreviewCache.headers.length ? sheetPreviewCache.headers : undefined;
 
   if (!name) { errEl.textContent = 'Введите название проекта'; errEl.style.display='block'; return; }
