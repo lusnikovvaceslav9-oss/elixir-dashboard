@@ -436,7 +436,7 @@ body.admin-mode th.th-editable:hover{background:rgba(91,75,245,0.06)}
   <div class="nav-section">Проекты</div>
   <div id="nav-projects"></div>
   <div class="sidebar-footer">
-    <div class="version">Elixir UA · 2026 · gid fix</div>
+    <div class="version">Elixir UA · 2026 · planto pull</div>
   </div>
 </div>
 
@@ -1226,6 +1226,11 @@ const METRIC_CATALOG = {
     { key: 'trials', label: 'Trials', accent: false },
     { key: 'cost_trial', label: 'Cost / Trial', accent: true },
     { key: 'fb', label: 'FB (Purchases)', accent: false },
+    { key: 'impressions', label: 'Impressions', accent: false },
+    { key: 'clicks', label: 'Clicks', accent: false },
+    { key: 'cpc', label: 'CPC', accent: true },
+    { key: 'cpm', label: 'CPM', accent: true },
+    { key: 'ctr', label: 'CTR', accent: false },
   ],
   quadcode: [
     { key: 'spend', label: 'Total Spend', accent: false },
@@ -1402,12 +1407,33 @@ function getTableConfig(proj, rows) {
   let tbl, colKeys;
 
   if (type === 'planto') {
+    const hasAds = rows?.some(r => 'impressions' in r || 'clicks' in r);
     colKeys = ['date', 'spend', 'installs', 'cost_install', 'trials', 'cost_trial', 'fb'];
+    const adKeys = ['impressions', 'clicks', 'cpc', 'cpm', 'ctr'];
+    if (hasAds) colKeys = colKeys.concat(adKeys);
+    const adRow = (r) => {
+      const imp = r.impressions || 0, cl = r.clicks || 0;
+      return [
+        fmtInt(imp), fmtInt(cl),
+        cl ? fmtMoney(r.spend / cl, cur) : '—',
+        imp ? fmtMoney(r.spend / imp * 1000, cur) : '—',
+        imp ? fmtPct(cl / imp * 100) : '—',
+      ];
+    };
+    const adTotal = (rows) => {
+      const imp = sum(rows, 'impressions'), cl = sum(rows, 'clicks'), sp = sum(rows, 'spend');
+      return [fmtInt(imp), fmtInt(cl), cl ? fmtMoney(sp / cl, cur) : '—', imp ? fmtMoney(sp / imp * 1000, cur) : '—', imp ? fmtPct(cl / imp * 100) : '—'];
+    };
     tbl = {
-    headers: ['Дата', `Spend (${cur})`, L('installs','Installs'), L('cost_install','Cost/Install'), L('trials','Trials'), L('cost_trial','Cost/Trial'), L('fb','FB')],
-    row: (r) => [r.dateStr, fmtMoneyFull(r.spend,cur), fmtInt(r.installs), r.installs?fmtMoney(r.spend/r.installs,cur):'—', fmtInt(r.trials), r.trials?fmtMoney(r.spend/r.trials,cur):'—', fmtInt(r.fb)],
-    total: (rows) => { const sp=sum(rows,'spend'),ins=sum(rows,'installs'),tr=sum(rows,'trials'),fb=sum(rows,'fb');
-      return ['Итого',fmtMoneyFull(sp,cur),fmtInt(ins),ins?fmtMoney(sp/ins,cur):'—',fmtInt(tr),tr?fmtMoney(sp/tr,cur):'—',fmtInt(fb)]; }
+    headers: ['Дата', `Spend (${cur})`, L('installs','Installs'), L('cost_install','Cost/Install'), L('trials','Trials'), L('cost_trial','Cost/Trial'), L('fb','FB')]
+      .concat(hasAds ? [L('impressions','Impressions'), L('clicks','Clicks'), L('cpc','CPC'), L('cpm','CPM'), L('ctr','CTR')] : []),
+    row: (r) => [r.dateStr, fmtMoneyFull(r.spend,cur), fmtInt(r.installs), r.installs?fmtMoney(r.spend/r.installs,cur):'—', fmtInt(r.trials), r.trials?fmtMoney(r.spend/r.trials,cur):'—', fmtInt(r.fb)]
+      .concat(hasAds ? adRow(r) : []),
+    total: (rows) => {
+      const sp=sum(rows,'spend'),ins=sum(rows,'installs'),tr=sum(rows,'trials'),fb=sum(rows,'fb');
+      return ['Итого',fmtMoneyFull(sp,cur),fmtInt(ins),ins?fmtMoney(sp/ins,cur):'—',fmtInt(tr),tr?fmtMoney(sp/tr,cur):'—',fmtInt(fb)]
+        .concat(hasAds ? adTotal(rows) : []);
+    }
     };
   } else if (type === 'quadcode') {
     colKeys = ['date', 'spend', 'regs', 'cost_reg', 'installs', 'cost_install', 'purchases', 'cost_purchase'];
@@ -2744,7 +2770,9 @@ async function previewSheetColumns(csvUrl, isEdit) {
 
     if (isEdit) {
       updateAutoTypeDisplay(type, parsed.length);
-      buildMetricsEditor(type, null);
+      const proj = editingProjId ? projects.find(p => p.id === editingProjId) : null;
+      const current = getMetricsFromEditor();
+      buildMetricsEditor(type, current.length ? current : proj?.metrics);
     } else {
       updateWizardSummary();
     }
@@ -2780,7 +2808,7 @@ function buildDefaultMetrics(type, headerRow) {
 
 function getSelectedSheetUrls(isEdit) {
   const chips = document.querySelectorAll(isEdit ? '#tab-chips-edit .tab-chip.selected' : '#tab-chips .tab-chip.selected');
-  if (chips.length) return [...chips].map(c => c.dataset.url);
+  if (chips.length) return [...chips].map(c => normalizeToCSVUrl(c.dataset.url));
   const listId = isEdit ? 'proj-urls-list-edit' : 'proj-urls-list';
   const inputs = [...document.querySelectorAll(`#${listId} .proj-url-input`)];
   if (inputs.length) return inputs.map(el => normalizeToCSVUrl(el.value.trim())).filter(Boolean);
@@ -3031,6 +3059,9 @@ function saveProject() {
     currency = document.getElementById('proj-currency-edit').value;
     urls = getSelectedSheetUrls(true);
     metrics = getMetricsFromEditor();
+    if (metrics.length < 3) {
+      metrics = buildDefaultMetrics(detectedType, sheetPreviewCache.headers);
+    }
     budgetRemainder = parseBudgetRemainder(document.getElementById('proj-budget-remainder-edit').value.trim());
   } else {
     icon = document.getElementById('proj-icon').value.trim() || '📊';
