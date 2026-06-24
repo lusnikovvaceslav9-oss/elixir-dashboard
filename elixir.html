@@ -286,6 +286,11 @@ td:first-child{text-align:left;color:#F0F0F0;font-weight:500}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .form-hint{font-size:11px;color:rgba(255,255,255,0.25);margin-top:5px;line-height:1.5}
 .auto-type-badge{font-size:13px;color:#a29bfe;background:rgba(108,92,231,0.12);border:1px solid rgba(108,92,231,0.25);border-radius:8px;padding:10px 14px}
+.monthly-sheets-list{margin-top:4px}
+.monthly-sheet-row{display:grid;grid-template-columns:150px 1fr 36px;gap:8px;margin-bottom:8px;align-items:center}
+.monthly-sheet-row input[type="month"]{padding:10px 12px;border:1px solid var(--border-strong);border-radius:8px;background:var(--surface);color:var(--text);font-family:Inter,sans-serif;font-size:13px}
+.monthly-sheet-row .monthly-url{padding:10px 12px;border:1px solid var(--border-strong);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-family:Inter,sans-serif;width:100%}
+.monthly-remove-btn{width:36px;height:38px;border:1px solid rgba(239,68,68,0.35);border-radius:8px;background:transparent;color:#EF4444;cursor:pointer;font-size:18px;line-height:1}
 .modal-error{font-size:12px;color:#EF4444;margin-bottom:10px;display:none;padding:8px 12px;background:rgba(239,68,68,0.08);border-radius:6px;border:1px solid rgba(239,68,68,0.2)}
 .modal-actions{display:flex;gap:8px;margin-top:20px;justify-content:flex-end}
 .btn-cancel{padding:9px 18px;border:1px solid rgba(255,255,255,0.1);border-radius:8px;background:transparent;font-size:13px;font-weight:500;cursor:pointer;color:rgba(255,255,255,0.45);transition:all 0.15s ease;font-family:'Inter',sans-serif}
@@ -425,7 +430,7 @@ body.admin-mode th.th-editable:hover{background:rgba(91,75,245,0.06)}
   <div class="nav-section">Проекты</div>
   <div id="nav-projects"></div>
   <div class="sidebar-footer">
-    <div class="version">Elixir UA · 2026</div>
+    <div class="version">Elixir UA · 2026 · monthly sheets</div>
   </div>
 </div>
 
@@ -535,6 +540,13 @@ body.admin-mode th.th-editable:hover{background:rgba(91,75,245,0.06)}
         <button type="button" class="btn-link" id="btn-advanced-urls" onclick="toggleAdvancedUrls()">Расширенные настройки URL</button>
         <input type="hidden" id="proj-type" value="auto">
         <div class="wizard-summary" id="wizard-summary" style="margin-top:16px"></div>
+      </div>
+
+      <div class="edit-section" id="monthly-sheets-section" style="display:none">
+        <div class="edit-section-title">Листы по месяцам</div>
+        <div class="form-hint" style="margin-bottom:10px">Добавьте месяц и ссылку на его Google Sheets — на дашборде появится переключатель месяцев</div>
+        <div id="monthly-sheets-list" class="monthly-sheets-list"></div>
+        <button type="button" class="btn-link" onclick="addMonthlySheetRow()" style="margin-top:8px">+ Добавить месяц</button>
       </div>
 
       <!-- Edit-only sections -->
@@ -655,7 +667,7 @@ async function jbLoad() {
   });
   if (!res.ok) throw new Error(`JSONBin ${res.status}`);
   const data = await res.json();
-  return (data.record || []).map(p => ({ ...p, urls: p.urls || (p.url ? [p.url] : []) }));
+  return (data.record || []).map(p => normalizeProject(p));
 }
 
 async function jbSave(arr) {
@@ -703,15 +715,21 @@ const TYPE_TEMPLATES = [
 // ═══════════════════════════════════════════════════════════════
 // PROJECTS STORAGE
 // ═══════════════════════════════════════════════════════════════
+function normalizeProject(p) {
+  return {
+    ...p,
+    urls: p.urls || (p.url ? [p.url] : []),
+    monthlySheets: (p.monthlySheets || []).filter(ms => ms && ms.month && ms.url),
+    type: p.type || 'auto',
+  };
+}
+
 function loadProjectsLocal() {
   try {
     const saved = localStorage.getItem(PROJ_KEY);
-    if (saved) {
-      const arr = JSON.parse(saved);
-      return arr.map(p => ({ ...p, urls: p.urls || (p.url ? [p.url] : []) }));
-    }
+    if (saved) return JSON.parse(saved).map(normalizeProject);
   } catch(e) {}
-  return JSON.parse(JSON.stringify(DEFAULT_PROJECTS));
+  return JSON.parse(JSON.stringify(DEFAULT_PROJECTS)).map(normalizeProject);
 }
 
 async function loadProjects() {
@@ -834,8 +852,10 @@ function findCol(headers, keywords, exclude = []) {
 
 function detectSheetType(headerRow) {
   const headers = (headerRow || []).map(h => (h || '').toLowerCase().trim());
-  if (findCol(headers, ['campaign', 'кампани']) >= 0 &&
-      (findCol(headers, ['impression', 'impress']) >= 0 || findCol(headers, ['click'], ['ctr']) >= 0)) return 'campaign';
+  const hasSpend = findCol(headers, ['спенд', 'spend', 'расход'], []) >= 0;
+  const hasImpressions = findCol(headers, ['impression', 'impress'], []) >= 0;
+  const hasClicks = findCol(headers, ['click'], ['ctr']) >= 0;
+  if (hasSpend && (hasImpressions || hasClicks)) return 'campaign';
   if (findCol(headers, ['install', 'trial', 'fb'], ['cost', 'цена']) >= 0) return 'planto';
   if (findCol(headers, ['purchase', 'purch'], []) >= 0 && findCol(headers, ['reg'], ['целев', 'цена']) >= 0) return 'quadcode';
   if (findCol(headers, ['целев', 'результат', 'действ', 'ключев', 'qual', 'qreg', 'target'], ['цена', 'cost', 'cpa', 'цел. рег', 'целевая рег', '/']) >= 0) return 'streamfi';
@@ -1003,7 +1023,8 @@ function parseSheet(text) {
 function detectTypeFromRows(rows) {
   if (!rows?.length) return 'generic';
   const s = rows[0];
-  if ('impressions' in s || (s.campaign && s.campaign !== '—')) return 'campaign';
+  if ('impressions' in s || 'clicks' in s) return 'campaign';
+  if (s.campaign && s.campaign !== '—') return 'campaign';
   if ('purchases' in s && 'installs' in s) return 'quadcode';
   if ('purchases' in s) return 'quadcode';
   if ('installs' in s && ('trials' in s || 'fb' in s)) return 'planto';
@@ -1014,7 +1035,14 @@ function detectTypeFromRows(rows) {
 }
 
 function getEffectiveType(proj, rows) {
-  if (rows?.length) return detectTypeFromRows(rows);
+  if (rows?.length) {
+    const fromRows = detectTypeFromRows(rows);
+    if (proj.sheetColumns?.length) {
+      const fromHeaders = detectSheetType(proj.sheetColumns);
+      if (fromHeaders === 'campaign' || fromRows === 'campaign') return 'campaign';
+    }
+    return fromRows;
+  }
   if (proj.sheetColumns?.length) return detectSheetType(proj.sheetColumns);
   return proj.type && proj.type !== 'auto' ? proj.type : 'generic';
 }
@@ -1043,13 +1071,19 @@ async function fetchWithFallback(url) {
 }
 
 async function fetchProject(proj) {
-  const urls = proj.urls && proj.urls.length ? proj.urls : (proj.url ? [proj.url] : []);
-  const results = await Promise.allSettled(urls.map(u => fetchWithFallback(u)));
+  const sources = [];
+  (proj.monthlySheets || []).forEach(ms => {
+    if (ms.url) sources.push({ url: normalizeToCSVUrl(ms.url), month: ms.month });
+  });
+  if (!sources.length) {
+    const urls = proj.urls && proj.urls.length ? proj.urls : (proj.url ? [proj.url] : []);
+    urls.forEach(u => sources.push({ url: u, month: null }));
+  }
+  const results = await Promise.allSettled(sources.map(s => fetchWithFallback(s.url)));
   const all = [];
   results.forEach((r, i) => {
     if (r.status === 'fulfilled') {
-      const rows = parseSheet(r.value);
-      rows.forEach(row => all.push(row));
+      parseSheet(r.value).forEach(row => all.push(row));
     } else {
       console.warn(`URL[${i}] failed:`, r.reason);
     }
@@ -1057,7 +1091,7 @@ async function fetchProject(proj) {
   if (!all.length && results.every(r => r.status === 'rejected')) throw results[0].reason;
   const map = new Map();
   all.forEach(r => {
-    const key = r.campaign ? `${r.dateStr}|${r.campaign}` : r.dateStr;
+    const key = r.campaign && r.campaign !== '—' ? `${r.dateStr}|${r.campaign}` : r.dateStr;
     map.set(key, r);
   });
   return [...map.values()].sort((a, b) => a.date - b.date || (a.campaign || '').localeCompare(b.campaign || ''));
@@ -1287,11 +1321,14 @@ function getTableConfig(proj, rows) {
       return ['Итого',fmtMoneyFull(sp,cur),fmtInt(rg),rg?fmtMoney(sp/rg,cur):'—',fmtInt(ins),ins?fmtMoney(sp/ins,cur):'—',fmtInt(pu),pu?fmtMoney(sp/pu,cur):'—']; }
     };
   } else if (type === 'campaign') {
-    colKeys = ['date', 'campaign', 'spend', 'qregs', 'cost_qreg', 'impressions', 'clicks', 'cpc', 'cpm', 'ctr'];
+    const hasCampaign = rows?.some(r => r.campaign && r.campaign !== '—');
+    colKeys = hasCampaign
+      ? ['date', 'campaign', 'spend', 'qregs', 'cost_qreg', 'impressions', 'clicks', 'cpc', 'cpm', 'ctr']
+      : ['date', 'spend', 'qregs', 'cost_qreg', 'impressions', 'clicks', 'cpc', 'cpm', 'ctr'];
     const rowCpc = (r) => r.clicks ? fmtMoney(r.spend / r.clicks, cur) : '—';
     const rowCpm = (r) => r.impressions ? fmtMoney(r.spend / r.impressions * 1000, cur) : '—';
     const rowCtr = (r) => r.impressions ? fmtPct(r.clicks / r.impressions * 100) : '—';
-    tbl = {
+    tbl = hasCampaign ? {
     headers: ['Дата', 'Campaign', `Spend (${cur})`, L('qregs','Reg'), L('cost_qreg','Cost/Reg'),
       L('impressions','Impressions'), L('clicks','Clicks'), L('cpc','CPC'), L('cpm','CPM'), L('ctr','CTR')],
     row: (r) => [r.dateStr, r.campaign || '—', fmtMoneyFull(r.spend,cur), fmtInt(r.qregs),
@@ -1300,6 +1337,17 @@ function getTableConfig(proj, rows) {
     total: (rows) => {
       const sp=sum(rows,'spend'), qg=sum(rows,'qregs'), imp=sum(rows,'impressions'), cl=sum(rows,'clicks');
       return ['Итого','',fmtMoneyFull(sp,cur),fmtInt(qg),qg?fmtMoney(sp/qg,cur):'—',
+        fmtInt(imp),fmtInt(cl),cl?fmtMoney(sp/cl,cur):'—',imp?fmtMoney(sp/imp*1000,cur):'—',imp?fmtPct(cl/imp*100):'—'];
+    }
+    } : {
+    headers: ['Дата', `Spend (${cur})`, L('qregs','Reg'), L('cost_qreg','Cost/Reg'),
+      L('impressions','Impressions'), L('clicks','Clicks'), L('cpc','CPC'), L('cpm','CPM'), L('ctr','CTR')],
+    row: (r) => [r.dateStr, fmtMoneyFull(r.spend,cur), fmtInt(r.qregs),
+      r.qregs ? fmtMoney(r.spend/r.qregs,cur) : '—', fmtInt(r.impressions||0), fmtInt(r.clicks||0),
+      rowCpc(r), rowCpm(r), rowCtr(r)],
+    total: (rows) => {
+      const sp=sum(rows,'spend'), qg=sum(rows,'qregs'), imp=sum(rows,'impressions'), cl=sum(rows,'clicks');
+      return ['Итого',fmtMoneyFull(sp,cur),fmtInt(qg),qg?fmtMoney(sp/qg,cur):'—',
         fmtInt(imp),fmtInt(cl),cl?fmtMoney(sp/cl,cur):'—',imp?fmtMoney(sp/imp*1000,cur):'—',imp?fmtPct(cl/imp*100):'—'];
     }
     };
@@ -1392,7 +1440,7 @@ function fmtDelta(cur, prev, lowerIsBetter = false) {
 function computePeriodComparison(proj, allData, monthKey) {
   if (!monthKey || !allData?.length) return null;
   const prevKey = getPrevMonthKey(monthKey);
-  const months = getMonths(allData);
+  const months = getMonths(allData, proj);
   if (!months.includes(prevKey)) return null;
   const p = withEffectiveType(proj, rowsForMonth(allData, monthKey));
   const curRows = rowsForMonth(allData, monthKey);
@@ -1689,9 +1737,11 @@ function getChartDatasets(proj, rows) {
 // ═══════════════════════════════════════════════════════════════
 // MONTHS HELPERS
 // ═══════════════════════════════════════════════════════════════
-function getMonths(data) {
-  if (!data || !data.length) return [];
-  return [...new Set(data.map(r => dateToMonthKey(r.date)))].sort();
+function getMonths(data, proj) {
+  const set = new Set();
+  (proj?.monthlySheets || []).forEach(ms => { if (ms.month) set.add(ms.month); });
+  if (data?.length) data.forEach(r => set.add(dateToMonthKey(r.date)));
+  return [...set].sort();
 }
 
 function formatMonthKey(mk) {
@@ -1700,8 +1750,8 @@ function formatMonthKey(mk) {
   return names[+m-1] + ' ' + y;
 }
 
-function getLatestMonth(data) {
-  const months = getMonths(data);
+function getLatestMonth(data, proj) {
+  const months = getMonths(data, proj);
   return months.length ? months[months.length-1] : null;
 }
 
@@ -1743,7 +1793,7 @@ function getOverviewMonth() {
   projects.forEach(p => {
     const data = cache[p.id];
     if (!data || data === 'loading' || data === null) return;
-    const m = getLatestMonth(data);
+    const m = getLatestMonth(data, p);
     if (m && (!latest || m > latest)) latest = m;
   });
   return latest;
@@ -1891,7 +1941,7 @@ function renderOverview() {
       return;
     }
 
-    const months = getMonths(data);
+    const months = getMonths(data, p);
     const selMk = tileMonths[p.id] && months.includes(tileMonths[p.id])
       ? tileMonths[p.id]
       : (tileMonths[p.id] = months[months.length - 1] || null);
@@ -1957,7 +2007,7 @@ function renderProjectDetail(projId) {
   if (!p) { switchView('overview'); return; }
 
   const data = cache[projId];
-  const months = (data && data !== 'loading' && data !== null) ? getMonths(data) : [];
+  const months = getMonths(Array.isArray(data) ? data : [], p);
   if (!currentMonth || !months.includes(currentMonth)) currentMonth = months[months.length-1] || null;
 
   document.getElementById('project-title').textContent = `${p.icon} ${p.name}`;
@@ -1975,6 +2025,16 @@ function renderProjectDetail(projId) {
   if (isAdmin()) html += renderAdminPanel(p);
 
   if (data === null) {
+    if (months.length > 0) {
+      html += `<div class="month-switcher">`;
+      months.forEach(m => {
+        html += `<button class="month-btn ${m===currentMonth?'active':''}" onclick="switchMonth('${m}')">
+          <span class="month-btn-name">${formatMonthKey(m)}</span>
+          <span class="month-btn-count">—</span>
+        </button>`;
+      });
+      html += `</div>`;
+    }
     content.innerHTML = html + `<div class="table-card"><div class="error-state">Не удалось загрузить данные. Проверьте URL таблицы.</div></div>`;
     return;
   }
@@ -2273,6 +2333,8 @@ function setWizardUI() {
     else { p.style.display = ''; p.classList.toggle('active', +p.dataset.step === wizardStep); }
   });
   editSections.style.display = isEditMode ? 'block' : 'none';
+  const monthlySec = document.getElementById('monthly-sheets-section');
+  if (monthlySec) monthlySec.style.display = (isEditMode || wizardStep === 2) ? 'block' : 'none';
   document.getElementById('wizard-back').style.display = (!isEditMode && wizardStep > 1) ? 'inline-block' : 'none';
   document.getElementById('wizard-next').style.display = (!isEditMode && wizardStep < 2) ? 'inline-block' : 'none';
   document.getElementById('wizard-save').style.display = (!isEditMode && wizardStep === 2) ? 'inline-block' : 'none';
@@ -2485,6 +2547,7 @@ function openAddProject() {
   document.getElementById('proj-error').style.display = 'none';
   document.getElementById('proj-delete-btn').style.display = 'none';
   discoveredTabsCache.add = [];
+  renderMonthlySheetsEditor([]);
   initEmojiPicker('📊');
   setWizardUI();
   document.getElementById('overlay-proj').classList.add('show');
@@ -2509,6 +2572,7 @@ function openEditProject(projId) {
   sheetPreviewCache.headers = p.sheetColumns || [];
   sheetPreviewCache.type = editType;
   buildMetricsEditor(editType, p.metrics);
+  renderMonthlySheetsEditor(p.monthlySheets || []);
   document.getElementById('proj-sheet-url-edit').value = sheetUrlFromProjectUrls(p.urls);
   document.getElementById('sheet-status-edit').textContent = '';
   document.getElementById('proj-error').style.display = 'none';
@@ -2607,9 +2671,63 @@ function getMetricsFromEditor() {
   })).filter(m => m.label);
 }
 
+function monthlySheetRowHtml(s, i) {
+  return `<div class="monthly-sheet-row" data-idx="${i}">
+    <input type="month" class="monthly-month" value="${escHtml(s.month || '')}">
+    <input type="text" class="monthly-url" value="${escHtml(s.url || '')}" placeholder="Ссылка на Google Sheets">
+    <button type="button" class="monthly-remove-btn" onclick="removeMonthlySheetRow(${i})" title="Удалить">×</button>
+  </div>`;
+}
+
+function renderMonthlySheetsEditor(sheets) {
+  const list = document.getElementById('monthly-sheets-list');
+  if (!list) return;
+  const items = sheets?.length ? sheets : [];
+  if (!items.length) {
+    list.innerHTML = '<div class="form-hint monthly-empty-hint">Нет привязанных месяцев — используется общая ссылка выше</div>';
+    return;
+  }
+  list.innerHTML = items.map((s, i) => monthlySheetRowHtml(s, i)).join('');
+}
+
+function addMonthlySheetRow() {
+  const list = document.getElementById('monthly-sheets-list');
+  const hint = list.querySelector('.monthly-empty-hint');
+  if (hint) hint.remove();
+  const mk = dateToMonthKey(new Date());
+  const idx = list.querySelectorAll('.monthly-sheet-row').length;
+  list.insertAdjacentHTML('beforeend', monthlySheetRowHtml({ month: mk, url: '' }, idx));
+  reindexMonthlySheetRows();
+}
+
+function removeMonthlySheetRow(i) {
+  const rows = [...document.querySelectorAll('#monthly-sheets-list .monthly-sheet-row')];
+  if (rows[i]) rows[i].remove();
+  reindexMonthlySheetRows();
+  const list = document.getElementById('monthly-sheets-list');
+  if (!list.querySelector('.monthly-sheet-row')) {
+    list.innerHTML = '<div class="form-hint monthly-empty-hint">Нет привязанных месяцев — используется общая ссылка выше</div>';
+  }
+}
+
+function reindexMonthlySheetRows() {
+  document.querySelectorAll('#monthly-sheets-list .monthly-sheet-row').forEach((row, i) => {
+    row.dataset.idx = i;
+    row.querySelector('.monthly-remove-btn').setAttribute('onclick', `removeMonthlySheetRow(${i})`);
+  });
+}
+
+function getMonthlySheetsFromEditor() {
+  return [...document.querySelectorAll('#monthly-sheets-list .monthly-sheet-row')].map(row => ({
+    month: row.querySelector('.monthly-month').value,
+    url: normalizeToCSVUrl(row.querySelector('.monthly-url').value.trim()),
+  })).filter(s => s.month && s.url);
+}
+
 function saveProject() {
   const errEl = document.getElementById('proj-error');
   let icon, name, currency, urls, metrics, budgetRemainder;
+  const monthlySheets = getMonthlySheetsFromEditor();
   const detectedType = getDetectedTypeFromCache();
 
   if (isEditMode) {
@@ -2632,14 +2750,16 @@ function saveProject() {
   const sheetColumns = sheetPreviewCache.headers.length ? sheetPreviewCache.headers : undefined;
 
   if (!name) { errEl.textContent = 'Введите название проекта'; errEl.style.display='block'; return; }
-  if (!urls.length) { errEl.textContent = 'Подключите Google Sheets и выберите листы'; errEl.style.display='block'; return; }
+  if (!urls.length && !monthlySheets.length) { errEl.textContent = 'Подключите Google Sheets или добавьте листы по месяцам'; errEl.style.display='block'; return; }
+
+  const allUrls = [...new Set([...urls, ...monthlySheets.map(ms => ms.url)])];
 
   if (editingProjId) {
     const idx = projects.findIndex(x => x.id === editingProjId);
-    if (idx >= 0) { projects[idx] = { ...projects[idx], icon, name, currency, type, urls, metrics, sheetColumns, budgetRemainder }; cache[editingProjId] = 'loading'; }
+    if (idx >= 0) { projects[idx] = { ...projects[idx], icon, name, currency, type, urls: allUrls, monthlySheets, metrics, sheetColumns, budgetRemainder }; cache[editingProjId] = 'loading'; }
   } else {
     const id = genId(name);
-    projects.push({ id, name, icon, currency, type, urls, metrics, sheetColumns, budgetRemainder });
+    projects.push({ id, name, icon, currency, type, urls: allUrls, monthlySheets, metrics, sheetColumns, budgetRemainder });
     cache[id] = 'loading';
   }
 
