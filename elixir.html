@@ -766,9 +766,22 @@ function parseCSV(text) {
 function parseDate(str) {
   if (!str) return null;
   str = str.trim();
-  const m = str.match(/^(\d{1,2})[\/\.](\d{1,2})[\/\.](\d{4})$/);
+  let m = str.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})$/);
+  if (m) {
+    const y = +m[1], mo = +m[2], d = +m[3];
+    if (d >= 1 && d <= 31 && mo >= 1 && mo <= 12) {
+      const dt = new Date(y, mo - 1, d);
+      return isNaN(dt.getTime()) ? null : dt;
+    }
+  }
+  m = str.match(/^(\d{1,2})[\/\.](\d{1,2})[\/\.](\d{4})$/);
   if (!m) return null;
-  const d = +m[1], mo = +m[2], y = +m[3];
+  let a = +m[1], b = +m[2], y = +m[3];
+  let d, mo;
+  if (a > 12 && b <= 12) { d = a; mo = b; }
+  else if (b > 12 && a <= 12) { mo = a; d = b; }
+  else if (a > 12 && b > 12) return null;
+  else { d = a; mo = b; }
   if (d < 1 || d > 31 || mo < 1 || mo > 12) return null;
   const dt = new Date(y, mo - 1, d);
   return isNaN(dt.getTime()) ? null : dt;
@@ -841,7 +854,23 @@ function detectSheetType(headerRow) {
 
 function isCostHeader(h) {
   h = (h || '').toLowerCase();
-  return /цена|cost|cpa|cpc|cpl|cpr|за\s|\/\s*reg|per\s/i.test(h) || /^цена\s/.test(h);
+  return /цена|cost|cpa|cpc|cpl|cpr|cpm|ctr|за\s|\/\s*reg|per\s/i.test(h) || /^цена\s/.test(h);
+}
+
+function isAdMetricHeader(h) {
+  h = (h || '').toLowerCase().trim();
+  return /impression|click|ctr|cpm|cpc|campaign|кампани|reach|frequency|view/.test(h);
+}
+
+function findRegColumn(headers) {
+  for (let i = 0; i < headers.length; i++) {
+    const h = (headers[i] || '').toLowerCase().trim();
+    if (isCostHeader(h) || /cost|цена|cpa|cpc|cpm/.test(h)) continue;
+    if (h === 'reg' || h === 'regs') return i;
+    if (/^reg\b/.test(h) && !/^registr/.test(h)) return i;
+    if (h.includes('регистрац') || h.includes('registration')) return i;
+  }
+  return -1;
 }
 
 function findStreamfiColumns(headerRow) {
@@ -849,7 +878,7 @@ function findStreamfiColumns(headerRow) {
   const dateCol = Math.max(findCol(headers, ['дата', 'date']), 0);
   const spendCol = findCol(headers, ['спенд', 'spend', 'расход']);
 
-  const qregExclude = ['цена', 'cost', 'cpa', 'cpc', 'cpl', 'за ', 'цел действ', 'цел. действ', 'целевой рег', 'целевая рег', 'цел.рег', '/'];
+  const qregExclude = ['цена', 'cost', 'cpa', 'cpc', 'cpl', 'cpm', 'ctr', 'за ', 'цел действ', 'цел. действ', 'целевой рег', 'целевая рег', 'цел.рег', '/', 'impression', 'click', 'campaign'];
   let qregCol = -1;
   const qregPriority = [
     ['целевые рег'], ['целевые дей'], ['ключевые дей'], ['ключев'], ['целев рег'],
@@ -864,19 +893,21 @@ function findStreamfiColumns(headerRow) {
     if (qregCol >= 0 && isCostHeader(headers[qregCol])) qregCol = -1;
   }
 
-  let regCol = findCol(headers, ['регистрац', 'regs', 'registrations'], ['целев', 'цена', 'cost', 'действ', 'ключев', 'результат']);
+  let regCol = findRegColumn(headers);
   if (regCol === qregCol) regCol = -1;
 
-  // Один столбец «регистрации» без отдельных целевых — считаем его ключевой метрикой
   if (qregCol < 0 && regCol >= 0) {
     qregCol = regCol;
     regCol = -1;
   }
 
-  // Fallback: первый не-cost столбец после spend
   if (qregCol < 0 && spendCol >= 0) {
     for (let i = spendCol + 1; i < headers.length; i++) {
-      if (!isCostHeader(headers[i]) && !/дата|date/i.test(headers[i])) { qregCol = i; break; }
+      const h = headers[i];
+      if (isCostHeader(h) || isAdMetricHeader(h)) continue;
+      if (/дата|date/i.test(h)) continue;
+      qregCol = i;
+      break;
     }
   }
 
@@ -889,17 +920,32 @@ function findStreamfiColumns(headerRow) {
 function parseStreamfiRows(rows) {
   if (!rows.length) return [];
   const { dateCol, sc, qc, rc } = findStreamfiColumns(rows[0]);
+  const byDate = new Map();
 
-  return rows.slice(1).map(r => {
+  rows.slice(1).forEach(r => {
     const dateStr = (r[dateCol] || '').trim();
-    if (/итого|total/i.test(dateStr) || !dateStr) return null;
+    if (/итого|total/i.test(dateStr) || !dateStr) return;
     const dt = parseDate(dateStr);
-    if (!dt) return null;
-    const obj = { date: dt, dateStr: fmtDateStr(dt),
-      spend: parseNum(r[sc]), qregs: parseNum(r[qc]) };
-    if (rc >= 0) obj.regs = parseNum(r[rc]);
-    return obj;
-  }).filter(Boolean);
+    if (!dt) return;
+    const key = fmtDateStr(dt);
+    const spend = parseNum(r[sc]);
+    const qregs = parseNum(r[qc]);
+    const regs = rc >= 0 ? parseNum(r[rc]) : 0;
+    if (!spend && !qregs && !regs) return;
+
+    if (byDate.has(key)) {
+      const ex = byDate.get(key);
+      ex.spend += spend;
+      ex.qregs += qregs;
+      if (rc >= 0) ex.regs = (ex.regs || 0) + regs;
+    } else {
+      const obj = { date: dt, dateStr: key, spend, qregs };
+      if (rc >= 0) obj.regs = regs;
+      byDate.set(key, obj);
+    }
+  });
+
+  return [...byDate.values()].sort((a, b) => a.date - b.date);
 }
 
 function parseGenericRows(rows) {
