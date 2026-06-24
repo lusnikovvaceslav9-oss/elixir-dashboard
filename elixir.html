@@ -183,6 +183,12 @@ body{
 .overview-chart-wrap{position:relative;height:220px}
 .overview-chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px}
 .overview-chart-month{font-size:11px;color:rgba(255,255,255,0.35);font-weight:500}
+.chart-card-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.chart-card-header .card-title{margin-bottom:0}
+.chart-type-picker{display:flex;flex-wrap:wrap;gap:4px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:3px}
+.chart-type-btn{border:none;background:transparent;color:rgba(255,255,255,0.45);font-size:11px;font-weight:500;font-family:Inter,sans-serif;padding:6px 10px;border-radius:7px;cursor:pointer;transition:all 0.15s;white-space:nowrap}
+.chart-type-btn:hover{color:rgba(255,255,255,0.75);background:rgba(255,255,255,0.05)}
+.chart-type-btn.active{background:rgba(91,75,245,0.25);color:#C4B5FD;box-shadow:0 0 0 1px rgba(91,75,245,0.35)}
 
 /* ── TABLE ── */
 .table-card{background:#161616;border:1px solid rgba(255,255,255,0.07);border-radius:12px;overflow:hidden}
@@ -430,7 +436,7 @@ body.admin-mode th.th-editable:hover{background:rgba(91,75,245,0.06)}
   <div class="nav-section">Проекты</div>
   <div id="nav-projects"></div>
   <div class="sidebar-footer">
-    <div class="version">Elixir UA · 2026 · monthly sheets</div>
+    <div class="version">Elixir UA · 2026 · chart types</div>
   </div>
 </div>
 
@@ -653,6 +659,23 @@ const FETCHERS = [
 const ADMIN_PW = 'elixir2026';
 const ADMIN_KEY = 'elixir_admin';
 const PROJ_KEY  = 'elixir_projects';
+const CHART_PREF_KEY = 'elixir_chart_prefs';
+
+const CHART_TYPE_OPTIONS = {
+  detail: [
+    { id: 'line', label: 'Линия' },
+    { id: 'bar', label: 'Столбцы' },
+    { id: 'area', label: 'Область' },
+    { id: 'pie', label: 'Круговая' },
+    { id: 'doughnut', label: 'Кольцевая' },
+  ],
+  overview: [
+    { id: 'bar', label: 'Столбцы' },
+    { id: 'line', label: 'Линия' },
+    { id: 'pie', label: 'Круговая' },
+    { id: 'doughnut', label: 'Кольцевая' },
+  ],
+};
 
 // ═══════════════════════════════════════════════════════════════
 // JSONBIN SYNC
@@ -1734,6 +1757,115 @@ function getChartDatasets(proj, rows) {
   return base;
 }
 
+function getChartPref(scope) {
+  try {
+    const prefs = JSON.parse(localStorage.getItem(CHART_PREF_KEY) || '{}');
+    const fallback = scope === 'detail' ? 'line' : 'bar';
+    const type = prefs[scope];
+    return CHART_TYPE_OPTIONS[scope]?.some(o => o.id === type) ? type : fallback;
+  } catch(e) {
+    return scope === 'detail' ? 'line' : 'bar';
+  }
+}
+
+function setChartPref(scope, type) {
+  try {
+    const prefs = JSON.parse(localStorage.getItem(CHART_PREF_KEY) || '{}');
+    prefs[scope] = type;
+    localStorage.setItem(CHART_PREF_KEY, JSON.stringify(prefs));
+  } catch(e) {}
+}
+
+function renderChartTypePicker(scope) {
+  const current = getChartPref(scope);
+  const options = CHART_TYPE_OPTIONS[scope] || [];
+  return `<div class="chart-type-picker" data-scope="${scope}">
+    ${options.map(o => `<button type="button" class="chart-type-btn ${o.id === current ? 'active' : ''}" data-type="${o.id}" onclick="switchChartType('${scope}','${o.id}')">${o.label}</button>`).join('')}
+  </div>`;
+}
+
+function updateChartTypePickerUI(scope, type) {
+  document.querySelectorAll(`.chart-type-picker[data-scope="${scope}"] .chart-type-btn`).forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.type === type);
+  });
+}
+
+function switchChartType(scope, type) {
+  if (!CHART_TYPE_OPTIONS[scope]?.some(o => o.id === type)) return;
+  setChartPref(scope, type);
+  if (scope === 'detail') {
+    const p = projects.find(x => x.id === view);
+    if (!p) return;
+    const data = cache[view];
+    if (!data || !Array.isArray(data)) return;
+    const rows = currentMonth ? rowsForMonth(data, currentMonth) : data;
+    if (!rows.length) return;
+    renderChart(p, rows);
+  } else {
+    renderOverviewChart();
+  }
+  updateChartTypePickerUI(scope, type);
+}
+
+function styleDatasetsForChartType(datasets, chartType) {
+  if (chartType === 'pie' || chartType === 'doughnut') return datasets;
+  const isBar = chartType === 'bar';
+  const isArea = chartType === 'area';
+  return datasets.map(ds => {
+    const color = ds.borderColor || '#5B4BF5';
+    return {
+      ...ds,
+      type: isBar ? 'bar' : 'line',
+      fill: isArea ? (ds.yAxisID === 'y' ? true : 'origin') : (isBar ? false : ds.fill),
+      backgroundColor: isBar ? color + 'AA' : (isArea && ds.yAxisID === 'y' ? color + '33' : ds.backgroundColor),
+      borderRadius: isBar ? 4 : 0,
+      pointRadius: isBar ? 0 : (ds.pointRadius ?? 3),
+    };
+  });
+}
+
+function getDetailPieData(proj, rows) {
+  const p = withEffectiveType(proj, rows);
+  const L = (key, fb) => getMetricLabel(p, key, fb);
+  const cfg = getProjectMetricsConfig(p, rows).filter(m => m.enabled !== false);
+  const chartKeys = cfg.map(m => m.key).filter(k => !k.startsWith('cost_') && k !== 'conv_rate');
+  const colors = ['#5B4BF5', '#22C55E', '#F59E0B', '#EC4899', '#06B6D4', '#A78BFA'];
+  const items = chartKeys.map(key => ({
+    key,
+    label: L(key, key),
+    value: sum(rows, key),
+    color: colors[chartKeys.indexOf(key) % colors.length],
+  })).filter(it => it.value > 0);
+  return {
+    labels: items.map(it => it.label),
+    datasets: [{
+      data: items.map(it => it.value),
+      backgroundColor: items.map(it => it.color),
+      borderColor: '#161616',
+      borderWidth: 2,
+    }],
+    items,
+    currency: p.currency,
+  };
+}
+
+function chartLegendOptions(position = 'top') {
+  return { position, labels: { color: 'rgba(255,255,255,0.55)', font: { family: 'Inter', size: 12 }, boxWidth: 10, padding: 14 } };
+}
+
+function chartAxisScales(leftLabel, rightLabel) {
+  return {
+    x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: 'rgba(255,255,255,0.35)', font: { family: 'Inter', size: 11 } } },
+    y: { type: 'linear', position: 'left', min: 0, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: 'rgba(91,75,245,0.8)', font: { family: 'Inter', size: 11 } }, title: { display: true, text: leftLabel, color: 'rgba(91,75,245,0.6)', font: { family: 'Inter', size: 11 } } },
+    y1: { type: 'linear', position: 'right', min: 0, grid: { drawOnChartArea: false }, ticks: { color: 'rgba(34,197,94,0.8)', font: { family: 'Inter', size: 11 } }, title: { display: true, text: rightLabel, color: 'rgba(34,197,94,0.6)', font: { family: 'Inter', size: 11 } } },
+  };
+}
+
+function formatPieTooltipValue(key, value, currency) {
+  if (key === 'spend' || key.startsWith('cost_')) return fmtMoney(value, currency);
+  return fmtInt(value);
+}
+
 // ═══════════════════════════════════════════════════════════════
 // MONTHS HELPERS
 // ═══════════════════════════════════════════════════════════════
@@ -1826,52 +1958,88 @@ function renderOverviewChart() {
   const chartData = getOverviewChartData();
   if (!chartData) return;
 
+  const chartType = getChartPref('overview');
   const colors = ['#5B4BF5', '#22C55E', '#F59E0B', '#EC4899', '#06B6D4', '#A78BFA'];
-  overviewChartInstance = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: chartData.items.map(i => i.label),
-      datasets: [
-        {
-          label: 'Spend',
+
+  if (chartType === 'pie' || chartType === 'doughnut') {
+    overviewChartInstance = new Chart(ctx, {
+      type: chartType,
+      data: {
+        labels: chartData.items.map(i => i.label),
+        datasets: [{
           data: chartData.items.map(i => i.spend),
-          backgroundColor: chartData.items.map((_, i) => colors[i % colors.length] + 'CC'),
-          borderColor: chartData.items.map((_, i) => colors[i % colors.length]),
-          borderWidth: 1,
-          borderRadius: 6,
-          yAxisID: 'y',
-        },
-        {
-          label: 'Результат',
-          data: chartData.items.map(i => i.result),
-          backgroundColor: 'rgba(34,197,94,0.35)',
-          borderColor: '#22C55E',
-          borderWidth: 1,
-          borderRadius: 6,
-          yAxisID: 'y1',
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { position: 'top', labels: { color: 'rgba(255,255,255,0.55)', font: { family: 'Inter', size: 12 }, boxWidth: 10, padding: 14 } },
-        tooltip: {
-          callbacks: {
-            label(ctx) {
-              const item = chartData.items[ctx.dataIndex];
-              if (ctx.datasetIndex === 0) return ` Spend: ${fmtMoney(ctx.parsed.y, item.currency)}`;
-              return ` Результат: ${fmtInt(ctx.parsed.y)}`;
+          backgroundColor: chartData.items.map((_, i) => colors[i % colors.length]),
+          borderColor: '#161616',
+          borderWidth: 2,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: chartLegendOptions('right'),
+          tooltip: {
+            callbacks: {
+              label(c) {
+                const item = chartData.items[c.dataIndex];
+                const total = chartData.items.reduce((a, x) => a + x.spend, 0);
+                const pct = total ? ((item.spend / total) * 100).toFixed(1) : 0;
+                return ` ${item.label}: ${fmtMoney(item.spend, item.currency)} (${pct}%)`;
+              },
             },
           },
         },
       },
-      scales: {
-        x: { grid: { display: false }, ticks: { color: 'rgba(255,255,255,0.45)', font: { family: 'Inter', size: 11 } } },
-        y: { type: 'linear', position: 'left', grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: 'rgba(91,75,245,0.8)', font: { family: 'Inter', size: 11 } }, title: { display: true, text: 'Spend', color: 'rgba(91,75,245,0.6)', font: { family: 'Inter', size: 11 } } },
-        y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, ticks: { color: 'rgba(34,197,94,0.8)', font: { family: 'Inter', size: 11 } }, title: { display: true, text: 'Результат', color: 'rgba(34,197,94,0.6)', font: { family: 'Inter', size: 11 } } },
+    });
+    return;
+  }
+
+  const datasets = [
+    {
+      label: 'Spend',
+      data: chartData.items.map(i => i.spend),
+      borderColor: chartType === 'line' ? colors[0] : chartData.items.map((_, i) => colors[i % colors.length]),
+      backgroundColor: chartType === 'line' ? 'rgba(91,75,245,0.12)' : chartData.items.map((_, i) => colors[i % colors.length] + 'CC'),
+      borderWidth: chartType === 'line' ? 2 : 1,
+      borderRadius: chartType === 'bar' ? 6 : 0,
+      fill: chartType === 'line',
+      tension: 0.3,
+      pointRadius: chartType === 'line' ? 4 : 0,
+      yAxisID: 'y',
+    },
+    {
+      label: 'Результат',
+      data: chartData.items.map(i => i.result),
+      borderColor: '#22C55E',
+      backgroundColor: chartType === 'line' ? 'rgba(34,197,94,0.12)' : 'rgba(34,197,94,0.35)',
+      borderWidth: chartType === 'line' ? 2 : 1,
+      borderRadius: chartType === 'bar' ? 6 : 0,
+      fill: chartType === 'line',
+      tension: 0.3,
+      pointRadius: chartType === 'line' ? 4 : 0,
+      yAxisID: 'y1',
+    },
+  ];
+
+  overviewChartInstance = new Chart(ctx, {
+    type: chartType === 'line' ? 'line' : 'bar',
+    data: { labels: chartData.items.map(i => i.label), datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: chartLegendOptions('top'),
+        tooltip: {
+          callbacks: {
+            label(c) {
+              const item = chartData.items[c.dataIndex];
+              if (c.datasetIndex === 0) return ` Spend: ${fmtMoney(c.parsed.y, item.currency)}`;
+              return ` Результат: ${fmtInt(c.parsed.y)}`;
+            },
+          },
+        },
       },
+      scales: chartAxisScales('Spend', 'Результат'),
     },
   });
 }
@@ -1898,7 +2066,10 @@ function renderOverview() {
     html += `<div class="overview-chart-card">
       <div class="overview-chart-header">
         <div class="card-title" style="margin:0">Сводка по продуктам</div>
-        ${chartData ? `<span class="overview-chart-month">${formatMonthKey(chartData.month)}</span>` : ''}
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          ${chartData ? `<span class="overview-chart-month">${formatMonthKey(chartData.month)}</span>` : ''}
+          ${chartData ? renderChartTypePicker('overview') : ''}
+        </div>
       </div>
       <div class="overview-chart-wrap">
         ${anyLoading && !chartData
@@ -2069,7 +2240,10 @@ function renderProjectDetail(projId) {
   // ── Chart ───────────────────────────────────────────────────
   if (rows.length) {
     html += `<div class="chart-card">
-      <div class="card-title">Динамика по дням — ${currentMonth ? formatMonthKey(currentMonth) : 'все данные'}</div>
+      <div class="chart-card-header">
+        <div class="card-title">Динамика по дням — ${currentMonth ? formatMonthKey(currentMonth) : 'все данные'}</div>
+        ${renderChartTypePicker('detail')}
+      </div>
       <div class="chart-wrap"><canvas id="mainChart"></canvas></div>
     </div>`;
   }
@@ -2107,21 +2281,51 @@ function renderChart(proj, rows) {
   if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
   const ctx = document.getElementById('mainChart');
   if (!ctx) return;
-  chartInstance = new Chart(ctx, {
-    type: 'line',
-    data: { labels: rows.map(r=>r.dateStr.slice(0,5)), datasets: getChartDatasets(proj, rows) },
-    options: {
-      responsive:true, maintainAspectRatio:false,
-      plugins: {
-        legend:{ position:'top', labels:{ color:'rgba(255,255,255,0.55)', font:{family:'Inter',size:12}, boxWidth:10, padding:14 } },
-        tooltip:{ mode:'index', intersect:false, backgroundColor:'#1f1f1f', borderColor:'rgba(255,255,255,0.08)', borderWidth:1, titleColor:'#F0F0F0', bodyColor:'rgba(255,255,255,0.65)' }
+
+  const chartType = getChartPref('detail');
+  const labels = rows.map(r => r.dateStr.slice(0, 5));
+
+  if (chartType === 'pie' || chartType === 'doughnut') {
+    const pieData = getDetailPieData(proj, rows);
+    if (!pieData.labels.length) return;
+    chartInstance = new Chart(ctx, {
+      type: chartType,
+      data: { labels: pieData.labels, datasets: pieData.datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: chartLegendOptions('right'),
+          tooltip: {
+            callbacks: {
+              label(c) {
+                const item = pieData.items[c.dataIndex];
+                const total = pieData.items.reduce((a, x) => a + x.value, 0);
+                const pct = total ? ((item.value / total) * 100).toFixed(1) : 0;
+                const val = formatPieTooltipValue(item.key, item.value, pieData.currency);
+                return ` ${item.label}: ${val} (${pct}%)`;
+              },
+            },
+          },
+        },
       },
-      scales:{
-        x:{ grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'rgba(255,255,255,0.35)',font:{family:'Inter',size:11}} },
-        y:{ type:'linear', position:'left', min:0, grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'rgba(91,75,245,0.8)',font:{family:'Inter',size:11}}, title:{display:true,text:'Spend',color:'rgba(91,75,245,0.6)',font:{family:'Inter',size:11}} },
-        y1:{ type:'linear', position:'right', min:0, grid:{drawOnChartArea:false}, ticks:{color:'rgba(34,197,94,0.8)',font:{family:'Inter',size:11}}, title:{display:true,text:'Метрики',color:'rgba(34,197,94,0.6)',font:{family:'Inter',size:11}} }
-      }
-    }
+    });
+    return;
+  }
+
+  const datasets = styleDatasetsForChartType(getChartDatasets(proj, rows), chartType);
+  chartInstance = new Chart(ctx, {
+    type: chartType === 'bar' ? 'bar' : 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: chartLegendOptions('top'),
+        tooltip: { mode: 'index', intersect: false, backgroundColor: '#1f1f1f', borderColor: 'rgba(255,255,255,0.08)', borderWidth: 1, titleColor: '#F0F0F0', bodyColor: 'rgba(255,255,255,0.65)' },
+      },
+      scales: chartAxisScales('Spend', 'Метрики'),
+    },
   });
 }
 
