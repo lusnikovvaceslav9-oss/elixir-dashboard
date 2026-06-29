@@ -403,6 +403,25 @@ body.admin-mode th.th-editable:hover{background:rgba(91,75,245,0.06)}
 .tab-chip{padding:8px 14px;border-radius:20px;border:1px solid var(--border);background:var(--surface);font-size:12px;font-weight:500;color:var(--text-muted);cursor:pointer;transition:all 0.12s;font-family:Inter,sans-serif}
 .tab-chip:hover{border-color:rgba(108,92,231,0.4)}
 .tab-chip.selected{background:var(--accent);border-color:var(--accent);color:#fff}
+.sheet-tabs-hint{font-size:11px;color:var(--text-dim);margin-top:6px;line-height:1.4}
+.source-section{margin-bottom:28px}
+.source-section-header{display:flex;align-items:center;gap:12px;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid rgba(91,75,245,0.35)}
+.source-section-header.source-tone-1{border-bottom-color:rgba(34,197,94,0.45)}
+.source-section-header.source-tone-2{border-bottom-color:rgba(245,158,11,0.45)}
+.source-section-header.source-tone-3{border-bottom-color:rgba(236,72,153,0.45)}
+.source-section-header.source-tone-4{border-bottom-color:rgba(6,182,212,0.45)}
+.source-section-badge{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;padding:5px 10px;border-radius:6px;background:rgba(91,75,245,0.2);color:#C4B5FD}
+.source-section-badge.source-tone-1{background:rgba(34,197,94,0.15);color:#86EFAC}
+.source-section-badge.source-tone-2{background:rgba(245,158,11,0.15);color:#FCD34D}
+.source-section-badge.source-tone-3{background:rgba(236,72,153,0.15);color:#F9A8D4}
+.source-section-badge.source-tone-4{background:rgba(6,182,212,0.15);color:#67E8F9}
+.source-section-title{font-size:15px;font-weight:600;color:var(--text)}
+.source-section-sub{font-size:11px;color:var(--text-dim);margin-left:auto}
+.multi-source-intro{font-size:12px;color:var(--text-dim);margin:-6px 0 18px;line-height:1.45}
+.tile-source-rows{display:flex;flex-direction:column;gap:6px;padding:0 14px 10px}
+.tile-source-row{display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:6px 10px;border-radius:8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06)}
+.tile-source-name{font-weight:600;color:rgba(255,255,255,0.55)}
+.tile-source-val{color:var(--text);font-weight:500}
 .col-chips{display:flex;flex-wrap:wrap;gap:6px}
 .col-chip{padding:6px 12px;border-radius:8px;border:1px solid rgba(34,197,94,0.3);background:rgba(34,197,94,0.1);font-size:11px;font-weight:500;color:#86efac}
 .sheet-status{font-size:12px;color:var(--text-dim);margin-top:10px;min-height:18px}
@@ -436,7 +455,7 @@ body.admin-mode th.th-editable:hover{background:rgba(91,75,245,0.06)}
   <div class="nav-section">Проекты</div>
   <div id="nav-projects"></div>
   <div class="sidebar-footer">
-    <div class="version">Elixir UA · 2026 · planto pull</div>
+    <div class="version">Elixir UA · 2026 · multi sheets</div>
   </div>
 </div>
 
@@ -534,8 +553,9 @@ body.admin-mode th.th-editable:hover{background:rgba(91,75,245,0.06)}
           <div class="sheet-status" id="sheet-status"></div>
         </div>
         <div class="sheet-tabs" id="sheet-tabs-wrap" style="display:none">
-          <div class="sheet-tabs-label">Листы <span style="font-weight:400;text-transform:none">(вкладки таблицы)</span></div>
+          <div class="sheet-tabs-label">Листы <span style="font-weight:400;text-transform:none">(можно выбрать несколько)</span></div>
           <div class="tab-chips" id="tab-chips"></div>
+          <div class="sheet-tabs-hint">Выберите все нужные вкладки — на дашборде у каждой будет свой блок статистики (Waitlist, Redirect и т.д.)</div>
         </div>
         <div class="sheet-tabs" id="sheet-cols-wrap" style="display:none">
           <div class="sheet-tabs-label">Колонки <span style="font-weight:400;text-transform:none">(блоки данных на листе)</span></div>
@@ -598,8 +618,9 @@ body.admin-mode th.th-editable:hover{background:rgba(91,75,245,0.06)}
           </div>
           <div class="sheet-status" id="sheet-status-edit"></div>
           <div class="sheet-tabs" id="sheet-tabs-wrap-edit" style="display:none;margin-top:12px">
-            <div class="sheet-tabs-label">Листы</div>
+            <div class="sheet-tabs-label">Листы <span style="font-weight:400;text-transform:none">(можно выбрать несколько)</span></div>
             <div class="tab-chips" id="tab-chips-edit"></div>
+            <div class="sheet-tabs-hint">Каждый выбранный лист — отдельный блок на дашборде за выбранный месяц</div>
           </div>
           <div class="sheet-tabs" id="sheet-cols-wrap-edit" style="display:none;margin-top:12px">
             <div class="sheet-tabs-label">Колонки</div>
@@ -719,7 +740,70 @@ let tileMonths = {};
 let view         = 'overview';
 let currentMonth = null;
 let chartInstance = null;
+let chartInstances = [];
 let overviewChartInstance = null;
+function destroyDetailCharts() {
+  chartInstances.forEach(c => { try { c.destroy(); } catch(e) {} });
+  chartInstances = [];
+  if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+}
+
+function renderDailyTableHtml(p, rows, tbl) {
+  let tbody = '';
+  if (!rows.length) {
+    tbody = `<tr><td colspan="${tbl.headers.length}" class="empty-state">Нет данных за этот период</td></tr>`;
+  } else {
+    tbody = rows.map((r, i) => `<tr class="${i % 2 === 0 ? '' : 'row-alt'}">${tbl.row(r).map((c, j) => `<td${j === 0 ? ' class="date-cell"' : ''}>${c}</td>`).join('')}</tr>`).join('');
+    tbody += `<tr class="total-row">${tbl.total(rows).map(c => `<td>${c}</td>`).join('')}</tr>`;
+  }
+  return `<div class="table-wrap"><table>
+    <thead><tr>${tbl.headers.map((h, i) => {
+      const key = tbl.columnKeys[i];
+      const editable = isAdmin() && key && key !== 'date';
+      return `<th${editable ? ' class="th-editable"' : ''}>${editable ? renderEditableLabel(p.id, key, h, 'th-label-wrap') : escHtml(h)}</th>`;
+    }).join('')}</tr></thead>
+    <tbody>${tbody}</tbody>
+  </table></div>`;
+}
+
+function renderSourceSection(p, source, rows, monthKey, idx, withChart) {
+  const tone = `source-tone-${(idx % 4) + 1}`;
+  const srcProj = projForSource(p, source);
+  const metrics = getMetrics(srcProj, rows);
+  const tbl = getTableConfig(srcProj, rows);
+  const period = monthKey ? formatMonthKey(monthKey) : 'все данные';
+  const chartId = `mainChart-${idx}`;
+
+  let html = `<div class="source-section" data-source-idx="${idx}">
+    <div class="source-section-header ${tone}">
+      <span class="source-section-badge ${tone}">Лист</span>
+      <span class="source-section-title">${escHtml(source.label)}</span>
+      <span class="source-section-sub">${period} · ${rows.length} дн.</span>
+    </div>
+    <div class="metrics-grid">${metrics.map(m => `
+      <div class="metric-card${m.accent ? ' accent' : ''}${isAdmin() ? ' admin-editable' : ''}">
+        <div class="metric-label">${renderEditableLabel(p.id, m.key, m.label, 'metric-label-wrap')}</div>
+        <div class="metric-value">${m.value}</div>
+      </div>`).join('')}</div>`;
+
+  if (withChart && rows.length) {
+    html += `<div class="chart-card">
+      <div class="chart-card-header">
+        <div class="card-title">${escHtml(source.label)} — динамика по дням</div>
+        ${idx === 0 ? renderChartTypePicker('detail') : ''}
+      </div>
+      <div class="chart-wrap"><canvas id="${chartId}"></canvas></div>
+    </div>`;
+  }
+
+  html += `<div class="table-card">
+    <div class="table-header">
+      <span class="card-title">${escHtml(source.label)} — по дням · ${rows.length} строк${monthKey ? ' · ' + formatMonthKey(monthKey) : ''}</span>
+    </div>
+    ${renderDailyTableHtml(p, rows, tbl)}
+  </div></div>`;
+  return html;
+}
 let editingProjId = null;
 let wizardStep = 1;
 let isEditMode = false;
@@ -740,9 +824,20 @@ const TYPE_TEMPLATES = [
 // ═══════════════════════════════════════════════════════════════
 function normalizeProject(p) {
   const urls = (p.urls || (p.url ? [p.url] : [])).map(normalizeToCSVUrl).filter(Boolean);
+  let sheetSources = (p.sheetSources || [])
+    .filter(s => s && s.url)
+    .map((s, i) => ({
+      id: s.id || `src_${i}`,
+      url: normalizeToCSVUrl(s.url),
+      label: (s.label || '').trim() || `Лист ${i + 1}`,
+    }));
+  if (!sheetSources.length && urls.length) {
+    sheetSources = urls.map((url, i) => ({ id: `src_${i}`, url, label: `Лист ${i + 1}` }));
+  }
   return {
     ...p,
-    urls,
+    urls: sheetSources.length ? sheetSources.map(s => s.url) : urls,
+    sheetSources,
     monthlySheets: (p.monthlySheets || [])
       .filter(ms => ms && ms.month && ms.url)
       .map(ms => ({ month: ms.month, url: normalizeToCSVUrl(ms.url) })),
@@ -1168,30 +1263,83 @@ async function fetchCsvWithFallback(url) {
 }
 
 async function fetchProject(proj) {
-  const sources = [];
-  (proj.monthlySheets || []).forEach(ms => {
-    if (ms.url) sources.push({ url: normalizeToCSVUrl(ms.url), month: ms.month });
-  });
-  if (!sources.length) {
-    const urls = proj.urls && proj.urls.length ? proj.urls : (proj.url ? [proj.url] : []);
-    urls.forEach(u => sources.push({ url: u, month: null }));
+  if (proj.monthlySheets?.length) {
+    const sources = [];
+    const results = await Promise.allSettled(
+      proj.monthlySheets.map(ms => fetchCsvWithFallback(normalizeToCSVUrl(ms.url)))
+    );
+    results.forEach((r, i) => {
+      if (r.status === 'fulfilled') {
+        const ms = proj.monthlySheets[i];
+        sources.push({
+          id: `month_${ms.month}`,
+          label: formatMonthKey(ms.month),
+          url: normalizeToCSVUrl(ms.url),
+          rows: parseSheet(r.value),
+          sheetColumns: (parseCSV(r.value)[0] || []).map(h => (h || '').trim()),
+        });
+      }
+    });
+    if (!sources.length && results.every(r => r.status === 'rejected')) throw results[0].reason;
+    return { sources };
   }
-  const results = await Promise.allSettled(sources.map(s => fetchCsvWithFallback(s.url)));
-  const all = [];
+
+  const sourceDefs = getProjectSheetSources(proj);
+  if (!sourceDefs.length) throw new Error('No sheet URLs configured');
+
+  const results = await Promise.allSettled(sourceDefs.map(s => fetchCsvWithFallback(s.url)));
+  const sources = [];
   results.forEach((r, i) => {
+    const def = sourceDefs[i];
     if (r.status === 'fulfilled') {
-      parseSheet(r.value).forEach(row => all.push(row));
+      const csvRows = parseCSV(r.value);
+      sources.push({
+        id: def.id || `src_${i}`,
+        label: def.label || `Лист ${i + 1}`,
+        url: def.url,
+        rows: parseSheet(r.value),
+        sheetColumns: (csvRows[0] || []).map(h => (h || '').trim()),
+      });
     } else {
-      console.warn(`URL[${i}] failed:`, r.reason);
+      console.warn(`Source "${def.label}" failed:`, r.reason);
     }
   });
-  if (!all.length && results.every(r => r.status === 'rejected')) throw results[0].reason;
-  const map = new Map();
-  all.forEach(r => {
-    const key = r.campaign && r.campaign !== '—' ? `${r.dateStr}|${r.campaign}` : r.dateStr;
-    map.set(key, r);
-  });
-  return [...map.values()].sort((a, b) => a.date - b.date || (a.campaign || '').localeCompare(b.campaign || ''));
+  if (!sources.length && results.every(r => r.status === 'rejected')) throw results[0].reason;
+  return { sources };
+}
+
+function getProjectSheetSources(proj) {
+  if (proj.sheetSources?.length) return proj.sheetSources;
+  const urls = (proj.urls && proj.urls.length ? proj.urls : (proj.url ? [proj.url] : []))
+    .map(normalizeToCSVUrl).filter(Boolean);
+  return urls.map((url, i) => ({ id: `src_${i}`, url, label: `Лист ${i + 1}` }));
+}
+
+function normalizeCacheData(data) {
+  if (data === 'loading' || data === null || data === undefined) return data;
+  if (Array.isArray(data)) {
+    return { sources: [{ id: 'legacy', label: '', rows: data, sheetColumns: [] }] };
+  }
+  if (data.sources?.length) return data;
+  return { sources: [] };
+}
+
+function getAllRowsFromCache(data) {
+  const pack = normalizeCacheData(data);
+  if (!pack || pack === 'loading' || pack === null) return null;
+  return pack.sources.flatMap(s => s.rows || []);
+}
+
+function isMultiSourceCache(data) {
+  const pack = normalizeCacheData(data);
+  return !!(pack && pack !== 'loading' && pack !== null && pack.sources.length > 1);
+}
+
+function projForSource(proj, source) {
+  return {
+    ...proj,
+    sheetColumns: source.sheetColumns?.length ? source.sheetColumns : proj.sheetColumns,
+  };
 }
 
 async function loadAll() {
@@ -1536,7 +1684,8 @@ function getBudgetRemainder(proj) {
 function computeBudgetAnalytics(proj, allData) {
   const remainder = getBudgetRemainder(proj);
   if (remainder == null) return null;
-  const spent = sum(allData || [], 'spend');
+  const rows = Array.isArray(allData) ? allData : (getAllRowsFromCache(allData) || []);
+  const spent = sum(rows, 'spend');
   const total = spent + remainder;
   if (total <= 0) return null;
   const usedPct = Math.min(100, (spent / total) * 100);
@@ -1561,7 +1710,8 @@ function fmtDelta(cur, prev, lowerIsBetter = false) {
 }
 
 function computePeriodComparison(proj, allData, monthKey) {
-  if (!monthKey || !allData?.length) return null;
+  const allRows = getAllRowsFromCache(allData) || [];
+  if (!monthKey || !allRows.length) return null;
   const prevKey = getPrevMonthKey(monthKey);
   const months = getMonths(allData, proj);
   if (!months.includes(prevKey)) return null;
@@ -1897,10 +2047,16 @@ function switchChartType(scope, type) {
     const p = projects.find(x => x.id === view);
     if (!p) return;
     const data = cache[view];
-    if (!data || !Array.isArray(data)) return;
-    const rows = currentMonth ? rowsForMonth(data, currentMonth) : data;
-    if (!rows.length) return;
-    renderChart(p, rows);
+    const pack = normalizeCacheData(data);
+    if (!pack || pack === 'loading' || pack === null) return;
+    if (isMultiSourceCache(data)) {
+      renderChartsForProject(p, pack, currentMonth);
+    } else {
+      const rows = currentMonth ? rowsForMonth(data, currentMonth) : (pack.sources[0]?.rows || []);
+      if (!rows.length) return;
+      destroyDetailCharts();
+      renderChart(projForSource(p, pack.sources[0] || {}), rows, 'mainChart');
+    }
   } else {
     renderOverviewChart();
   }
@@ -1972,7 +2128,8 @@ function formatPieTooltipValue(key, value, currency) {
 function getMonths(data, proj) {
   const set = new Set();
   (proj?.monthlySheets || []).forEach(ms => { if (ms.month) set.add(ms.month); });
-  if (data?.length) data.forEach(r => set.add(dateToMonthKey(r.date)));
+  const rows = getAllRowsFromCache(data);
+  if (rows?.length) rows.forEach(r => set.add(dateToMonthKey(r.date)));
   return [...set].sort();
 }
 
@@ -1988,8 +2145,29 @@ function getLatestMonth(data, proj) {
 }
 
 function rowsForMonth(data, mk) {
-  if (!data) return [];
-  return data.filter(r => dateToMonthKey(r.date) === mk).sort((a,b) => a.date-b.date);
+  const rows = getAllRowsFromCache(data);
+  if (!rows) return [];
+  return rowsForMonthOnRows(rows, mk);
+}
+
+function rowsForMonthOnRows(rows, mk) {
+  if (!rows) return [];
+  return rows.filter(r => dateToMonthKey(r.date) === mk).sort((a, b) => a.date - b.date);
+}
+
+function monthDayCountLabel(data, mk) {
+  const pack = normalizeCacheData(data);
+  if (!pack || pack === 'loading' || pack === null) return '—';
+  if (pack.sources.length <= 1) {
+    return String(rowsForMonthOnRows(pack.sources[0]?.rows || [], mk).length);
+  }
+  return pack.sources
+    .map(s => {
+      const c = rowsForMonthOnRows(s.rows, mk).length;
+      return c ? `${s.label}: ${c}` : null;
+    })
+    .filter(Boolean)
+    .join(' · ') || '0';
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -2216,33 +2394,45 @@ function renderOverview() {
     const selMk = tileMonths[p.id] && months.includes(tileMonths[p.id])
       ? tileMonths[p.id]
       : (tileMonths[p.id] = months[months.length - 1] || null);
+    const pack = normalizeCacheData(data);
+    const isMulti = isMultiSourceCache(data);
     const rows = selMk ? rowsForMonth(data, selMk) : [];
-    const metrics = getMetrics(p, rows);
 
-    // month tabs — show if any data
     const monthTabsHtml = months.length > 0
       ? `<div class="tile-month-tabs">${months.map(m => {
-          const cnt = rowsForMonth(data, m).length;
-          return `<button class="tile-tab ${m === selMk ? 'active' : ''}" onclick="tileSwitchMonth('${p.id}','${m}',event)" title="${cnt} дней">${formatMonthKey(m)}</button>`;
+          const cnt = monthDayCountLabel(data, m);
+          return `<button class="tile-tab ${m === selMk ? 'active' : ''}" onclick="tileSwitchMonth('${p.id}','${m}',event)" title="${escHtml(cnt)}">${formatMonthKey(m)}</button>`;
         }).join('')}</div>`
       : '';
 
-    // all metrics — cost ones accented
-    const metricsHtml = metrics.map(m => {
-      const isCost = m.accent || m.label.toLowerCase().includes('cost') || m.label.toLowerCase().includes('цена');
-      const adminCls = isAdmin() ? ' admin-editable' : '';
-      return `<div class="tile-metric${isCost ? ' accent' : ''}${adminCls}">
-        <div class="tile-metric-label">${renderEditableLabel(p.id, m.key, m.label, 'tile-metric-label-wrap')}</div>
-        <div class="tile-metric-value">${m.value}</div>
-      </div>`;
-    }).join('');
+    let metricsHtml = '';
+    if (isMulti) {
+      metricsHtml = `<div class="tile-source-rows">${pack.sources.map(s => {
+        const sr = selMk ? rowsForMonthOnRows(s.rows, selMk) : s.rows;
+        const sp = sum(sr, 'spend');
+        const srcProj = projForSource(p, s);
+        const res = getPrimaryResult(getEffectiveType(srcProj, sr), sr);
+        return `<div class="tile-source-row"><span class="tile-source-name">${escHtml(s.label)}</span><span class="tile-source-val">${fmtMoney(sp, p.currency)} · ${fmtInt(res)}</span></div>`;
+      }).join('')}</div>`;
+    } else {
+      const metrics = getMetrics(p, rows);
+      metricsHtml = metrics.map(m => {
+        const isCost = m.accent || m.label.toLowerCase().includes('cost') || m.label.toLowerCase().includes('цена');
+        const adminCls = isAdmin() ? ' admin-editable' : '';
+        return `<div class="tile-metric${isCost ? ' accent' : ''}${adminCls}">
+          <div class="tile-metric-label">${renderEditableLabel(p.id, m.key, m.label, 'tile-metric-label-wrap')}</div>
+          <div class="tile-metric-value">${m.value}</div>
+        </div>`;
+      }).join('');
+      metricsHtml = `<div class="tile-metrics${isAdmin()?' admin-zone':''}" style="padding-bottom:14px" ${isAdmin()?'onclick="event.stopPropagation()"':''}>${metricsHtml}</div>`;
+    }
 
     const budgetTile = renderBudgetCard(p, data, true);
 
     html += `<div class="proj-tile">
       <div class="tile-body" onclick="switchView('${p.id}')">
         <div class="tile-header">
-          <div class="tile-name"><span class="tile-icon-wrap">${p.icon}</span>${p.name}</div>
+          <div class="tile-name"><span class="tile-icon-wrap">${p.icon}</span>${p.name}${isMulti ? `<span style="font-size:10px;color:var(--text-dim);margin-left:6px">${pack.sources.length} листа</span>` : ''}</div>
           <div style="display:flex;gap:6px;align-items:center">
             <span class="tile-badge">${p.currency}</span>
           </div>
@@ -2250,7 +2440,7 @@ function renderOverview() {
       </div>
       ${monthTabsHtml}
       ${budgetTile}
-      <div class="tile-metrics${isAdmin()?' admin-zone':''}" style="padding-bottom:14px" ${isAdmin()?'onclick="event.stopPropagation()"':''}>${metricsHtml}</div>
+      ${metricsHtml}
       <div class="tile-footer" onclick="switchView('${p.id}')">
         <span class="tile-cta">Открыть детали →</span>
         <span class="tile-arrow">›</span>
@@ -2278,8 +2468,11 @@ function renderProjectDetail(projId) {
   if (!p) { switchView('overview'); return; }
 
   const data = cache[projId];
-  const months = getMonths(Array.isArray(data) ? data : [], p);
+  const pack = normalizeCacheData(data);
+  const months = getMonths(data, p);
   if (!currentMonth || !months.includes(currentMonth)) currentMonth = months[months.length-1] || null;
+  const isMulti = isMultiSourceCache(data);
+  const allRows = currentMonth ? rowsForMonth(data, currentMonth) : (getAllRowsFromCache(data) || []);
 
   document.getElementById('project-title').textContent = `${p.icon} ${p.name}`;
   // Clear topbar tabs — month navigation lives in content now
@@ -2314,18 +2507,32 @@ function renderProjectDetail(projId) {
   if (months.length > 0) {
     html += `<div class="month-switcher">`;
     months.forEach(m => {
-      const cnt = rowsForMonth(data, m).length;
+      const cntLabel = monthDayCountLabel(data, m);
       html += `<button class="month-btn ${m===currentMonth?'active':''}" onclick="switchMonth('${m}')">
         <span class="month-btn-name">${formatMonthKey(m)}</span>
-        <span class="month-btn-count">${cnt} дн.</span>
+        <span class="month-btn-count">${escHtml(cntLabel)}${isMulti ? '' : ' дн.'}</span>
       </button>`;
     });
     html += `</div>`;
   }
 
-  const rows = currentMonth ? rowsForMonth(data, currentMonth) : (data || []);
-  const metrics = getMetrics(p, rows);
-  const tbl = getTableConfig(p, rows);
+  if (isMulti) {
+    html += `<div class="multi-source-intro">${formatMonthKey(currentMonth || months[months.length - 1] || '')} · ${pack.sources.length} листа — у каждого своя статистика ниже</div>`;
+    html += renderAnalyticsSection(p, data, allRows, currentMonth);
+    pack.sources.forEach((src, idx) => {
+      const rows = currentMonth ? rowsForMonthOnRows(src.rows, currentMonth) : (src.rows || []);
+      html += renderSourceSection(p, src, rows, currentMonth, idx, true);
+    });
+    content.innerHTML = html;
+    renderChartsForProject(p, pack, currentMonth);
+    return;
+  }
+
+  const singleSrc = pack.sources[0];
+  const srcProj = singleSrc ? projForSource(p, singleSrc) : p;
+  const rows = currentMonth ? rowsForMonth(data, currentMonth) : (singleSrc?.rows || allRows);
+  const metrics = getMetrics(srcProj, rows);
+  const tbl = getTableConfig(srcProj, rows);
 
   // ── Metrics ─────────────────────────────────────────────────
   html += `<div class="metrics-grid">${metrics.map(m=>`
@@ -2341,45 +2548,35 @@ function renderProjectDetail(projId) {
   if (rows.length) {
     html += `<div class="chart-card">
       <div class="chart-card-header">
-        <div class="card-title">Динамика по дням — ${currentMonth ? formatMonthKey(currentMonth) : 'все данные'}</div>
+        <div class="card-title">Динамика по дням — ${currentMonth ? formatMonthKey(currentMonth) : 'все данные'}${singleSrc?.label ? ' · ' + escHtml(singleSrc.label) : ''}</div>
         ${renderChartTypePicker('detail')}
       </div>
       <div class="chart-wrap"><canvas id="mainChart"></canvas></div>
     </div>`;
   }
 
-  // ── Daily table ─────────────────────────────────────────────
-  let tbody = '';
-  if (!rows.length) {
-    tbody = `<tr><td colspan="${tbl.headers.length}" class="empty-state">Нет данных за этот период</td></tr>`;
-  } else {
-    tbody = rows.map((r,i) => `<tr class="${i%2===0?'':'row-alt'}">${tbl.row(r).map((c,j)=>`<td${j===0?' class="date-cell"':''}>${c}</td>`).join('')}</tr>`).join('');
-    tbody += `<tr class="total-row">${tbl.total(rows).map(c=>`<td>${c}</td>`).join('')}</tr>`;
-  }
-
   html += `<div class="table-card">
     <div class="table-header">
-      <span class="card-title">По дням — ${rows.length} строк${currentMonth ? ' · '+formatMonthKey(currentMonth) : ''}</span>
+      <span class="card-title">По дням — ${rows.length} строк${currentMonth ? ' · '+formatMonthKey(currentMonth) : ''}${singleSrc?.label ? ' · ' + escHtml(singleSrc.label) : ''}</span>
     </div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr>${tbl.headers.map((h, i) => {
-          const key = tbl.columnKeys[i];
-          const editable = isAdmin() && key && key !== 'date';
-          return `<th${editable ? ' class="th-editable"' : ''}>${editable ? renderEditableLabel(p.id, key, h, 'th-label-wrap') : escHtml(h)}</th>`;
-        }).join('')}</tr></thead>
-        <tbody>${tbody}</tbody>
-      </table>
-    </div>
+    ${renderDailyTableHtml(p, rows, tbl)}
   </div>`;
 
   content.innerHTML = html;
-  if (rows.length) renderChart(p, rows);
+  if (rows.length) renderChart(srcProj, rows, 'mainChart');
 }
 
-function renderChart(proj, rows) {
-  if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
-  const ctx = document.getElementById('mainChart');
+function renderChartsForProject(proj, pack, monthKey) {
+  destroyDetailCharts();
+  if (!pack?.sources?.length) return;
+  pack.sources.forEach((src, idx) => {
+    const rows = monthKey ? rowsForMonthOnRows(src.rows, monthKey) : (src.rows || []);
+    if (rows.length) renderChart(projForSource(proj, src), rows, `mainChart-${idx}`);
+  });
+}
+
+function renderChart(proj, rows, canvasId = 'mainChart') {
+  const ctx = document.getElementById(canvasId);
   if (!ctx) return;
 
   const chartType = getChartPref('detail');
@@ -2388,7 +2585,7 @@ function renderChart(proj, rows) {
   if (chartType === 'pie' || chartType === 'doughnut') {
     const pieData = getDetailPieData(proj, rows);
     if (!pieData.labels.length) return;
-    chartInstance = new Chart(ctx, {
+    const inst = new Chart(ctx, {
       type: chartType,
       data: { labels: pieData.labels, datasets: pieData.datasets },
       options: {
@@ -2410,11 +2607,12 @@ function renderChart(proj, rows) {
         },
       },
     });
+    registerChart(canvasId, inst);
     return;
   }
 
   const datasets = styleDatasetsForChartType(getChartDatasets(proj, rows), chartType);
-  chartInstance = new Chart(ctx, {
+  const inst = new Chart(ctx, {
     type: chartType === 'bar' ? 'bar' : 'line',
     data: { labels, datasets },
     options: {
@@ -2427,6 +2625,16 @@ function renderChart(proj, rows) {
       scales: chartAxisScales('Spend', 'Метрики'),
     },
   });
+  registerChart(canvasId, inst);
+}
+
+function registerChart(canvasId, inst) {
+  if (canvasId === 'mainChart') {
+    if (chartInstance) chartInstance.destroy();
+    chartInstance = inst;
+  } else {
+    chartInstances.push(inst);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -2435,10 +2643,10 @@ function renderChart(proj, rows) {
 function renderAdminPanel(proj) {
   let links = '';
   if (proj) {
-    const projUrls = proj.urls && proj.urls.length ? proj.urls : (proj.url ? [proj.url] : []);
-    links = `<div class="admin-links">${projUrls.map((u, i) => `
-      <a class="admin-link" href="${u}" target="_blank" rel="noopener">
-        <div class="admin-link-left"><span>${proj.icon}</span><span>${proj.name}${projUrls.length > 1 ? ` — лист ${i + 1}` : ''}</span></div>
+    const srcs = proj.sheetSources?.length ? proj.sheetSources : getProjectSheetSources(proj);
+    links = `<div class="admin-links">${srcs.map((s, i) => `
+      <a class="admin-link" href="${s.url}" target="_blank" rel="noopener">
+        <div class="admin-link-left"><span>${proj.icon}</span><span>${proj.name} — ${escHtml(s.label)}</span></div>
         <span class="admin-link-ext">↗ Google Sheets</span>
       </a>`).join('')}
     </div>
@@ -2449,13 +2657,13 @@ function renderAdminPanel(proj) {
     <div style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:10px">Наведите на название метрики — появится ✏️ для переименования и скрытия</div>`;
   } else {
     // overview: show all sheets
-    links = `<div class="admin-links">${projects.map(p => {
-      const pu = p.urls && p.urls.length ? p.urls : (p.url ? [p.url] : []);
-      return pu.map((u, i) => `
-        <a class="admin-link" href="${u}" target="_blank" rel="noopener">
-          <div class="admin-link-left"><span>${p.icon}</span><span>${p.name}${pu.length > 1 ? ` — лист ${i+1}` : ''}</span></div>
+    links = `<div class="admin-links">${projects.flatMap(p => {
+      const srcs = p.sheetSources?.length ? p.sheetSources : getProjectSheetSources(p);
+      return srcs.map(s => `
+        <a class="admin-link" href="${s.url}" target="_blank" rel="noopener">
+          <div class="admin-link-left"><span>${p.icon}</span><span>${p.name} — ${escHtml(s.label)}</span></div>
           <span class="admin-link-ext">↗ Google Sheets</span>
-        </a>`).join('');
+        </a>`);
     }).join('')}
     </div>
     <div class="admin-actions">
@@ -2479,7 +2687,7 @@ function renderAdminPanel(proj) {
 function switchView(v) {
   view = v;
   currentMonth = null;
-  if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+  destroyDetailCharts();
   if (overviewChartInstance) { overviewChartInstance.destroy(); overviewChartInstance = null; }
   closeSidebar();
   renderSidebar();
@@ -2705,7 +2913,8 @@ async function onSheetUrlInput(isEdit) {
   try {
     const tabs = await discoverSheetTabs(url);
     discoveredTabsCache[key] = tabs;
-    renderTabChips(tabs, isEdit, tabs.map(t => t.gid));
+    const proj = editingProjId && isEdit ? projects.find(p => p.id === editingProjId) : null;
+    renderTabChips(tabs, isEdit, tabsSelectionFromProject(tabs, proj));
     statusEl.textContent = `✓ Найдено ${tabs.length} вкладок`;
     statusEl.className = 'sheet-status ok';
   } catch(e) {
@@ -2806,15 +3015,43 @@ function buildDefaultMetrics(type, headerRow) {
   });
 }
 
-function getSelectedSheetUrls(isEdit) {
+function getSelectedSheetSources(isEdit) {
   const chips = document.querySelectorAll(isEdit ? '#tab-chips-edit .tab-chip.selected' : '#tab-chips .tab-chip.selected');
-  if (chips.length) return [...chips].map(c => normalizeToCSVUrl(c.dataset.url));
+  if (chips.length) {
+    return [...chips].map((c, i) => ({
+      id: `src_${i}`,
+      url: normalizeToCSVUrl(c.dataset.url),
+      label: c.textContent.trim() || `Лист ${i + 1}`,
+    }));
+  }
   const listId = isEdit ? 'proj-urls-list-edit' : 'proj-urls-list';
   const inputs = [...document.querySelectorAll(`#${listId} .proj-url-input`)];
-  if (inputs.length) return inputs.map(el => normalizeToCSVUrl(el.value.trim())).filter(Boolean);
+  if (inputs.length) {
+    return inputs.map((el, i) => ({
+      id: `src_${i}`,
+      url: normalizeToCSVUrl(el.value.trim()),
+      label: `Лист ${i + 1}`,
+    })).filter(s => s.url);
+  }
   const url = document.getElementById(isEdit ? 'proj-sheet-url-edit' : 'proj-sheet-url').value.trim();
-  if (url) return [normalizeToCSVUrl(url)];
+  if (url) return [{ id: 'src_0', url: normalizeToCSVUrl(url), label: 'Лист 1' }];
   return [];
+}
+
+function getSelectedSheetUrls(isEdit) {
+  return getSelectedSheetSources(isEdit).map(s => s.url);
+}
+
+function tabsSelectionFromProject(tabs, proj) {
+  const sources = proj?.sheetSources || [];
+  if (!sources.length) return tabs[0] ? [tabs[0].gid] : [];
+  const selected = [];
+  sources.forEach(src => {
+    const norm = normalizeToCSVUrl(src.url);
+    const tab = tabs.find(t => normalizeToCSVUrl(t.csvUrl) === norm);
+    if (tab && !selected.includes(tab.gid)) selected.push(tab.gid);
+  });
+  return selected.length ? selected : (tabs[0] ? [tabs[0].gid] : []);
 }
 
 function toggleAdvancedUrls() {
@@ -3049,7 +3286,7 @@ function getMonthlySheetsFromEditor() {
 
 function saveProject() {
   const errEl = document.getElementById('proj-error');
-  let icon, name, currency, urls, metrics, budgetRemainder;
+  let icon, name, currency, sheetSources, metrics, budgetRemainder;
   const monthlySheets = getMonthlySheetsFromEditor();
   const detectedType = getDetectedTypeFromCache();
 
@@ -3057,7 +3294,11 @@ function saveProject() {
     icon = document.getElementById('proj-icon-edit').value.trim() || '📊';
     name = document.getElementById('proj-name-edit').value.trim();
     currency = document.getElementById('proj-currency-edit').value;
-    urls = getSelectedSheetUrls(true);
+    sheetSources = getSelectedSheetSources(true);
+    if (!sheetSources.length && editingProjId) {
+      const existing = projects.find(x => x.id === editingProjId);
+      if (existing?.sheetSources?.length) sheetSources = existing.sheetSources;
+    }
     metrics = getMetricsFromEditor();
     if (metrics.length < 3) {
       metrics = buildDefaultMetrics(detectedType, sheetPreviewCache.headers);
@@ -3067,11 +3308,12 @@ function saveProject() {
     icon = document.getElementById('proj-icon').value.trim() || '📊';
     name = document.getElementById('proj-name').value.trim();
     currency = document.getElementById('proj-currency').value;
-    urls = getSelectedSheetUrls(false);
-    if (!urls.length) { errEl.textContent = 'Подключите Google Sheets и выберите лист'; errEl.style.display='block'; return; }
+    sheetSources = getSelectedSheetSources(false);
+    if (!sheetSources.length) { errEl.textContent = 'Подключите Google Sheets и выберите лист'; errEl.style.display='block'; return; }
     metrics = buildDefaultMetrics(detectedType, sheetPreviewCache.headers);
     budgetRemainder = parseBudgetRemainder(document.getElementById('proj-budget-remainder').value.trim());
   }
+  const urls = sheetSources.map(s => s.url);
   const type = 'auto';
   const sheetColumns = sheetPreviewCache.headers.length ? sheetPreviewCache.headers : undefined;
 
@@ -3082,10 +3324,10 @@ function saveProject() {
 
   if (editingProjId) {
     const idx = projects.findIndex(x => x.id === editingProjId);
-    if (idx >= 0) { projects[idx] = { ...projects[idx], icon, name, currency, type, urls: allUrls, monthlySheets, metrics, sheetColumns, budgetRemainder }; cache[editingProjId] = 'loading'; }
+    if (idx >= 0) { projects[idx] = { ...projects[idx], icon, name, currency, type, urls: allUrls, sheetSources, monthlySheets, metrics, sheetColumns, budgetRemainder }; cache[editingProjId] = 'loading'; }
   } else {
     const id = genId(name);
-    projects.push({ id, name, icon, currency, type, urls: allUrls, monthlySheets, metrics, sheetColumns, budgetRemainder });
+    projects.push({ id, name, icon, currency, type, urls: allUrls, sheetSources, monthlySheets, metrics, sheetColumns, budgetRemainder });
     cache[id] = 'loading';
   }
 
