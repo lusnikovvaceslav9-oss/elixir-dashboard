@@ -455,7 +455,7 @@ body.admin-mode th.th-editable:hover{background:rgba(91,75,245,0.06)}
   <div class="nav-section">Проекты</div>
   <div id="nav-projects"></div>
   <div class="sidebar-footer">
-    <div class="version">Elixir UA · 2026 · multi sheets</div>
+    <div class="version">Elixir UA · 2026 · tab discovery</div>
   </div>
 </div>
 
@@ -1263,6 +1263,30 @@ async function fetchCsvWithFallback(url) {
 }
 
 async function fetchProject(proj) {
+  const sourceDefs = getProjectSheetSources(proj);
+
+  if (sourceDefs.length > 1) {
+    const results = await Promise.allSettled(sourceDefs.map(s => fetchCsvWithFallback(s.url)));
+    const sources = [];
+    results.forEach((r, i) => {
+      const def = sourceDefs[i];
+      if (r.status === 'fulfilled') {
+        const csvRows = parseCSV(r.value);
+        sources.push({
+          id: def.id || `src_${i}`,
+          label: def.label || `Лист ${i + 1}`,
+          url: def.url,
+          rows: parseSheet(r.value),
+          sheetColumns: (csvRows[0] || []).map(h => (h || '').trim()),
+        });
+      } else {
+        console.warn(`Source "${def.label}" failed:`, r.reason);
+      }
+    });
+    if (!sources.length && results.every(r => r.status === 'rejected')) throw results[0].reason;
+    return { sources };
+  }
+
   if (proj.monthlySheets?.length) {
     const sources = [];
     const results = await Promise.allSettled(
@@ -1284,7 +1308,6 @@ async function fetchProject(proj) {
     return { sources };
   }
 
-  const sourceDefs = getProjectSheetSources(proj);
   if (!sourceDefs.length) throw new Error('No sheet URLs configured');
 
   const results = await Promise.allSettled(sourceDefs.map(s => fetchCsvWithFallback(s.url)));
@@ -2788,24 +2811,53 @@ function defaultSheetTab(sheetUrl) {
   return { gid, title: 'Лист 1', csvUrl: sheetCsvUrl(id, gidMatch && gidMatch[1] !== '0' ? gidMatch[1] : null) };
 }
 
+function parseTabsFromSheetHtml(html, id) {
+  let tabs = [];
+  const bootstrap = [...html.matchAll(/\[(\d+),0,\\?"(\d+)\\?",\[\{\\?"1\\?":\[\[0,0,\\?"([^"\\]+)\\?"/g)];
+  if (bootstrap.length) {
+    tabs = bootstrap.map(m => ({ gid: m[2], title: m[3], csvUrl: sheetCsvUrl(id, m[2]) }));
+  }
+  if (!tabs.length) {
+    const plain = [...html.matchAll(/\[(\d+),0,"(\d+)",\[\{"1":\[\[0,0,"([^"]+)"/g)];
+    if (plain.length) tabs = plain.map(m => ({ gid: m[2], title: m[3], csvUrl: sheetCsvUrl(id, m[2]) }));
+  }
+  if (!tabs.length) {
+    const legacy = [...html.matchAll(/"sheetId":(\d+),"title":"([^"]+)"/g)];
+    if (legacy.length) tabs = legacy.map(m => ({ gid: m[1], title: m[2], csvUrl: sheetCsvUrl(id, m[1]) }));
+  }
+  if (!tabs.length) {
+    const legacy2 = [...html.matchAll(/\[\"([^"]+)\",null,(\d+),/g)];
+    if (legacy2.length) tabs = legacy2.map(m => ({ gid: m[2], title: m[1], csvUrl: sheetCsvUrl(id, m[2]) }));
+  }
+  if (!tabs.length) {
+    const captions = [...html.matchAll(/docs-sheet-tab-caption">([^<]+)</g)].map(m => m[1].trim()).filter(Boolean);
+    const gids = [...html.matchAll(/\[(\d+),0,\\?"(\d+)\\?"/g)].map(m => m[2]);
+    const seen = new Set();
+    captions.forEach((title, i) => {
+      const gid = gids[i];
+      if (gid && !seen.has(gid)) {
+        seen.add(gid);
+        tabs.push({ gid, title, csvUrl: sheetCsvUrl(id, gid) });
+      }
+    });
+  }
+  const seen = new Set();
+  return tabs.filter(t => {
+    if (seen.has(t.gid)) return false;
+    seen.add(t.gid);
+    return true;
+  });
+}
+
 async function discoverSheetTabs(sheetUrl) {
   const id = extractSheetId(sheetUrl);
   if (!id) throw new Error('Не удалось распознать ID таблицы');
   const html = await fetchHtmlWithFallback(`https://docs.google.com/spreadsheets/d/${id}/edit`);
-  let tabs = [];
-  const p1 = [...html.matchAll(/"sheetId":(\d+),"title":"([^"]+)"/g)];
-  if (p1.length) tabs = p1.map(m => ({ gid: m[1], title: m[2], csvUrl: sheetCsvUrl(id, m[1]) }));
+  let tabs = parseTabsFromSheetHtml(html, id);
   if (!tabs.length) {
-    const p2 = [...html.matchAll(/\[\"([^"]+)\",null,(\d+),/g)];
-    if (p2.length) tabs = p2.map(m => ({ gid: m[2], title: m[1], csvUrl: sheetCsvUrl(id, m[2]) }));
-  }
-  if (!tabs.length) {
-    const p3 = [...html.matchAll(/[#&]gid=(\d+)/g)];
-    const gids = [...new Set(p3.map(m => m[1]))];
+    const gids = [...new Set([...html.matchAll(/[#&]gid=(\d+)/g)].map(m => m[1]))];
     if (gids.length) tabs = gids.map(g => ({ gid: g, title: `Лист ${g}`, csvUrl: sheetCsvUrl(id, g) }));
   }
-  const seen = new Set();
-  tabs = tabs.filter(t => { if (seen.has(t.gid)) return false; seen.add(t.gid); return true; });
   if (!tabs.length) {
     const fallback = defaultSheetTab(sheetUrl);
     if (fallback) tabs = [fallback];
