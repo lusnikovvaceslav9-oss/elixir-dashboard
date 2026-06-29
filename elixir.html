@@ -139,6 +139,9 @@ body{
 .month-btn.active .month-btn-name{color:#fff}
 .month-btn-count{font-size:10px;color:rgba(255,255,255,0.3);margin-top:4px}
 .month-btn.active .month-btn-count{color:rgba(91,75,245,0.9)}
+.sheet-switcher{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-4px 0 18px}
+.sheet-switcher-label{font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;flex-shrink:0}
+.sheet-switcher-btns{margin-bottom:0!important;flex:1}
 .date-cell{font-weight:500;color:rgba(255,255,255,0.6);font-variant-numeric:tabular-nums}
 .row-alt td{background:rgba(255,255,255,0.015)}
 .tile-metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:14px 20px 0}
@@ -455,7 +458,7 @@ body.admin-mode th.th-editable:hover{background:rgba(91,75,245,0.06)}
   <div class="nav-section">Проекты</div>
   <div id="nav-projects"></div>
   <div class="sidebar-footer">
-    <div class="version">Elixir UA · 2026 · tab discovery</div>
+    <div class="version">Elixir UA · 2026 · sheet picker</div>
   </div>
 </div>
 
@@ -737,6 +740,8 @@ const DEFAULT_PROJECTS = [
 let projects = loadProjectsLocal(); // start with local cache, server overwrites
 let cache      = {};
 let tileMonths = {};
+let tileSourceIndex = {};
+let sourceIndexByProject = {};
 let view         = 'overview';
 let currentMonth = null;
 let chartInstance = null;
@@ -766,21 +771,22 @@ function renderDailyTableHtml(p, rows, tbl) {
   </table></div>`;
 }
 
-function renderSourceSection(p, source, rows, monthKey, idx, withChart) {
+function renderSourceSection(p, source, rows, monthKey, idx, withChart, chartId = 'mainChart', withHeader = true) {
   const tone = `source-tone-${(idx % 4) + 1}`;
   const srcProj = projForSource(p, source);
   const metrics = getMetrics(srcProj, rows);
   const tbl = getTableConfig(srcProj, rows);
   const period = monthKey ? formatMonthKey(monthKey) : 'все данные';
-  const chartId = `mainChart-${idx}`;
 
-  let html = `<div class="source-section" data-source-idx="${idx}">
-    <div class="source-section-header ${tone}">
+  let html = `<div class="source-section" data-source-idx="${idx}">`;
+  if (withHeader) {
+    html += `<div class="source-section-header ${tone}">
       <span class="source-section-badge ${tone}">Лист</span>
       <span class="source-section-title">${escHtml(source.label)}</span>
       <span class="source-section-sub">${period} · ${rows.length} дн.</span>
-    </div>
-    <div class="metrics-grid">${metrics.map(m => `
+    </div>`;
+  }
+  html += `<div class="metrics-grid">${metrics.map(m => `
       <div class="metric-card${m.accent ? ' accent' : ''}${isAdmin() ? ' admin-editable' : ''}">
         <div class="metric-label">${renderEditableLabel(p.id, m.key, m.label, 'metric-label-wrap')}</div>
         <div class="metric-value">${m.value}</div>
@@ -790,7 +796,7 @@ function renderSourceSection(p, source, rows, monthKey, idx, withChart) {
     html += `<div class="chart-card">
       <div class="chart-card-header">
         <div class="card-title">${escHtml(source.label)} — динамика по дням</div>
-        ${idx === 0 ? renderChartTypePicker('detail') : ''}
+        ${renderChartTypePicker('detail')}
       </div>
       <div class="chart-wrap"><canvas id="${chartId}"></canvas></div>
     </div>`;
@@ -2073,7 +2079,7 @@ function switchChartType(scope, type) {
     const pack = normalizeCacheData(data);
     if (!pack || pack === 'loading' || pack === null) return;
     if (isMultiSourceCache(data)) {
-      renderChartsForProject(p, pack, currentMonth);
+      renderChartsForProject(p, pack, currentMonth, getSourceIdx(view, pack));
     } else {
       const rows = currentMonth ? rowsForMonth(data, currentMonth) : (pack.sources[0]?.rows || []);
       if (!rows.length) return;
@@ -2354,6 +2360,42 @@ function tileSwitchMonth(projId, mk, e) {
   renderContent();
 }
 
+function tileSwitchSource(projId, idx, e) {
+  e.stopPropagation();
+  tileSourceIndex[projId] = idx;
+  renderContent();
+}
+
+function getSourceIdx(projId, pack) {
+  const max = Math.max(0, (pack?.sources?.length || 1) - 1);
+  let idx = sourceIndexByProject[projId];
+  if (idx == null || idx < 0 || idx > max) {
+    idx = 0;
+    sourceIndexByProject[projId] = 0;
+  }
+  return idx;
+}
+
+function renderSheetSwitcher(pack, projId, monthKey) {
+  const sel = getSourceIdx(projId, pack);
+  return `<div class="sheet-switcher">
+    <span class="sheet-switcher-label">Лист</span>
+    <div class="month-switcher sheet-switcher-btns">${pack.sources.map((s, i) => {
+      const cnt = monthKey ? rowsForMonthOnRows(s.rows, monthKey).length : (s.rows?.length || 0);
+      return `<button type="button" class="month-btn ${i === sel ? 'active' : ''}" onclick="switchSource(${i})">
+        <span class="month-btn-name">${escHtml(s.label)}</span>
+        <span class="month-btn-count">${cnt} дн.</span>
+      </button>`;
+    }).join('')}</div>
+  </div>`;
+}
+
+function switchSource(idx) {
+  sourceIndexByProject[view] = idx;
+  destroyDetailCharts();
+  renderContent();
+}
+
 function renderOverview() {
   document.getElementById('project-title').textContent = '⚡ Все проекты';
   document.getElementById('tabs-row').innerHTML = '';
@@ -2430,12 +2472,22 @@ function renderOverview() {
 
     let metricsHtml = '';
     if (isMulti) {
-      metricsHtml = `<div class="tile-source-rows">${pack.sources.map(s => {
-        const sr = selMk ? rowsForMonthOnRows(s.rows, selMk) : s.rows;
-        const sp = sum(sr, 'spend');
-        const srcProj = projForSource(p, s);
-        const res = getPrimaryResult(getEffectiveType(srcProj, sr), sr);
-        return `<div class="tile-source-row"><span class="tile-source-name">${escHtml(s.label)}</span><span class="tile-source-val">${fmtMoney(sp, p.currency)} · ${fmtInt(res)}</span></div>`;
+      const srcIdx = tileSourceIndex[p.id] != null && tileSourceIndex[p.id] < pack.sources.length
+        ? tileSourceIndex[p.id]
+        : (tileSourceIndex[p.id] = 0);
+      const src = pack.sources[srcIdx];
+      const sr = selMk ? rowsForMonthOnRows(src.rows, selMk) : (src.rows || []);
+      const srcTabsHtml = `<div class="tile-month-tabs">${pack.sources.map((s, i) =>
+        `<button type="button" class="tile-tab ${i === srcIdx ? 'active' : ''}" onclick="tileSwitchSource('${p.id}',${i},event)">${escHtml(s.label)}</button>`
+      ).join('')}</div>`;
+      const metrics = getMetrics(projForSource(p, src), sr);
+      metricsHtml = srcTabsHtml + `<div class="tile-metrics${isAdmin() ? ' admin-zone' : ''}" style="padding-bottom:14px" ${isAdmin() ? 'onclick="event.stopPropagation()"' : ''}>${metrics.map(m => {
+        const isCost = m.accent || m.label.toLowerCase().includes('cost') || m.label.toLowerCase().includes('цена');
+        const adminCls = isAdmin() ? ' admin-editable' : '';
+        return `<div class="tile-metric${isCost ? ' accent' : ''}${adminCls}">
+          <div class="tile-metric-label">${renderEditableLabel(p.id, m.key, m.label, 'tile-metric-label-wrap')}</div>
+          <div class="tile-metric-value">${m.value}</div>
+        </div>`;
       }).join('')}</div>`;
     } else {
       const metrics = getMetrics(p, rows);
@@ -2540,14 +2592,14 @@ function renderProjectDetail(projId) {
   }
 
   if (isMulti) {
-    html += `<div class="multi-source-intro">${formatMonthKey(currentMonth || months[months.length - 1] || '')} · ${pack.sources.length} листа — у каждого своя статистика ниже</div>`;
-    html += renderAnalyticsSection(p, data, allRows, currentMonth);
-    pack.sources.forEach((src, idx) => {
-      const rows = currentMonth ? rowsForMonthOnRows(src.rows, currentMonth) : (src.rows || []);
-      html += renderSourceSection(p, src, rows, currentMonth, idx, true);
-    });
+    const srcIdx = getSourceIdx(projId, pack);
+    const src = pack.sources[srcIdx];
+    const rows = currentMonth ? rowsForMonthOnRows(src.rows, currentMonth) : (src.rows || []);
+    html += renderSheetSwitcher(pack, projId, currentMonth);
+    html += renderAnalyticsSection(p, data, rows, currentMonth);
+    html += renderSourceSection(p, src, rows, currentMonth, srcIdx, true, 'mainChart', false);
     content.innerHTML = html;
-    renderChartsForProject(p, pack, currentMonth);
+    renderChartsForProject(p, pack, currentMonth, srcIdx);
     return;
   }
 
@@ -2589,13 +2641,12 @@ function renderProjectDetail(projId) {
   if (rows.length) renderChart(srcProj, rows, 'mainChart');
 }
 
-function renderChartsForProject(proj, pack, monthKey) {
+function renderChartsForProject(proj, pack, monthKey, sourceIdx = 0) {
   destroyDetailCharts();
-  if (!pack?.sources?.length) return;
-  pack.sources.forEach((src, idx) => {
-    const rows = monthKey ? rowsForMonthOnRows(src.rows, monthKey) : (src.rows || []);
-    if (rows.length) renderChart(projForSource(proj, src), rows, `mainChart-${idx}`);
-  });
+  const src = pack?.sources?.[sourceIdx];
+  if (!src) return;
+  const rows = monthKey ? rowsForMonthOnRows(src.rows, monthKey) : (src.rows || []);
+  if (rows.length) renderChart(projForSource(proj, src), rows, 'mainChart');
 }
 
 function renderChart(proj, rows, canvasId = 'mainChart') {
