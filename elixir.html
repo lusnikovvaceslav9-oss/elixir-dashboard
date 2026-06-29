@@ -248,6 +248,16 @@ td:first-child{text-align:left;color:#F0F0F0;font-weight:500}
 .insight-row span:last-child{font-weight:600;color:var(--text)}
 .insight-row.best span:last-child{color:var(--success)}
 .insight-row.worst span:last-child{color:#F59E0B}
+.planto-view-grid{display:flex;flex-direction:column;gap:8px}
+.planto-view-btn{display:flex;align-items:center;gap:10px;width:100%;padding:11px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface);cursor:pointer;transition:all 0.15s ease;font-family:Inter,sans-serif;text-align:left}
+.planto-view-btn:hover{border-color:rgba(91,75,245,0.45);background:rgba(91,75,245,0.06)}
+.planto-view-btn.active{border-color:var(--accent);background:var(--accent-soft);box-shadow:inset 0 0 0 1px rgba(108,92,231,0.25)}
+.planto-view-icon{font-size:16px;line-height:1;flex-shrink:0}
+.planto-view-name{flex:1;font-size:13px;font-weight:600;color:var(--text)}
+.planto-view-stat{font-size:13px;font-weight:600;color:var(--text)}
+.planto-view-cost{font-size:11px;color:var(--text-muted);min-width:72px;text-align:right}
+.planto-view-btn.active .planto-view-name,.planto-view-btn.active .planto-view-stat{color:#fff}
+.planto-view-btn.active .planto-view-cost{color:rgba(255,255,255,0.65)}
 .tile-budget{margin:0 16px 12px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:10px}
 .tile-budget-top{display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-bottom:6px}
 .tile-budget-bar{height:5px;background:rgba(255,255,255,0.06);border-radius:99px;overflow:hidden}
@@ -458,7 +468,7 @@ body.admin-mode th.th-editable:hover{background:rgba(91,75,245,0.06)}
   <div class="nav-section">Проекты</div>
   <div id="nav-projects"></div>
   <div class="sidebar-footer">
-    <div class="version">Elixir UA · 2026 · sheet picker</div>
+    <div class="version">Elixir UA · 2026 · planto breakdown</div>
   </div>
 </div>
 
@@ -742,6 +752,7 @@ let cache      = {};
 let tileMonths = {};
 let tileSourceIndex = {};
 let sourceIndexByProject = {};
+let plantoViewByProject = {};
 let view         = 'overview';
 let currentMonth = null;
 let chartInstance = null;
@@ -1395,6 +1406,54 @@ async function refreshData() {
 // ═══════════════════════════════════════════════════════════════
 // METRICS / TABLE / CHART CONFIG PER TYPE
 // ═══════════════════════════════════════════════════════════════
+const PLANTO_VIEWS = {
+  installs: { label: 'Installs', resultKey: 'installs', costKey: 'cost_install', keys: ['spend', 'installs', 'cost_install'] },
+  trials:   { label: 'Trials',   resultKey: 'trials',   costKey: 'cost_trial',  keys: ['spend', 'trials', 'cost_trial'] },
+  fb:       { label: 'Bills',    resultKey: 'fb',       costKey: 'cost_fb',     keys: ['spend', 'fb', 'cost_fb'] },
+};
+
+function isPlantoProject(proj, rows) {
+  return getEffectiveType(proj, rows) === 'planto';
+}
+
+function getPlantoView(projId) {
+  const v = plantoViewByProject[projId];
+  return PLANTO_VIEWS[v] ? v : 'installs';
+}
+
+function getPlantoMetricKeys(view, rows) {
+  const keys = [...PLANTO_VIEWS[view].keys];
+  if (rows?.some(r => 'impressions' in r || 'clicks' in r)) {
+    keys.push('impressions', 'clicks', 'cpc', 'cpm', 'ctr');
+  }
+  return keys;
+}
+
+function switchPlantoView(mode) {
+  if (!PLANTO_VIEWS[mode]) return;
+  plantoViewByProject[view] = mode;
+  destroyDetailCharts();
+  renderContent();
+}
+
+function renderPlantoBreakdownCard(proj, rows) {
+  const sel = getPlantoView(proj.id);
+  const cur = proj.currency;
+  return `<div class="analytics-card planto-breakdown-card">
+    <div class="analytics-card-title">Разбивка</div>
+    <div class="planto-view-grid">${Object.entries(PLANTO_VIEWS).map(([id, cfg]) => {
+      const count = sum(rows, cfg.resultKey);
+      const cost = count ? fmtMoney(sum(rows, 'spend') / count, cur) : '—';
+      return `<button type="button" class="planto-view-btn ${id === sel ? 'active' : ''}" onclick="switchPlantoView('${id}')">
+        <span class="planto-view-name">${escHtml(cfg.label)}</span>
+        <span class="planto-view-stat">${fmtInt(count)}</span>
+        <span class="planto-view-cost">${cost}</span>
+      </button>`;
+    }).join('')}</div>
+    <div class="budget-hint" style="margin-top:10px">Выберите этап — ниже обновятся метрики, график и таблица</div>
+  </div>`;
+}
+
 const METRIC_CATALOG = {
   planto: [
     { key: 'spend', label: 'Total Spend', accent: false },
@@ -1403,6 +1462,7 @@ const METRIC_CATALOG = {
     { key: 'trials', label: 'Trials', accent: false },
     { key: 'cost_trial', label: 'Cost / Trial', accent: true },
     { key: 'fb', label: 'FB (Purchases)', accent: false },
+    { key: 'cost_fb', label: 'Cost / Bill', accent: true },
     { key: 'impressions', label: 'Impressions', accent: false },
     { key: 'clicks', label: 'Clicks', accent: false },
     { key: 'cpc', label: 'CPC', accent: true },
@@ -1472,6 +1532,7 @@ function computeMetricValue(key, type, rows, cur) {
     case 'cost_reg': { const v = sum(rows, 'regs'); return v ? fmtMoney(sp / v, cur) : '—'; }
     case 'cost_purchase': { const v = sum(rows, 'purchases'); return v ? fmtMoney(sp / v, cur) : '—'; }
     case 'cost_qreg': { const v = sum(rows, 'qregs'); return v ? fmtMoney(sp / v, cur) : '—'; }
+    case 'cost_fb': { const v = sum(rows, 'fb'); return v ? fmtMoney(sp / v, cur) : '—'; }
     case 'cpc': { const v = sum(rows, 'clicks'); return v ? fmtMoney(sp / v, cur) : '—'; }
     case 'cpm': { const v = sum(rows, 'impressions'); return v ? fmtMoney(sp / v * 1000, cur) : '—'; }
     case 'ctr': {
@@ -1530,7 +1591,7 @@ function isMetricRelevant(key, rows) {
     installs: 'installs', trials: 'trials', fb: 'fb', regs: 'regs', qregs: 'qregs',
     purchases: 'purchases', impressions: 'impressions', clicks: 'clicks',
     cost_install: 'installs', cost_trial: 'trials', cost_reg: 'regs', cost_qreg: 'qregs',
-    cost_purchase: 'purchases', cpc: 'clicks', cpm: 'impressions', ctr: 'impressions',
+    cost_purchase: 'purchases', cost_fb: 'fb', cpc: 'clicks', cpm: 'impressions', ctr: 'impressions',
   }[key];
   if (key === 'conv_rate') return rows.some(r => 'regs' in r && 'qregs' in r);
   if (!field) return true;
@@ -1562,9 +1623,12 @@ function getMetricLabel(proj, key, fallback, rows) {
 
 function getMetrics(proj, rows) {
   const p = withEffectiveType(proj, rows);
-  return getProjectMetricsConfig(p, rows)
-    .filter(m => m.enabled !== false)
-    .map(m => ({
+  let config = getProjectMetricsConfig(p, rows).filter(m => m.enabled !== false);
+  if (p.type === 'planto') {
+    const allowed = new Set(getPlantoMetricKeys(getPlantoView(proj.id), rows));
+    config = config.filter(m => allowed.has(m.key));
+  }
+  return config.map(m => ({
       label: m.label,
       value: computeMetricValue(m.key, p.type, rows, p.currency),
       accent: m.accent,
@@ -1585,7 +1649,10 @@ function getTableConfig(proj, rows) {
 
   if (type === 'planto') {
     const hasAds = rows?.some(r => 'impressions' in r || 'clicks' in r);
-    colKeys = ['date', 'spend', 'installs', 'cost_install', 'trials', 'cost_trial', 'fb'];
+    const viewCfg = PLANTO_VIEWS[getPlantoView(proj.id)];
+    const rk = viewCfg.resultKey;
+    const ck = viewCfg.costKey;
+    colKeys = ['date', 'spend', rk, ck];
     const adKeys = ['impressions', 'clicks', 'cpc', 'cpm', 'ctr'];
     if (hasAds) colKeys = colKeys.concat(adKeys);
     const adRow = (r) => {
@@ -1601,14 +1668,16 @@ function getTableConfig(proj, rows) {
       const imp = sum(rows, 'impressions'), cl = sum(rows, 'clicks'), sp = sum(rows, 'spend');
       return [fmtInt(imp), fmtInt(cl), cl ? fmtMoney(sp / cl, cur) : '—', imp ? fmtMoney(sp / imp * 1000, cur) : '—', imp ? fmtPct(cl / imp * 100) : '—'];
     };
+    const resultCell = (r) => fmtInt(r[rk] || 0);
+    const costCell = (r) => r[rk] ? fmtMoney(r.spend / r[rk], cur) : '—';
     tbl = {
-    headers: ['Дата', `Spend (${cur})`, L('installs','Installs'), L('cost_install','Cost/Install'), L('trials','Trials'), L('cost_trial','Cost/Trial'), L('fb','FB')]
+    headers: ['Дата', `Spend (${cur})`, L(rk, viewCfg.label), L(ck, 'Cost')]
       .concat(hasAds ? [L('impressions','Impressions'), L('clicks','Clicks'), L('cpc','CPC'), L('cpm','CPM'), L('ctr','CTR')] : []),
-    row: (r) => [r.dateStr, fmtMoneyFull(r.spend,cur), fmtInt(r.installs), r.installs?fmtMoney(r.spend/r.installs,cur):'—', fmtInt(r.trials), r.trials?fmtMoney(r.spend/r.trials,cur):'—', fmtInt(r.fb)]
+    row: (r) => [r.dateStr, fmtMoneyFull(r.spend, cur), resultCell(r), costCell(r)]
       .concat(hasAds ? adRow(r) : []),
     total: (rows) => {
-      const sp=sum(rows,'spend'),ins=sum(rows,'installs'),tr=sum(rows,'trials'),fb=sum(rows,'fb');
-      return ['Итого',fmtMoneyFull(sp,cur),fmtInt(ins),ins?fmtMoney(sp/ins,cur):'—',fmtInt(tr),tr?fmtMoney(sp/tr,cur):'—',fmtInt(fb)]
+      const sp = sum(rows, 'spend'), total = sum(rows, rk);
+      return ['Итого', fmtMoneyFull(sp, cur), fmtInt(total), total ? fmtMoney(sp / total, cur) : '—']
         .concat(hasAds ? adTotal(rows) : []);
     }
     };
@@ -1791,19 +1860,22 @@ function computeFunnels(proj, rows) {
   return steps;
 }
 
-function getRowPrimaryResult(type, row) {
+function getRowPrimaryResult(proj, row) {
+  const type = getEffectiveType(proj, [row]);
   if (type === 'streamfi') return row.qregs || 0;
   if (type === 'quadcode') return row.regs || 0;
-  if (type === 'planto') return row.installs || 0;
+  if (type === 'planto') {
+    const rk = PLANTO_VIEWS[getPlantoView(proj.id)].resultKey;
+    return row[rk] || 0;
+  }
   return 0;
 }
 
 function computeDayInsights(proj, rows) {
   if (!rows?.length) return null;
   const p = withEffectiveType(proj, rows);
-  const type = p.type;
   const withResult = rows.map(r => {
-    const res = getRowPrimaryResult(type, r);
+    const res = getRowPrimaryResult(p, r);
     const cpa = res > 0 ? r.spend / res : null;
     return { dateStr: r.dateStr, spend: r.spend, result: res, cpa };
   }).filter(r => r.spend > 0);
@@ -1871,6 +1943,7 @@ function renderAnalyticsSection(proj, allData, rows, monthKey) {
   const funnels = computeFunnels(proj, rows);
   const insights = computeDayInsights(proj, rows);
   const budgetHtml = renderBudgetCard(proj, allData, false);
+  const plantoBreakdown = isPlantoProject(proj, rows) ? renderPlantoBreakdownCard(proj, rows) : '';
 
   let compareHtml = '';
   if (compare) {
@@ -1914,12 +1987,13 @@ function renderAnalyticsSection(proj, allData, rows, monthKey) {
     </div>`;
   }
 
-  if (!budgetHtml && !compareHtml && !funnelHtml && !insightsHtml) return '';
+  if (!budgetHtml && !compareHtml && !funnelHtml && !insightsHtml && !plantoBreakdown) return '';
 
   return `<div class="analytics-section">
     <div class="section-header"><span class="section-title">Аналитика</span></div>
     <div class="analytics-grid">
       ${budgetHtml}
+      ${plantoBreakdown}
       ${compareHtml}
       ${funnelHtml}
       ${insightsHtml}
@@ -2020,6 +2094,16 @@ function getChartDatasets(proj, rows) {
     label: L('spend', 'Spend'), data: rows.map(r=>r.spend), borderColor:'#5B4BF5', backgroundColor:'rgba(91,75,245,0.1)',
     fill:true, yAxisID:'y', tension:0.3, borderWidth:2, pointRadius:3, pointBackgroundColor:'#5B4BF5'
   }];
+  if (p.type === 'planto') {
+    const rk = PLANTO_VIEWS[getPlantoView(proj.id)].resultKey;
+    base.push({
+      label: L(rk, rk), data: rows.map(r => r[rk] || 0),
+      borderColor: '#22C55E', backgroundColor: 'transparent',
+      fill: false, yAxisID: 'y1', tension: 0.3, borderWidth: 2, pointRadius: 3,
+      pointBackgroundColor: '#22C55E',
+    });
+    return base;
+  }
   const cfg = getProjectMetricsConfig(p, rows).filter(m => m.enabled !== false);
   const chartKeys = cfg.map(m => m.key).filter(k => k !== 'spend' && !k.startsWith('cost_') && k !== 'conv_rate');
   const colors = ['#22C55E', '#F59E0B', '#EC4899', '#06B6D4'];
@@ -2366,6 +2450,13 @@ function tileSwitchSource(projId, idx, e) {
   renderContent();
 }
 
+function tileSwitchPlantoView(projId, mode, e) {
+  e.stopPropagation();
+  if (!PLANTO_VIEWS[mode]) return;
+  plantoViewByProject[projId] = mode;
+  renderContent();
+}
+
 function getSourceIdx(projId, pack) {
   const max = Math.max(0, (pack?.sources?.length || 1) - 1);
   let idx = sourceIndexByProject[projId];
@@ -2481,6 +2572,21 @@ function renderOverview() {
         `<button type="button" class="tile-tab ${i === srcIdx ? 'active' : ''}" onclick="tileSwitchSource('${p.id}',${i},event)">${escHtml(s.label)}</button>`
       ).join('')}</div>`;
       const metrics = getMetrics(projForSource(p, src), sr);
+      metricsHtml = srcTabsHtml + `<div class="tile-metrics${isAdmin() ? ' admin-zone' : ''}" style="padding-bottom:14px" ${isAdmin() ? 'onclick="event.stopPropagation()"' : ''}>${metrics.map(m => {
+        const isCost = m.accent || m.label.toLowerCase().includes('cost') || m.label.toLowerCase().includes('цена');
+        const adminCls = isAdmin() ? ' admin-editable' : '';
+        return `<div class="tile-metric${isCost ? ' accent' : ''}${adminCls}">
+          <div class="tile-metric-label">${renderEditableLabel(p.id, m.key, m.label, 'tile-metric-label-wrap')}</div>
+          <div class="tile-metric-value">${m.value}</div>
+        </div>`;
+      }).join('')}</div>`;
+    } else if (isPlantoProject(p, selMk ? rowsForMonth(data, selMk) : getAllRowsFromCache(data))) {
+      const sr = selMk ? rowsForMonth(data, selMk) : (getAllRowsFromCache(data) || []);
+      const pv = getPlantoView(p.id);
+      const srcTabsHtml = `<div class="tile-month-tabs">${Object.entries(PLANTO_VIEWS).map(([id, cfg]) =>
+        `<button type="button" class="tile-tab ${id === pv ? 'active' : ''}" onclick="tileSwitchPlantoView('${p.id}','${id}',event)">${escHtml(cfg.label)}</button>`
+      ).join('')}</div>`;
+      const metrics = getMetrics(p, sr);
       metricsHtml = srcTabsHtml + `<div class="tile-metrics${isAdmin() ? ' admin-zone' : ''}" style="padding-bottom:14px" ${isAdmin() ? 'onclick="event.stopPropagation()"' : ''}>${metrics.map(m => {
         const isCost = m.accent || m.label.toLowerCase().includes('cost') || m.label.toLowerCase().includes('цена');
         const adminCls = isAdmin() ? ' admin-editable' : '';
@@ -2606,8 +2712,14 @@ function renderProjectDetail(projId) {
   const singleSrc = pack.sources[0];
   const srcProj = singleSrc ? projForSource(p, singleSrc) : p;
   const rows = currentMonth ? rowsForMonth(data, currentMonth) : (singleSrc?.rows || allRows);
+  const isPlanto = isPlantoProject(srcProj, rows);
   const metrics = getMetrics(srcProj, rows);
   const tbl = getTableConfig(srcProj, rows);
+  const plantoViewLabel = isPlanto ? PLANTO_VIEWS[getPlantoView(p.id)].label : '';
+
+  if (isPlanto) {
+    html += renderAnalyticsSection(p, data, rows, currentMonth);
+  }
 
   // ── Metrics ─────────────────────────────────────────────────
   html += `<div class="metrics-grid">${metrics.map(m=>`
@@ -2616,14 +2728,15 @@ function renderProjectDetail(projId) {
       <div class="metric-value">${m.value}</div>
     </div>`).join('')}</div>`;
 
-  // ── Analytics (auto) ────────────────────────────────────────
-  html += renderAnalyticsSection(p, data, rows, currentMonth);
+  if (!isPlanto) {
+    html += renderAnalyticsSection(p, data, rows, currentMonth);
+  }
 
   // ── Chart ───────────────────────────────────────────────────
   if (rows.length) {
     html += `<div class="chart-card">
       <div class="chart-card-header">
-        <div class="card-title">Динамика по дням — ${currentMonth ? formatMonthKey(currentMonth) : 'все данные'}${singleSrc?.label ? ' · ' + escHtml(singleSrc.label) : ''}</div>
+        <div class="card-title">Динамика по дням — ${currentMonth ? formatMonthKey(currentMonth) : 'все данные'}${plantoViewLabel ? ' · ' + escHtml(plantoViewLabel) : ''}${singleSrc?.label ? ' · ' + escHtml(singleSrc.label) : ''}</div>
         ${renderChartTypePicker('detail')}
       </div>
       <div class="chart-wrap"><canvas id="mainChart"></canvas></div>
@@ -2632,7 +2745,7 @@ function renderProjectDetail(projId) {
 
   html += `<div class="table-card">
     <div class="table-header">
-      <span class="card-title">По дням — ${rows.length} строк${currentMonth ? ' · '+formatMonthKey(currentMonth) : ''}${singleSrc?.label ? ' · ' + escHtml(singleSrc.label) : ''}</span>
+      <span class="card-title">По дням — ${rows.length} строк${currentMonth ? ' · '+formatMonthKey(currentMonth) : ''}${plantoViewLabel ? ' · ' + escHtml(plantoViewLabel) : ''}${singleSrc?.label ? ' · ' + escHtml(singleSrc.label) : ''}</span>
     </div>
     ${renderDailyTableHtml(p, rows, tbl)}
   </div>`;
