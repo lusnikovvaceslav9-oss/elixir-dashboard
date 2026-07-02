@@ -468,7 +468,7 @@ body.admin-mode th.th-editable:hover{background:rgba(91,75,245,0.06)}
   <div class="nav-section">Проекты</div>
   <div id="nav-projects"></div>
   <div class="sidebar-footer">
-    <div class="version">Elixir UA · 2026 · planto breakdown</div>
+    <div class="version">Elixir UA · 2026 · monthly tabs</div>
   </div>
 </div>
 
@@ -1279,8 +1279,72 @@ async function fetchCsvWithFallback(url) {
   throw lastErr || new Error('Fetch failed');
 }
 
+function extractGidFromUrl(url) {
+  const m = (url || '').match(/[?&]gid=(\d+)/);
+  return m && m[1] !== '0' ? m[1] : null;
+}
+
+function sourceUrlForSpreadsheet(sourceDef, spreadsheetId) {
+  if (!spreadsheetId) return normalizeToCSVUrl(sourceDef.url);
+  return sheetCsvUrl(spreadsheetId, extractGidFromUrl(sourceDef.url));
+}
+
+function mergeSourceRows(existing, newRows) {
+  const byDate = new Map();
+  (existing || []).forEach(r => byDate.set(r.dateStr, r));
+  (newRows || []).forEach(r => {
+    if (!byDate.has(r.dateStr)) byDate.set(r.dateStr, r);
+  });
+  return [...byDate.values()].sort((a, b) => a.date - b.date);
+}
+
+async function fetchMultiSourcesMonthly(sourceDefs, monthly) {
+  const byLabel = new Map();
+  const jobs = [];
+  for (const ms of monthly) {
+    const sheetId = extractSheetId(normalizeToCSVUrl(ms.url));
+    if (!sheetId) continue;
+    for (const def of sourceDefs) {
+      jobs.push({ def, url: sourceUrlForSpreadsheet(def, sheetId), month: ms.month });
+    }
+  }
+  const results = await Promise.allSettled(jobs.map(j => fetchCsvWithFallback(j.url)));
+  results.forEach((r, i) => {
+    const { def, url, month } = jobs[i];
+    if (r.status !== 'fulfilled') {
+      console.warn(`Sheet "${def.label}" (${month}) failed:`, r.reason);
+      return;
+    }
+    const csvRows = parseCSV(r.value);
+    const rows = parseSheet(r.value);
+    const label = def.label || `Лист ${byLabel.size + 1}`;
+    if (!byLabel.has(label)) {
+      byLabel.set(label, {
+        id: def.id || `src_${byLabel.size}`,
+        label,
+        url,
+        rows: [],
+        sheetColumns: (csvRows[0] || []).map(h => (h || '').trim()),
+      });
+    }
+    const entry = byLabel.get(label);
+    entry.rows = mergeSourceRows(entry.rows, rows);
+    if (!entry.sheetColumns.length && csvRows[0]) {
+      entry.sheetColumns = csvRows[0].map(h => (h || '').trim());
+    }
+  });
+  const sources = [...byLabel.values()];
+  if (!sources.length && results.every(r => r.status === 'rejected')) throw results[0].reason;
+  return { sources };
+}
+
 async function fetchProject(proj) {
   const sourceDefs = getProjectSheetSources(proj);
+  const monthly = (proj.monthlySheets || []).filter(ms => ms.month && ms.url);
+
+  if (monthly.length && sourceDefs.length > 1) {
+    return fetchMultiSourcesMonthly(sourceDefs, monthly);
+  }
 
   if (sourceDefs.length > 1) {
     const results = await Promise.allSettled(sourceDefs.map(s => fetchCsvWithFallback(s.url)));
