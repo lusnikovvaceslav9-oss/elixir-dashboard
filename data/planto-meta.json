@@ -1,0 +1,36 @@
+{
+  "generated_at": "2026-07-03T14:56:31+07:00",
+  "anchor": "2026-06-05",
+  "until": "2026-07-03",
+  "window_start": "2026-06-24",
+  "trial_attribution": "supabase_trial_start",
+  "sources": {
+    "spend": "direct_api",
+    "installs": "appmetrica_reporting",
+    "trials_am_crosscheck": "appmetrica_reporting",
+    "trials": "supabase_trial_start",
+    "bills": "supabase_main_active"
+  },
+  "errors": [],
+  "days": 29,
+  "reconcile_diff": {
+    "trials_total_old_csv": 61,
+    "trials_total_new": 61,
+    "delta": 0
+  },
+  "payments_by_plan": {
+    "yearly": {
+      "count": 11,
+      "rub": 27390
+    },
+    "monthly": {
+      "count": 6,
+      "rub": 2394
+    },
+    "total": {
+      "count": 17,
+      "rub": 29784
+    }
+  },
+  "trials_am_crosscheck_total": 29
+}
