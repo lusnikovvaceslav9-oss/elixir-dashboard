@@ -258,6 +258,16 @@ td:first-child{text-align:left;color:#F0F0F0;font-weight:500}
 .planto-view-cost{font-size:11px;color:var(--text-muted);min-width:72px;text-align:right}
 .planto-view-btn.active .planto-view-name,.planto-view-btn.active .planto-view-stat{color:#fff}
 .planto-view-btn.active .planto-view-cost{color:rgba(255,255,255,0.65)}
+.cohort-card{background:rgba(18,18,26,0.85);border:1px solid rgba(108,92,231,0.22);border-radius:var(--radius);padding:18px 20px;margin-top:4px}
+.cohort-card .card-title{margin-bottom:12px;color:rgba(196,181,253,0.85)}
+.cohort-meta{font-size:11px;color:var(--text-dim);margin-bottom:14px}
+.cohort-table td,.cohort-table th{font-size:12px}
+.cohort-table .pnl-early{color:#F59E0B;font-weight:600}
+.cohort-table .pnl-pos{color:var(--success);font-weight:600}
+.cohort-table .pnl-neg{color:var(--danger);font-weight:600}
+.feed-badge{font-size:10px;font-weight:600;padding:3px 8px;border-radius:6px;background:rgba(34,197,94,0.15);color:#86efac;border:1px solid rgba(34,197,94,0.3);margin-left:8px;vertical-align:middle}
+.feed-stamp{font-size:11px;font-weight:500;color:var(--text-muted);margin-left:4px}
+.feed-warn{color:#fbbf24!important}
 .tile-budget{margin:0 16px 12px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:10px}
 .tile-budget-top{display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-bottom:6px}
 .tile-budget-bar{height:5px;background:rgba(255,255,255,0.06);border-radius:99px;overflow:hidden}
@@ -468,7 +478,7 @@ body.admin-mode th.th-editable:hover{background:rgba(91,75,245,0.06)}
   <div class="nav-section">Проекты</div>
   <div id="nav-projects"></div>
   <div class="sidebar-footer">
-    <div class="version">Elixir UA · 2026 · monthly tabs</div>
+    <div class="version">Elixir UA · 2026 · auto feed</div>
   </div>
 </div>
 
@@ -735,9 +745,13 @@ async function jbSave(arr) {
   });
 }
 
+const PLANTO_DATA_URL = 'data/planto-daily.csv';
+const PLANTO_COHORT_URL = 'data/planto-cohort.json';
+const PLANTO_META_URL = 'data/planto-meta.json';
+
 const DEFAULT_PROJECTS = [
   { id: 'planto',   name: 'Planto',      icon: '🌱', currency: '₽', type: 'planto',
-    urls: ['https://docs.google.com/spreadsheets/d/1WE2biOwVHwU-VkkjCPnuvHvGkorf3ZWT/export?format=csv'] },
+    urls: [PLANTO_DATA_URL], dataSource: 'auto' },
   { id: 'quadcode', name: 'Quadcode AI', icon: '💻', currency: '$', type: 'quadcode',
     urls: ['https://docs.google.com/spreadsheets/d/1GRLgK6CnvH4innf7n4k8K_bhQ9nsTl2Q/export?format=csv'] },
   { id: 'streamfi', name: 'StreamFi',    icon: '📡', currency: '$', type: 'streamfi',
@@ -753,6 +767,8 @@ let tileMonths = {};
 let tileSourceIndex = {};
 let sourceIndexByProject = {};
 let plantoViewByProject = {};
+let plantoCohortCache = null;
+let plantoMetaCache = null;
 let view         = 'overview';
 let currentMonth = null;
 let chartInstance = null;
@@ -862,19 +878,33 @@ function normalizeProject(p) {
   };
 }
 
+function applyPlantoAutoSource(list) {
+  return list.map(p => {
+    if (p.id !== 'planto') return p;
+    return normalizeProject({
+      ...p,
+      type: 'planto',
+      urls: [PLANTO_DATA_URL],
+      dataSource: 'auto',
+      sheetSources: [{ id: 'auto', url: PLANTO_DATA_URL, label: 'Auto feed' }],
+      monthlySheets: [],
+    });
+  });
+}
+
 function loadProjectsLocal() {
   try {
     const saved = localStorage.getItem(PROJ_KEY);
-    if (saved) return JSON.parse(saved).map(normalizeProject);
+    if (saved) return applyPlantoAutoSource(JSON.parse(saved).map(normalizeProject));
   } catch(e) {}
-  return JSON.parse(JSON.stringify(DEFAULT_PROJECTS)).map(normalizeProject);
+  return applyPlantoAutoSource(JSON.parse(JSON.stringify(DEFAULT_PROJECTS)).map(normalizeProject));
 }
 
 async function loadProjects() {
   try {
     const remote = await jbLoad();
     if (remote && remote.length) {
-      projects = remote.map(normalizeProject);
+      projects = applyPlantoAutoSource(remote.map(normalizeProject));
       localStorage.setItem(PROJ_KEY, JSON.stringify(projects));
       return;
     }
@@ -958,7 +988,8 @@ function findPlantoColumns(headerRow) {
     dateCol: Math.max(findCol(headers, ['дата', 'date']), 0),
     spendCol: findCol(headers, ['спенд', 'spend', 'расход']),
     installCol: findCol(headers, ['install', 'inst'], ['cost', 'цена', '/']),
-    trialCol: findCol(headers, ['trial'], ['cost', 'цена', '/', 'fb', 'inst']),
+    trialCol: findCol(headers, ['trial'], ['cost', 'цена', '/', 'fb', 'inst', 'sold', 'продан']),
+    soldCol: findCol(headers, ['sold', 'продан'], ['cost', 'цена', '/']),
     fbCol: findCol(headers, ['fb'], ['cost', 'цена', '/', 'trial']),
     clicksCol: findCol(headers, ['click'], ['ctr']),
     impressionsCol: findCol(headers, ['impression', 'impress'], []),
@@ -979,6 +1010,7 @@ function parsePlantoRows(rows) {
       spend: parseNum(r[sc]),
       installs: cols.installCol >= 0 ? parseNum(r[cols.installCol]) : 0,
       trials: cols.trialCol >= 0 ? parseNum(r[cols.trialCol]) : 0,
+      sold: cols.soldCol >= 0 ? parseNum(r[cols.soldCol]) : 0,
       fb: cols.fbCol >= 0 ? parseNum(r[cols.fbCol]) : 0,
     };
     if (cols.impressionsCol >= 0) obj.impressions = parseNum(r[cols.impressionsCol]);
@@ -1231,11 +1263,30 @@ async function fetchWithTimeout(promise, ms = 12000) {
   }
 }
 
+function bustLocalFeedUrl(url) {
+  if (!url || /^https?:\/\//i.test(url)) return url;
+  const sep = url.includes('?') ? '&' : '?';
+  return `${url}${sep}_=${Date.now()}`;
+}
+
 async function fetchWithFallback(url) {
+  const isLocalFeed = !/^https?:\/\//i.test(url);
+  const requestUrl = isLocalFeed ? bustLocalFeedUrl(url) : url;
+  const fetchOpts = isLocalFeed ? { cache: 'no-store' } : undefined;
+
+  if (isLocalFeed) {
+    const resp = await fetchWithTimeout(fetch(requestUrl, fetchOpts), 12000);
+    if (!resp.ok) throw new Error(`Local feed ${url}: HTTP ${resp.status}`);
+    const text = await fetchWithTimeout(resp.text(), 8000);
+    if (text.trim().startsWith('<!')) throw new Error('Got HTML instead of CSV');
+    if (text.trim().length < 10) throw new Error('Empty response');
+    return text;
+  }
+
   let lastErr;
   for (const fetcher of FETCHERS) {
     try {
-      const resp = await fetchWithTimeout(fetcher(url), 12000);
+      const resp = await fetchWithTimeout(fetcher(requestUrl, fetchOpts), 12000);
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const text = await fetchWithTimeout(resp.text(), 8000);
       if (text.trim().startsWith('<!')) throw new Error('Got HTML instead of CSV');
@@ -1446,17 +1497,133 @@ function projForSource(proj, source) {
   };
 }
 
+async function fetchPlantoMeta() {
+  try {
+    const resp = await fetch(bustLocalFeedUrl(PLANTO_META_URL), { cache: 'no-store' });
+    if (!resp.ok) return null;
+    return await resp.json();
+  } catch(e) { return null; }
+}
+
+async function fetchPlantoCohort() {
+  try {
+    const resp = await fetch(bustLocalFeedUrl(PLANTO_COHORT_URL), { cache: 'no-store' });
+    if (!resp.ok) return null;
+    return await resp.json();
+  } catch(e) { console.warn('Cohort fetch failed:', e.message); return null; }
+}
+
+function fmtRub(n) {
+  if (n === undefined || n === null || n === '—') return '—';
+  return Math.round(Number(n)).toLocaleString('ru-RU') + ' ₽';
+}
+
+function fmtN(n) { return n === undefined || n === null ? '0' : Number(n).toLocaleString('ru-RU'); }
+
+function cohortRowMonthKey(r) {
+  if (r.month_key) return r.month_key;
+  const s = r.start || '';
+  return s.length >= 7 ? s.slice(0, 7) : '';
+}
+
+function sumCohortRows(rows, key, fb = 0) {
+  return rows.reduce((a, r) => a + (Number(r[key]) || fb), 0);
+}
+
+function formatCohortPnl(r) {
+  if (r.pnl_display === 'Рано' && r.when && r.when !== 'зрелая') {
+    const when = String(r.when).replace(/^~\s*/, '');
+    return `Рано · ${when}`;
+  }
+  return r.pnl_display;
+}
+
+function isCohortEarly(r) {
+  return !r.mature || String(r.pnl_display || '').startsWith('Рано');
+}
+
+function renderPlantoCohortSection(monthKey) {
+  const c = plantoCohortCache;
+  if (!c || !c.rows?.length) return '';
+  const meta = plantoMetaCache;
+  const updated = meta?.generated_at ? new Date(meta.generated_at).toLocaleString('ru-RU') : '';
+  const allRows = c.rows;
+  const visible = monthKey
+    ? allRows.filter(r => cohortRowMonthKey(r) === monthKey)
+    : allRows;
+  if (!visible.length) {
+    return `<div class="cohort-card">
+      <div class="card-title">Когорты${monthKey ? ' — ' + escHtml(formatMonthKey(monthKey)) : ''}</div>
+      <div class="cohort-meta">Нет корзин за этот месяц · якорь ${escHtml(c.anchor || '2026-06-05')}</div>
+    </div>`;
+  }
+  let rows = visible.map(r => {
+    const pnlText = formatCohortPnl(r);
+    const pnlCls = isCohortEarly(r) ? 'pnl-early' : (r.pnl != null && r.pnl >= 0 ? 'pnl-pos' : 'pnl-neg');
+    const trials = r.trials_sb != null ? r.trials_sb : r.trials_am;
+    return `<tr>
+      <td><strong>${escHtml(r.cohort)}</strong></td>
+      <td>${fmtRub(r.spend)}</td>
+      <td>${fmtN(r.installs_am)}</td>
+      <td>${fmtN(trials)}</td>
+      <td>${fmtN(r.sold || 0)}</td>
+      <td>${r.cpi != null ? fmtRub(r.cpi) : '—'}</td>
+      <td>${r.cpt != null ? fmtRub(r.cpt) : '—'}</td>
+      <td>${fmtRub(r.paid_net)}</td>
+      <td class="${pnlCls}">${escHtml(pnlText)}</td>
+    </tr>`;
+  }).join('');
+  const tSpend = sumCohortRows(visible, 'spend');
+  const tInst = sumCohortRows(visible, 'installs_am');
+  const tTrials = sumCohortRows(visible, 'trials_sb') || sumCohortRows(visible, 'trials_am');
+  const tSold = sumCohortRows(visible, 'sold');
+  const tPaid = sumCohortRows(visible, 'paid_net');
+  const maturePnl = visible.filter(r => r.mature && r.pnl != null).reduce((a, r) => a + r.pnl, 0);
+  const immature = visible.filter(r => !r.mature).length;
+  rows += `<tr class="total-row">
+    <td><strong>Итого${monthKey ? ' · ' + escHtml(formatMonthKey(monthKey)) : ''}</strong></td>
+    <td>${fmtRub(tSpend)}</td>
+    <td>${fmtN(tInst)}</td>
+    <td>${fmtN(tTrials)}</td>
+    <td>${fmtN(tSold)}</td>
+    <td>—</td><td>—</td>
+    <td>${fmtRub(tPaid)}</td>
+    <td>${fmtRub(maturePnl)}${immature ? ` (+${immature} рано)` : ''}</td>
+  </tr>`;
+  const attr = meta?.trial_attribution === 'supabase_trial_start'
+    ? 'Inst — AppMetrica · Триалы — Supabase (RuStore), старт триала (ACTIVATED/CLIENT_SYNC/CANCELLED)'
+    : 'Inst — AppMetrica · Триалы — Supabase (RuStore)';
+  const monthHint = monthKey && allRows.length > visible.length
+    ? ` · показан ${formatMonthKey(monthKey)} (${visible.length} из ${allRows.length} корзин)`
+    : '';
+  const title = monthKey
+    ? `Когорты — ${formatMonthKey(monthKey)}`
+    : `Когорты (7 дней от ${c.anchor || '2026-06-05'})`;
+  return `<div class="cohort-card">
+    <div class="card-title">${escHtml(title)}</div>
+    <div class="cohort-meta">${attr} · Paid net — RuStore · Незрелые: в P&L дата оценки после лага ${c.trial_lag_days || 7} д${monthHint}${updated ? ' · обновлено ' + escHtml(updated) : ''}</div>
+    <div class="table-wrap"><table class="cohort-table">
+      <thead><tr>
+        <th>Когорта</th><th>Spend</th><th>Inst</th><th>Триалы</th><th>Продано</th><th>CPI</th><th>CPT</th><th>Paid net</th><th>P&L</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+  </div>`;
+}
+
 async function loadAll() {
   projects.forEach(p => { cache[p.id] = 'loading'; });
   renderSidebar();
   renderContent();
+  plantoMetaCache = await fetchPlantoMeta();
+  plantoCohortCache = await fetchPlantoCohort();
   await Promise.allSettled(projects.map(async p => {
     try { cache[p.id] = await fetchProject(p); }
     catch(e) { console.error(p.id, e); cache[p.id] = null; }
     if (view === 'overview') renderContent();
     else if (view === p.id) renderContent();
   }));
-  if (view === 'overview') renderContent();
+  renderContent();
 }
 
 async function refreshData() {
@@ -1471,16 +1638,29 @@ async function refreshData() {
 // METRICS / TABLE / CHART CONFIG PER TYPE
 // ═══════════════════════════════════════════════════════════════
 const PLANTO_VIEWS = {
+  summary:  { label: 'Все',      resultKey: 'installs', costKey: 'cost_install', keys: ['spend', 'installs', 'cost_install', 'trials', 'cost_trial', 'fb', 'cost_fb'] },
   installs: { label: 'Installs', resultKey: 'installs', costKey: 'cost_install', keys: ['spend', 'installs', 'cost_install'] },
   trials:   { label: 'Trials',   resultKey: 'trials',   costKey: 'cost_trial',  keys: ['spend', 'trials', 'cost_trial'] },
   fb:       { label: 'Bills',    resultKey: 'fb',       costKey: 'cost_fb',     keys: ['spend', 'fb', 'cost_fb'] },
 };
+
+function isPlantoAutoFeed(proj) {
+  if (!proj || proj.id !== 'planto') return false;
+  if (proj.dataSource === 'auto') return true;
+  const urls = [
+    ...(proj.urls || []),
+    ...((proj.sheetSources || []).map(s => s.url)),
+  ];
+  return urls.some(u => u && (u === PLANTO_DATA_URL || String(u).includes('planto-daily.csv')));
+}
 
 function isPlantoProject(proj, rows) {
   return getEffectiveType(proj, rows) === 'planto';
 }
 
 function getPlantoView(projId) {
+  const p = projects.find(x => x.id === projId);
+  if (p && isPlantoAutoFeed(p)) return 'summary';
   const v = plantoViewByProject[projId];
   return PLANTO_VIEWS[v] ? v : 'installs';
 }
@@ -1500,12 +1680,62 @@ function switchPlantoView(mode) {
   renderContent();
 }
 
+function getPlantoDailyRows() {
+  const data = cache.planto;
+  if (!data || data === 'loading' || data === null) return [];
+  return getAllRowsFromCache(data) || [];
+}
+
+function plantoFeedHealth() {
+  const meta = plantoMetaCache;
+  const rows = getPlantoDailyRows();
+  if (!meta || !rows.length) return null;
+  const until = meta.until || '';
+  const lastRow = rows.reduce((best, r) => {
+    if (!r?.date) return best;
+    return !best || r.date > best ? r.date : best;
+  }, null);
+  const lastIso = lastRow ? `${lastRow.getFullYear()}-${String(lastRow.getMonth() + 1).padStart(2, '0')}-${String(lastRow.getDate()).padStart(2, '0')}` : '';
+  const julyRows = rows.filter(r => r.date && dateToMonthKey(r.date) === '2026-07').length;
+  const ok = !until || lastIso >= until;
+  return { until, lastIso, totalRows: rows.length, julyRows, ok };
+}
+
 function renderPlantoBreakdownCard(proj, rows) {
+  if (isPlantoAutoFeed(proj)) {
+    const meta = plantoMetaCache;
+    const updated = meta?.generated_at ? new Date(meta.generated_at).toLocaleString('ru-RU') : '';
+    const health = plantoFeedHealth();
+    const attr = meta?.trial_attribution === 'supabase_trial_start'
+      ? ' · триалы: Supabase trial start'
+      : '';
+    const healthHtml = health
+      ? `<div class="budget-hint${health.ok ? '' : ' feed-warn'}">` +
+        `Срез feed: <strong>${escHtml(health.until || '—')}</strong> · ` +
+        `в CSV ${health.totalRows} дн.` +
+        (health.julyRows ? ` · июль: ${health.julyRows}` : '') +
+        (health.ok ? '' : ` · ⚠ в CSV только до ${escHtml(health.lastIso || '?')} — перезапусти feed или открой папку с data/`) +
+        `</div>`
+      : '';
+    const pay = meta?.payments_by_plan;
+    const payHtml = pay && pay.total?.count
+      ? `<div class="budget-hint">Оплаты: ` +
+        `<strong>${pay.yearly?.count || 0}</strong> годовых (${fmtInt(pay.yearly?.rub || 0)} ₽) · ` +
+        `<strong>${pay.monthly?.count || 0}</strong> месячных (${fmtInt(pay.monthly?.rub || 0)} ₽) · ` +
+        `всего ${fmtInt(pay.total.rub || 0)} ₽</div>`
+      : '';
+    return `<div class="analytics-card planto-breakdown-card">
+      <div class="analytics-card-title">Auto feed <span class="feed-badge">live</span></div>
+      <div class="budget-hint">Direct + AppMetrica installs + Supabase trials + RuStore bills${attr}${updated ? ' · обновлено ' + escHtml(updated) : ''}</div>
+      ${healthHtml}
+      ${payHtml}
+    </div>`;
+  }
   const sel = getPlantoView(proj.id);
   const cur = proj.currency;
   return `<div class="analytics-card planto-breakdown-card">
     <div class="analytics-card-title">Разбивка</div>
-    <div class="planto-view-grid">${Object.entries(PLANTO_VIEWS).map(([id, cfg]) => {
+    <div class="planto-view-grid">${Object.entries(PLANTO_VIEWS).filter(([id]) => id !== 'summary').map(([id, cfg]) => {
       const count = sum(rows, cfg.resultKey);
       const cost = count ? fmtMoney(sum(rows, 'spend') / count, cur) : '—';
       return `<button type="button" class="planto-view-btn ${id === sel ? 'active' : ''}" onclick="switchPlantoView('${id}')">
@@ -1525,6 +1755,7 @@ const METRIC_CATALOG = {
     { key: 'cost_install', label: 'Cost / Install', accent: true },
     { key: 'trials', label: 'Trials', accent: false },
     { key: 'cost_trial', label: 'Cost / Trial', accent: true },
+    { key: 'sold', label: 'Продано', accent: false },
     { key: 'fb', label: 'FB (Purchases)', accent: false },
     { key: 'cost_fb', label: 'Cost / Bill', accent: true },
     { key: 'impressions', label: 'Impressions', accent: false },
@@ -1712,6 +1943,26 @@ function getTableConfig(proj, rows) {
   let tbl, colKeys;
 
   if (type === 'planto') {
+    if (isPlantoAutoFeed(proj)) {
+      colKeys = ['date', 'spend', 'installs', 'cost_install', 'trials', 'cost_trial', 'sold', 'fb', 'cost_fb'];
+      tbl = {
+        headers: ['Дата', `Spend (${cur})`, L('installs','Installs'), L('cost_install','Cost/Inst'),
+          L('trials','Trials'), L('cost_trial','Cost/Trial'), L('sold','Продано'), L('fb','Bills'), L('cost_fb','Cost/Bill')],
+        row: (r) => [
+          r.dateStr, fmtMoneyFull(r.spend, cur),
+          fmtInt(r.installs || 0), r.installs ? fmtMoney(r.spend / r.installs, cur) : '—',
+          fmtInt(r.trials || 0), r.trials ? fmtMoney(r.spend / r.trials, cur) : '—',
+          fmtInt(r.sold || 0),
+          fmtInt(r.fb || 0), r.fb ? fmtMoney(r.spend / r.fb, cur) : '—',
+        ],
+        total: (rows) => {
+          const sp = sum(rows, 'spend'), ins = sum(rows, 'installs'), tr = sum(rows, 'trials'), sold = sum(rows, 'sold'), fb = sum(rows, 'fb');
+          return ['Итого', fmtMoneyFull(sp, cur), fmtInt(ins), ins ? fmtMoney(sp / ins, cur) : '—',
+            fmtInt(tr), tr ? fmtMoney(sp / tr, cur) : '—', fmtInt(sold), fmtInt(fb), fb ? fmtMoney(sp / fb, cur) : '—'];
+        },
+        columnKeys: colKeys,
+      };
+    } else {
     const hasAds = rows?.some(r => 'impressions' in r || 'clicks' in r);
     const viewCfg = PLANTO_VIEWS[getPlantoView(proj.id)];
     const rk = viewCfg.resultKey;
@@ -1745,6 +1996,7 @@ function getTableConfig(proj, rows) {
         .concat(hasAds ? adTotal(rows) : []);
     }
     };
+    }
   } else if (type === 'quadcode') {
     colKeys = ['date', 'spend', 'regs', 'cost_reg', 'installs', 'cost_install', 'purchases', 'cost_purchase'];
     tbl = {
@@ -1819,6 +2071,9 @@ function getTableConfig(proj, rows) {
 }
 
 function filterTableByMetrics(proj, tbl, colKeys, rows) {
+  if (isPlantoAutoFeed(proj)) {
+    return { ...tbl, columnKeys: colKeys };
+  }
   const enabled = new Set(getProjectMetricsConfig(proj, rows).filter(m => m.enabled !== false).map(m => m.key));
   const indices = colKeys.map((k, i) => (k === 'date' || k === 'spend' || k === 'campaign' || enabled.has(k)) ? i : -1).filter(i => i >= 0);
   return {
@@ -2809,10 +3064,14 @@ function renderProjectDetail(projId) {
 
   html += `<div class="table-card">
     <div class="table-header">
-      <span class="card-title">По дням — ${rows.length} строк${currentMonth ? ' · '+formatMonthKey(currentMonth) : ''}${plantoViewLabel ? ' · ' + escHtml(plantoViewLabel) : ''}${singleSrc?.label ? ' · ' + escHtml(singleSrc.label) : ''}</span>
+      <span class="card-title">По дням — ${rows.length} строк${currentMonth ? ' · '+formatMonthKey(currentMonth) : ''}${plantoViewLabel ? ' · ' + escHtml(plantoViewLabel) : ''}${singleSrc?.label ? ' · ' + escHtml(singleSrc.label) : ''}${isPlanto && isPlantoAutoFeed(p) && plantoMetaCache?.generated_at ? ' <span class="feed-badge">auto</span>' : ''}${isPlanto && isPlantoAutoFeed(p) && plantoMetaCache?.generated_at ? ' <span class="feed-stamp">· обновлено ' + escHtml(new Date(plantoMetaCache.generated_at).toLocaleString('ru-RU')) + '</span>' : ''}</span>
     </div>
     ${renderDailyTableHtml(p, rows, tbl)}
   </div>`;
+
+  if (isPlanto && isPlantoAutoFeed(p)) {
+    html += renderPlantoCohortSection(currentMonth);
+  }
 
   content.innerHTML = html;
   if (rows.length) renderChart(srcProj, rows, 'mainChart');
