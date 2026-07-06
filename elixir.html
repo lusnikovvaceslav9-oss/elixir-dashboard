@@ -49,6 +49,7 @@ body{
 /* ── TOPBAR ── */
 #main{margin-left:0}
 .topbar{padding:0 24px;height:56px;background:rgba(12,12,18,0.82);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
+.topbar.picker-open{z-index:350}
 .topbar-inner{display:flex;align-items:center;gap:14px;height:100%;min-width:0}
 .topbar-brand{display:flex;align-items:center;gap:10px;flex-shrink:0;padding-right:14px;margin-right:2px;border-right:1px solid var(--border)}
 .brand-name{font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--text);letter-spacing:0.02em}
@@ -2734,8 +2735,7 @@ function updateProjPickerTrigger() {
 
 function projPickerItemHtml(id, icon, name, subId) {
   const active = view === id ? ' active' : '';
-  const safeId = String(id).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-  return `<button type="button" class="proj-picker-item${active}" data-proj-id="${escHtml(id)}" onclick="selectProjPicker('${safeId}')">
+  return `<button type="button" class="proj-picker-item${active}" data-proj-id="${escHtml(id)}">
     <span class="proj-picker-item-icon">${icon}</span>
     <span class="proj-picker-item-info">
       <span class="proj-picker-item-name">${escHtml(name)}</span>
@@ -2773,15 +2773,21 @@ function renderProjPickerList() {
   highlightProjPickerFocus();
 }
 
-function toggleProjPicker(e) {
-  e.stopPropagation();
-  projPickerOpen = !projPickerOpen;
+function setProjPickerOpenState(open) {
+  projPickerOpen = open;
   const picker = document.getElementById('proj-picker');
   const backdrop = document.getElementById('picker-backdrop');
   const trigger = document.getElementById('proj-picker-trigger');
-  picker?.classList.toggle('open', projPickerOpen);
-  backdrop?.classList.toggle('show', projPickerOpen);
-  if (trigger) trigger.setAttribute('aria-expanded', projPickerOpen ? 'true' : 'false');
+  const topbar = document.querySelector('.topbar');
+  picker?.classList.toggle('open', open);
+  backdrop?.classList.toggle('show', open);
+  topbar?.classList.toggle('picker-open', open);
+  if (trigger) trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function toggleProjPicker(e) {
+  e.stopPropagation();
+  setProjPickerOpenState(!projPickerOpen);
   if (projPickerOpen) {
     projPickerFilter = '';
     projPickerFocusIdx = 0;
@@ -2794,10 +2800,7 @@ function toggleProjPicker(e) {
 
 function closeProjPicker() {
   if (!projPickerOpen) return;
-  projPickerOpen = false;
-  document.getElementById('proj-picker')?.classList.remove('open');
-  document.getElementById('picker-backdrop')?.classList.remove('show');
-  document.getElementById('proj-picker-trigger')?.setAttribute('aria-expanded', 'false');
+  setProjPickerOpenState(false);
 }
 
 function selectProjPicker(id) {
@@ -4115,6 +4118,14 @@ document.querySelectorAll('.overlay').forEach(el => {
   el.addEventListener('click', e => { if (e.target === el) closeAllModals(); });
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAllModals(); });
+
+document.getElementById('proj-picker-list')?.addEventListener('click', e => {
+  const btn = e.target.closest('.proj-picker-item:not(.proj-picker-add)');
+  if (!btn) return;
+  e.stopPropagation();
+  const id = btn.dataset.projId;
+  if (id) selectProjPicker(id);
+});
 
 // ═══════════════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════════════
