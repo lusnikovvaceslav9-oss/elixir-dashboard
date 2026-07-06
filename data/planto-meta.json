@@ -1,16 +1,16 @@
 {
-  "generated_at": "2026-07-06T13:03:21+07:00",
+  "generated_at": "2026-07-06T08:23:57+00:00",
   "anchor": "2026-06-05",
   "until": "2026-07-06",
   "window_start": "2026-06-27",
   "trial_attribution": "supabase_trial_start",
   "sources": {
+    "spend": "direct_api",
     "trials": "supabase_trial_start",
     "bills": "supabase_main_active"
   },
   "errors": [
-    "direct: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1032)>",
-    "appmetrica: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1032)>"
+    "appmetrica: AppMetrica HTTP 503: Service unavailable"
   ],
   "days": 32,
   "reconcile_diff": {
