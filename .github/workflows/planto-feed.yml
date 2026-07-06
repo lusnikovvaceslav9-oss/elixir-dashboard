@@ -11,8 +11,13 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
 
       - uses: actions/setup-python@v5
         with:
@@ -22,24 +27,27 @@ jobs:
         run: pip install -r scripts/buyer-feed/requirements.txt
 
       - name: Run Planto feed
+        working-directory: ${{ github.workspace }}
         env:
           APPMETRICA_OAUTH_TOKEN: ${{ secrets.APPMETRICA_OAUTH_TOKEN }}
           APPMETRICA_APPLICATION_ID: ${{ secrets.APPMETRICA_APPLICATION_ID }}
           DIRECT_OAUTH_TOKEN: ${{ secrets.DIRECT_OAUTH_TOKEN }}
           DIRECT_CLIENT_LOGIN: ${{ secrets.DIRECT_CLIENT_LOGIN }}
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-        run: |
-          cd scripts/buyer-feed
-          python __main__.py --work-dir ../..
+        run: python scripts/buyer-feed/__main__.py --work-dir .
 
       - name: Commit updated data
         run: |
           git config user.name "Planto Feed Bot"
           git config user.email "feed-bot@users.noreply.github.com"
-          git add data/planto-daily.csv data/planto-cohort.json data/planto-meta.json data/planto-feed-state.json 2>/dev/null || true
+          echo "=== data after feed ==="
+          ls -la data/planto-* || true
+          python3 -c "import json; m=json.load(open('data/planto-meta.json')); print('until:', m.get('until'), 'days:', m.get('days'), 'errors:', m.get('errors'))"
+          git add data/planto-daily.csv data/planto-cohort.json data/planto-meta.json
+          git status --short
           if git diff --staged --quiet; then
-            echo "No data changes"
-          else
-            git commit -m "chore: auto-update Planto feed [skip ci]"
-            git push
+            echo "::warning::No data changes — verify GitHub Secrets and API access"
+            exit 0
           fi
+          git commit -m "chore: auto-update Planto feed [skip ci]"
+          git push origin HEAD:main
