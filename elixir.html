@@ -1300,6 +1300,14 @@ function isLocalDashboard() {
   return /^(https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?|file:)/i.test(location.origin || '');
 }
 
+function isGitHubPages() {
+  return /\.github\.io$/i.test(location.hostname || '');
+}
+
+function isNetlifyHost() {
+  return /\.netlify\.app$/i.test(location.hostname || '');
+}
+
 function bustFeedUrl(url) {
   if (!url) return url;
   const sep = url.includes('?') ? '&' : '?';
@@ -1313,7 +1321,7 @@ function isPlantoFeedPath(url) {
 }
 
 function resolvePlantoFeedUrl(localPath) {
-  if (isLocalDashboard()) return localPath;
+  if (isLocalDashboard() || isGitHubPages()) return localPath;
   const rel = String(localPath || '').replace(/^\//, '');
   return `https://raw.githubusercontent.com/${PLANTO_GH_REPO}/${PLANTO_GH_BRANCH}/${rel}`;
 }
@@ -1580,7 +1588,7 @@ async function triggerPlantoFeedAndWait() {
   const prevGen = plantoMetaCache?.generated_at || '';
 
   let triggered = false;
-  if (!isLocalDashboard()) {
+  if (!isLocalDashboard() && isNetlifyHost()) {
     try {
       const resp = await fetchWithTimeout(fetch(PLANTO_FEED_TRIGGER_URL, { method: 'POST' }), 15000);
       triggered = resp.status === 202;
