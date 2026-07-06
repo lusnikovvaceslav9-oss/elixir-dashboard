@@ -49,7 +49,6 @@ body{
 /* ── TOPBAR ── */
 #main{margin-left:0}
 .topbar{padding:0 24px;height:56px;background:rgba(12,12,18,0.82);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
-.topbar.picker-open{z-index:350}
 .topbar-inner{display:flex;align-items:center;gap:14px;height:100%;min-width:0}
 .topbar-brand{display:flex;align-items:center;gap:10px;flex-shrink:0;padding-right:14px;margin-right:2px;border-right:1px solid var(--border)}
 .brand-name{font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--text);letter-spacing:0.02em}
@@ -74,8 +73,6 @@ body{
 @keyframes spin{to{transform:rotate(360deg)}}
 
 /* ── PROJECT PICKER (AppsFlyer-style) ── */
-#picker-backdrop{display:none;position:fixed;inset:0;z-index:250;background:transparent}
-#picker-backdrop.show{display:block}
 .proj-picker{position:relative;flex-shrink:0}
 .proj-picker-trigger{display:flex;align-items:center;gap:8px;height:36px;padding:0 10px 0 12px;border:1px solid var(--border-strong);border-radius:10px;background:var(--surface);cursor:pointer;font-family:inherit;color:var(--text);transition:all 0.15s ease;max-width:min(280px,42vw)}
 .proj-picker-trigger:hover,.proj-picker.open .proj-picker-trigger{border-color:rgba(108,92,231,0.45);background:var(--surface-hover);box-shadow:0 0 0 3px rgba(108,92,231,0.08)}
@@ -84,7 +81,7 @@ body{
 .proj-picker-value span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .proj-picker-icon{font-size:16px;line-height:1;flex-shrink:0}
 .proj-picker-chevron{color:var(--text-dim);flex-shrink:0;margin-left:2px}
-.proj-picker-dropdown{position:absolute;top:calc(100% + 8px);left:0;width:min(400px,calc(100vw - 32px));background:rgba(16,16,22,0.98);backdrop-filter:blur(20px);border:1px solid var(--border-strong);border-radius:14px;box-shadow:0 20px 56px rgba(0,0,0,0.55);z-index:300;display:none;flex-direction:column;overflow:hidden}
+.proj-picker-dropdown{position:fixed;top:0;left:0;width:min(400px,calc(100vw - 32px));background:rgba(16,16,22,0.98);backdrop-filter:blur(20px);border:1px solid var(--border-strong);border-radius:14px;box-shadow:0 20px 56px rgba(0,0,0,0.55);z-index:500;display:none;flex-direction:column;overflow:hidden}
 .proj-picker.open .proj-picker-dropdown{display:flex}
 .proj-picker-search-wrap{position:relative;padding:12px 12px 8px;border-bottom:1px solid var(--border)}
 .proj-picker-search-icon{position:absolute;left:22px;top:50%;transform:translateY(-50%);color:var(--text-dim);pointer-events:none}
@@ -483,8 +480,6 @@ body.admin-mode th.th-editable:hover{background:rgba(91,75,245,0.06)}
 </style>
 </head>
 <body>
-
-<div id="picker-backdrop" onclick="closeProjPicker()"></div>
 
 <div id="main">
   <div class="topbar">
@@ -2773,16 +2768,26 @@ function renderProjPickerList() {
   highlightProjPickerFocus();
 }
 
+function positionProjPickerDropdown() {
+  const trigger = document.getElementById('proj-picker-trigger');
+  const dd = document.getElementById('proj-picker-dropdown');
+  if (!trigger || !dd) return;
+  const r = trigger.getBoundingClientRect();
+  dd.style.top = `${r.bottom + 8}px`;
+  dd.style.left = `${Math.max(16, r.left)}px`;
+  dd.style.width = `${Math.min(400, window.innerWidth - 32)}px`;
+}
+
 function setProjPickerOpenState(open) {
   projPickerOpen = open;
   const picker = document.getElementById('proj-picker');
-  const backdrop = document.getElementById('picker-backdrop');
   const trigger = document.getElementById('proj-picker-trigger');
-  const topbar = document.querySelector('.topbar');
   picker?.classList.toggle('open', open);
-  backdrop?.classList.toggle('show', open);
-  topbar?.classList.toggle('picker-open', open);
   if (trigger) trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+  if (open) {
+    positionProjPickerDropdown();
+    requestAnimationFrame(positionProjPickerDropdown);
+  }
 }
 
 function toggleProjPicker(e) {
@@ -4126,6 +4131,15 @@ document.getElementById('proj-picker-list')?.addEventListener('click', e => {
   const id = btn.dataset.projId;
   if (id) selectProjPicker(id);
 });
+
+document.addEventListener('click', e => {
+  if (!projPickerOpen) return;
+  if (e.target.closest('#proj-picker')) return;
+  closeProjPicker();
+});
+
+window.addEventListener('resize', () => { if (projPickerOpen) positionProjPickerDropdown(); });
+window.addEventListener('scroll', () => { if (projPickerOpen) positionProjPickerDropdown(); }, true);
 
 // ═══════════════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════════════
