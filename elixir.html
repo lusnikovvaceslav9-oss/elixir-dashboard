@@ -1296,8 +1296,29 @@ function isLocalDashboard() {
   return /^(https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?|file:)/i.test(location.origin || '');
 }
 
-function isGitHubPages() {
-  return /\.github\.io$/i.test(location.hostname || '');
+let plantoFeedRef = PLANTO_GH_BRANCH;
+
+async function refreshPlantoFeedRef() {
+  if (isLocalDashboard()) return;
+  try {
+    const apiUrl = `https://api.github.com/repos/${PLANTO_GH_REPO}/commits?path=data/planto-meta.json&sha=${PLANTO_GH_BRANCH}&per_page=1`;
+    const resp = await fetchWithTimeout(fetch(apiUrl, {
+      headers: { Accept: 'application/vnd.github+json' },
+      cache: 'no-store',
+    }), 8000);
+    if (!resp.ok) throw new Error(`GitHub API ${resp.status}`);
+    const commits = await resp.json();
+    if (commits[0]?.sha) plantoFeedRef = commits[0].sha;
+  } catch(e) {
+    console.warn('Planto feed ref resolve failed:', e.message);
+    plantoFeedRef = PLANTO_GH_BRANCH;
+  }
+}
+
+function resolvePlantoFeedUrl(localPath) {
+  if (isLocalDashboard()) return localPath;
+  const rel = String(localPath || '').replace(/^\//, '');
+  return `https://raw.githubusercontent.com/${PLANTO_GH_REPO}/${plantoFeedRef}/${rel}`;
 }
 
 function isNetlifyHost() {
@@ -1308,18 +1329,6 @@ function bustFeedUrl(url) {
   if (!url) return url;
   const sep = url.includes('?') ? '&' : '?';
   return `${url}${sep}_=${Date.now()}`;
-}
-
-function bustLocalFeedUrl(url) { return bustFeedUrl(url); }
-
-function isPlantoFeedPath(url) {
-  return url && /planto-(daily|meta|cohort)/i.test(String(url));
-}
-
-function resolvePlantoFeedUrl(localPath) {
-  if (isLocalDashboard() || isGitHubPages()) return localPath;
-  const rel = String(localPath || '').replace(/^\//, '');
-  return `https://raw.githubusercontent.com/${PLANTO_GH_REPO}/${PLANTO_GH_BRANCH}/${rel}`;
 }
 
 function resolveFeedFetchUrl(url) {
@@ -1582,6 +1591,7 @@ async function triggerPlantoFeedAndWait() {
   if (!projects.some(p => isPlantoAutoFeed(p))) return;
   const prevUntil = plantoMetaCache?.until || '';
   const prevGen = plantoMetaCache?.generated_at || '';
+  const prevRef = plantoFeedRef;
 
   let triggered = false;
   if (!isLocalDashboard() && isNetlifyHost()) {
@@ -1596,14 +1606,18 @@ async function triggerPlantoFeedAndWait() {
     }
   }
 
-  const deadline = Date.now() + (triggered ? 150000 : 8000);
-  const pollMs = triggered ? 5000 : 1500;
+  await refreshPlantoFeedRef();
+
+  const deadline = Date.now() + (triggered ? 150000 : 20000);
+  const pollMs = triggered ? 5000 : 2000;
   while (Date.now() < deadline) {
+    await refreshPlantoFeedRef();
     const meta = await fetchPlantoMeta();
     if (meta) {
       plantoMetaCache = meta;
       const fresh = (meta.generated_at && meta.generated_at !== prevGen)
-        || (meta.until && meta.until !== prevUntil);
+        || (meta.until && meta.until !== prevUntil)
+        || (plantoFeedRef !== prevRef);
       if (!triggered || fresh) return;
     }
     await sleep(pollMs);
@@ -1712,6 +1726,7 @@ async function loadAll() {
   projects.forEach(p => { cache[p.id] = 'loading'; });
   renderTopbar();
   renderContent();
+  await refreshPlantoFeedRef();
   plantoMetaCache = await fetchPlantoMeta();
   plantoCohortCache = await fetchPlantoCohort();
   await Promise.allSettled(projects.map(async p => {
