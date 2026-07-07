@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import csv
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 
@@ -98,7 +98,12 @@ def merge_daily(
         key = d.isoformat()
         prev = merged.get(key, {"date": fmt_display(d), "spend": 0, "installs": 0, "trials": 0, "sold": 0, "fb": 0})
         if key in spend:
-            prev["spend"] = spend[key]
+            new_spend = spend[key]
+            # Direct often lags on the current day — don't wipe a known spend with 0.
+            if d == until and new_spend == 0 and (prev.get("spend") or 0) > 0:
+                pass
+            else:
+                prev["spend"] = new_spend
         if key in installs:
             prev["installs"] = installs[key]
         if key in trials:
@@ -111,3 +116,25 @@ def merge_daily(
         merged[key] = prev
         d = date.fromordinal(d.toordinal() + 1)
     return merged
+
+
+def estimate_today_spend(merged: dict[str, dict], until: date, lookback_days: int = 7) -> bool:
+    """Fill today's spend from recent CPI when Direct has not reported yet."""
+    key = until.isoformat()
+    row = merged.get(key)
+    if not row or (row.get("spend") or 0) > 0 or (row.get("installs") or 0) <= 0:
+        return False
+    cpi_samples: list[float] = []
+    for i in range(1, lookback_days + 1):
+        prev = merged.get((until - timedelta(days=i)).isoformat())
+        if not prev:
+            continue
+        inst = int(prev.get("installs") or 0)
+        sp = float(prev.get("spend") or 0)
+        if inst > 0 and sp > 0:
+            cpi_samples.append(sp / inst)
+    if not cpi_samples:
+        return False
+    cpi = sum(cpi_samples) / len(cpi_samples)
+    row["spend"] = round(int(row["installs"]) * cpi, 2)
+    return True

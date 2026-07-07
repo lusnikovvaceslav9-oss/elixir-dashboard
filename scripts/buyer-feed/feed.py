@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import json
 from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from pathlib import Path
 
 from appmetrica import fetch_event_by_day, fetch_installs_by_day, fetch_window
 from cohort import analyze_cohort_from_daily, default_anchor
-from daily import load_daily_csv, merge_daily, write_daily_csv
+from daily import estimate_today_spend, load_daily_csv, merge_daily, write_daily_csv
 from direct import fetch_spend_by_day
 from payments import (
     bills_by_day as csv_bills_by_day,
@@ -44,7 +45,7 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
 
     secrets = load_secrets(work_dir)
     anchor = date.fromisoformat(cfg.get("anchor") or default_anchor().isoformat())
-    until = date.today()
+    until = datetime.now(ZoneInfo("Europe/Moscow")).date()
     refresh_days = int(cfg.get("refresh_days") or 7)
     lag = int(cfg.get("attribution_lag_days") or 2)
     window_start = max(anchor, until - timedelta(days=refresh_days + lag))
@@ -203,6 +204,9 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
         anchor=anchor,
         until=until,
     )
+    spend_today_estimated = estimate_today_spend(merged, until)
+    if spend_today_estimated:
+        print(f"  Direct: estimated spend for {until.isoformat()} from recent CPI")
     write_daily_csv(daily_path, merged)
     print(f"  Daily CSV: {daily_path} ({len(merged)} days)")
 
@@ -248,6 +252,8 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
         meta["payments_by_plan"] = bills_by_plan
     if trials_am_crosscheck:
         meta["trials_am_crosscheck_total"] = sum(trials_am_crosscheck.values())
+    if spend_today_estimated:
+        meta["spend_today_estimated"] = True
     meta_path.parent.mkdir(parents=True, exist_ok=True)
     meta_path.write_text(json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8")
 

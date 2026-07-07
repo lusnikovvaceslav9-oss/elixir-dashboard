@@ -3305,7 +3305,7 @@ function renderProjectDetail(projId) {
 
   html += `<div class="table-card">
     <div class="table-header">
-      <span class="card-title">По дням — ${rows.length} строк${currentMonth ? ' · '+formatMonthKey(currentMonth) : ''}${plantoViewLabel ? ' · ' + escHtml(plantoViewLabel) : ''}${singleSrc?.label ? ' · ' + escHtml(singleSrc.label) : ''}${isPlanto && isPlantoAutoFeed(p) && plantoMetaCache?.generated_at ? ' <span class="feed-badge">auto</span>' : ''}${isPlanto && isPlantoAutoFeed(p) && plantoMetaCache?.generated_at ? ' <span class="feed-stamp">· обновлено ' + escHtml(new Date(plantoMetaCache.generated_at).toLocaleString('ru-RU')) + '</span>' : ''}</span>
+      <span class="card-title">По дням — ${rows.length} строк${currentMonth ? ' · '+formatMonthKey(currentMonth) : ''}${plantoViewLabel ? ' · ' + escHtml(plantoViewLabel) : ''}${singleSrc?.label ? ' · ' + escHtml(singleSrc.label) : ''}${isPlanto && isPlantoAutoFeed(p) && plantoMetaCache?.generated_at ? ' <span class="feed-badge">auto</span>' : ''}${isPlanto && isPlantoAutoFeed(p) && plantoMetaCache?.generated_at ? ' <span class="feed-stamp">· обновлено ' + escHtml(new Date(plantoMetaCache.generated_at).toLocaleString('ru-RU')) + (plantoMetaCache.spend_today_estimated ? ' · спенд сегодня оценочный' : '') + '</span>' : ''}</span>
     </div>
     ${renderDailyTableHtml(p, rows, tbl)}
   </div>`;
