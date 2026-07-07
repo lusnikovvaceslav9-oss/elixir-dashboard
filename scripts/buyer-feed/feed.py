@@ -154,6 +154,11 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
     if anchor < window_start and direct_token:
         try:
             full_spend = fetch_spend_by_day(direct_token, client_login, anchor, until)
+            # Wide date ranges return stale spend for recent days; window fetch is fresher.
+            ws = window_start.isoformat()
+            for day_key, value in spend.items():
+                if day_key >= ws:
+                    full_spend[day_key] = value
         except Exception:
             full_spend = spend
 
