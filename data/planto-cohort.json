@@ -1,7 +1,7 @@
 {
   "anchor": "2026-06-05",
-  "until": "2026-07-07",
-  "report_date": "2026-07-07",
+  "until": "2026-07-08",
+  "report_date": "2026-07-08",
   "trial_lag_days": 7,
   "rows": [
     {
@@ -116,12 +116,12 @@
       "start": "2026-07-01",
       "end": "2026-07-07",
       "days": 7,
-      "spend": 37137,
-      "installs_am": 2122,
+      "spend": 37221,
+      "installs_am": 2129,
       "trials_sb": 39,
       "trials_am": 39,
-      "cpi": 18,
-      "cpt": 952,
+      "cpi": 17,
+      "cpt": 954,
       "sold": 0,
       "paid_net": 1197,
       "pnl": null,
@@ -129,16 +129,37 @@
       "mature": false,
       "checkpoint": "2026-07-14",
       "when": "14–15 VII"
+    },
+    {
+      "cohort": "VII · W2 8–8",
+      "cohort_id": "2026-07-W2",
+      "month_key": "2026-07",
+      "start": "2026-07-08",
+      "end": "2026-07-08",
+      "days": 1,
+      "spend": 27,
+      "installs_am": 0,
+      "trials_sb": 0,
+      "trials_am": 0,
+      "cpi": null,
+      "cpt": null,
+      "sold": 0,
+      "paid_net": 0,
+      "pnl": null,
+      "pnl_display": "Рано · 15–16 VII",
+      "mature": false,
+      "checkpoint": "2026-07-15",
+      "when": "15–16 VII"
     }
   ],
   "totals": {
-    "spend": 140748,
-    "installs_am": 7108,
+    "spend": 140860,
+    "installs_am": 7115,
     "trials_sb": 89,
     "trials_am": 89,
     "sold": 14,
     "paid_net": 37254,
     "pnl_mature_only": -67554,
-    "immature_buckets": 1
+    "immature_buckets": 2
   }
 }
