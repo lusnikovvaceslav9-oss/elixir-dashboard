@@ -1551,13 +1551,58 @@ function csvUploadPresets(proj) {
     ];
   }
   if (isQuadcodeProject(proj)) {
+    const months = (proj.monthlySheets || [])
+      .map(ms => ms.month)
+      .filter(Boolean)
+      .sort()
+      .map(mk => ({ value: formatMonthKey(mk), label: formatMonthKey(mk), monthKey: mk }));
     return [
-      { value: 'Main', label: 'Main' },
-      { value: 'Ads', label: 'Ads' },
-      { value: 'Organic', label: 'Organic' },
+      { value: '__auto_month__', label: 'Авто по датам CSV' },
+      ...months,
     ];
   }
   return [{ value: 'CSV', label: 'CSV' }];
+}
+
+function dominantMonthKeyFromRows(rows) {
+  const counts = {};
+  (rows || []).forEach(r => {
+    if (!r?.date) return;
+    const mk = dateToMonthKey(r.date);
+    counts[mk] = (counts[mk] || 0) + 1;
+  });
+  const keys = Object.keys(counts).sort((a, b) => counts[b] - counts[a] || a.localeCompare(b));
+  return keys[0] || null;
+}
+
+function resolveUploadLabel(proj, selected, rows) {
+  if (selected === '__auto_month__' || (isQuadcodeProject(proj) && (!selected || selected === 'Main'))) {
+    const mk = dominantMonthKeyFromRows(rows);
+    if (mk) return formatMonthKey(mk);
+  }
+  return selected || 'CSV';
+}
+
+function mergeRowsByDate(baseRows, uploadRows) {
+  const map = new Map();
+  (baseRows || []).forEach(r => {
+    if (!r?.date) return;
+    map.set(fmtDateStr(r.date), r);
+  });
+  (uploadRows || []).forEach(r => {
+    if (!r?.date) return;
+    map.set(fmtDateStr(r.date), r);
+  });
+  return [...map.values()].sort((a, b) => a.date - b.date);
+}
+
+function monthKeyFromSourceLabel(label) {
+  const names = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+  const m = String(label || '').trim().toLowerCase().match(/^([а-яё]+)\s+(\d{4})$/i);
+  if (!m) return null;
+  const idx = names.indexOf(m[1].slice(0, 3));
+  if (idx < 0) return null;
+  return `${m[2]}-${String(idx + 1).padStart(2, '0')}`;
 }
 
 function loadCsvUploads() {
@@ -1603,19 +1648,44 @@ function buildUploadedSource(projId, id, upload) {
 function getUploadedCsvSources(proj) {
   if (!proj?.id) return [];
   const map = getProjectCsvUploads(proj.id);
-  return Object.entries(map).map(([id, u]) => buildUploadedSource(proj.id, id, u));
+  return Object.entries(map).map(([id, u]) => {
+    const src = buildUploadedSource(proj.id, id, u);
+    // Старые загрузки "Main"/"Ads" → привязать к месяцу по датам CSV
+    if (isQuadcodeProject(proj) && /^(main|ads|organic|csv)$/i.test(src.label || id)) {
+      const mk = dominantMonthKeyFromRows(src.rows || []);
+      if (mk) src.label = formatMonthKey(mk);
+    }
+    return src;
+  });
 }
 
 function mergeUploadedSources(sources, uploaded) {
   const out = [...(sources || [])];
   uploaded.forEach(up => {
-    const idx = out.findIndex(s =>
-      String(s.label || '').toLowerCase() === String(up.label || '').toLowerCase()
-      || s.id === up.id
-      || String(s.url || '').startsWith(`upload://`) && String(s.label || '').toLowerCase() === String(up.label || '').toLowerCase()
-    );
-    if (idx >= 0) out[idx] = up;
-    else out.push(up);
+    const upLabel = String(up.label || '').toLowerCase();
+    const upMonth = monthKeyFromSourceLabel(up.label);
+    const idx = out.findIndex(s => {
+      const sLabel = String(s.label || '').toLowerCase();
+      if (upLabel && sLabel === upLabel) return true;
+      if (s.id === up.id) return true;
+      if (upMonth && (s.id === `month_${upMonth}` || monthKeyFromSourceLabel(s.label) === upMonth)) return true;
+      return false;
+    });
+    if (idx >= 0) {
+      const base = out[idx];
+      out[idx] = {
+        ...base,
+        rows: mergeRowsByDate(base.rows || [], up.rows || []),
+        sheetColumns: up.sheetColumns?.length ? up.sheetColumns : base.sheetColumns,
+        uploaded: true,
+        uploadedAt: up.uploadedAt || base.uploadedAt || null,
+        fileName: up.fileName || base.fileName || '',
+        // keep original month sheet id/url; mark overlay
+        uploadOverlay: up.url,
+      };
+    } else {
+      out.push(up);
+    }
   });
   return out;
 }
@@ -1688,13 +1758,23 @@ async function onCsvUploadFile(projId, inputEl) {
   const fallbackLabel = presets[0]?.value || 'CSV';
   const labelEl = document.getElementById(`csv-upload-label-${projId}`);
   const customEl = document.getElementById(`csv-upload-custom-${projId}`);
-  let label = (labelEl?.value || fallbackLabel).trim();
-  if (label === '__custom__') label = (customEl?.value || '').trim() || fallbackLabel;
+  let selected = (labelEl?.value || fallbackLabel).trim();
+  if (selected === '__custom__') selected = (customEl?.value || '').trim() || fallbackLabel;
   try {
     const text = await file.text();
     if (!text || text.trim().length < 10) throw new Error('Файл пустой');
     const rows = parseSheet(text);
     if (!rows.length) throw new Error('Не удалось разобрать CSV — проверь заголовки Date/Spend/Reg');
+    const label = resolveUploadLabel(p, selected, rows);
+    // Убрать устаревший upload "Main", если теперь кладём в месяц
+    if (isQuadcodeProject(p) && label !== 'Main') {
+      const all = loadCsvUploads();
+      if (all[projId]?.main) {
+        delete all[projId].main;
+        if (!Object.keys(all[projId]).length) delete all[projId];
+        saveCsvUploads(all);
+      }
+    }
     saveUploadedCsv(projId, label, file.name, text);
     inputEl.value = '';
     await applyUploadedCsvToCache(projId, label);
@@ -1738,7 +1818,7 @@ function renderCsvUploadCard(proj) {
     `<option value="${escHtml(p.value)}"${i === 0 ? ' selected' : ''}>${escHtml(p.label)}</option>`
   ).join('');
   const hint = isQuadcodeProject(proj)
-    ? 'Загрузи CSV — появится как отдельный лист в разбивке. Хранится в этом браузере.'
+    ? 'CSV подставится в лист месяца по датам (Июн/Июл…). «Авто по датам» — рекомендуемый режим.'
     : 'Утром просто выбери файл — он попадёт в разбивку (App / свой лист). Хранится в этом браузере.';
 
   return `<div class="csv-upload-card">
