@@ -1309,19 +1309,57 @@ function applyPlantoAutoSource(list) {
   });
 }
 
+function isJgglProject(p) {
+  return !!(p && (/jggl/i.test(p.id || '') || /^jggl$/i.test(p.name || '')));
+}
+
+/** Локальные CSV из data/<slug>/ — можно кидать файлы в репо, дашборд подхватит. */
+const LOCAL_CSV_PROJECTS = {
+  jggl: {
+    match: isJgglProject,
+    dir: 'data/jggl',
+    // Waitlist/Redirect остаются из Google Sheets; App — из CSV в репо.
+    sources: [
+      { id: 'app', label: 'App', file: 'app.csv', optional: true },
+    ],
+  },
+};
+
+function applyLocalCsvSources(list) {
+  return list.map(p => {
+    const cfg = Object.values(LOCAL_CSV_PROJECTS).find(c => c.match(p));
+    if (!cfg) return p;
+    const sources = [...(p.sheetSources || [])];
+    cfg.sources.forEach(src => {
+      const url = `${cfg.dir}/${src.file}`;
+      const exists = sources.some(s =>
+        s.id === src.id
+        || String(s.label || '').toLowerCase() === String(src.label).toLowerCase()
+        || String(s.url || '').includes(`/${src.file}`)
+      );
+      if (!exists) sources.push({ id: src.id, label: src.label, url });
+    });
+    return normalizeProject({ ...p, sheetSources: sources, urls: sources.map(s => s.url) });
+  });
+}
+
+function applyProjectDefaults(list) {
+  return applyLocalCsvSources(applyPlantoAutoSource(list));
+}
+
 function loadProjectsLocal() {
   try {
     const saved = localStorage.getItem(PROJ_KEY);
-    if (saved) return applyPlantoAutoSource(JSON.parse(saved).map(normalizeProject));
+    if (saved) return applyProjectDefaults(JSON.parse(saved).map(normalizeProject));
   } catch(e) {}
-  return applyPlantoAutoSource(JSON.parse(JSON.stringify(DEFAULT_PROJECTS)).map(normalizeProject));
+  return applyProjectDefaults(JSON.parse(JSON.stringify(DEFAULT_PROJECTS)).map(normalizeProject));
 }
 
 async function loadProjects() {
   try {
     const remote = await jbLoad();
     if (remote && remote.length) {
-      projects = applyPlantoAutoSource(remote.map(normalizeProject));
+      projects = applyProjectDefaults(remote.map(normalizeProject));
       localStorage.setItem(PROJ_KEY, JSON.stringify(projects));
       return;
     }
@@ -1330,7 +1368,7 @@ async function loadProjects() {
 }
 
 function saveProjects() {
-  projects = applyPlantoAutoSource(projects);
+  projects = applyProjectDefaults(projects);
   localStorage.setItem(PROJ_KEY, JSON.stringify(projects));
   jbSave(projects).catch(e => console.warn('JSONBin save failed:', e.message));
 }
@@ -1721,8 +1759,13 @@ function bustFeedUrl(url) {
   return `${url}${sep}_=${Date.now()}`;
 }
 
+function isRepoDataUrl(url) {
+  return typeof url === 'string' && /^data\//i.test(url.trim());
+}
+
 function resolveFeedFetchUrl(url) {
   if (!url) return url;
+  if (isRepoDataUrl(url)) return resolvePlantoFeedUrl(url.trim());
   if (url === PLANTO_DATA_URL || String(url).includes('planto-daily.csv')) return resolvePlantoFeedUrl(PLANTO_DATA_URL);
   if (url === PLANTO_META_URL || String(url).includes('planto-meta.json')) return resolvePlantoFeedUrl(PLANTO_META_URL);
   if (url === PLANTO_COHORT_URL || String(url).includes('planto-cohort.json')) return resolvePlantoFeedUrl(PLANTO_COHORT_URL);
@@ -1802,6 +1845,7 @@ function extractGidFromUrl(url) {
 
 function sourceUrlForSpreadsheet(sourceDef, spreadsheetId) {
   if (!spreadsheetId) return normalizeToCSVUrl(sourceDef.url);
+  if (isRepoDataUrl(sourceDef.url)) return sourceDef.url.trim();
   return sheetCsvUrl(spreadsheetId, extractGidFromUrl(sourceDef.url));
 }
 
@@ -1814,13 +1858,48 @@ function mergeSourceRows(existing, newRows) {
   return [...byDate.values()].sort((a, b) => a.date - b.date);
 }
 
+function pushParsedSource(byLabel, def, url, text) {
+  const csvRows = parseCSV(text);
+  const rows = parseSheet(text);
+  const label = def.label || `Лист ${byLabel.size + 1}`;
+  if (!byLabel.has(label)) {
+    byLabel.set(label, {
+      id: def.id || `src_${byLabel.size}`,
+      label,
+      url,
+      rows: [],
+      sheetColumns: (csvRows[0] || []).map(h => (h || '').trim()),
+    });
+  }
+  const entry = byLabel.get(label);
+  entry.rows = mergeSourceRows(entry.rows, rows);
+  if (!entry.sheetColumns.length && csvRows[0]) {
+    entry.sheetColumns = csvRows[0].map(h => (h || '').trim());
+  }
+  return entry;
+}
+
 async function fetchMultiSourcesMonthly(sourceDefs, monthly) {
   const byLabel = new Map();
+  const localDefs = sourceDefs.filter(d => isRepoDataUrl(d.url));
+  const sheetDefs = sourceDefs.filter(d => !isRepoDataUrl(d.url));
+
+  // Локальные CSV из data/ — один файл на весь период, не ремапим на Google Sheets.
+  const localResults = await Promise.allSettled(localDefs.map(d => fetchCsvWithFallback(d.url)));
+  localResults.forEach((r, i) => {
+    const def = localDefs[i];
+    if (r.status !== 'fulfilled') {
+      console.warn(`Local CSV "${def.label}" skipped:`, r.reason?.message || r.reason);
+      return;
+    }
+    pushParsedSource(byLabel, def, def.url, r.value);
+  });
+
   const jobs = [];
   for (const ms of monthly) {
     const sheetId = extractSheetId(normalizeToCSVUrl(ms.url));
     if (!sheetId) continue;
-    for (const def of sourceDefs) {
+    for (const def of sheetDefs) {
       jobs.push({ def, url: sourceUrlForSpreadsheet(def, sheetId), month: ms.month });
     }
   }
@@ -1831,26 +1910,10 @@ async function fetchMultiSourcesMonthly(sourceDefs, monthly) {
       console.warn(`Sheet "${def.label}" (${month}) failed:`, r.reason);
       return;
     }
-    const csvRows = parseCSV(r.value);
-    const rows = parseSheet(r.value);
-    const label = def.label || `Лист ${byLabel.size + 1}`;
-    if (!byLabel.has(label)) {
-      byLabel.set(label, {
-        id: def.id || `src_${byLabel.size}`,
-        label,
-        url,
-        rows: [],
-        sheetColumns: (csvRows[0] || []).map(h => (h || '').trim()),
-      });
-    }
-    const entry = byLabel.get(label);
-    entry.rows = mergeSourceRows(entry.rows, rows);
-    if (!entry.sheetColumns.length && csvRows[0]) {
-      entry.sheetColumns = csvRows[0].map(h => (h || '').trim());
-    }
+    pushParsedSource(byLabel, def, url, r.value);
   });
   const sources = [...byLabel.values()];
-  if (!sources.length && results.every(r => r.status === 'rejected')) throw results[0].reason;
+  if (!sources.length) throw new Error('No sheet sources loaded');
   return { sources };
 }
 
@@ -1876,6 +1939,8 @@ async function fetchProject(proj) {
           rows: parseSheet(r.value),
           sheetColumns: (csvRows[0] || []).map(h => (h || '').trim()),
         });
+      } else if (isRepoDataUrl(def.url)) {
+        console.warn(`Local CSV "${def.label}" skipped:`, r.reason?.message || r.reason);
       } else {
         console.warn(`Source "${def.label}" failed:`, r.reason);
       }
