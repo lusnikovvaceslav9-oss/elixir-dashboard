@@ -13,7 +13,7 @@
    - **прод/авто:** GitHub → Settings → Secrets and variables → Actions (см. «Вариант A»);
    - **локально:** `cp secrets.env.example secrets.env` и заполни (см. «Вариант B»).
 3. Проверка локально: `pip install -r scripts/buyer-feed/requirements.txt`, затем прогон фида (команда ниже). В логе должно быть `Supabase bills: N charges` и `Supabase trials: N starts`, а в `data/planto-meta.json` — `"errors": []`.
-4. Прод: запушь пакет в отдельный git-репозиторий с включённым GitHub Actions → workflow `.github/workflows/planto-feed.yml` крутит фид **каждые 2 часа** и коммитит `data/`. Настрой деплой (Netlify) на этот репозиторий.
+4. Прод: запушь пакет в git-репозиторий с GitHub Actions → workflow `.github/workflows/planto-feed.yml` крутит фид **каждый час** и коммитит `data/`. Сайт деплоится через GitHub Pages (`.github/workflows/pages.yml`).
 5. Проверка результата: открой `elixir.html` через локальный http-сервер (НЕ двойным кликом) → проект Planto → блок «Auto feed» без жёлтого предупреждения.
 
 Критерий готовности: фид отработал без ошибок, дашборд открылся, цифры за сегодня совпадают с RuStore.
@@ -45,8 +45,8 @@
 2. Repo → **Settings → Secrets and variables → Actions → New repository secret**. Добавь 5 секретов из таблицы выше (имена — точь-в-точь как ключи).
 3. Repo → вкладка **Actions** → включи workflows, если выключены.
 4. Проверь вручную: **Actions → «Planto data feed» → Run workflow**. После прогона в репозитории обновятся файлы `data/*` (коммит от `Planto Feed Bot`).
-5. Дальше workflow идёт сам по расписанию `cron: 0 */2 * * *` — **каждые 2 часа**.
-6. Деплой сайта: подключи этот репозиторий к Netlify (или аналогу). На каждый коммит `data/*` фронт обновится. Открывай `https://<сайт>/elixir.html`.
+5. Дальше workflow идёт сам по расписанию `cron: 0 * * * *` — **каждый час**.
+6. Деплой сайта: GitHub Pages (`pages.yml` на push в `main`). Кнопка «Обновить» в дашборде подтягивает свежий `data/` из git (raw.githubusercontent), без Netlify. Открывай `https://<user>.github.io/<repo>/elixir.html`.
 
 Файл, который всё это делает, — `.github/workflows/planto-feed.yml`. Секреты в нём читаются как `env` из `${{ secrets.* }}`, файл `secrets.env` в проде **не нужен**.
 
@@ -110,7 +110,7 @@ python scripts/buyer-feed/__main__.py --work-dir /path/to/package
 - **`psycopg2` ModuleNotFoundError** → не установлены зависимости: `pip install -r scripts/buyer-feed/requirements.txt`.
 - **`"errors": [...]` в `planto-meta.json`** → там текст проблемы по каждому источнику (direct/appmetrica/supabase). Триалы/биллы без Supabase не соберутся.
 - **Дашборд показывает старые/чужие цифры** → открыл `elixir.html` двойным кликом или Live Server из другой папки. Запускай http-сервер из папки, где лежит `data/` (same-origin).
-- **Данные на сайте не меняются** → проверь, что деплой (Netlify) реагирует на коммиты `data/*` и что workflow реально коммитит (вкладка Actions → лог шага «Commit updated data»).
+- **Данные на сайте не меняются** → проверь Actions → «Planto data feed» (коммит `data/*`) и «Deploy GitHub Pages»; в дашборде «Обновить» тянет свежий SHA с `raw.githubusercontent.com`.
 
 ## Чего НЕ делать
 

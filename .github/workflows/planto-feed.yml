@@ -43,7 +43,7 @@ jobs:
           echo "=== data after feed ==="
           ls -la data/planto-* || true
           python3 -c "import json; m=json.load(open('data/planto-meta.json')); print('until:', m.get('until'), 'days:', m.get('days'), 'errors:', m.get('errors'))"
-          git add data/planto-daily.csv data/planto-cohort.json data/planto-meta.json
+          git add data/planto-daily.csv data/planto-cohort.json data/planto-meta.json data/planto-product.json
           git status --short
           if git diff --staged --quiet; then
             echo "::warning::No data changes — verify GitHub Secrets and API access"
@@ -51,3 +51,4 @@ jobs:
           fi
           git commit -m "chore: auto-update Planto feed data"
           git push origin HEAD:main
+

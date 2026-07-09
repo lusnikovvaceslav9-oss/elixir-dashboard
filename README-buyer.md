@@ -15,14 +15,14 @@
 | `data/trials-reconcile.md` | Сравнение источников триалов (опционально) |
 | `data/rustore-payments.csv` | Чеки RuStore — **fallback/корректировки** (основной источник биллов — Supabase) |
 | `scripts/buyer-feed/` | Python-скрипт сбора данных |
-| `.github/workflows/planto-feed.yml` | Автообновление **каждые 2 часа** |
+| `.github/workflows/planto-feed.yml` | Автообновление **каждый час** |
 
 ## Установка (один раз)
 
 1. Скопируй содержимое пакета в репо дашборда (или замени `elixir.html` + `elixir.css` + `elixir.js` + добавь `data/`, `scripts/`, `.github/`).
 2. В **GitHub → Settings → Secrets** добавь ключи из `secrets.env.example`.
-3. Убедись, что Netlify деплоит репо на push (или перезаливай `data/` вручную после локального запуска).
-4. Открой `https://<your-site>/elixir.html` → проект Planto.
+3. Включи GitHub Pages (workflow `pages.yml` деплоит на push в `main`).
+4. Открой `https://<user>.github.io/<repo>/elixir.html` → проект Planto.
 
 ## Локальный запуск (проверка)
 
@@ -54,7 +54,7 @@ python -m http.server 8081 --bind 127.0.0.1
 
 ## Каденс
 
-GitHub Action: `cron: 0 */2 * * *` — каждые 2 часа. Запросы **узкие** (последние N дней + догон атрибуции), без 100 МБ Logs API.
+GitHub Action: `cron: 0 * * * *` — каждый час. Запросы **узкие** (последние N дней + догон атрибуции), без 100 МБ Logs API.
 
 ## Биллы и оплаты
 
@@ -72,4 +72,4 @@ Windows Task Scheduler / cron:
 python -m scripts.buyer-feed --work-dir C:\path\to\elixir-dashboard
 ```
 
-Затем commit + push `data/*` или drag-drop на Netlify.
+Затем commit + push `data/*` — GitHub Pages подхватит сам.
