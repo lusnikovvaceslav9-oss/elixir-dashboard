@@ -1763,6 +1763,9 @@ function parseNum(s) {
   if (!s) return 0;
   s = String(s).trim();
   if (!s || s === '-' || /^#/.test(s)) return 0;
+  // Не путать ISO/EU-даты с числами (иначе 2026-07-09 → 2026).
+  if (/^\d{4}[\/\-.](\d{1,2})[\/\-.](\d{1,2})\b/.test(s)) return 0;
+  if (/^\d{1,2}[\/\-.](\d{1,2})[\/\-.](\d{2,4})\b/.test(s)) return 0;
   s = s.replace(/[₽$€\s\u00a0\u202f]/g, '');
   if (s.includes('.') && s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
   else if (s.includes(',')) s = s.replace(',', '.');
@@ -1770,11 +1773,24 @@ function parseNum(s) {
   return parseFloat(s) || 0;
 }
 
+/** Meta Ads / FB export: "Amount spent", не "Spend". */
+function findSpendCol(headers) {
+  const exclude = ['cost per', 'цена', 'cpc', 'cpm', 'cpa', 'budget'];
+  let i = findCol(headers, ['amount spent', 'amount_spent', 'spent', 'спенд', 'spend', 'расход'], exclude);
+  if (i >= 0) return i;
+  return findCol(headers, ['спенд', 'spend', 'расход', 'spent'], exclude);
+}
+
+function findDateCol(headers) {
+  const i = findCol(headers, ['reporting starts', 'reporting start', 'дата', 'date', 'day']);
+  return i >= 0 ? i : 0;
+}
+
 function findPlantoColumns(headerRow) {
   const headers = headerRow.map(h => (h || '').toLowerCase().trim());
   return {
-    dateCol: Math.max(findCol(headers, ['дата', 'date']), 0),
-    spendCol: findCol(headers, ['спенд', 'spend', 'расход']),
+    dateCol: findDateCol(headers),
+    spendCol: findSpendCol(headers),
     installCol: findCol(headers, ['install', 'inst'], ['cost', 'цена', '/']),
     trialCol: findCol(headers, ['trial'], ['cost', 'цена', '/', 'fb', 'inst', 'sold', 'продан']),
     soldCol: findCol(headers, ['sold', 'продан'], ['cost', 'цена', '/']),
@@ -1842,15 +1858,17 @@ function isPlantoSheet(headers) {
 function detectSheetType(headerRow) {
   const headers = (headerRow || []).map(h => (h || '').toLowerCase().trim());
   if (isPlantoSheet(headers)) return 'planto';
-  const hasSpend = findCol(headers, ['спенд', 'spend', 'расход'], []) >= 0;
+  const hasSpend = findSpendCol(headers) >= 0;
   const hasImpressions = findCol(headers, ['impression', 'impress'], []) >= 0;
   const hasClicks = findCol(headers, ['click'], ['ctr']) >= 0;
-  if (hasSpend && (hasImpressions || hasClicks)) return 'campaign';
+  const hasCampaign = findCol(headers, ['campaign name', 'campaign', 'кампани'], []) >= 0;
+  // Meta Ads export: Amount spent + Impressions/Clicks/Campaign
+  if (hasSpend && (hasImpressions || hasClicks || hasCampaign)) return 'campaign';
   // Quadcode: Reg + Instal + Purch — до широкого match по install/inst
   if (findCol(headers, ['purchase', 'purch'], []) >= 0 && findCol(headers, ['reg'], ['целев', 'цена', 'cost']) >= 0) return 'quadcode';
   if (findCol(headers, ['install', 'inst', 'trial', 'fb'], ['cost', 'цена', '/']) >= 0) return 'planto';
   if (findCol(headers, ['целев', 'результат', 'действ', 'ключев', 'qual', 'qreg', 'target'], ['цена', 'cost', 'cpa', 'цел. рег', 'целевая рег', '/']) >= 0) return 'streamfi';
-  if (findCol(headers, ['спенд', 'spend', 'расход'], []) >= 0) return 'streamfi';
+  if (hasSpend) return 'streamfi';
   return 'generic';
 }
 
@@ -1877,21 +1895,22 @@ function findRegColumn(headers) {
 
 function findStreamfiColumns(headerRow) {
   const headers = headerRow.map(h => (h || '').toLowerCase().trim());
-  const dateCol = Math.max(findCol(headers, ['дата', 'date']), 0);
-  const spendCol = findCol(headers, ['спенд', 'spend', 'расход']);
+  const dateCol = findDateCol(headers);
+  const spendCol = findSpendCol(headers);
 
-  const qregExclude = ['цена', 'cost', 'cpa', 'cpc', 'cpl', 'cpm', 'ctr', 'за ', 'цел действ', 'цел. действ', 'целевой рег', 'целевая рег', 'цел.рег', '/', 'impression', 'click', 'campaign'];
+  const qregExclude = ['цена', 'cost', 'cpa', 'cpc', 'cpl', 'cpm', 'ctr', 'за ', 'цел действ', 'цел. действ', 'целевой рег', 'целевая рег', 'цел.рег', '/', 'impression', 'click', 'campaign', 'indicator', 'delivery', 'budget', 'reach', 'frequency', 'attribution', 'reporting'];
   let qregCol = -1;
   const qregPriority = [
     ['целевые рег'], ['целевые дей'], ['ключевые дей'], ['ключев'], ['целев рег'],
-    ['qualified'], ['qregs'], ['результат'], ['target reg'], ['target'],
+    ['qualified'], ['qregs'], ['результат'], ['results'], ['mobile app install'], ['app install'],
+    ['target reg'], ['target'],
   ];
   for (const keys of qregPriority) {
     const i = findCol(headers, keys, qregExclude);
     if (i >= 0 && !isCostHeader(headers[i])) { qregCol = i; break; }
   }
   if (qregCol < 0) {
-    qregCol = findCol(headers, ['целев', 'действ', 'результат', 'qual', 'qreg'], qregExclude);
+    qregCol = findCol(headers, ['целев', 'действ', 'результат', 'results', 'qual', 'qreg'], qregExclude);
     if (qregCol >= 0 && isCostHeader(headers[qregCol])) qregCol = -1;
   }
 
@@ -1907,14 +1926,14 @@ function findStreamfiColumns(headerRow) {
     for (let i = spendCol + 1; i < headers.length; i++) {
       const h = headers[i];
       if (isCostHeader(h) || isAdMetricHeader(h)) continue;
-      if (/дата|date/i.test(h)) continue;
+      if (/дата|date|reporting|ends|attribution|budget/i.test(h)) continue;
       qregCol = i;
       break;
     }
   }
 
   const sc = spendCol >= 0 ? spendCol : 1;
-  const qc = qregCol >= 0 ? qregCol : 2;
+  const qc = qregCol >= 0 ? qregCol : -1;
   const rc = regCol >= 0 && regCol !== qc ? regCol : -1;
   return { dateCol, sc, qc, rc };
 }
@@ -1931,7 +1950,7 @@ function parseStreamfiRows(rows) {
     if (!dt) return;
     const key = fmtDateStr(dt);
     const spend = parseNum(r[sc]);
-    const qregs = parseNum(r[qc]);
+    const qregs = qc >= 0 ? parseNum(r[qc]) : 0;
     const regs = rc >= 0 ? parseNum(r[rc]) : 0;
     if (!spend && !qregs && !regs) return;
 
@@ -1971,7 +1990,7 @@ function parseCampaignRows(rows) {
     const dt = parseDate(dateStr);
     if (!dt) return;
     const spend = parseNum(r[sc]);
-    const qregs = parseNum(r[qc]);
+    const qregs = qc >= 0 ? parseNum(r[qc]) : 0;
     const regs = rc >= 0 ? parseNum(r[rc]) : 0;
     const impressions = extra.impressionsCol >= 0 ? parseNum(r[extra.impressionsCol]) : 0;
     const clicks = extra.clicksCol >= 0 ? parseNum(r[extra.clicksCol]) : 0;
@@ -5189,7 +5208,7 @@ function buildDefaultMetrics(type, headerRow) {
     const regIdx = findRegColumn(hdrLower);
     if (m.key === 'qregs' && regIdx >= 0 && headers[regIdx]) label = headers[regIdx];
     if (m.key === 'spend') {
-      const si = findCol(hdrLower, ['спенд', 'spend', 'расход'], []);
+      const si = findSpendCol(hdrLower);
       if (si >= 0 && headers[si]) label = 'Total ' + headers[si].charAt(0).toUpperCase() + headers[si].slice(1);
     }
     return { key: m.key, label, enabled: m.enabled !== false };
