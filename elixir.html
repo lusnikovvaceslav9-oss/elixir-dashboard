@@ -286,16 +286,29 @@ td:first-child{text-align:left;color:#F0F0F0;font-weight:500}
 .cohort-table .pnl-neg{color:var(--danger);font-weight:600}
 .planto-blocks{display:flex;flex-direction:column;gap:16px;margin:2px 0 20px}
 .planto-block{background:rgba(18,18,26,0.88);border:1px solid var(--border);border-radius:14px;padding:18px 20px;overflow:hidden}
-.planto-block-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:6px}
+.planto-block.live{border-color:rgba(34,197,94,0.28);background:linear-gradient(180deg,rgba(34,197,94,0.06),rgba(18,18,26,0.88))}
+.planto-block-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:0}
+.planto-block-toggle{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;width:100%;padding:0;margin:0;border:0;background:transparent;color:inherit;cursor:pointer;text-align:left;font:inherit}
+.planto-block-toggle:hover .planto-block-title{color:#fff}
 .planto-block-title-wrap{min-width:0;flex:1}
 .planto-block-num{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:7px;background:rgba(108,92,231,0.18);border:1px solid rgba(108,92,231,0.28);color:#c4b5fd;font-size:11px;font-weight:700;margin-right:8px;vertical-align:middle;flex-shrink:0}
+.planto-block.live .planto-block-num{background:rgba(34,197,94,0.16);border-color:rgba(34,197,94,0.35);color:#86efac}
 .planto-block-title{font-size:13px;font-weight:600;color:var(--text);letter-spacing:0;text-transform:none;line-height:1.35}
 .planto-block-desc{font-size:12px;color:var(--text-muted);margin:6px 0 14px;line-height:1.45;max-width:62ch}
-.planto-block-hint{font-size:10px;font-weight:500;color:var(--text-dim);white-space:nowrap;padding:4px 8px;border-radius:999px;background:rgba(255,255,255,0.04);border:1px solid var(--border);flex-shrink:0}
+.planto-block-meta{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.planto-block-hint{font-size:10px;font-weight:500;color:var(--text-dim);white-space:nowrap;padding:4px 8px;border-radius:999px;background:rgba(255,255,255,0.04);border:1px solid var(--border)}
+.planto-block-chevron{width:28px;height:28px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,0.03);display:inline-flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.55);flex-shrink:0;transition:transform 0.18s ease,background 0.15s ease}
+.planto-block-toggle:hover .planto-block-chevron{background:rgba(108,92,231,0.12);color:#c4b5fd}
+.planto-block.collapsed .planto-block-chevron{transform:rotate(-90deg)}
+.planto-block-body{margin-top:6px}
+.planto-block.collapsed .planto-block-body{display:none}
+.planto-block.collapsed .planto-block-desc{display:none}
+.planto-block.collapsed{padding-bottom:14px}
 .planto-block-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .planto-block-grid.cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}
 .planto-kpi{padding:14px 14px 12px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.07);border-radius:12px;min-width:0;display:flex;flex-direction:column;gap:4px;min-height:92px}
 .planto-kpi.primary{background:rgba(108,92,231,0.08);border-color:rgba(108,92,231,0.22)}
+.planto-block.live .planto-kpi.primary{background:rgba(34,197,94,0.1);border-color:rgba(34,197,94,0.28)}
 .planto-kpi.wide{grid-column:1 / -1;min-height:auto}
 .planto-kpi-label{font-size:11px;font-weight:500;color:rgba(255,255,255,0.45);letter-spacing:0.01em;text-transform:none;margin:0;line-height:1.3}
 .planto-kpi-value{font-size:22px;font-weight:650;color:#F0F0F0;line-height:1.15;font-variant-numeric:tabular-nums;word-break:break-word}
@@ -316,6 +329,7 @@ td:first-child{text-align:left;color:#F0F0F0;font-weight:500}
 .planto-feat-track{grid-column:1 / -1;height:6px;background:rgba(255,255,255,0.06);border-radius:99px;overflow:hidden;margin-top:-4px}
 .planto-feat-track > i{display:block;height:100%;border-radius:99px;background:rgba(108,92,231,0.85)}
 .planto-pending-note{margin-top:12px;padding:10px 12px;border-radius:10px;background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.18);font-size:11px;color:#fcd34d;line-height:1.4}
+.planto-live-note{margin-top:12px;padding:10px 12px;border-radius:10px;background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.2);font-size:11px;color:#86efac;line-height:1.4}
 .cohort-card .table-wrap{-webkit-overflow-scrolling:touch}
 .feed-badge{font-size:10px;font-weight:600;padding:3px 8px;border-radius:6px;background:rgba(34,197,94,0.15);color:#86efac;border:1px solid rgba(34,197,94,0.3);margin-left:8px;vertical-align:middle}
 .feed-stamp{font-size:11px;font-weight:500;color:var(--text-muted);margin-left:4px}
@@ -335,6 +349,7 @@ td:first-child{text-align:left;color:#F0F0F0;font-weight:500}
   .planto-block{padding:14px}
   .planto-block-head{flex-direction:column;gap:8px}
   .planto-block-hint{align-self:flex-start}
+  .planto-block-meta{width:100%;justify-content:space-between}
   .planto-block-desc{font-size:11px;margin-bottom:12px}
   .planto-block-grid,.planto-block-grid.cols-2{grid-template-columns:1fr 1fr;gap:8px}
   .planto-block-grid > .planto-kpi:last-child:nth-child(odd){grid-column:1 / -1}
@@ -2333,17 +2348,81 @@ function plantoFeatureRows(items) {
   return rows ? `<div class="planto-feat-list">${rows}</div>` : '';
 }
 
-function plantoBlock(num, title, desc, hint, gridHtml, { cols = 3, footer = '' } = {}) {
-  return `<section class="planto-block">
+const PLANTO_BLOCK_STATE_KEY = 'planto_block_collapsed_v1';
+const PLANTO_BLOCK_DEFAULTS = {
+  today: false,
+  acquisition: false,
+  trials: false,
+  unit: true,
+  product: true,
+};
+
+function loadPlantoBlockState() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(PLANTO_BLOCK_STATE_KEY) || '{}');
+    return { ...PLANTO_BLOCK_DEFAULTS, ...saved };
+  } catch(e) {
+    return { ...PLANTO_BLOCK_DEFAULTS };
+  }
+}
+
+function savePlantoBlockState(state) {
+  try { localStorage.setItem(PLANTO_BLOCK_STATE_KEY, JSON.stringify(state)); } catch(e) {}
+}
+
+function isPlantoBlockCollapsed(id) {
+  return !!loadPlantoBlockState()[id];
+}
+
+function togglePlantoBlock(id) {
+  const state = loadPlantoBlockState();
+  state[id] = !state[id];
+  savePlantoBlockState(state);
+  const el = document.getElementById(`planto-block-${id}`);
+  if (el) {
+    el.classList.toggle('collapsed', !!state[id]);
+    const btn = el.querySelector('.planto-block-toggle');
+    if (btn) btn.setAttribute('aria-expanded', state[id] ? 'false' : 'true');
+  }
+}
+
+function sameCalendarDay(a, b) {
+  return a && b
+    && a.getFullYear() === b.getFullYear()
+    && a.getMonth() === b.getMonth()
+    && a.getDate() === b.getDate();
+}
+
+function getPlantoTodayRow(rows) {
+  const list = (rows && rows.length) ? rows : getPlantoDailyRows();
+  if (!list.length) return null;
+  const today = new Date();
+  const exact = list.find(r => r.date && sameCalendarDay(r.date, today));
+  if (exact) return { row: exact, isToday: true };
+  const latest = [...list].sort((a, b) => b.date - a.date)[0];
+  return latest ? { row: latest, isToday: false } : null;
+}
+
+function plantoBlock(id, num, title, desc, hint, gridHtml, { cols = 3, footer = '', live = false } = {}) {
+  const collapsed = isPlantoBlockCollapsed(id);
+  const chevron = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
+  return `<section class="planto-block${live ? ' live' : ''}${collapsed ? ' collapsed' : ''}" id="planto-block-${id}">
     <div class="planto-block-head">
-      <div class="planto-block-title-wrap">
-        <div class="planto-block-title"><span class="planto-block-num">${num}</span>${escHtml(title)}</div>
-      </div>
-      ${hint ? `<div class="planto-block-hint">${escHtml(hint)}</div>` : ''}
+      <button type="button" class="planto-block-toggle" onclick="togglePlantoBlock('${id}')" aria-expanded="${collapsed ? 'false' : 'true'}">
+        <div class="planto-block-title-wrap">
+          <div class="planto-block-title"><span class="planto-block-num">${num}</span>${escHtml(title)}</div>
+        </div>
+        <div class="planto-block-meta">
+          ${hint ? `<div class="planto-block-hint">${escHtml(hint)}</div>` : ''}
+          <span class="planto-block-chevron">${chevron}</span>
+        </div>
+      </button>
     </div>
     ${desc ? `<div class="planto-block-desc">${escHtml(desc)}</div>` : ''}
-    <div class="planto-block-grid${cols === 2 ? ' cols-2' : ''}">${gridHtml}</div>
-    ${footer || ''}
+    <div class="planto-block-body">
+      <div class="planto-block-grid${cols === 2 ? ' cols-2' : ''}">${gridHtml}</div>
+      ${footer || ''}
+    </div>
   </section>`;
 }
 
@@ -2381,6 +2460,75 @@ function getPlantoProductMetrics() {
 function fmtMoneyOrDash(n, cur) {
   if (n == null || isNaN(n)) return '—';
   return fmtMoney(n, cur);
+}
+
+function renderPlantoTodayBlock(proj, allRows) {
+  const cur = proj.currency;
+  const todayInfo = getPlantoTodayRow(allRows);
+  if (!todayInfo?.row) {
+    return plantoBlock(
+      'today',
+      '●',
+      'Дневная стата',
+      'Срез за текущий день — обновляется примерно каждые 2 часа.',
+      'live',
+      plantoKpiCell('Нет данных', '—', { pending: true, sub: 'дождитесь обновления feed', wide: true }),
+      { live: true },
+    );
+  }
+  const r = todayInfo.row;
+  const spend = r.spend || 0;
+  const installs = r.installs || 0;
+  const trials = r.trials || 0;
+  const sold = r.sold || 0;
+  const bills = r.fb || 0;
+  const clicks = r.clicks || 0;
+  const impressions = r.impressions || 0;
+  const cpi = installs ? spend / installs : null;
+  const cpt = trials ? spend / trials : null;
+  const cpb = bills ? spend / bills : null;
+  const ctr = impressions ? (clicks / impressions * 100) : null;
+  const cpc = clicks ? spend / clicks : null;
+  const cr = installs ? (trials / installs * 100) : null;
+  const updated = plantoMetaCache?.generated_at
+    ? new Date(plantoMetaCache.generated_at).toLocaleString('ru-RU')
+    : '';
+  const estimated = !!plantoMetaCache?.spend_today_estimated && todayInfo.isToday;
+  const dateLabel = r.dateStr || fmtDateStr(r.date);
+  const hint = todayInfo.isToday ? 'сегодня · live' : `последний день · ${dateLabel}`;
+
+  const grid = [
+    plantoKpiCell('Расход', fmtMoney(spend, cur), {
+      primary: true,
+      sub: estimated ? 'оценочный (Direct ещё не отдал)' : dateLabel,
+    }),
+    plantoKpiCell('Установки', fmtInt(installs), { sub: 'за день' }),
+    plantoKpiCell('CPI', cpi != null ? fmtMoney(cpi, cur) : '—', { accent: true, sub: 'цена установки' }),
+    plantoKpiCell('Триалы', fmtInt(trials), { sub: cr != null ? `CR ${fmtPct(cr)}` : 'старты за день' }),
+    plantoKpiCell('CPT', cpt != null ? fmtMoney(cpt, cur) : '—', { accent: true, sub: 'цена триала' }),
+    plantoKpiCell('Оплаты', fmtInt(bills), {
+      sub: sold ? `yearly: ${fmtInt(sold)}` : (cpb != null ? `Cost/Bill ${fmtMoney(cpb, cur)}` : 'за день'),
+    }),
+    clicks || impressions
+      ? plantoKpiCell('CTR / CPC', `${ctr != null ? fmtPct(ctr) : '—'} · ${cpc != null ? fmtMoney(cpc, cur) : '—'}`, {
+          sub: `${fmtInt(clicks)} кликов`,
+        })
+      : '',
+  ].filter(Boolean).join('');
+
+  const footer = `<div class="planto-live-note">Обновление feed ~каждые 2 часа${updated ? ` · последнее: ${escHtml(updated)}` : ''}${estimated ? ' · спенд сегодня оценочный' : ''}.</div>`;
+
+  return plantoBlock(
+    'today',
+    '●',
+    'Дневная стата',
+    todayInfo.isToday
+      ? 'Актуальные CPI / CPT и воронка за сегодня — удобно смотреть между обновлениями feed.'
+      : `За сегодня строки ещё нет — показан последний доступный день (${dateLabel}).`,
+    hint,
+    grid,
+    { live: true, footer },
+  );
 }
 
 function renderPlantoMetricBlocks(proj, rows, monthKey) {
@@ -2533,11 +2681,13 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
       : '',
   ].join('');
 
+  const allRows = getPlantoDailyRows();
   return `<div class="planto-blocks">
-    ${plantoBlock(1, 'Привлечение', 'Сколько стоит трафик и насколько кликабельны объявления.', 'Direct', acquisition)}
-    ${plantoBlock(2, 'Воронка триалов', 'Из-за 7-дневного триала смотрим конверсии и отмены, а не только день-в-день.', 'лаг 7 дней', trialsBlock)}
-    ${plantoBlock(3, 'Юнит-экономика', 'Окупаемость и ценность платящего пользователя.', 'RuStore', unitBlock)}
-    ${plantoBlock(4, 'Продукт', 'Дошёл ли пользователь до ценности — сад, пейволл, уход и ключевые фичи.', 'AppMetrica', productCards, { cols: 2, footer: productFooter })}
+    ${renderPlantoTodayBlock(proj, allRows)}
+    ${plantoBlock('acquisition', '1', 'Привлечение', 'Сколько стоит трафик и насколько кликабельны объявления.', 'Direct', acquisition)}
+    ${plantoBlock('trials', '2', 'Воронка триалов', 'Из-за 7-дневного триала смотрим конверсии и отмены, а не только день-в-день.', 'лаг 7 дней', trialsBlock)}
+    ${plantoBlock('unit', '3', 'Юнит-экономика', 'Окупаемость и ценность платящего пользователя.', 'RuStore', unitBlock)}
+    ${plantoBlock('product', '4', 'Продукт', 'Дошёл ли пользователь до ценности — сад, пейволл, уход и ключевые фичи.', 'AppMetrica', productCards, { cols: 2, footer: productFooter })}
   </div>`;
 }
 
