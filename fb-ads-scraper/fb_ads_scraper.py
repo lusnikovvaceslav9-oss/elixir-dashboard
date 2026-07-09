@@ -425,9 +425,26 @@ def _parse_selenium(driver: webdriver.Chrome, logger: logging.Logger, timeout: i
 
 
 def write_status(project_results: list[dict]):
+    existing = {"updated_at": None, "projects": []}
+    if STATUS_PATH.exists():
+        try:
+            existing = json.loads(STATUS_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+
+    by_id = {
+        str(item.get("dashboard_id") or ""): item
+        for item in (existing.get("projects") or [])
+        if item.get("dashboard_id")
+    }
+    for item in project_results:
+        key = str(item.get("dashboard_id") or "")
+        if key:
+            by_id[key] = item
+
     payload = {
         "updated_at": datetime.now().isoformat(timespec="seconds"),
-        "projects": project_results,
+        "projects": list(by_id.values()),
     }
     STATUS_PATH.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
 
@@ -585,11 +602,12 @@ def main():
     results = []
 
     for i, project in enumerate(projects):
-        results.append(process_project(project, adspower, gc, logger, config))
+        result = process_project(project, adspower, gc, logger, config)
+        results.append(result)
+        write_status([result])
         if i < len(projects) - 1:
             time.sleep(5)
 
-    write_status(results)
     ok = sum(1 for r in results if r["status"] == "ok")
     err = len(results) - ok
     logger.info(f"Итого: успешно={ok}, ошибок={err}")

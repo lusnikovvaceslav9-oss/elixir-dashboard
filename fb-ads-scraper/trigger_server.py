@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Локальный HTTP-триггер для FB scraper — дашборд шлёт POST, Mac запускает парсинг."""
+"""Локальный HTTP-триггер: один POST = один проект = один запуск скрипта."""
 
 from __future__ import annotations
 
@@ -16,7 +16,6 @@ from urllib.parse import parse_qs, urlparse
 SCRIPT_DIR = Path(__file__).parent
 CONFIG_PATH = SCRIPT_DIR / "config.json"
 STATUS_PATH = SCRIPT_DIR / "status.json"
-RUNNING_PATH = SCRIPT_DIR / ".trigger_running"
 
 DEFAULT_PORT = 8765
 DEFAULT_HOST = "127.0.0.1"
@@ -28,6 +27,11 @@ def load_config() -> dict:
     if not CONFIG_PATH.exists():
         return {}
     return json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+
+
+def running_path(project_id: str) -> Path:
+    safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in project_id)
+    return SCRIPT_DIR / f".running_{safe}"
 
 
 def cors_headers(handler: BaseHTTPRequestHandler) -> None:
@@ -46,33 +50,54 @@ def json_response(handler: BaseHTTPRequestHandler, code: int, payload: dict) -> 
     handler.wfile.write(body)
 
 
-def read_status() -> dict:
+def read_status(project_id: str | None = None) -> dict:
     data = {"updated_at": None, "projects": []}
     if STATUS_PATH.exists():
         try:
             data = json.loads(STATUS_PATH.read_text(encoding="utf-8"))
         except Exception:
             pass
+
+    if project_id:
+        data["projects"] = [
+            p for p in data.get("projects") or []
+            if p.get("dashboard_id") == project_id
+        ]
+
     last_run_path = SCRIPT_DIR / "last_run.json"
     if last_run_path.exists():
         try:
             data["last_run"] = json.loads(last_run_path.read_text(encoding="utf-8"))
         except Exception:
             pass
-    data["running"] = RUNNING_PATH.exists()
+
+    running_projects = []
+    for path in SCRIPT_DIR.glob(".running_*"):
+        name = path.name.removeprefix(".running_")
+        running_projects.append(name)
+    data["running_projects"] = running_projects
+    data["running"] = bool(running_projects)
+    if project_id:
+        safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in project_id)
+        data["running"] = running_path(project_id).exists() or safe in running_projects
     return data
 
 
-def run_scraper(project_id: str | None) -> None:
-    RUNNING_PATH.write_text("1", encoding="utf-8")
+def run_scraper(project_id: str) -> None:
+    lock = running_path(project_id)
+    lock.write_text("1", encoding="utf-8")
     last_run_path = SCRIPT_DIR / "last_run.json"
     started_at = datetime.now().isoformat(timespec="seconds")
     exit_code = 1
     try:
-        cmd = [sys.executable, str(SCRIPT_DIR / "fb_ads_scraper.py"), "--manual"]
-        if project_id:
-            cmd.extend(["--project-id", project_id])
-        logger.info("Запуск: %s", " ".join(cmd))
+        cmd = [
+            sys.executable,
+            str(SCRIPT_DIR / "fb_ads_scraper.py"),
+            "--manual",
+            "--project-id",
+            project_id,
+        ]
+        logger.info("Запуск отдельного прогона: %s", " ".join(cmd))
         result = subprocess.run(cmd, cwd=str(SCRIPT_DIR), check=False)
         exit_code = int(result.returncode)
     finally:
@@ -87,12 +112,12 @@ def run_scraper(project_id: str | None) -> None:
             json.dumps(payload, indent=2, ensure_ascii=False),
             encoding="utf-8",
         )
-        if RUNNING_PATH.exists():
-            RUNNING_PATH.unlink()
+        if lock.exists():
+            lock.unlink()
 
 
 class TriggerHandler(BaseHTTPRequestHandler):
-    server_version = "FBScraperTrigger/1.0"
+    server_version = "FBScraperTrigger/2.0"
 
     def log_message(self, fmt: str, *args) -> None:
         logger.info("%s - %s", self.address_string(), fmt % args)
@@ -103,9 +128,13 @@ class TriggerHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self) -> None:
+        qs = parse_qs(urlparse(self.path).query)
+        project_id = (qs.get("project_id") or [None])[0]
+        project_id = (project_id or "").strip() or None
         path = urlparse(self.path).path
+
         if path == "/status":
-            json_response(self, 200, {"ok": True, **read_status()})
+            json_response(self, 200, {"ok": True, **read_status(project_id)})
             return
         if path == "/health":
             json_response(self, 200, {"ok": True, "service": "fb-scraper-trigger"})
@@ -126,23 +155,31 @@ class TriggerHandler(BaseHTTPRequestHandler):
             json_response(self, 404, {"ok": False, "error": "not found"})
             return
 
-        if RUNNING_PATH.exists():
-            json_response(self, 409, {"ok": False, "error": "already running", **read_status()})
-            return
-
         qs = parse_qs(urlparse(self.path).query)
         project_id = (qs.get("project_id") or [None])[0]
-        project_id = (project_id or "").strip() or None
+        project_id = (project_id or "").strip()
+        if not project_id:
+            json_response(
+                self,
+                400,
+                {"ok": False, "error": "project_id обязателен — каждый проект парсится отдельно"},
+            )
+            return
+
+        lock = running_path(project_id)
+        if lock.exists():
+            json_response(
+                self,
+                409,
+                {"ok": False, "error": f"проект {project_id} уже парсится", **read_status(project_id)},
+            )
+            return
 
         threading.Thread(target=run_scraper, args=(project_id,), daemon=True).start()
         json_response(
             self,
             202,
-            {
-                "ok": True,
-                "message": "scraper started",
-                "project_id": project_id,
-            },
+            {"ok": True, "message": "scraper started", "project_id": project_id},
         )
 
 
@@ -157,7 +194,7 @@ def main() -> None:
 
     server = HTTPServer((host, port), TriggerHandler)
     logger.info("FB scraper trigger: http://%s:%s", host, port)
-    logger.info("POST /trigger  GET /status  GET /health")
+    logger.info("POST /trigger?project_id=ID  GET /status?project_id=ID")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

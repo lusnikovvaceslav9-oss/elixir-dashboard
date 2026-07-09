@@ -316,6 +316,10 @@ td:first-child{text-align:left;color:#F0F0F0;font-weight:500}
 .fb-scraper-status.busy{color:#A5B4FC}
 .fb-scraper-status.ok{color:#34D399}
 .fb-scraper-status.err{color:#F87171}
+.fb-scraper-project-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(91,75,245,0.1)}
+.fb-scraper-project-row:last-child{border-bottom:none}
+.fb-scraper-project-meta{flex:1;min-width:180px;display:flex;flex-direction:column;gap:2px;font-size:13px}
+.fb-scraper-project-sub{font-size:11px;color:rgba(255,255,255,0.35)}
 .btn-sm{padding:7px 14px;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;font-family:'Inter',sans-serif;transition:all 0.15s ease}
 .btn-logout{border:1px solid rgba(255,255,255,0.1);background:transparent;color:rgba(255,255,255,0.45)}
 .btn-logout:hover{border-color:rgba(239,68,68,0.4);color:#EF4444;background:rgba(239,68,68,0.05)}
@@ -527,6 +531,10 @@ body.admin-mode th.th-editable:hover{background:rgba(91,75,245,0.06)}
         <button class="btn-icon btn-refresh" id="btn-refresh" onclick="refreshData()">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
           <span class="btn-label">Обновить</span>
+        </button>
+        <button class="btn-icon btn-refresh" id="btn-fb-parse-top" onclick="triggerFbScraperFromDashboard(view)" style="display:none" title="Парсить FB в таблицу этого проекта">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.22-8.56"/><polyline points="21 3 21 9 15 9"/></svg>
+          <span class="btn-label">FB</span>
         </button>
         <button class="btn-icon btn-admin" id="btn-admin" onclick="adminClick()">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
@@ -824,7 +832,7 @@ const PLANTO_GH_BRANCH = 'main';
 const PLANTO_FEED_TRIGGER_URL = '/.netlify/functions/trigger-planto-feed';
 const FB_SCRAPER_TRIGGER_KEY = 'fb_scraper_trigger_url';
 const FB_SCRAPER_TRIGGER_DEFAULT = 'http://127.0.0.1:8765';
-let fbScraperBusy = false;
+let fbScraperBusy = {};
 
 const DEFAULT_PROJECTS = [
   { id: 'planto',   name: 'Planto',      icon: '🌱', currency: '₽', type: 'planto',
@@ -1764,49 +1772,57 @@ function projectsWithFbScraper(proj) {
   return projects.filter(isFbScraperConfigured);
 }
 
-async function fetchFbScraperStatus() {
+async function fetchFbScraperStatus(projectId) {
   const base = getFbScraperTriggerBase();
-  const resp = await fetchWithTimeout(fetch(`${base}/status`, { cache: 'no-store' }), 8000);
+  const qs = projectId ? `?project_id=${encodeURIComponent(projectId)}` : '';
+  const resp = await fetchWithTimeout(fetch(`${base}/status${qs}`, { cache: 'no-store' }), 8000);
   if (!resp.ok) throw new Error(`status ${resp.status}`);
   return await resp.json();
 }
 
-function formatFbScraperResult(st, prevUpdated, startedAt) {
+function projectStatusFromPayload(st, projectId) {
+  const list = st?.projects || [];
+  return list.find(p => p.dashboard_id === projectId) || list[0] || null;
+}
+
+function formatFbScraperResult(st, prevUpdated, startedAt, projectId) {
   const lastRun = st?.last_run;
-  const runFailed = lastRun
-    && lastRun.finished_at
+  const forProject = lastRun?.project_id === projectId;
+  const runFailed = forProject
+    && lastRun?.finished_at
     && lastRun.started_at >= new Date(startedAt - 5000).toISOString().slice(0, 19)
     && lastRun.exit_code !== 0;
-  const fresh = st?.updated_at && st.updated_at !== prevUpdated;
+  const projStatus = projectStatusFromPayload(st, projectId);
+  const fresh = projStatus && st?.updated_at && st.updated_at !== prevUpdated;
 
   if (st?.running) {
-    return { text: 'Парсинг выполняется на Mac…', cls: 'busy' };
+    return { text: `Парсинг ${projectId} на Mac…`, cls: 'busy' };
   }
   if (runFailed && !fresh) {
-    const pid = lastRun.project_id;
-    if (pid) {
+    return {
+      text: projStatus?.error || `Ошибка парсинга «${projectId}». Проверьте FB Ads Scraper в настройках проекта.`,
+      cls: 'err',
+    };
+  }
+  if (projStatus && fresh) {
+    if (projStatus.status === 'ok') {
       return {
-        text: `Проект «${pid}» не настроен на Mac или выключен. Настройте FB Scraper в проекте или жмите кнопку с Overview.`,
-        cls: 'err',
+        text: `✅ ${projStatus.name}: ${projStatus.campaigns} кампаний, spend ${projStatus.spend_total}`,
+        cls: 'ok',
+        fresh: true,
       };
     }
-    return { text: 'Прогон завершился с ошибкой на Mac. Смотрите fb_ads_scraper.log', cls: 'err' };
-  }
-  if (st?.projects?.length && fresh) {
-    const ok = st.projects.filter(p => p.status === 'ok').length;
-    const err = st.projects.length - ok;
-    const errDetail = st.projects.find(p => p.status !== 'ok')?.error;
-    const text = errDetail && err
-      ? `Готово: успешно ${ok}, ошибок ${err} · ${errDetail}`
-      : `Готово: успешно ${ok}, ошибок ${err} · ${st.updated_at || ''}`;
-    return { text, cls: err && !ok ? 'err' : 'ok', fresh: true };
-  }
-  if (st?.projects?.length && !fresh && Date.now() - startedAt > 15000) {
-    const errDetail = st.projects.find(p => p.status !== 'ok')?.error;
     return {
-      text: errDetail
-        ? `Старый статус (${st.updated_at}): ${errDetail}`
-        : `Новый прогон не обновил статус. Проверьте Mac-сервер и лог.`,
+      text: `❌ ${projStatus.name}: ${projStatus.error || 'ошибка'}`,
+      cls: 'err',
+      fresh: true,
+    };
+  }
+  if (projStatus && !fresh && Date.now() - startedAt > 15000) {
+    return {
+      text: projStatus.error
+        ? `Старый статус: ${projStatus.error}`
+        : 'Прогон не обновил статус. Проверьте Mac и лог.',
       cls: 'err',
     };
   }
@@ -1814,43 +1830,53 @@ function formatFbScraperResult(st, prevUpdated, startedAt) {
 }
 
 async function triggerFbScraperFromDashboard(projId) {
-  if (!isAdmin() || fbScraperBusy) return;
-  const targets = projectsWithFbScraper(projId ? projects.find(p => p.id === projId) : null);
+  if (!isAdmin()) return;
+  if (!projId) {
+    alert('Выберите проект — каждый парсится отдельно со своими настройками и таблицей.');
+    return;
+  }
+  const p = projects.find(x => x.id === projId);
+  if (!p || !isFbScraperConfigured(p)) {
+    alert('Заполните FB Ads Scraper в настройках проекта: profile, act, таблица.');
+    return;
+  }
+  if (fbScraperBusy[projId]) return;
+
   const base = getFbScraperTriggerBase();
-  const statusEl = document.getElementById('fb-scraper-status');
-  const btn = document.getElementById('btn-fb-scraper-trigger');
-  fbScraperBusy = true;
+  const statusEl = document.getElementById(`fb-scraper-status-${projId}`) || document.getElementById('fb-scraper-status');
+  const btn = document.getElementById(`btn-fb-scraper-${projId}`) || document.getElementById('btn-fb-scraper-trigger');
+  fbScraperBusy[projId] = true;
   if (btn) btn.disabled = true;
   if (statusEl) {
-    statusEl.textContent = 'Запускаю парсинг на Mac…';
+    statusEl.textContent = `Запускаю ${p.name}…`;
     statusEl.className = 'fb-scraper-status busy';
   }
 
   const startedAt = Date.now();
   let prevUpdated = null;
   try {
-    const prev = await fetchFbScraperStatus().catch(() => null);
+    const prev = await fetchFbScraperStatus(projId).catch(() => null);
     prevUpdated = prev?.updated_at || null;
   } catch (_) {}
 
   try {
-    const qs = projId ? `?project_id=${encodeURIComponent(projId)}` : '';
     const resp = await fetchWithTimeout(
-      fetch(`${base}/trigger${qs}`, { method: 'POST', headers: { 'Content-Type': 'application/json' } }),
+      fetch(`${base}/trigger?project_id=${encodeURIComponent(projId)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      }),
       15000
     );
     const data = await resp.json().catch(() => ({}));
     if (resp.status === 409) {
-      if (statusEl) statusEl.textContent = 'Парсинг уже выполняется…';
+      if (statusEl) statusEl.textContent = `${p.name} уже парсится…`;
     } else if (!resp.ok && resp.status !== 202) {
       throw new Error(data.error || `HTTP ${resp.status}`);
     } else if (statusEl) {
-      statusEl.textContent = projId
-        ? `Парсинг запущен для проекта…`
-        : `Парсинг запущен${targets.length ? ` (${targets.length} проект.)` : ''}…`;
+      statusEl.textContent = `Парсинг ${p.name} → своя таблица…`;
     }
   } catch (e) {
-    fbScraperBusy = false;
+    delete fbScraperBusy[projId];
     if (btn) btn.disabled = false;
     if (statusEl) {
       statusEl.textContent = fbScraperUnavailableHint(e.message);
@@ -1863,65 +1889,80 @@ async function triggerFbScraperFromDashboard(projId) {
   while (Date.now() < deadline) {
     await sleep(3000);
     try {
-      const st = await fetchFbScraperStatus();
-      const formatted = formatFbScraperResult(st, prevUpdated, startedAt);
+      const st = await fetchFbScraperStatus(projId);
+      const formatted = formatFbScraperResult(st, prevUpdated, startedAt, projId);
       if (formatted && statusEl) {
         statusEl.textContent = formatted.text;
         statusEl.className = `fb-scraper-status ${formatted.cls}`;
       }
-      const fresh = formatted?.fresh || (st.updated_at && st.updated_at !== prevUpdated && !st.running);
-      if (fresh) {
-        const ids = projId ? [projId] : (targets.length ? targets.map(p => p.id) : projects.map(p => p.id));
-        await Promise.all(ids.map(async id => {
-          const p = projects.find(x => x.id === id);
-          if (!p) return;
-          cache[id] = 'loading';
-          try {
-            cache[id] = await fetchProject(p);
-          } catch (e) {
-            console.error(e);
-            cache[id] = null;
-          }
-        }));
+      if (formatted?.fresh) {
+        cache[projId] = 'loading';
+        try {
+          cache[projId] = await fetchProject(p);
+        } catch (e) {
+          console.error(e);
+          cache[projId] = null;
+        }
         renderContent();
         break;
       }
       if (!st.running && formatted?.cls === 'err' && Date.now() - startedAt > 12000) break;
-      if (!st.running && fresh) break;
-      if (!st.running && st.updated_at && Date.now() - startedAt > 120000) break;
+      if (!st.running && formatted?.fresh) break;
+      if (!st.running && Date.now() - startedAt > 120000) break;
     } catch (e) {
       if (statusEl) {
-        statusEl.textContent = `Ожидание статуса… (${e.message})`;
+        statusEl.textContent = `Ожидание… (${e.message})`;
         statusEl.className = 'fb-scraper-status busy';
       }
     }
   }
 
-  fbScraperBusy = false;
+  delete fbScraperBusy[projId];
   if (btn) btn.disabled = false;
 }
 
-function renderFbScraperAdminBlock(proj) {
-  const targets = projectsWithFbScraper(proj || null);
-  const triggerBase = getFbScraperTriggerBase();
-  const projArg = proj ? `'${proj.id}'` : 'null';
-  const onProjectWithoutFb = proj && !isFbScraperConfigured(proj);
-  const label = proj
-    ? (onProjectWithoutFb ? 'FB Scraper не настроен' : `🔄 Парсить ${proj.name}`)
-    : (targets.length ? `🔄 Парсить все FB (${targets.length})` : '🔄 Парсить все FB');
-  const hint = onProjectWithoutFb
-    ? `Заполните FB Ads Scraper: AdsPower profile, act, BM — и сохраните проект.`
-    : (isFbScraperHttpsBlocked()
-      ? '⚠️ С github.io кнопка не работает — откройте локально: bash open_dashboard.sh'
-      : 'Каждый проект парсится локально на Mac по своим настройкам из дашборда (JSONBin).');
-  return `<div class="fb-scraper-admin">
-    <div class="fb-scraper-admin-title">FB Ads Scraper</div>
-    <div class="form-hint" style="margin-bottom:10px">${hint} Запрос на Mac: <code>${escHtml(triggerBase)}</code></div>
-    <div class="admin-actions" style="margin-top:0">
-      <button class="btn-sm btn-add-proj" id="btn-fb-scraper-trigger" ${onProjectWithoutFb ? 'disabled' : ''} onclick="triggerFbScraperFromDashboard(${projArg})">${label}</button>
-      <button class="btn-sm btn-logout" onclick="promptFbScraperTriggerUrl()">⚙️ URL Mac</button>
+function renderFbScraperRow(p) {
+  if (!isFbScraperConfigured(p)) return '';
+  const fb = p.fbScraper || {};
+  return `<div class="fb-scraper-project-row">
+    <div class="fb-scraper-project-meta">
+      <span>${p.icon} ${escHtml(p.name)}</span>
+      <span class="fb-scraper-project-sub">profile ${escHtml(fb.profileId || '—')} · act ${escHtml(fb.adAccountId || '—')}</span>
     </div>
-    <div class="fb-scraper-status" id="fb-scraper-status"></div>
+    <button class="btn-sm btn-add-proj" id="btn-fb-scraper-${p.id}" onclick="triggerFbScraperFromDashboard('${p.id}')">🔄 Парсить</button>
+    <div class="fb-scraper-status" id="fb-scraper-status-${p.id}"></div>
+  </div>`;
+}
+
+function renderFbScraperAdminBlock(proj) {
+  const triggerBase = getFbScraperTriggerBase();
+  const httpsNote = isFbScraperHttpsBlocked()
+    ? '<div class="form-hint" style="margin-bottom:10px;color:#FBBF24">⚠️ С github.io не работает — bash open_dashboard.sh</div>'
+    : '';
+  if (proj) {
+    if (!isFbScraperConfigured(proj)) {
+      return `<div class="fb-scraper-admin">
+        <div class="fb-scraper-admin-title">FB Ads Scraper</div>
+        ${httpsNote}
+        <div class="form-hint">Настройте profile + act + таблицу в «Редактировать проект» — тогда этот проект будет парситься отдельно в свою Google Sheet.</div>
+      </div>`;
+    }
+    return `<div class="fb-scraper-admin">
+      <div class="fb-scraper-admin-title">FB Ads Scraper — ${escHtml(proj.name)}</div>
+      ${httpsNote}
+      <div class="form-hint" style="margin-bottom:10px">Отдельный прогон: свой AdsPower profile → свой act/BM → своя таблица.</div>
+      ${renderFbScraperRow(proj)}
+      <div class="form-hint" style="margin-top:8px">Mac: <code>${escHtml(triggerBase)}</code></div>
+    </div>`;
+  }
+  const configured = projects.filter(isFbScraperConfigured);
+  return `<div class="fb-scraper-admin">
+    <div class="fb-scraper-admin-title">FB Ads Scraper — по проектам</div>
+    ${httpsNote}
+    <div class="form-hint" style="margin-bottom:10px">Каждый проект — отдельный вызов скрипта и своя таблица.</div>
+    ${configured.length
+      ? configured.map(renderFbScraperRow).join('')
+      : '<div class="form-hint">Нет настроенных проектов. Заполните FB Ads Scraper в каждом проекте.</div>'}
   </div>`;
 }
 
@@ -3034,6 +3075,11 @@ function renderTopbar() {
   renderProjPickerList();
   const addBtn = document.getElementById('btn-add-proj');
   if (addBtn) addBtn.style.display = isAdmin() ? '' : 'none';
+  const fbBtn = document.getElementById('btn-fb-parse-top');
+  if (fbBtn) {
+    const p = view !== 'overview' ? projects.find(x => x.id === view) : null;
+    fbBtn.style.display = (isAdmin() && p && isFbScraperConfigured(p)) ? '' : 'none';
+  }
 }
 
 function updateProjPickerTrigger() {
