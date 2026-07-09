@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='4' fill='%23000'/><text x='16' y='22' font-family='Inter,sans-serif' font-size='11' font-weight='700' fill='white' text-anchor='middle'>EX</text></svg>">
 <style>
 :root{
@@ -1750,6 +1751,68 @@ async function applyUploadedCsvToCache(projId, preferLabel) {
   renderContent();
 }
 
+function isExcelUploadFile(file) {
+  const name = String(file?.name || '').toLowerCase();
+  const type = String(file?.type || '').toLowerCase();
+  return /\.xlsx?$/.test(name)
+    || type.includes('spreadsheetml')
+    || type.includes('ms-excel')
+    || type === 'application/vnd.ms-excel';
+}
+
+function sheetMatrixToCsvText(matrix) {
+  return (matrix || []).map(row => {
+    const cells = Array.isArray(row) ? row : [];
+    return cells.map(cell => {
+      if (cell == null || cell === '') return '';
+      let s;
+      if (cell instanceof Date && !isNaN(cell.getTime())) {
+        const y = cell.getFullYear();
+        const m = String(cell.getMonth() + 1).padStart(2, '0');
+        const d = String(cell.getDate()).padStart(2, '0');
+        s = `${y}-${m}-${d}`;
+      } else if (typeof cell === 'number' && cell > 20000 && cell < 80000) {
+        // Excel serial date → ISO, если SheetJS отдал число
+        try {
+          const dt = (typeof XLSX !== 'undefined' && XLSX.SSF)
+            ? XLSX.SSF.parse_date_code(cell)
+            : null;
+          if (dt && dt.y && dt.m && dt.d) {
+            s = `${dt.y}-${String(dt.m).padStart(2, '0')}-${String(dt.d).padStart(2, '0')}`;
+          } else {
+            s = String(cell);
+          }
+        } catch (_) {
+          s = String(cell);
+        }
+      } else {
+        s = String(cell);
+      }
+      if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+      return s;
+    }).join(',');
+  }).join('\n');
+}
+
+async function readUploadFileAsCsvText(file) {
+  if (!file) throw new Error('Файл не выбран');
+  if (isExcelUploadFile(file)) {
+    if (typeof XLSX === 'undefined') throw new Error('Библиотека XLSX не загрузилась — обнови страницу');
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array', cellDates: true, cellNF: false, cellText: false });
+    const sheetName = wb.SheetNames?.[0];
+    if (!sheetName) throw new Error('В Excel нет листов');
+    const ws = wb.Sheets[sheetName];
+    const matrix = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '' });
+    const text = sheetMatrixToCsvText(matrix);
+    if (!text.trim()) throw new Error('Excel-лист пустой');
+    return text;
+  }
+  const text = await file.text();
+  if (!text || text.trim().length < 10) throw new Error('Файл пустой');
+  return text;
+}
+
 async function onCsvUploadFile(projId, inputEl) {
   const file = inputEl?.files?.[0];
   if (!file) return;
@@ -1761,10 +1824,9 @@ async function onCsvUploadFile(projId, inputEl) {
   let selected = (labelEl?.value || fallbackLabel).trim();
   if (selected === '__custom__') selected = (customEl?.value || '').trim() || fallbackLabel;
   try {
-    const text = await file.text();
-    if (!text || text.trim().length < 10) throw new Error('Файл пустой');
+    const text = await readUploadFileAsCsvText(file);
     const rows = parseSheet(text);
-    if (!rows.length) throw new Error('Не удалось разобрать CSV — проверь заголовки Date/Spend/Reg');
+    if (!rows.length) throw new Error('Не удалось разобрать файл — проверь заголовки Date/Spend/Reg');
     const label = resolveUploadLabel(p, selected, rows);
     // Убрать устаревший upload "Main", если теперь кладём в месяц
     if (isQuadcodeProject(p) && label !== 'Main') {
@@ -1779,7 +1841,7 @@ async function onCsvUploadFile(projId, inputEl) {
     inputEl.value = '';
     await applyUploadedCsvToCache(projId, label);
   } catch (e) {
-    alert(`Не удалось загрузить CSV: ${e.message || e}`);
+    alert(`Не удалось загрузить файл: ${e.message || e}`);
     inputEl.value = '';
   }
 }
@@ -1818,13 +1880,13 @@ function renderCsvUploadCard(proj) {
     `<option value="${escHtml(p.value)}"${i === 0 ? ' selected' : ''}>${escHtml(p.label)}</option>`
   ).join('');
   const hint = isQuadcodeProject(proj)
-    ? 'CSV подставится в лист месяца по датам (Июн/Июл…). «Авто по датам» — рекомендуемый режим.'
-    : 'Утром просто выбери файл — он попадёт в разбивку (App / свой лист). Хранится в этом браузере.';
+    ? 'CSV/XLSX подставится в лист месяца по датам (Июн/Июл…). «Авто по датам» — рекомендуемый режим.'
+    : 'Можно CSV или Excel (.xlsx) — файл попадёт в разбивку. Хранится в этом браузере.';
 
   return `<div class="csv-upload-card">
     <div class="csv-upload-head">
       <div>
-        <div class="csv-upload-title">Загрузить CSV</div>
+        <div class="csv-upload-title">Загрузить CSV / Excel</div>
         <div class="csv-upload-hint">${hint}</div>
       </div>
     </div>
@@ -1834,9 +1896,9 @@ function renderCsvUploadCard(proj) {
         <option value="__custom__">Своё имя…</option>
       </select>
       <input id="csv-upload-custom-${proj.id}" type="text" placeholder="Название листа" style="display:none;min-width:120px">
-      <input type="file" accept=".csv,text/csv" onchange="onCsvUploadFile('${proj.id}', this)">
+      <input type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onchange="onCsvUploadFile('${proj.id}', this)">
     </div>
-    ${items ? `<div class="csv-upload-list">${items}</div>` : '<div class="csv-upload-hint" style="margin-top:8px">Пока нет загруженных CSV</div>'}
+    ${items ? `<div class="csv-upload-list">${items}</div>` : '<div class="csv-upload-hint" style="margin-top:8px">Пока нет загруженных файлов</div>'}
   </div>`;
 }
 
