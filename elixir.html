@@ -2483,7 +2483,7 @@ function parseCampaignRows(rows) {
   if (!rows.length) return [];
   const { dateCol, sc, qc, rc } = findStreamfiColumns(rows[0]);
   const extra = findCampaignExtraColumns(rows[0]);
-  const out = [];
+  const raw = [];
 
   rows.slice(1).forEach(r => {
     const dateStr = (r[dateCol] || '').trim();
@@ -2503,10 +2503,27 @@ function parseCampaignRows(rows) {
       campaign: campaign || '—',
     };
     if (rc >= 0) obj.regs = regs;
-    out.push(obj);
+    raw.push(obj);
   });
 
-  return out.sort((a, b) => a.date - b.date || (a.campaign || '').localeCompare(b.campaign || ''));
+  // Если в один день есть и итог (Campaign=—), и кампании — берём только кампании,
+  // иначе дневной итог + breakdown удваивают spend/installs (типичный баг JGGL App).
+  const byDate = new Map();
+  raw.forEach(r => {
+    if (!byDate.has(r.dateStr)) byDate.set(r.dateStr, []);
+    byDate.get(r.dateStr).push(r);
+  });
+  const filtered = [];
+  byDate.forEach(list => {
+    const named = list.filter(r => r.campaign && r.campaign !== '—');
+    (named.length ? named : list).forEach(r => filtered.push(r));
+  });
+
+  // Для листа без разбивки по кампаниям — одна строка на день.
+  const hasNamed = filtered.some(r => r.campaign && r.campaign !== '—');
+  if (!hasNamed) return aggregateRowsByDate(filtered);
+
+  return filtered.sort((a, b) => a.date - b.date || (a.campaign || '').localeCompare(b.campaign || ''));
 }
 
 function parseGenericRows(rows) {
@@ -2698,12 +2715,18 @@ function sourceUrlForSpreadsheet(sourceDef, spreadsheetId) {
 }
 
 function mergeSourceRows(existing, newRows) {
-  const byDate = new Map();
-  (existing || []).forEach(r => byDate.set(r.dateStr, r));
+  const keyOf = (r) => {
+    const camp = (r.campaign && r.campaign !== '—') ? r.campaign : '';
+    return camp ? `${r.dateStr}\t${camp}` : r.dateStr;
+  };
+  const byKey = new Map();
+  (existing || []).forEach(r => { if (r?.dateStr) byKey.set(keyOf(r), r); });
   (newRows || []).forEach(r => {
-    if (!byDate.has(r.dateStr)) byDate.set(r.dateStr, r);
+    if (!r?.dateStr) return;
+    const k = keyOf(r);
+    if (!byKey.has(k)) byKey.set(k, r);
   });
-  return [...byDate.values()].sort((a, b) => a.date - b.date);
+  return [...byKey.values()].sort((a, b) => a.date - b.date || String(a.campaign || '').localeCompare(String(b.campaign || '')));
 }
 
 function pushParsedSource(byLabel, def, url, text) {
@@ -3431,12 +3454,36 @@ function getLatestDayInfo(rows) {
   return latest ? { row: latest, isToday: false } : null;
 }
 
+/** Строки для сводки на главной: не смешивать листы JGGL (App/Waitlist/…). */
+function pickOverviewSourceRows(pack, proj) {
+  const sources = pack?.sources || [];
+  if (!sources.length) return [];
+  if (sources.length === 1 || sourcesAreMonthPartitioned(pack)) {
+    return sources.flatMap(s => s.rows || []);
+  }
+  if (isJgglProject(proj)) {
+    const app = sources.find(s => /^app$/i.test(String(s.label || '').trim()));
+    if (app?.rows?.length) return app.rows;
+  }
+  let best = sources[0];
+  let bestDate = null;
+  sources.forEach(s => {
+    const info = getLatestDayInfo(s.rows || []);
+    if (info && (!bestDate || info.row.date > bestDate)) {
+      best = s;
+      bestDate = info.row.date;
+    }
+  });
+  return best?.rows || [];
+}
+
 /** Сводка за последний день для карточки на главной (как у Planto). */
 function getOverviewDailyMetrics(proj, data) {
   if (proj?.id === 'planto' || isPlantoAutoFeed(proj)) {
     return getPlantoOverviewDailyMetrics(proj);
   }
-  const allRows = getAllRowsFromCache(data) || [];
+  const pack = normalizeCacheData(data);
+  const allRows = pickOverviewSourceRows(pack, proj);
   const info = getLatestDayInfo(allRows);
   if (!info?.row) {
     return {
@@ -5372,19 +5419,17 @@ function renderProjectDetail(projId) {
     const srcIdx = getSourceIdx(projId, pack);
     const src = pack.sources[srcIdx];
     const monthPartitioned = sourcesAreMonthPartitioned(pack);
-    // Месячные листы: показываем выбранный месяц из синхронизированного листа.
-    // Иначе (несколько листов Ads/App): строки месяца со всех листов, чтобы не было пустоты.
+    // Всегда один выбранный лист — иначе JGGL App+Waitlist склеиваются и дублируют дни/инсталлы.
     const viewRows = currentMonth
-      ? (monthPartitioned
-          ? rowsForMonthOnRows(src.rows || [], currentMonth)
-          : rowsForMonthOnRows(pack.sources.flatMap(s => s.rows || []), currentMonth))
-      : (monthPartitioned ? (src.rows || []) : (getAllRowsFromCache(data) || []));
+      ? rowsForMonthOnRows(src.rows || [], currentMonth)
+      : (src.rows || []);
     const sectionSource = monthPartitioned && currentMonth
       ? { ...src, label: formatMonthKey(currentMonth) }
       : src;
+    const scopedData = { sources: [src] };
     html += renderCsvUploadCard(p);
     if (!monthPartitioned) html += renderSheetSwitcher(pack, projId, currentMonth);
-    html += renderAnalyticsSection(p, data, viewRows, currentMonth);
+    html += renderAnalyticsSection(p, scopedData, viewRows, currentMonth);
     html += renderSourceSection(p, sectionSource, viewRows, currentMonth, srcIdx, true, 'mainChart', false);
     content.innerHTML = html;
     renderChartsForProject(p, pack, currentMonth, srcIdx);
