@@ -1643,25 +1643,53 @@ function deleteUploadedCsv(projId, id) {
   }
 }
 
-async function applyUploadedCsvToCache(projId) {
+async function applyUploadedCsvToCache(projId, preferLabel) {
   const p = projects.find(x => x.id === projId);
   if (!p) return;
   try {
-    cache[projId] = await fetchProject(p);
+    const pack = await fetchProject(p);
+    cache[projId] = pack;
+    // После загрузки сразу открываем этот лист и месяц, где есть строки.
+    const sources = normalizeCacheData(pack)?.sources || [];
+    let srcIdx = 0;
+    if (preferLabel) {
+      const want = String(preferLabel).toLowerCase();
+      const found = sources.findIndex(s => String(s.label || '').toLowerCase() === want);
+      if (found >= 0) srcIdx = found;
+      else {
+        const uploadIdx = sources.findIndex(s => String(s.url || '').startsWith('upload://'));
+        if (uploadIdx >= 0) srcIdx = uploadIdx;
+      }
+    } else {
+      const uploadIdx = sources.findIndex(s => String(s.url || '').startsWith('upload://'));
+      if (uploadIdx >= 0) srcIdx = uploadIdx;
+    }
+    sourceIndexByProject[projId] = srcIdx;
+    tileSourceIndex[projId] = srcIdx;
+    const srcRows = sources[srcIdx]?.rows || [];
+    const months = [...new Set(srcRows.map(r => dateToMonthKey(r.date)).filter(Boolean))].sort();
+    if (months.length) {
+      currentMonth = months[months.length - 1];
+      tileMonths[projId] = currentMonth;
+    }
   } catch (e) {
     console.error(e);
     cache[projId] = null;
   }
+  renderTopbar();
   renderContent();
 }
 
 async function onCsvUploadFile(projId, inputEl) {
   const file = inputEl?.files?.[0];
   if (!file) return;
+  const p = projects.find(x => x.id === projId);
+  const presets = csvUploadPresets(p);
+  const fallbackLabel = presets[0]?.value || 'CSV';
   const labelEl = document.getElementById(`csv-upload-label-${projId}`);
   const customEl = document.getElementById(`csv-upload-custom-${projId}`);
-  let label = (labelEl?.value || 'App').trim();
-  if (label === '__custom__') label = (customEl?.value || '').trim() || 'App';
+  let label = (labelEl?.value || fallbackLabel).trim();
+  if (label === '__custom__') label = (customEl?.value || '').trim() || fallbackLabel;
   try {
     const text = await file.text();
     if (!text || text.trim().length < 10) throw new Error('Файл пустой');
@@ -1669,7 +1697,7 @@ async function onCsvUploadFile(projId, inputEl) {
     if (!rows.length) throw new Error('Не удалось разобрать CSV — проверь заголовки Date/Spend/Reg');
     saveUploadedCsv(projId, label, file.name, text);
     inputEl.value = '';
-    await applyUploadedCsvToCache(projId);
+    await applyUploadedCsvToCache(projId, label);
   } catch (e) {
     alert(`Не удалось загрузить CSV: ${e.message || e}`);
     inputEl.value = '';
@@ -1967,14 +1995,36 @@ function parsePlantoRows(rows) {
   }).filter(Boolean);
 }
 
+function findQuadcodeColumns(headerRow) {
+  const headers = headerRow.map(h => (h || '').toLowerCase().trim());
+  return {
+    dateCol: findDateCol(headers),
+    spendCol: findSpendCol(headers),
+    regCol: findRegColumn(headers),
+    installCol: findCol(headers, ['instal', 'install', 'inst'], ['cost', 'цена', '/']),
+    purchCol: findCol(headers, ['purchase', 'purch'], ['cost', 'цена', '/']),
+  };
+}
+
 function parseQuadcodeRows(rows) {
+  if (!rows.length) return [];
+  const cols = findQuadcodeColumns(rows[0]);
+  const sc = cols.spendCol >= 0 ? cols.spendCol : 1;
+  const rc = cols.regCol >= 0 ? cols.regCol : 2;
+  const ic = cols.installCol >= 0 ? cols.installCol : 3;
+  const pc = cols.purchCol >= 0 ? cols.purchCol : 6;
   return rows.slice(1).map(r => {
-    const dateStr = r[0] || '';
-    if (/итого|total/i.test(dateStr) || !dateStr.trim()) return null;
+    const dateStr = (r[cols.dateCol] || '').trim();
+    if (/итого|total/i.test(dateStr) || !dateStr) return null;
     const dt = parseDate(dateStr);
     if (!dt) return null;
-    const obj = { date: dt, dateStr: fmtDateStr(dt),
-      spend: parseNum(r[1]), regs: parseNum(r[2]), installs: parseNum(r[3]), purchases: parseNum(r[6]) };
+    const obj = {
+      date: dt, dateStr: fmtDateStr(dt),
+      spend: parseNum(r[sc]),
+      regs: parseNum(r[rc]),
+      installs: parseNum(r[ic]),
+      purchases: parseNum(r[pc]),
+    };
     return hasData(obj) ? obj : null;
   }).filter(Boolean);
 }
