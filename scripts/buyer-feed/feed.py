@@ -7,10 +7,15 @@ from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from pathlib import Path
 
-from appmetrica import fetch_event_by_day, fetch_installs_by_day, fetch_window
+from appmetrica import (
+    fetch_event_by_day,
+    fetch_installs_by_day,
+    fetch_product_metrics,
+    fetch_window,
+)
 from cohort import analyze_cohort_from_daily, default_anchor
 from daily import estimate_today_spend, load_daily_csv, merge_daily, write_daily_csv
-from direct import fetch_spend_by_day
+from direct import fetch_direct_by_day
 from payments import (
     bills_by_day as csv_bills_by_day,
     load_payments,
@@ -24,7 +29,9 @@ from supabase import (
     bills_breakdown,
     bills_by_day,
     fetch_bills,
+    fetch_trial_cancellations_by_day,
     fetch_trial_starts,
+    fetch_unit_economics_snapshot,
     paid_net_by_cohort_day,
     sold_by_cohort_day,
     sold_by_day,
@@ -59,6 +66,8 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
     old_trials_total = sum(int(v.get("trials") or 0) for v in existing.values())
 
     spend: dict[str, float] = {}
+    clicks: dict[str, int] = {}
+    impressions: dict[str, int] = {}
     installs: dict[str, int] = {}
     trials: dict[str, int] = {}
     trials_am_crosscheck: dict[str, int] = {}
@@ -68,16 +77,43 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
     paid_by_cohort_day: dict[str, int] = {}
     sold_by_cohort_day_map: dict[str, int] = {}
     bills_by_plan: dict[str, dict[str, int]] | None = None
+    trial_cancels_by_day: dict[str, int] = {}
+    unit_snap: dict | None = None
+    product_metrics: dict | None = None
     sources: dict[str, str] = {}
     errors: list[str] = []
+
+    def _split_direct(raw: dict[str, dict]) -> tuple[dict[str, float], dict[str, int], dict[str, int]]:
+        sp: dict[str, float] = {}
+        cl: dict[str, int] = {}
+        im: dict[str, int] = {}
+        for day, vals in raw.items():
+            sp[day] = float(vals.get("spend") or 0)
+            cl[day] = int(vals.get("clicks") or 0)
+            im[day] = int(vals.get("impressions") or 0)
+        return sp, cl, im
+
+    def _fetch_direct_range(date_since: date, date_until: date, *, chunk_days: int = 10) -> dict[str, dict]:
+        """Direct sometimes returns empty for wide ranges — fetch in chunks."""
+        out: dict[str, dict] = {}
+        d = date_since
+        while d <= date_until:
+            e = min(d + timedelta(days=chunk_days - 1), date_until)
+            part = fetch_direct_by_day(direct_token, client_login, d, e)
+            out.update(part)
+            d = e + timedelta(days=1)
+        return out
 
     direct_token = secrets.get("DIRECT_OAUTH_TOKEN")
     client_login = secrets.get("DIRECT_CLIENT_LOGIN") or cfg.get("direct_client_login") or ""
     if direct_token:
         try:
-            spend = fetch_spend_by_day(direct_token, client_login, window_start, until)
+            direct_win = _fetch_direct_range(window_start, until)
+            spend, clicks, impressions = _split_direct(direct_win)
             sources["spend"] = "direct_api"
-            print(f"  Direct: {len(spend)} days")
+            sources["clicks"] = "direct_api"
+            sources["impressions"] = "direct_api"
+            print(f"  Direct: {len(spend)} days (spend+clicks+impressions)")
         except Exception as exc:
             errors.append(f"direct: {exc}")
             print(f"  Direct failed: {exc}")
@@ -133,6 +169,18 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
         except Exception as exc:
             errors.append(f"supabase_bills: {exc}")
             print(f"  Supabase bills failed: {exc}")
+        try:
+            trial_cancels_by_day = fetch_trial_cancellations_by_day(db_url, anchor, until)
+            unit_snap = fetch_unit_economics_snapshot(db_url)
+            sources["trial_cancellations"] = "supabase_trial_cancelled"
+            sources["unit_economics"] = "supabase_entitlements"
+            print(
+                f"  Supabase cancels: {sum(trial_cancels_by_day.values())} · "
+                f"active payers: {(unit_snap or {}).get('active_payers', 0)}"
+            )
+        except Exception as exc:
+            errors.append(f"supabase_unit: {exc}")
+            print(f"  Supabase unit/cancels failed: {exc}")
     else:
         errors.append("supabase: SUPABASE_DB_URL missing")
 
@@ -148,19 +196,29 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
         print(f"  Payments (CSV fallback): {len(payments)} records")
 
     full_spend = spend
+    full_clicks = clicks
+    full_impressions = impressions
     full_installs = installs
     full_trials = trials
 
     if anchor < window_start and direct_token:
         try:
-            full_spend = fetch_spend_by_day(direct_token, client_login, anchor, until)
-            # Wide date ranges return stale spend for recent days; window fetch is fresher.
+            direct_full = _fetch_direct_range(anchor, until)
+            full_spend, full_clicks, full_impressions = _split_direct(direct_full)
+            # Window fetch is fresher for recent days.
             ws = window_start.isoformat()
             for day_key, value in spend.items():
                 if day_key >= ws:
                     full_spend[day_key] = value
-        except Exception:
+                    full_clicks[day_key] = clicks.get(day_key, 0)
+                    full_impressions[day_key] = impressions.get(day_key, 0)
+            print(f"  Direct full range: {len(full_spend)} days")
+        except Exception as exc:
+            errors.append(f"direct_full: {exc}")
             full_spend = spend
+            full_clicks = clicks
+            full_impressions = impressions
+            print(f"  Direct full range failed: {exc}")
 
     if anchor < window_start and am_token:
         try:
@@ -206,6 +264,8 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
         trials=full_trials,
         bills=bills,
         sold=sold,
+        clicks=full_clicks,
+        impressions=full_impressions,
         anchor=anchor,
         until=until,
     )
@@ -238,6 +298,68 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
     cohort_path.write_text(json.dumps(cohort, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"  Cohort JSON: {cohort_path}")
 
+    installs_total = sum(int(v.get("installs") or 0) for v in merged.values())
+    spend_total = sum(float(v.get("spend") or 0) for v in merged.values())
+    revenue_total = int((bills_by_plan or {}).get("total", {}).get("rub") or cohort["totals"].get("paid_net") or 0)
+    paid_count = int((bills_by_plan or {}).get("total", {}).get("count") or cohort["totals"].get("sold") or 0)
+
+    if am_token:
+        try:
+            product_metrics = fetch_product_metrics(
+                am_token, str(app_id), anchor, until, installs_total
+            )
+            sources["product"] = "appmetrica_reporting"
+            print(
+                f"  Product: garden {product_metrics.get('garden_activation_pct')}% · "
+                f"paywall CTA {product_metrics.get('paywall_cta_pct')}%"
+            )
+        except Exception as exc:
+            errors.append(f"product: {exc}")
+            print(f"  Product metrics failed: {exc}")
+
+    # Unit economics proxies from current revenue + active base.
+    active_users = int((product_metrics or {}).get("active_users") or 0)
+    active_payers = int((unit_snap or {}).get("active_payers") or paid_count or 0)
+    arpu = round(revenue_total / active_users, 2) if active_users and revenue_total else None
+    arppu = round(revenue_total / active_payers, 2) if active_payers and revenue_total else None
+    # Simple LTV proxy: ARPPU × expected renewals. Yearly dominates; use 1.3x as early estimate
+    # until we have full rebill curves (renewals already observed boost it).
+    renewals = int((unit_snap or {}).get("renewals") or 0)
+    ltv = None
+    if arppu is not None:
+        renew_factor = 1.0 + (renewals / active_payers) if active_payers else 1.0
+        ltv = round(arppu * max(1.0, min(renew_factor, 3.0)), 2)
+
+    unit_economics = {
+        "revenue_total": revenue_total,
+        "spend_total": round(spend_total, 2),
+        "active_users": active_users,
+        "active_payers": active_payers,
+        "plus_active_users": int((unit_snap or {}).get("plus_active_users") or 0),
+        "trial_cancellations": int((unit_snap or {}).get("trial_cancellations") or sum(trial_cancels_by_day.values())),
+        "trial_cancellations_by_day": trial_cancels_by_day,
+        "renewals": renewals,
+        "arpu": arpu,
+        "arppu": arppu,
+        "ltv": ltv,
+        "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
+        "roas_d7": cohort["totals"].get("roas_d7"),
+        "roas_d14": cohort["totals"].get("roas_d14"),
+        "roas_d30": cohort["totals"].get("roas_d30"),
+    }
+
+    product_path = work_dir / cfg.get("product_json", "data/planto-product.json")
+    product_payload = {
+        "generated_at": datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds"),
+        "anchor": anchor.isoformat(),
+        "until": until.isoformat(),
+        "product": product_metrics,
+        "unit_economics": unit_economics,
+    }
+    product_path.parent.mkdir(parents=True, exist_ok=True)
+    product_path.write_text(json.dumps(product_payload, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(f"  Product JSON: {product_path}")
+
     meta = {
         "generated_at": datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds"),
         "anchor": anchor.isoformat(),
@@ -252,6 +374,16 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
             "trials_total_new": new_trials_total,
             "delta": new_trials_total - old_trials_total,
         },
+        "unit_economics": unit_economics,
+        "product": {
+            "garden_activation_pct": (product_metrics or {}).get("garden_activation_pct"),
+            "garden_avg_plants": (product_metrics or {}).get("garden_avg_plants"),
+            "garden_depth_icp_pct": (product_metrics or {}).get("garden_depth_icp_pct"),
+            "paywall_cta_pct": (product_metrics or {}).get("paywall_cta_pct"),
+            "care_engagement_pct": (product_metrics or {}).get("care_engagement_pct"),
+            "feature_activation": (product_metrics or {}).get("feature_activation"),
+            "retention": (product_metrics or {}).get("retention"),
+        } if product_metrics else None,
     }
     if bills_by_plan:
         meta["payments_by_plan"] = bills_by_plan

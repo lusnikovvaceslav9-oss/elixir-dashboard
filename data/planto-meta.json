@@ -1,22 +1,65 @@
 {
-  "generated_at": "2026-07-09T13:43:02+00:00",
+  "generated_at": "2026-07-09T21:20:27+07:00",
   "anchor": "2026-06-05",
   "until": "2026-07-09",
   "window_start": "2026-06-30",
   "trial_attribution": "supabase_trial_start",
   "sources": {
     "spend": "direct_api",
+    "clicks": "direct_api",
+    "impressions": "direct_api",
     "installs": "appmetrica_reporting",
     "trials_am_crosscheck": "appmetrica_reporting",
     "trials": "supabase_trial_start",
-    "bills": "supabase_main_active"
+    "bills": "supabase_main_active",
+    "trial_cancellations": "supabase_trial_cancelled",
+    "unit_economics": "supabase_entitlements",
+    "product": "appmetrica_reporting"
   },
   "errors": [],
   "days": 35,
   "reconcile_diff": {
     "trials_total_old_csv": 98,
-    "trials_total_new": 98,
-    "delta": 0
+    "trials_total_new": 99,
+    "delta": 1
+  },
+  "unit_economics": {
+    "revenue_total": 42633,
+    "spend_total": 148532.39,
+    "active_users": 7690,
+    "active_payers": 23,
+    "plus_active_users": 85,
+    "trial_cancellations": 11,
+    "trial_cancellations_by_day": {
+      "2026-07-07": 5,
+      "2026-07-09": 6
+    },
+    "renewals": 13,
+    "arpu": 5.54,
+    "arppu": 1853.61,
+    "ltv": 2901.3,
+    "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
+    "roas_d7": 34.8,
+    "roas_d14": 47.7,
+    "roas_d30": null
+  },
+  "product": {
+    "garden_activation_pct": 32.9,
+    "garden_avg_plants": 1.69,
+    "garden_depth_icp_pct": null,
+    "paywall_cta_pct": 32.87,
+    "care_engagement_pct": 3.57,
+    "feature_activation": {
+      "scan_pct": 33.51,
+      "watering_pct": 2.27,
+      "ai_pct": 17.99
+    },
+    "retention": {
+      "d1": null,
+      "d3": null,
+      "d7": null,
+      "note": "AppMetrica Reporting API не отдаёт D1/D3/D7 без Logs/Retention export"
+    }
   },
   "payments_by_plan": {
     "yearly": {
@@ -32,5 +75,5 @@
       "rub": 42633
     }
   },
-  "trials_am_crosscheck_total": 55
+  "trials_am_crosscheck_total": 56
 }

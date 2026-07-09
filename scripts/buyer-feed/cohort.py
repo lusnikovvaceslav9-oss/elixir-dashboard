@@ -7,6 +7,7 @@ from datetime import date, timedelta
 
 DEFAULT_ANCHOR = "2026-06-05"
 TRIAL_LAG_DAYS = 7
+ROAS_WINDOWS = (7, 14, 30)
 
 MONTH_RU = {1: "I", 2: "II", 3: "III", 4: "IV", 5: "V", 6: "VI", 7: "VII", 8: "VIII", 9: "IX", 10: "X", 11: "XI", 12: "XII"}
 
@@ -197,6 +198,23 @@ def analyze_cohort_from_daily(
 
         cpi = spend / inst_n if inst_n else None
         cpt = spend / trial_n if trial_n else None
+        install_to_trial_cr = (trial_n / inst_n * 100) if inst_n else None
+        trial_to_paid_cr = (sold / trial_n * 100) if trial_n else None
+        cac = spend / sold if sold else None
+        roas_raw = (paid / spend * 100) if spend else None
+
+        # Same paid_net attribution; maturity gates differ by window.
+        # Until we have day-level revenue curves, ROAS Dn uses cohort paid_net
+        # once report_date >= end + n days.
+        roas_by_window: dict[str, float | None] = {}
+        for n in ROAS_WINDOWS:
+            mature_n = report_date >= (b.end + timedelta(days=n))
+            key = f"roas_d{n}"
+            if mature_n and roas_raw is not None:
+                roas_by_window[key] = round(roas_raw, 1)
+            else:
+                roas_by_window[key] = None
+
         checkpoint = b.end + timedelta(days=TRIAL_LAG_DAYS)
         mature = report_date >= checkpoint
 
@@ -205,12 +223,14 @@ def analyze_cohort_from_daily(
             pnl_display = fmt_rub(pnl_val)
             when = "зрелая"
             mature_pnl += pnl_val
+            trial_to_paid_display = round(trial_to_paid_cr, 1) if trial_to_paid_cr is not None else None
         else:
             pnl_val = None
             checkpoint_label = fmt_checkpoint(checkpoint)
             pnl_display = f"Рано · {checkpoint_label}"
             when = checkpoint_label
             immature_count += 1
+            trial_to_paid_display = None
 
         rows.append(
             {
@@ -226,6 +246,14 @@ def analyze_cohort_from_daily(
                 "trials_am": trial_n,
                 "cpi": round(cpi) if cpi is not None else None,
                 "cpt": round(cpt) if cpt is not None else None,
+                "install_to_trial_cr": round(install_to_trial_cr, 2) if install_to_trial_cr is not None else None,
+                "trial_to_paid_cr": trial_to_paid_display,
+                "trial_to_paid_cr_raw": round(trial_to_paid_cr, 2) if trial_to_paid_cr is not None else None,
+                "cac": round(cac) if cac is not None else None,
+                "roas_d7": roas_by_window["roas_d7"],
+                "roas_d7_raw": round(roas_raw, 1) if roas_raw is not None else None,
+                "roas_d14": roas_by_window["roas_d14"],
+                "roas_d30": roas_by_window["roas_d30"],
                 "sold": sold,
                 "paid_net": paid,
                 "pnl": pnl_val,
@@ -240,6 +268,30 @@ def analyze_cohort_from_daily(
         total_inst += inst_n
         total_trials += trial_n
         total_sold += sold
+
+    totals_install_to_trial = (total_trials / total_inst * 100) if total_inst else None
+    totals_trial_to_paid = (total_sold / total_trials * 100) if total_trials else None
+    totals_cac = total_spend / total_sold if total_sold else None
+    totals_roas = (total_paid / total_spend * 100) if total_spend else None
+
+    # Totals ROAS Dn: only buckets mature for that window.
+    totals_roas_windows: dict[str, float | None] = {}
+    for n in ROAS_WINDOWS:
+        key = f"roas_d{n}"
+        spend_m = 0.0
+        paid_m = 0
+        for r in rows:
+            end = parse_day(r["end"])
+            if end is None:
+                continue
+            if report_date >= end + timedelta(days=n):
+                spend_m += float(r["spend"] or 0)
+                paid_m += int(r["paid_net"] or 0)
+        # Require meaningful spend; 0% with tiny early cohort is misleading.
+        if spend_m >= 5000:
+            totals_roas_windows[key] = round(paid_m / spend_m * 100, 1)
+        else:
+            totals_roas_windows[key] = None
 
     return {
         "anchor": anchor.isoformat(),
@@ -256,6 +308,12 @@ def analyze_cohort_from_daily(
             "paid_net": total_paid,
             "pnl_mature_only": round(mature_pnl),
             "immature_buckets": immature_count,
+            "install_to_trial_cr": round(totals_install_to_trial, 2) if totals_install_to_trial is not None else None,
+            "trial_to_paid_cr": round(totals_trial_to_paid, 2) if totals_trial_to_paid is not None else None,
+            "cac": round(totals_cac) if totals_cac is not None else None,
+            "roas_d7": totals_roas_windows.get("roas_d7") if totals_roas_windows.get("roas_d7") is not None else (round(totals_roas, 1) if totals_roas is not None else None),
+            "roas_d14": totals_roas_windows.get("roas_d14"),
+            "roas_d30": totals_roas_windows.get("roas_d30"),
         },
     }
 

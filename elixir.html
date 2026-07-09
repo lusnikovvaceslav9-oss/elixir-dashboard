@@ -281,6 +281,18 @@ td:first-child{text-align:left;color:#F0F0F0;font-weight:500}
 .cohort-table .pnl-early{color:#F59E0B;font-weight:600}
 .cohort-table .pnl-pos{color:var(--success);font-weight:600}
 .cohort-table .pnl-neg{color:var(--danger);font-weight:600}
+.planto-blocks{display:flex;flex-direction:column;gap:14px;margin:4px 0 18px}
+.planto-block{background:rgba(18,18,26,0.85);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px}
+.planto-block-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:12px}
+.planto-block-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim)}
+.planto-block-hint{font-size:11px;color:var(--text-muted)}
+.planto-block-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.planto-kpi{padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px}
+.planto-kpi-label{font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:0.06em;color:rgba(255,255,255,0.35);margin-bottom:6px}
+.planto-kpi-value{font-size:18px;font-weight:600;color:#F0F0F0;line-height:1.15}
+.planto-kpi-sub{font-size:10px;color:var(--text-muted);margin-top:5px}
+.planto-kpi.pending .planto-kpi-value{color:rgba(255,255,255,0.28);font-size:14px;font-weight:500}
+.planto-kpi.accent .planto-kpi-value{color:#9B8FFD}
 .feed-badge{font-size:10px;font-weight:600;padding:3px 8px;border-radius:6px;background:rgba(34,197,94,0.15);color:#86efac;border:1px solid rgba(34,197,94,0.3);margin-left:8px;vertical-align:middle}
 .feed-stamp{font-size:11px;font-weight:500;color:var(--text-muted);margin-left:4px}
 .feed-warn{color:#fbbf24!important}
@@ -822,6 +834,7 @@ async function jbLoad() {
 const PLANTO_DATA_URL = 'data/planto-daily.csv';
 const PLANTO_COHORT_URL = 'data/planto-cohort.json';
 const PLANTO_META_URL = 'data/planto-meta.json';
+const PLANTO_PRODUCT_URL = 'data/planto-product.json';
 const PLANTO_GH_REPO = 'lusnikovvaceslav9-oss/elixir-dashboard';
 const PLANTO_GH_BRANCH = 'main';
 const PLANTO_FEED_TRIGGER_URL = '/.netlify/functions/trigger-planto-feed';
@@ -850,6 +863,7 @@ let sourceIndexByProject = {};
 let plantoViewByProject = {};
 let plantoCohortCache = null;
 let plantoMetaCache = null;
+let plantoProductCache = null;
 let projPickerOpen = false;
 let projPickerFocusIdx = 0;
 let projPickerFilter = '';
@@ -1645,6 +1659,7 @@ function resolveFeedFetchUrl(url) {
   if (url === PLANTO_DATA_URL || String(url).includes('planto-daily.csv')) return resolvePlantoFeedUrl(PLANTO_DATA_URL);
   if (url === PLANTO_META_URL || String(url).includes('planto-meta.json')) return resolvePlantoFeedUrl(PLANTO_META_URL);
   if (url === PLANTO_COHORT_URL || String(url).includes('planto-cohort.json')) return resolvePlantoFeedUrl(PLANTO_COHORT_URL);
+  if (url === PLANTO_PRODUCT_URL || String(url).includes('planto-product.json')) return resolvePlantoFeedUrl(PLANTO_PRODUCT_URL);
   return url;
 }
 
@@ -1888,6 +1903,14 @@ async function fetchPlantoMeta() {
   } catch(e) { return null; }
 }
 
+async function fetchPlantoProduct() {
+  try {
+    const resp = await fetch(bustFeedUrl(resolvePlantoFeedUrl(PLANTO_PRODUCT_URL)), { cache: 'no-store' });
+    if (!resp.ok) return null;
+    return await resp.json();
+  } catch(e) { return null; }
+}
+
 async function fetchPlantoCohort() {
   try {
     const resp = await fetch(bustFeedUrl(resolvePlantoFeedUrl(PLANTO_COHORT_URL)), { cache: 'no-store' });
@@ -1962,12 +1985,45 @@ function isCohortEarly(r) {
   return !r.mature || String(r.pnl_display || '').startsWith('Рано');
 }
 
+function enrichCohortRow(r) {
+  const spend = Number(r.spend) || 0;
+  const inst = Number(r.installs_am) || 0;
+  const trials = Number(r.trials_sb != null ? r.trials_sb : r.trials_am) || 0;
+  const sold = Number(r.sold) || 0;
+  const paid = Number(r.paid_net) || 0;
+  const installToTrial = r.install_to_trial_cr != null
+    ? r.install_to_trial_cr
+    : (inst ? (trials / inst * 100) : null);
+  const trialToPaidRaw = r.trial_to_paid_cr_raw != null
+    ? r.trial_to_paid_cr_raw
+    : (trials ? (sold / trials * 100) : null);
+  const trialToPaid = r.mature
+    ? (r.trial_to_paid_cr != null ? r.trial_to_paid_cr : trialToPaidRaw)
+    : null;
+  const cac = r.cac != null ? r.cac : (sold ? spend / sold : null);
+  const roasRaw = r.roas_d7_raw != null
+    ? r.roas_d7_raw
+    : (spend ? (paid / spend * 100) : null);
+  const roasD7 = r.mature
+    ? (r.roas_d7 != null ? r.roas_d7 : roasRaw)
+    : null;
+  return {
+    ...r,
+    install_to_trial_cr: installToTrial != null ? Math.round(installToTrial * 100) / 100 : null,
+    trial_to_paid_cr: trialToPaid != null ? Math.round(trialToPaid * 10) / 10 : null,
+    cac: cac != null ? Math.round(cac) : null,
+    roas_d7: roasD7 != null ? Math.round(roasD7 * 10) / 10 : null,
+    roas_d14: r.roas_d14 ?? null,
+    roas_d30: r.roas_d30 ?? null,
+  };
+}
+
 function renderPlantoCohortSection(monthKey) {
   const c = plantoCohortCache;
   if (!c || !c.rows?.length) return '';
   const meta = plantoMetaCache;
   const updated = meta?.generated_at ? new Date(meta.generated_at).toLocaleString('ru-RU') : '';
-  const allRows = c.rows;
+  const allRows = c.rows.map(enrichCohortRow);
   const visible = monthKey
     ? allRows.filter(r => cohortRowMonthKey(r) === monthKey)
     : allRows;
@@ -1989,6 +2045,10 @@ function renderPlantoCohortSection(monthKey) {
       <td>${fmtN(r.sold || 0)}</td>
       <td>${r.cpi != null ? fmtRub(r.cpi) : '—'}</td>
       <td>${r.cpt != null ? fmtRub(r.cpt) : '—'}</td>
+      <td>${r.install_to_trial_cr != null ? fmtPct(r.install_to_trial_cr) : '—'}</td>
+      <td>${r.trial_to_paid_cr != null ? fmtPct(r.trial_to_paid_cr) : (isCohortEarly(r) ? 'рано' : '—')}</td>
+      <td>${r.cac != null ? fmtRub(r.cac) : '—'}</td>
+      <td>${r.roas_d7 != null ? fmtPct(r.roas_d7) : (isCohortEarly(r) ? 'рано' : '—')}</td>
       <td>${fmtRub(r.paid_net)}</td>
       <td class="${pnlCls}">${escHtml(pnlText)}</td>
     </tr>`;
@@ -2000,6 +2060,10 @@ function renderPlantoCohortSection(monthKey) {
   const tPaid = sumCohortRows(visible, 'paid_net');
   const maturePnl = visible.filter(r => r.mature && r.pnl != null).reduce((a, r) => a + r.pnl, 0);
   const immature = visible.filter(r => !r.mature).length;
+  const tCrInst = tInst ? (tTrials / tInst * 100) : null;
+  const tCrPaid = tTrials ? (tSold / tTrials * 100) : null;
+  const tCac = tSold ? tSpend / tSold : null;
+  const tRoas = tSpend ? (tPaid / tSpend * 100) : null;
   rows += `<tr class="total-row">
     <td><strong>Итого${monthKey ? ' · ' + escHtml(formatMonthKey(monthKey)) : ''}</strong></td>
     <td>${fmtRub(tSpend)}</td>
@@ -2007,6 +2071,10 @@ function renderPlantoCohortSection(monthKey) {
     <td>${fmtN(tTrials)}</td>
     <td>${fmtN(tSold)}</td>
     <td>—</td><td>—</td>
+    <td>${tCrInst != null ? fmtPct(tCrInst) : '—'}</td>
+    <td>${tCrPaid != null ? fmtPct(tCrPaid) : '—'}</td>
+    <td>${tCac != null ? fmtRub(tCac) : '—'}</td>
+    <td>${tRoas != null ? fmtPct(tRoas) : '—'}</td>
     <td>${fmtRub(tPaid)}</td>
     <td>${fmtRub(maturePnl)}${immature ? ` (+${immature} рано)` : ''}</td>
   </tr>`;
@@ -2021,10 +2089,10 @@ function renderPlantoCohortSection(monthKey) {
     : `Когорты (7 дней от ${c.anchor || '2026-06-05'})`;
   return `<div class="cohort-card">
     <div class="card-title">${escHtml(title)}</div>
-    <div class="cohort-meta">${attr} · Paid net — RuStore · Незрелые: в P&L дата оценки после лага ${c.trial_lag_days || 7} д${monthHint}${updated ? ' · обновлено ' + escHtml(updated) : ''}</div>
+    <div class="cohort-meta">${attr} · Trial→Paid и ROAS D7 — только зрелые когорты (лаг ${c.trial_lag_days || 7} д) · ROAS D14/D30 — позже${monthHint}${updated ? ' · обновлено ' + escHtml(updated) : ''}</div>
     <div class="table-wrap"><table class="cohort-table">
       <thead><tr>
-        <th>Когорта</th><th>Spend</th><th>Inst</th><th>Триалы</th><th>Продано</th><th>CPI</th><th>CPT</th><th>Paid net</th><th>P&L</th>
+        <th>Когорта</th><th>Spend</th><th>Inst</th><th>Триалы</th><th>Продано</th><th>CPI</th><th>CPT</th><th>Inst→Trial</th><th>Trial→Paid</th><th>CAC</th><th>ROAS D7</th><th>Paid net</th><th>P&L</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table></div>
@@ -2038,6 +2106,13 @@ async function loadAll() {
   await refreshPlantoFeedRef();
   plantoMetaCache = await fetchPlantoMeta();
   plantoCohortCache = await fetchPlantoCohort();
+  plantoProductCache = await fetchPlantoProduct();
+  if (!plantoProductCache && plantoMetaCache?.product) {
+    plantoProductCache = {
+      product: plantoMetaCache.product,
+      unit_economics: plantoMetaCache.unit_economics,
+    };
+  }
   await Promise.allSettled(projects.map(async p => {
     try { cache[p.id] = await fetchProject(p); }
     catch(e) { console.error(p.id, e); cache[p.id] = null; }
@@ -2062,10 +2137,10 @@ async function refreshData() {
 // METRICS / TABLE / CHART CONFIG PER TYPE
 // ═══════════════════════════════════════════════════════════════
 const PLANTO_VIEWS = {
-  summary:  { label: 'Все',      resultKey: 'installs', costKey: 'cost_install', keys: ['spend', 'installs', 'cost_install', 'trials', 'cost_trial', 'fb', 'cost_fb'] },
-  installs: { label: 'Installs', resultKey: 'installs', costKey: 'cost_install', keys: ['spend', 'installs', 'cost_install'] },
-  trials:   { label: 'Trials',   resultKey: 'trials',   costKey: 'cost_trial',  keys: ['spend', 'trials', 'cost_trial'] },
-  fb:       { label: 'Bills',    resultKey: 'fb',       costKey: 'cost_fb',     keys: ['spend', 'fb', 'cost_fb'] },
+  summary:  { label: 'Все',      resultKey: 'installs', costKey: 'cost_install', keys: ['spend', 'installs', 'cost_install', 'clicks', 'cpc', 'ctr', 'trials', 'cost_trial', 'cr_install_trial', 'sold', 'fb', 'cost_fb', 'cac', 'cr_trial_paid', 'roas'] },
+  installs: { label: 'Installs', resultKey: 'installs', costKey: 'cost_install', keys: ['spend', 'installs', 'cost_install', 'clicks', 'cpc', 'ctr'] },
+  trials:   { label: 'Trials',   resultKey: 'trials',   costKey: 'cost_trial',  keys: ['spend', 'trials', 'cost_trial', 'cr_install_trial'] },
+  fb:       { label: 'Bills',    resultKey: 'fb',       costKey: 'cost_fb',     keys: ['spend', 'fb', 'cost_fb', 'sold', 'cac', 'roas'] },
 };
 
 function isPlantoAutoFeed(proj) {
@@ -2092,7 +2167,9 @@ function getPlantoView(projId) {
 function getPlantoMetricKeys(view, rows) {
   const keys = [...PLANTO_VIEWS[view].keys];
   if (rows?.some(r => 'impressions' in r || 'clicks' in r)) {
-    keys.push('impressions', 'clicks', 'cpc', 'cpm', 'ctr');
+    ['impressions', 'clicks', 'cpc', 'cpm', 'ctr'].forEach(k => {
+      if (!keys.includes(k)) keys.push(k);
+    });
   }
   return keys;
 }
@@ -2172,21 +2249,208 @@ function renderPlantoBreakdownCard(proj, rows) {
   </div>`;
 }
 
+function plantoKpiCell(label, value, { sub = '', accent = false, pending = false } = {}) {
+  return `<div class="planto-kpi${accent ? ' accent' : ''}${pending ? ' pending' : ''}">
+    <div class="planto-kpi-label">${escHtml(label)}</div>
+    <div class="planto-kpi-value">${value}</div>
+    ${sub ? `<div class="planto-kpi-sub">${escHtml(sub)}</div>` : ''}
+  </div>`;
+}
+
+function getMatureCohortMetrics(monthKey) {
+  const c = plantoCohortCache;
+  if (!c?.rows?.length) return null;
+  const rows = c.rows.map(enrichCohortRow).filter(r => {
+    if (monthKey && cohortRowMonthKey(r) !== monthKey) return false;
+    return !!r.mature;
+  });
+  if (!rows.length) return null;
+  const spend = sumCohortRows(rows, 'spend');
+  const trials = sumCohortRows(rows, 'trials_sb') || sumCohortRows(rows, 'trials_am');
+  const sold = sumCohortRows(rows, 'sold');
+  const paid = sumCohortRows(rows, 'paid_net');
+  const totals = c.totals || {};
+  return {
+    trialToPaid: trials ? (sold / trials * 100) : null,
+    cac: sold ? spend / sold : null,
+    roasD7: spend ? (paid / spend * 100) : null,
+    roasD14: totals.roas_d14 != null ? totals.roas_d14 : null,
+    roasD30: totals.roas_d30 != null ? totals.roas_d30 : null,
+    buckets: rows.length,
+  };
+}
+
+function getPlantoUnitEconomics() {
+  return plantoProductCache?.unit_economics || plantoMetaCache?.unit_economics || null;
+}
+
+function getPlantoProductMetrics() {
+  return plantoProductCache?.product || plantoMetaCache?.product || null;
+}
+
+function fmtMoneyOrDash(n, cur) {
+  if (n == null || isNaN(n)) return '—';
+  return fmtMoney(n, cur);
+}
+
+function renderPlantoMetricBlocks(proj, rows, monthKey) {
+  if (!isPlantoProject(proj, rows)) return '';
+  const cur = proj.currency;
+  const sp = sum(rows, 'spend');
+  const ins = sum(rows, 'installs');
+  const tr = sum(rows, 'trials');
+  const sold = sum(rows, 'sold');
+  const fb = sum(rows, 'fb');
+  const clicks = sum(rows, 'clicks');
+  const impressions = sum(rows, 'impressions');
+  const hasAds = clicks > 0 || impressions > 0;
+  const paidNet = getPlantoPaidNetForRows(rows);
+  const mature = getMatureCohortMetrics(monthKey);
+  const unit = getPlantoUnitEconomics();
+  const product = getPlantoProductMetrics();
+  const feat = product?.feature_activation || {};
+  const ret = product?.retention || {};
+
+  const cancels = unit?.trial_cancellations;
+  const cancelRate = (cancels != null && tr > 0) ? (cancels / tr * 100) : null;
+
+  const acquisition = [
+    plantoKpiCell('Spend', fmtMoney(sp, cur)),
+    plantoKpiCell('Installs', fmtInt(ins)),
+    plantoKpiCell('CPI', ins ? fmtMoney(sp / ins, cur) : '—', { accent: true }),
+    hasAds
+      ? plantoKpiCell('CTR', impressions ? fmtPct(clicks / impressions * 100) : '—', { sub: `${fmtInt(clicks)} кликов` })
+      : plantoKpiCell('CTR', 'ожидает feed', { pending: true, sub: 'clicks/impressions из Direct' }),
+    hasAds
+      ? plantoKpiCell('CPC', clicks ? fmtMoney(sp / clicks, cur) : '—', { accent: true })
+      : plantoKpiCell('CPC', 'ожидает feed', { pending: true, sub: 'clicks из Direct' }),
+  ].join('');
+
+  const trialsBlock = [
+    plantoKpiCell('Trials Started', fmtInt(tr)),
+    plantoKpiCell('CPT', tr ? fmtMoney(sp / tr, cur) : '—', { accent: true }),
+    plantoKpiCell('Install → Trial', ins ? fmtPct(tr / ins * 100) : '—'),
+    cancels != null
+      ? plantoKpiCell('Trial Cancellations', fmtInt(cancels), {
+          sub: cancelRate != null ? `${fmtPct(cancelRate)} от триалов · CANCELLED` : 'TRIAL + CANCELLED',
+        })
+      : plantoKpiCell('Trial Cancellations', 'нет данных', { pending: true, sub: 'нужен счётчик отмен в Supabase' }),
+    mature?.trialToPaid != null
+      ? plantoKpiCell('Trial → Paid (7d+)', fmtPct(mature.trialToPaid), { sub: `${mature.buckets} зрелых когорт` })
+      : plantoKpiCell('Trial → Paid (7d+)', tr ? fmtPct((sold || fb) / tr * 100) : '—', { sub: 'по дням оплаты · когорты зреют' }),
+  ].join('');
+
+  const unitBlock = [
+    plantoKpiCell('Paid Subscriptions', fmtInt(fb), { sub: sold ? `yearly sold: ${fmtInt(sold)}` : '' }),
+    plantoKpiCell('CAC', (sold || fb) ? fmtMoney(sp / (sold || fb), cur) : '—', { accent: true, sub: 'spend / paid' }),
+    unit?.arpu != null
+      ? plantoKpiCell('ARPU', fmtMoneyOrDash(unit.arpu, cur), { sub: `revenue / ${fmtInt(unit.active_users || 0)} active` })
+      : plantoKpiCell('ARPU', 'нет данных', { pending: true, sub: 'нужна база активных пользователей' }),
+    unit?.arppu != null
+      ? plantoKpiCell('ARPPU', fmtMoneyOrDash(unit.arppu, cur), { sub: `revenue / ${fmtInt(unit.active_payers || 0)} payers` })
+      : plantoKpiCell('ARPPU', 'нет данных', { pending: true, sub: 'нужна база платящих' }),
+    unit?.ltv != null
+      ? plantoKpiCell('LTV', fmtMoneyOrDash(unit.ltv, cur), { accent: true, sub: unit.ltv_note || 'прокси по ребиллам' })
+      : plantoKpiCell('LTV', 'нет данных', { pending: true, sub: 'нужна кривая ребиллов' }),
+    mature?.roasD7 != null
+      ? plantoKpiCell('ROAS D7', fmtPct(mature.roasD7), { accent: true, sub: 'paid_net / spend · зрелые' })
+      : plantoKpiCell('ROAS', sp && paidNet != null ? fmtPct(paidNet / sp * 100) : '—', { accent: true, sub: 'прокси по периоду' }),
+    (unit?.roas_d14 != null || mature?.roasD14 != null)
+      ? plantoKpiCell('ROAS D14', fmtPct(unit?.roas_d14 ?? mature.roasD14), { sub: 'корзины ≥14д' })
+      : plantoKpiCell('ROAS D14', 'рано', { pending: true, sub: 'мало зрелых когорт' }),
+    (unit?.roas_d30 != null || mature?.roasD30 != null)
+      ? plantoKpiCell('ROAS D30', fmtPct(unit?.roas_d30 ?? mature.roasD30), { sub: 'корзины ≥30д' })
+      : plantoKpiCell('ROAS D30', 'рано', { pending: true, sub: 'мало зрелых когорт' }),
+  ].join('');
+
+  const gardenAvg = product?.garden_avg_plants;
+  const productBlock = [
+    ret.d1 != null
+      ? plantoKpiCell('Retention D1', fmtPct(ret.d1))
+      : plantoKpiCell('Retention D1', 'нет данных', { pending: true, sub: 'нужен Retention/Logs API' }),
+    ret.d3 != null
+      ? plantoKpiCell('Retention D3', fmtPct(ret.d3))
+      : plantoKpiCell('Retention D3', 'нет данных', { pending: true, sub: 'нужен Retention/Logs API' }),
+    ret.d7 != null
+      ? plantoKpiCell('Retention D7', fmtPct(ret.d7))
+      : plantoKpiCell('Retention D7', 'нет данных', { pending: true, sub: 'нужен Retention/Logs API' }),
+    product?.garden_activation_pct != null
+      ? plantoKpiCell('Активация в сад', fmtPct(product.garden_activation_pct), {
+          sub: `plant_added users / install${gardenAvg != null ? ` · avg ${gardenAvg} plants` : ''}`,
+        })
+      : plantoKpiCell('Активация в сад', 'нет данных', { pending: true, sub: 'plant_added / install' }),
+    product?.garden_depth_icp_pct != null
+      ? plantoKpiCell('Глубина сада (ICP)', fmtPct(product.garden_depth_icp_pct), { sub: '≥3 plants / install' })
+      : plantoKpiCell('Глубина сада (ICP)', gardenAvg != null ? `avg ${gardenAvg}` : 'нет данных', {
+          pending: product?.garden_depth_icp_pct == null,
+          sub: gardenAvg != null ? 'прокси: plants/user · ≥3% нужен Logs API' : '≥3 own plants / install',
+        }),
+    product?.paywall_cta_pct != null
+      ? plantoKpiCell('CTA пейволла', fmtPct(product.paywall_cta_pct), { accent: true, sub: 'paywall_cta / paywall_shown' })
+      : plantoKpiCell('CTA пейволла', 'нет данных', { pending: true, sub: 'paywall_cta / paywall_shown' }),
+    product?.care_engagement_pct != null
+      ? plantoKpiCell('Вовлечение в уход', fmtPct(product.care_engagement_pct), { sub: 'user_score5 / install' })
+      : plantoKpiCell('Вовлечение в уход', 'нет данных', { pending: true, sub: 'user_score5 / install' }),
+    (feat.scan_pct != null || feat.watering_pct != null || feat.ai_pct != null)
+      ? plantoKpiCell(
+          'Диагностика / полив / ИИ',
+          [feat.scan_pct, feat.watering_pct, feat.ai_pct].map(v => (v != null ? fmtPct(v) : '—')).join(' · '),
+          { sub: 'scan / watering / ai_route vs install' },
+        )
+      : plantoKpiCell('Диагностика / полив / ИИ', 'нет данных', { pending: true, sub: 'feature events AppMetrica' }),
+  ].join('');
+
+  return `<div class="planto-blocks">
+    <div class="planto-block">
+      <div class="planto-block-head">
+        <div class="planto-block-title">1. Привлечение и стоимость трафика</div>
+        <div class="planto-block-hint">Direct + AppMetrica</div>
+      </div>
+      <div class="planto-block-grid">${acquisition}</div>
+    </div>
+    <div class="planto-block">
+      <div class="planto-block-head">
+        <div class="planto-block-title">2. Воронка триалов</div>
+        <div class="planto-block-hint">лаг 7 дней · когорты</div>
+      </div>
+      <div class="planto-block-grid">${trialsBlock}</div>
+    </div>
+    <div class="planto-block">
+      <div class="planto-block-head">
+        <div class="planto-block-title">3. Юнит-экономика и монетизация</div>
+        <div class="planto-block-hint">RuStore + AppMetrica users</div>
+      </div>
+      <div class="planto-block-grid">${unitBlock}</div>
+    </div>
+    <div class="planto-block">
+      <div class="planto-block-head">
+        <div class="planto-block-title">4. Использование продукта</div>
+        <div class="planto-block-hint">AppMetrica events</div>
+      </div>
+      <div class="planto-block-grid">${productBlock}</div>
+    </div>
+  </div>`;
+}
+
 const METRIC_CATALOG = {
   planto: [
-    { key: 'spend', label: 'Total Spend', accent: false },
+    { key: 'spend', label: 'Spend', accent: false },
     { key: 'installs', label: 'Installs', accent: false },
-    { key: 'cost_install', label: 'Cost / Install', accent: true },
-    { key: 'trials', label: 'Trials', accent: false },
-    { key: 'cost_trial', label: 'Cost / Trial', accent: true },
-    { key: 'sold', label: 'Продано', accent: false },
-    { key: 'fb', label: 'FB (Purchases)', accent: false },
-    { key: 'cost_fb', label: 'Cost / Bill', accent: true },
-    { key: 'impressions', label: 'Impressions', accent: false },
+    { key: 'cost_install', label: 'CPI', accent: true },
     { key: 'clicks', label: 'Clicks', accent: false },
     { key: 'cpc', label: 'CPC', accent: true },
-    { key: 'cpm', label: 'CPM', accent: true },
     { key: 'ctr', label: 'CTR', accent: false },
+    { key: 'impressions', label: 'Impressions', accent: false },
+    { key: 'cpm', label: 'CPM', accent: true },
+    { key: 'trials', label: 'Trials Started', accent: false },
+    { key: 'cost_trial', label: 'CPT', accent: true },
+    { key: 'cr_install_trial', label: 'Install → Trial', accent: false },
+    { key: 'sold', label: 'Продано (yearly)', accent: false },
+    { key: 'fb', label: 'Paid Subscriptions', accent: false },
+    { key: 'cost_fb', label: 'Cost / Bill', accent: true },
+    { key: 'cac', label: 'CAC', accent: true },
+    { key: 'cr_trial_paid', label: 'Trial → Paid', accent: false },
+    { key: 'roas', label: 'ROAS', accent: true },
   ],
   quadcode: [
     { key: 'spend', label: 'Total Spend', accent: false },
@@ -2236,22 +2500,38 @@ function fmtPct(n) { return n != null && !isNaN(n) ? n.toFixed(2) + '%' : '—';
 
 function computeMetricValue(key, type, rows, cur) {
   const sp = sum(rows, 'spend');
+  const ins = sum(rows, 'installs');
+  const tr = sum(rows, 'trials');
+  const sold = sum(rows, 'sold');
+  const fb = sum(rows, 'fb');
+  const paidNet = getPlantoPaidNetForRows(rows);
   switch (key) {
     case 'spend': return fmtMoney(sp, cur);
-    case 'installs': return fmtInt(sum(rows, 'installs'));
-    case 'trials': return fmtInt(sum(rows, 'trials'));
-    case 'fb': return fmtInt(sum(rows, 'fb'));
+    case 'installs': return fmtInt(ins);
+    case 'trials': return fmtInt(tr);
+    case 'sold': return fmtInt(sold);
+    case 'fb': return fmtInt(fb);
     case 'regs': return fmtInt(sum(rows, 'regs'));
     case 'qregs': return fmtInt(sum(rows, 'qregs'));
     case 'purchases': return fmtInt(sum(rows, 'purchases'));
     case 'impressions': return fmtInt(sum(rows, 'impressions'));
     case 'clicks': return fmtInt(sum(rows, 'clicks'));
-    case 'cost_install': { const v = sum(rows, 'installs'); return v ? fmtMoney(sp / v, cur) : '—'; }
-    case 'cost_trial': { const v = sum(rows, 'trials'); return v ? fmtMoney(sp / v, cur) : '—'; }
+    case 'cost_install': return ins ? fmtMoney(sp / ins, cur) : '—';
+    case 'cost_trial': return tr ? fmtMoney(sp / tr, cur) : '—';
     case 'cost_reg': { const v = sum(rows, 'regs'); return v ? fmtMoney(sp / v, cur) : '—'; }
     case 'cost_purchase': { const v = sum(rows, 'purchases'); return v ? fmtMoney(sp / v, cur) : '—'; }
     case 'cost_qreg': { const v = sum(rows, 'qregs'); return v ? fmtMoney(sp / v, cur) : '—'; }
-    case 'cost_fb': { const v = sum(rows, 'fb'); return v ? fmtMoney(sp / v, cur) : '—'; }
+    case 'cost_fb': return fb ? fmtMoney(sp / fb, cur) : '—';
+    case 'cac': {
+      const payers = sold || fb;
+      return payers ? fmtMoney(sp / payers, cur) : '—';
+    }
+    case 'cr_install_trial': return ins ? fmtPct(tr / ins * 100) : '—';
+    case 'cr_trial_paid': {
+      const payers = sold || fb;
+      return tr ? fmtPct(payers / tr * 100) : '—';
+    }
+    case 'roas': return sp && paidNet != null ? fmtPct(paidNet / sp * 100) : '—';
     case 'cpc': { const v = sum(rows, 'clicks'); return v ? fmtMoney(sp / v, cur) : '—'; }
     case 'cpm': { const v = sum(rows, 'impressions'); return v ? fmtMoney(sp / v * 1000, cur) : '—'; }
     case 'ctr': {
@@ -2264,6 +2544,22 @@ function computeMetricValue(key, type, rows, cur) {
     }
     default: return '—';
   }
+}
+
+function getPlantoPaidNetForRows(rows) {
+  if (plantoCohortCache?.totals?.paid_net != null && !rows?.length) {
+    return Number(plantoCohortCache.totals.paid_net) || 0;
+  }
+  // Approximate period revenue from meta plan mix when daily revenue is absent:
+  // use sold*2490 + (fb-sold)*399 as proxy for the selected daily rows.
+  const sold = sum(rows, 'sold');
+  const fb = sum(rows, 'fb');
+  if (!sold && !fb) {
+    if (plantoCohortCache?.totals?.paid_net != null) return Number(plantoCohortCache.totals.paid_net) || 0;
+    return null;
+  }
+  const monthly = Math.max(0, fb - sold);
+  return sold * 2490 + monthly * 399;
 }
 
 function mergeMetricsConfig(type, saved, catalogOverride) {
@@ -2307,12 +2603,18 @@ function typeLabel(type) {
 function isMetricRelevant(key, rows) {
   if (key === 'spend') return true;
   const field = {
-    installs: 'installs', trials: 'trials', fb: 'fb', regs: 'regs', qregs: 'qregs',
+    installs: 'installs', trials: 'trials', fb: 'fb', sold: 'sold', regs: 'regs', qregs: 'qregs',
     purchases: 'purchases', impressions: 'impressions', clicks: 'clicks',
     cost_install: 'installs', cost_trial: 'trials', cost_reg: 'regs', cost_qreg: 'qregs',
-    cost_purchase: 'purchases', cost_fb: 'fb', cpc: 'clicks', cpm: 'impressions', ctr: 'impressions',
+    cost_purchase: 'purchases', cost_fb: 'fb', cac: 'fb', cpc: 'clicks', cpm: 'impressions', ctr: 'impressions',
+    cr_install_trial: 'trials', cr_trial_paid: 'sold', roas: 'fb',
   }[key];
   if (key === 'conv_rate') return rows.some(r => 'regs' in r && 'qregs' in r);
+  if (key === 'cr_install_trial') return rows.some(r => 'installs' in r && 'trials' in r);
+  if (key === 'cr_trial_paid') return rows.some(r => 'trials' in r && ('sold' in r || 'fb' in r));
+  if (key === 'cac') return rows.some(r => 'sold' in r || 'fb' in r);
+  if (key === 'roas') return rows.some(r => 'fb' in r || 'sold' in r);
+  if (key === 'ctr') return rows.some(r => ('impressions' in r && r.impressions > 0) || ('clicks' in r && r.clicks > 0));
   if (!field) return true;
   return rows.some(r => field in r);
 }
@@ -2368,21 +2670,43 @@ function getTableConfig(proj, rows) {
 
   if (type === 'planto') {
     if (isPlantoAutoFeed(proj)) {
+      const hasAds = rows?.some(r => (r.clicks || 0) > 0 || (r.impressions || 0) > 0);
       colKeys = ['date', 'spend', 'installs', 'cost_install', 'trials', 'cost_trial', 'sold', 'fb', 'cost_fb'];
+      let headers = ['Дата', `Spend (${cur})`, L('installs','Installs'), L('cost_install','CPI'),
+        L('trials','Trials'), L('cost_trial','CPT'), L('sold','Продано'), L('fb','Paid'), L('cost_fb','Cost/Bill')];
+      if (hasAds) {
+        colKeys = colKeys.concat(['clicks', 'cpc', 'ctr']);
+        headers = headers.concat(['Clicks', 'CPC', 'CTR']);
+      }
       tbl = {
-        headers: ['Дата', `Spend (${cur})`, L('installs','Installs'), L('cost_install','Cost/Inst'),
-          L('trials','Trials'), L('cost_trial','Cost/Trial'), L('sold','Продано'), L('fb','Bills'), L('cost_fb','Cost/Bill')],
-        row: (r) => [
-          r.dateStr, fmtMoneyFull(r.spend, cur),
-          fmtInt(r.installs || 0), r.installs ? fmtMoney(r.spend / r.installs, cur) : '—',
-          fmtInt(r.trials || 0), r.trials ? fmtMoney(r.spend / r.trials, cur) : '—',
-          fmtInt(r.sold || 0),
-          fmtInt(r.fb || 0), r.fb ? fmtMoney(r.spend / r.fb, cur) : '—',
-        ],
+        headers,
+        row: (r) => {
+          const base = [
+            r.dateStr, fmtMoneyFull(r.spend, cur),
+            fmtInt(r.installs || 0), r.installs ? fmtMoney(r.spend / r.installs, cur) : '—',
+            fmtInt(r.trials || 0), r.trials ? fmtMoney(r.spend / r.trials, cur) : '—',
+            fmtInt(r.sold || 0),
+            fmtInt(r.fb || 0), r.fb ? fmtMoney(r.spend / r.fb, cur) : '—',
+          ];
+          if (!hasAds) return base;
+          const cl = r.clicks || 0, imp = r.impressions || 0;
+          return base.concat([
+            fmtInt(cl),
+            cl ? fmtMoney(r.spend / cl, cur) : '—',
+            imp ? fmtPct(cl / imp * 100) : '—',
+          ]);
+        },
         total: (rows) => {
           const sp = sum(rows, 'spend'), ins = sum(rows, 'installs'), tr = sum(rows, 'trials'), sold = sum(rows, 'sold'), fb = sum(rows, 'fb');
-          return ['Итого', fmtMoneyFull(sp, cur), fmtInt(ins), ins ? fmtMoney(sp / ins, cur) : '—',
+          const base = ['Итого', fmtMoneyFull(sp, cur), fmtInt(ins), ins ? fmtMoney(sp / ins, cur) : '—',
             fmtInt(tr), tr ? fmtMoney(sp / tr, cur) : '—', fmtInt(sold), fmtInt(fb), fb ? fmtMoney(sp / fb, cur) : '—'];
+          if (!hasAds) return base;
+          const cl = sum(rows, 'clicks'), imp = sum(rows, 'impressions');
+          return base.concat([
+            fmtInt(cl),
+            cl ? fmtMoney(sp / cl, cur) : '—',
+            imp ? fmtPct(cl / imp * 100) : '—',
+          ]);
         },
         columnKeys: colKeys,
       };
@@ -2595,10 +2919,11 @@ function computeFunnels(proj, rows) {
       steps.push({ label: 'Reg → Целевое', pct: (qg / rg) * 100, count: `${fmtInt(qg)} / ${fmtInt(rg)}` });
     }
   } else if (type === 'planto') {
-    const ins = sum(rows, 'installs'), tr = sum(rows, 'trials'), fb = sum(rows, 'fb');
+    const ins = sum(rows, 'installs'), tr = sum(rows, 'trials'), sold = sum(rows, 'sold'), fb = sum(rows, 'fb');
+    const paid = sold || fb;
     if (ins > 0) steps.push({ label: 'Install → Trial', pct: (tr / ins) * 100, count: `${fmtInt(tr)} / ${fmtInt(ins)}` });
-    if (tr > 0) steps.push({ label: 'Trial → FB', pct: (fb / tr) * 100, count: `${fmtInt(fb)} / ${fmtInt(tr)}` });
-    if (ins > 0 && fb > 0) steps.push({ label: 'Install → FB', pct: (fb / ins) * 100, count: `${fmtInt(fb)} / ${fmtInt(ins)}` });
+    if (tr > 0) steps.push({ label: 'Trial → Paid', pct: (paid / tr) * 100, count: `${fmtInt(paid)} / ${fmtInt(tr)}` });
+    if (ins > 0 && paid > 0) steps.push({ label: 'Install → Paid', pct: (paid / ins) * 100, count: `${fmtInt(paid)} / ${fmtInt(ins)}` });
   }
   return steps;
 }
@@ -3593,14 +3918,23 @@ function renderProjectDetail(projId) {
 
   if (isPlanto) {
     html += renderAnalyticsSection(p, data, rows, currentMonth);
+    html += renderPlantoMetricBlocks(p, rows, currentMonth);
   }
 
   // ── Metrics ─────────────────────────────────────────────────
-  html += `<div class="metrics-grid">${metrics.map(m=>`
-    <div class="metric-card${m.accent?' accent':''}${isAdmin()?' admin-editable':''}">
-      <div class="metric-label">${renderEditableLabel(p.id, m.key, m.label, 'metric-label-wrap')}</div>
-      <div class="metric-value">${m.value}</div>
-    </div>`).join('')}</div>`;
+  if (!isPlanto) {
+    html += `<div class="metrics-grid">${metrics.map(m=>`
+      <div class="metric-card${m.accent?' accent':''}${isAdmin()?' admin-editable':''}">
+        <div class="metric-label">${renderEditableLabel(p.id, m.key, m.label, 'metric-label-wrap')}</div>
+        <div class="metric-value">${m.value}</div>
+      </div>`).join('')}</div>`;
+  } else if (!isPlantoAutoFeed(p)) {
+    html += `<div class="metrics-grid">${metrics.map(m=>`
+      <div class="metric-card${m.accent?' accent':''}${isAdmin()?' admin-editable':''}">
+        <div class="metric-label">${renderEditableLabel(p.id, m.key, m.label, 'metric-label-wrap')}</div>
+        <div class="metric-value">${m.value}</div>
+      </div>`).join('')}</div>`;
+  }
 
   if (!isPlanto) {
     html += renderAnalyticsSection(p, data, rows, currentMonth);

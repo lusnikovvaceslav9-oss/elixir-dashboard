@@ -1,0 +1,111 @@
+{
+  "generated_at": "2026-07-09T21:20:27+07:00",
+  "anchor": "2026-06-05",
+  "until": "2026-07-09",
+  "product": {
+    "from": "2026-06-05",
+    "to": "2026-07-09",
+    "installs": 7526,
+    "active_users": 7690,
+    "events": {
+      "plant_added": {
+        "users": 2476,
+        "events": 4178,
+        "vs_install_pct": 32.9,
+        "avg_per_user": 1.69
+      },
+      "paywall_shown": {
+        "users": 5798,
+        "events": 8605,
+        "vs_install_pct": 77.04,
+        "avg_per_user": 1.48
+      },
+      "paywall_cta_clicked": {
+        "users": 1906,
+        "events": 2691,
+        "vs_install_pct": 25.33,
+        "avg_per_user": 1.41
+      },
+      "user_score5": {
+        "users": 269,
+        "events": 271,
+        "vs_install_pct": 3.57,
+        "avg_per_user": 1.01
+      },
+      "chat_message_sent": {
+        "users": 175,
+        "events": 344,
+        "vs_install_pct": 2.33,
+        "avg_per_user": 1.97
+      },
+      "watering_configured": {
+        "users": 171,
+        "events": 360,
+        "vs_install_pct": 2.27,
+        "avg_per_user": 2.11
+      },
+      "watering_marked": {
+        "users": 64,
+        "events": 396,
+        "vs_install_pct": 0.85,
+        "avg_per_user": 6.19
+      },
+      "ai_route": {
+        "users": 1354,
+        "events": 8190,
+        "vs_install_pct": 17.99,
+        "avg_per_user": 6.05
+      },
+      "scan_success": {
+        "users": 2522,
+        "events": 7142,
+        "vs_install_pct": 33.51,
+        "avg_per_user": 2.83
+      },
+      "user_activated": {
+        "users": 5805,
+        "events": 7092,
+        "vs_install_pct": 77.13,
+        "avg_per_user": 1.22
+      }
+    },
+    "garden_activation_pct": 32.9,
+    "garden_avg_plants": 1.69,
+    "garden_depth_icp_pct": null,
+    "paywall_cta_pct": 32.87,
+    "care_engagement_pct": 3.57,
+    "chat_per_plant_pct": 7.07,
+    "feature_activation": {
+      "scan_pct": 33.51,
+      "watering_pct": 2.27,
+      "ai_pct": 17.99
+    },
+    "retention": {
+      "d1": null,
+      "d3": null,
+      "d7": null,
+      "note": "AppMetrica Reporting API не отдаёт D1/D3/D7 без Logs/Retention export"
+    },
+    "errors": []
+  },
+  "unit_economics": {
+    "revenue_total": 42633,
+    "spend_total": 148532.39,
+    "active_users": 7690,
+    "active_payers": 23,
+    "plus_active_users": 85,
+    "trial_cancellations": 11,
+    "trial_cancellations_by_day": {
+      "2026-07-07": 5,
+      "2026-07-09": 6
+    },
+    "renewals": 13,
+    "arpu": 5.54,
+    "arppu": 1853.61,
+    "ltv": 2901.3,
+    "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
+    "roas_d7": 34.8,
+    "roas_d14": 47.7,
+    "roas_d30": null
+  }
+}

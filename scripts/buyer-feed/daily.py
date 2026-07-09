@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 
-CSV_HEADERS = ("date", "spend", "installs", "trials", "sold", "fb")
+CSV_HEADERS = ("date", "spend", "installs", "trials", "sold", "fb", "clicks", "impressions")
 
 
 def parse_day_iso(s: str) -> date | None:
@@ -34,6 +34,26 @@ def fmt_display(d: date) -> str:
     return f"{d.day:02d}.{d.month:02d}.{d.year}"
 
 
+def _int_field(row: dict, *keys: str) -> int:
+    for k in keys:
+        if k in row and row[k] not in (None, ""):
+            try:
+                return int(float(row[k]))
+            except ValueError:
+                continue
+    return 0
+
+
+def _float_field(row: dict, *keys: str) -> float:
+    for k in keys:
+        if k in row and row[k] not in (None, ""):
+            try:
+                return float(row[k])
+            except ValueError:
+                continue
+    return 0.0
+
+
 def load_daily_csv(path: Path) -> dict[str, dict]:
     if not path.is_file():
         return {}
@@ -42,7 +62,6 @@ def load_daily_csv(path: Path) -> dict[str, dict]:
         reader = csv.DictReader(f)
         if not reader.fieldnames:
             return out
-        headers = [h.lower().strip() for h in reader.fieldnames]
         date_key = next((h for h in reader.fieldnames if h.lower().strip() in ("date", "дата")), "date")
         for row in reader:
             raw_date = row.get(date_key) or row.get("date") or row.get("Дата") or ""
@@ -52,11 +71,13 @@ def load_daily_csv(path: Path) -> dict[str, dict]:
             key = dt.isoformat()
             out[key] = {
                 "date": fmt_display(dt),
-                "spend": float(row.get("spend") or row.get("Spend") or row.get("спенд") or 0),
-                "installs": int(float(row.get("installs") or row.get("Installs") or row.get("install") or 0)),
-                "trials": int(float(row.get("trials") or row.get("Trials") or row.get("trial") or 0)),
-                "sold": int(float(row.get("sold") or row.get("Sold") or row.get("sold_trials") or 0)),
-                "fb": int(float(row.get("fb") or row.get("FB") or row.get("bills") or row.get("Bills") or 0)),
+                "spend": _float_field(row, "spend", "Spend", "спенд"),
+                "installs": _int_field(row, "installs", "Installs", "install"),
+                "trials": _int_field(row, "trials", "Trials", "trial"),
+                "sold": _int_field(row, "sold", "Sold", "sold_trials"),
+                "fb": _int_field(row, "fb", "FB", "bills", "Bills"),
+                "clicks": _int_field(row, "clicks", "Clicks", "click"),
+                "impressions": _int_field(row, "impressions", "Impressions", "impression"),
             }
     return out
 
@@ -76,6 +97,8 @@ def write_daily_csv(path: Path, daily: dict[str, dict]) -> None:
                     "trials": int(r.get("trials") or 0),
                     "sold": int(r.get("sold") or 0),
                     "fb": int(r.get("fb") or 0),
+                    "clicks": int(r.get("clicks") or 0),
+                    "impressions": int(r.get("impressions") or 0),
                 }
             )
 
@@ -90,13 +113,29 @@ def merge_daily(
     anchor: date,
     until: date,
     sold: dict[str, int] | None = None,
+    clicks: dict[str, int] | None = None,
+    impressions: dict[str, int] | None = None,
 ) -> dict[str, dict]:
     sold = sold or {}
+    clicks = clicks or {}
+    impressions = impressions or {}
     merged = dict(existing)
     d = anchor
     while d <= until:
         key = d.isoformat()
-        prev = merged.get(key, {"date": fmt_display(d), "spend": 0, "installs": 0, "trials": 0, "sold": 0, "fb": 0})
+        prev = merged.get(
+            key,
+            {
+                "date": fmt_display(d),
+                "spend": 0,
+                "installs": 0,
+                "trials": 0,
+                "sold": 0,
+                "fb": 0,
+                "clicks": 0,
+                "impressions": 0,
+            },
+        )
         if key in spend:
             new_spend = spend[key]
             # Direct often lags on the current day — don't wipe a known spend with 0.
@@ -112,7 +151,13 @@ def merge_daily(
             prev["sold"] = sold[key]
         if key in bills:
             prev["fb"] = bills[key]
+        if key in clicks:
+            prev["clicks"] = clicks[key]
+        if key in impressions:
+            prev["impressions"] = impressions[key]
         prev["date"] = fmt_display(d)
+        prev.setdefault("clicks", 0)
+        prev.setdefault("impressions", 0)
         merged[key] = prev
         d = date.fromordinal(d.toordinal() + 1)
     return merged

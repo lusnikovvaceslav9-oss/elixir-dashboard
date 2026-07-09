@@ -135,6 +135,143 @@ def fetch_event_by_day(
     return {d: int(round(v)) for d, v in sorted(raw.items())}
 
 
+def fetch_event_totals(
+    token: str,
+    app_id: str,
+    event_name: str,
+    date_since: date,
+    date_until: date,
+) -> dict[str, int]:
+    """Period totals: unique users + event count for one event label."""
+    params = {
+        "ids": app_id,
+        "id": app_id,
+        "date1": date_since.isoformat(),
+        "date2": date_until.isoformat(),
+        "metrics": "ym:ce:users,ym:ce:allEvents",
+        "filters": f"ym:ce:eventLabel=='{event_name}'",
+        "limit": "5",
+    }
+    payload = _get_json(_build_url(STAT_TABLE, params), token)
+    rows = payload.get("data") or []
+    if not rows:
+        return {"users": 0, "events": 0}
+    metrics = rows[0].get("metrics") or [0, 0]
+    users = int(round(float(metrics[0] or 0)))
+    events = int(round(float(metrics[1] or 0))) if len(metrics) > 1 else 0
+    return {"users": users, "events": events}
+
+
+def fetch_active_users(
+    token: str,
+    app_id: str,
+    date_since: date,
+    date_until: date,
+) -> int:
+    """Unique active users (ym:u:users) for the period."""
+    params = {
+        "ids": app_id,
+        "id": app_id,
+        "date1": date_since.isoformat(),
+        "date2": date_until.isoformat(),
+        "metrics": "ym:u:users",
+        "limit": "5",
+    }
+    payload = _get_json(_build_url(STAT_TABLE, params), token)
+    rows = payload.get("data") or []
+    if not rows:
+        return 0
+    metrics = rows[0].get("metrics") or [0]
+    return int(round(float(metrics[0] or 0)))
+
+
+# Product / ICP events used by Planto dashboard blocks.
+PRODUCT_EVENTS = (
+    "plant_added",
+    "paywall_shown",
+    "paywall_cta_clicked",
+    "user_score5",
+    "chat_message_sent",
+    "watering_configured",
+    "watering_marked",
+    "ai_route",
+    "scan_success",
+    "user_activated",
+)
+
+
+def fetch_product_metrics(
+    token: str,
+    app_id: str,
+    date_since: date,
+    date_until: date,
+    installs_total: int,
+) -> dict:
+    """Aggregate product KPIs from AppMetrica event labels."""
+    events: dict[str, dict] = {}
+    errors: list[str] = []
+    for name in PRODUCT_EVENTS:
+        try:
+            totals = fetch_event_totals(token, app_id, name, date_since, date_until)
+            users = totals["users"]
+            ev = totals["events"]
+            events[name] = {
+                "users": users,
+                "events": ev,
+                "vs_install_pct": round(users / installs_total * 100, 2) if installs_total else None,
+                "avg_per_user": round(ev / users, 2) if users else None,
+            }
+        except Exception as exc:
+            errors.append(f"{name}: {exc}")
+            events[name] = {"users": 0, "events": 0, "vs_install_pct": None, "avg_per_user": None}
+
+    plant = events.get("plant_added") or {}
+    paywall_shown = events.get("paywall_shown") or {}
+    paywall_cta = events.get("paywall_cta_clicked") or {}
+    score5 = events.get("user_score5") or {}
+    chat = events.get("chat_message_sent") or {}
+    watering = events.get("watering_configured") or {}
+    ai = events.get("ai_route") or {}
+    scan = events.get("scan_success") or {}
+
+    shown_u = int(paywall_shown.get("users") or 0)
+    cta_u = int(paywall_cta.get("users") or 0)
+    plant_u = int(plant.get("users") or 0)
+    plant_e = int(plant.get("events") or 0)
+
+    active_users = 0
+    try:
+        active_users = fetch_active_users(token, app_id, date_since, date_until)
+    except Exception as exc:
+        errors.append(f"active_users: {exc}")
+
+    return {
+        "from": date_since.isoformat(),
+        "to": date_until.isoformat(),
+        "installs": installs_total,
+        "active_users": active_users,
+        "events": events,
+        "garden_activation_pct": round(plant_u / installs_total * 100, 2) if installs_total else None,
+        "garden_avg_plants": round(plant_e / plant_u, 2) if plant_u else None,
+        "garden_depth_icp_pct": None,  # needs per-user ≥3 plants (Logs API)
+        "paywall_cta_pct": round(cta_u / shown_u * 100, 2) if shown_u else None,
+        "care_engagement_pct": round(int(score5.get("users") or 0) / installs_total * 100, 2) if installs_total else None,
+        "chat_per_plant_pct": round(int(chat.get("users") or 0) / plant_u * 100, 2) if plant_u else None,
+        "feature_activation": {
+            "scan_pct": round(int(scan.get("users") or 0) / installs_total * 100, 2) if installs_total else None,
+            "watering_pct": round(int(watering.get("users") or 0) / installs_total * 100, 2) if installs_total else None,
+            "ai_pct": round(int(ai.get("users") or 0) / installs_total * 100, 2) if installs_total else None,
+        },
+        "retention": {
+            "d1": None,
+            "d3": None,
+            "d7": None,
+            "note": "AppMetrica Reporting API не отдаёт D1/D3/D7 без Logs/Retention export",
+        },
+        "errors": errors,
+    }
+
+
 def fetch_window(
     token: str,
     app_id: str,

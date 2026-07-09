@@ -333,6 +333,73 @@ def bills_breakdown(bills: list[Bill]) -> dict[str, dict[str, int]]:
     return out
 
 
+_TRIAL_CANCEL_SQL = """
+    SELECT (last_event_time AT TIME ZONE 'Europe/Moscow')::date AS day,
+           count(*)::int AS count
+    FROM rustore_subscription_entitlements
+    WHERE period = 'TRIAL'
+      AND last_subscription_event_type = 'CANCELLED'
+      AND last_event_time IS NOT NULL
+      AND (last_event_time AT TIME ZONE 'Europe/Moscow')::date >= %s
+      AND (last_event_time AT TIME ZONE 'Europe/Moscow')::date <= %s
+    GROUP BY 1
+    ORDER BY 1;
+"""
+
+
+def fetch_trial_cancellations_by_day(
+    db_url: str, date_since: date, date_until: date
+) -> dict[str, int]:
+    """Отмены триала до списания: TRIAL + CANCELLED (autorenew off)."""
+    rows = _fetch_generic_params(db_url, _TRIAL_CANCEL_SQL, (date_since, date_until))
+    out: dict[str, int] = {}
+    for day, count in rows:
+        key = day.isoformat()[:10] if hasattr(day, "isoformat") else str(day)[:10]
+        out[key] = int(count)
+    return out
+
+
+def fetch_unit_economics_snapshot(db_url: str) -> dict:
+    """ARPU/ARPPU/LTV proxies + active payer base from entitlements."""
+    sql = """
+        SELECT
+          count(DISTINCT user_id) FILTER (WHERE period = 'MAIN' AND status = 'ACTIVE') AS active_payers,
+          count(DISTINCT user_id) FILTER (WHERE plus_active = true) AS plus_active_users,
+          count(*) FILTER (WHERE period = 'TRIAL' AND last_subscription_event_type = 'CANCELLED') AS trial_cancellations,
+          count(*) FILTER (WHERE last_subscription_event_type = 'RENEWED') AS renewals,
+          count(*) FILTER (WHERE period = 'MAIN' AND status = 'ACTIVE' AND product_code ILIKE '%year%') AS active_yearly,
+          count(*) FILTER (WHERE period = 'MAIN' AND status = 'ACTIVE' AND product_code ILIKE '%month%') AS active_monthly
+        FROM rustore_subscription_entitlements;
+    """
+    rows = _fetch_generic(db_url, sql)
+    row = rows[0] if rows else (0, 0, 0, 0, 0, 0)
+    active_payers = int(row[0] or 0)
+    plus_active = int(row[1] or 0)
+    trial_cancels = int(row[2] or 0)
+    renewals = int(row[3] or 0)
+    active_yearly = int(row[4] or 0)
+    active_monthly = int(row[5] or 0)
+    return {
+        "active_payers": active_payers,
+        "plus_active_users": plus_active,
+        "trial_cancellations": trial_cancels,
+        "renewals": renewals,
+        "active_yearly": active_yearly,
+        "active_monthly": active_monthly,
+    }
+
+
+def _fetch_generic_params(db_url: str, sql: str, params: tuple) -> list[tuple]:
+    try:
+        import psycopg2
+    except ImportError as exc:
+        raise RuntimeError("psycopg2-binary required for Supabase") from exc
+    with psycopg2.connect(db_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql, params)
+            return cur.fetchall()
+
+
 def _fetch_generic(db_url: str, sql: str) -> list[tuple]:
     try:
         import psycopg2
