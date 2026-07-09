@@ -532,7 +532,12 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description="FB Ads Scraper")
-    parser.add_argument("--project-id", default=None, help="Только один проект (dashboard_id)")
+    parser.add_argument("--project-id", default=None, help="Только один проект (id из дашборда)")
+    parser.add_argument(
+        "--manual",
+        action="store_true",
+        help="Ручной запуск: все проекты с profileId, не только enabled",
+    )
     args = parser.parse_args()
 
     try:
@@ -547,32 +552,28 @@ def main():
     logger.info("#" * 60)
 
     try:
-        projects, projects_source = load_scraper_projects(config, SCRIPT_DIR)
+        projects, projects_source = load_scraper_projects(
+            config,
+            SCRIPT_DIR,
+            manual=args.manual or bool(args.project_id),
+            project_id=args.project_id,
+        )
     except Exception as e:
         logger.error(e)
+        if args.project_id:
+            write_status([{
+                "dashboard_id": args.project_id,
+                "name": args.project_id,
+                "status": "error",
+                "campaigns": 0,
+                "spend_total": 0,
+                "error": str(e),
+            }])
         sys.exit(1)
     logger.info(f"Источник конфига: {projects_source}")
 
     if args.project_id:
-        needle = args.project_id.strip()
-        projects = [
-            p for p in projects
-            if p.get("dashboard_id") == needle
-            or p.get("name", "").strip().lower() == needle.lower()
-        ]
-        if not projects:
-            msg = f"Проект не найден или не включён на Mac: {needle}"
-            logger.error(msg)
-            write_status([{
-                "dashboard_id": needle,
-                "name": needle,
-                "status": "error",
-                "campaigns": 0,
-                "spend_total": 0,
-                "error": msg,
-            }])
-            sys.exit(1)
-        logger.info(f"Фильтр по проекту: {needle}")
+        logger.info(f"Проект из дашборда: {args.project_id}")
 
     gc = get_gspread_client(logger)
     adspower = AdsPowerClient(

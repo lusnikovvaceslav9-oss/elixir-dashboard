@@ -36,7 +36,7 @@ def main() -> None:
     print("FB Ads Scraper — маппинг проектов\n")
 
     try:
-        projects, source = load_projects(config, ROOT)
+        projects, source = load_projects(config, ROOT, manual=True)
         for p in projects:
             print_project(p, source)
         return

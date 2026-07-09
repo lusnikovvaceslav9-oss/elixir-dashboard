@@ -69,7 +69,7 @@ def run_scraper(project_id: str | None) -> None:
     started_at = datetime.now().isoformat(timespec="seconds")
     exit_code = 1
     try:
-        cmd = [sys.executable, str(SCRIPT_DIR / "fb_ads_scraper.py")]
+        cmd = [sys.executable, str(SCRIPT_DIR / "fb_ads_scraper.py"), "--manual"]
         if project_id:
             cmd.extend(["--project-id", project_id])
         logger.info("Запуск: %s", " ".join(cmd))

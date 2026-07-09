@@ -687,8 +687,9 @@ body.admin-mode th.th-editable:hover{background:rgba(91,75,245,0.06)}
             Настройки для локального парсера AdsPower → Google Sheets. Сохраняются на сервер — Mac-скрипт подтягивает их перед каждым запуском.
           </div>
           <label class="mep-check" style="margin-bottom:14px;display:flex;align-items:center;gap:8px">
-            <input type="checkbox" id="fb-scraper-enabled"> Парсить этот проект автоматически
+            <input type="checkbox" id="fb-scraper-enabled"> Автопарсинг по расписанию (каждые 2ч)
           </label>
+          <div class="form-hint" style="margin-bottom:12px">Profile + act + таблица — обязательны. Кнопка «Парсить» в админке работает при заполненном profile.</div>
           <div class="form-row">
             <div class="form-group">
               <label>AdsPower profile ID</label>
@@ -996,9 +997,10 @@ function fillFbScraperEditor(p) {
 function getFbScraperFromEditor() {
   const enabledEl = document.getElementById('fb-scraper-enabled');
   if (!enabledEl) return null;
+  const profileId = document.getElementById('fb-scraper-profile').value.trim();
   return {
-    enabled: enabledEl.checked,
-    profileId: document.getElementById('fb-scraper-profile').value.trim(),
+    enabled: enabledEl.checked || !!profileId,
+    profileId,
     bmId: document.getElementById('fb-scraper-bm').value.trim(),
     adAccountId: document.getElementById('fb-scraper-act').value.trim(),
     dashboardSheet: document.getElementById('fb-scraper-dash-sheet').value.trim(),
@@ -1740,15 +1742,17 @@ function setFbScraperTriggerBase(url) {
   else localStorage.removeItem(FB_SCRAPER_TRIGGER_KEY);
 }
 
-function projectsWithFbScraper(proj) {
-  if (proj) {
-    const fb = proj.fbScraper;
-    return fb?.enabled && fb?.profileId ? [proj] : [];
-  }
-  return projects.filter(p => p.fbScraper?.enabled && p.fbScraper?.profileId);
+function isFbScraperConfigured(p) {
+  return !!String(p?.fbScraper?.profileId || '').trim();
 }
 
-async function fetchFbScraperStatus() {  const base = getFbScraperTriggerBase();
+function projectsWithFbScraper(proj) {
+  if (proj) return isFbScraperConfigured(proj) ? [proj] : [];
+  return projects.filter(isFbScraperConfigured);
+}
+
+async function fetchFbScraperStatus() {
+  const base = getFbScraperTriggerBase();
   const resp = await fetchWithTimeout(fetch(`${base}/status`, { cache: 'no-store' }), 8000);
   if (!resp.ok) throw new Error(`status ${resp.status}`);
   return await resp.json();
@@ -1888,15 +1892,13 @@ function renderFbScraperAdminBlock(proj) {
   const targets = projectsWithFbScraper(proj || null);
   const triggerBase = getFbScraperTriggerBase();
   const projArg = proj ? `'${proj.id}'` : 'null';
-  const onProjectWithoutFb = proj && !targets.length;
+  const onProjectWithoutFb = proj && !isFbScraperConfigured(proj);
   const label = proj
-    ? (onProjectWithoutFb ? 'FB Scraper не настроен' : '🔄 Запустить FB парсинг')
-    : (targets.length ? `🔄 Запустить FB парсинг (${targets.length})` : '🔄 Запустить FB парсинг (все на Mac)');
+    ? (onProjectWithoutFb ? 'FB Scraper не настроен' : `🔄 Парсить ${proj.name}`)
+    : (targets.length ? `🔄 Парсить все FB (${targets.length})` : '🔄 Парсить все FB');
   const hint = onProjectWithoutFb
-    ? `«${proj.name}» не подключён к FB Scraper. Откройте Редактировать → FB Ads Scraper, или запускайте с Overview.`
-    : (targets.length
-      ? 'Проекты с галочкой FB Scraper в настройках.'
-      : 'На Mac запустятся все enabled-проекты из конфига (JSONBin / projects.json).');
+    ? `Заполните FB Ads Scraper: AdsPower profile, act, BM — и сохраните проект.`
+    : 'Каждый проект парсится локально на Mac по своим настройкам из дашборда (JSONBin).';
   return `<div class="fb-scraper-admin">
     <div class="fb-scraper-admin-title">FB Ads Scraper</div>
     <div class="form-hint" style="margin-bottom:10px">${hint} Запрос на Mac: <code>${escHtml(triggerBase)}</code></div>

@@ -87,19 +87,24 @@ def fetch_dashboard_projects(config: dict) -> list[dict]:
     raise RuntimeError("JSONBin: неожиданный формат record")
 
 
-def dashboard_to_scraper_projects(dashboard_projects: list[dict]) -> list[dict]:
+def dashboard_to_scraper_projects(
+    dashboard_projects: list[dict],
+    *,
+    manual: bool = False,
+) -> list[dict]:
+    """manual=True — все проекты с заполненным profileId (кнопка в дашборде)."""
     out = []
     for project in dashboard_projects:
         fb = project.get("fbScraper") or {}
-        if not fb.get("enabled"):
-            continue
-
         profile_id = (fb.get("profileId") or "").strip()
+        if not manual and not fb.get("enabled"):
+            continue
         if not profile_id:
-            logger.warning(
-                "Проект %s: fbScraper включён, но не задан profileId — пропуск",
-                project.get("name") or project.get("id"),
-            )
+            if fb.get("enabled"):
+                logger.warning(
+                    "Проект %s: fbScraper включён, но не задан profileId — пропуск",
+                    project.get("name") or project.get("id"),
+                )
             continue
 
         sheet_id = extract_sheet_id_from_urls(project.get("urls") or [])
@@ -133,6 +138,20 @@ def dashboard_to_scraper_projects(dashboard_projects: list[dict]) -> list[dict]:
     return out
 
 
+def filter_projects_by_id(projects: list[dict], project_id: str) -> list[dict]:
+    needle = (project_id or "").strip()
+    if not needle:
+        return projects
+    lowered = needle.lower()
+    matched = [
+        p
+        for p in projects
+        if p.get("dashboard_id") == needle
+        or str(p.get("name", "")).strip().lower() == lowered
+    ]
+    return matched
+
+
 def load_local_projects(projects_file: Path) -> list[dict]:
     if not projects_file.exists():
         raise FileNotFoundError(f"Файл проектов не найден: {projects_file}")
@@ -162,25 +181,52 @@ def load_local_projects(projects_file: Path) -> list[dict]:
     return projects
 
 
-def load_projects(config: dict, script_dir: Path) -> tuple[list[dict], str]:
+def load_projects(
+    config: dict,
+    script_dir: Path,
+    *,
+    manual: bool = False,
+    project_id: str | None = None,
+) -> tuple[list[dict], str]:
     """Возвращает (projects, source_name). source: jsonbin | local."""
     projects_file = script_dir / config.get("projects_file", "projects.json")
-    source = (config.get("projects_source") or "auto").strip().lower()
+    source = (config.get("projects_source") or "jsonbin").strip().lower()
 
     if source in ("auto", "jsonbin", "remote"):
         try:
             dashboard_projects = fetch_dashboard_projects(config)
-            remote_projects = dashboard_to_scraper_projects(dashboard_projects)
+            remote_projects = dashboard_to_scraper_projects(
+                dashboard_projects,
+                manual=manual or bool(project_id),
+            )
+            if project_id:
+                remote_projects = filter_projects_by_id(remote_projects, project_id)
             if remote_projects:
-                logger.info("Конфиг загружен с JSONBin: %s проектов", len(remote_projects))
+                logger.info(
+                    "Конфиг JSONBin: %s проектов (%s)",
+                    len(remote_projects),
+                    "manual" if manual or project_id else "auto",
+                )
                 return remote_projects, "jsonbin"
+            if project_id:
+                raise RuntimeError(
+                    f"Проект «{project_id}» не настроен в дашборде "
+                    "(нужны profileId + Google Sheet в FB Ads Scraper)"
+                )
             if source in ("jsonbin", "remote"):
-                raise RuntimeError("JSONBin: нет проектов с включённым fbScraper")
+                raise RuntimeError(
+                    "JSONBin: нет проектов для парсинга. "
+                    "Заполните FB Ads Scraper в дашборде (profileId + act + листы)."
+                )
         except Exception as exc:
             if source in ("jsonbin", "remote"):
                 raise
             logger.warning("JSONBin недоступен, fallback на projects.json: %s", exc)
 
     projects = load_local_projects(projects_file)
+    if project_id:
+        projects = filter_projects_by_id(projects, project_id)
+        if not projects:
+            raise RuntimeError(f"Проект не найден в projects.json: {project_id}")
     logger.info("Конфиг загружен из %s: %s проектов", projects_file.name, len(projects))
     return projects, "local"
