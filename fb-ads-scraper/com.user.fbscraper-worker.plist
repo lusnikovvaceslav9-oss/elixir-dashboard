@@ -6,8 +6,8 @@
     <string>com.user.fbscraper-worker</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/bin/python3</string>
-        <string>/Users/vaceslavlusnikov/Desktop/дашборд/fb-ads-scraper/fb_scraper_worker.py</string>
+        <string>/bin/bash</string>
+        <string>/Users/vaceslavlusnikov/Desktop/дашборд/fb-ads-scraper/run_worker.sh</string>
     </array>
     <key>WorkingDirectory</key>
     <string>/Users/vaceslavlusnikov/Desktop/дашборд/fb-ads-scraper</string>
