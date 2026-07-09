@@ -257,6 +257,11 @@ td:first-child{text-align:left;color:#0a0a0a;font-weight:500}
 .analytics-card-title{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:14px}
 .budget-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
 .budget-stat{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.budget-stat.remainder{background:#0a0a0a;border-color:#0a0a0a;box-shadow:0 8px 20px rgba(0,0,0,0.12)}
+.budget-stat.remainder .budget-stat-label{color:rgba(255,255,255,0.62)}
+.budget-stat.remainder .budget-stat-value{color:#fff;font-size:20px;font-weight:700;letter-spacing:-0.02em}
+.budget-stat.remainder.overspent{background:#1a1a1a;border-color:#b91c1c;box-shadow:0 0 0 1px #b91c1c inset}
+.budget-stat.remainder.overspent .budget-stat-value{color:#fecaca}
 .budget-stat-label{font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim);margin-bottom:6px}
 .budget-stat-value{font-size:18px;font-weight:600;color:var(--text)}
 .budget-progress{height:8px;background:rgba(0,0,0,0.05);border-radius:99px;overflow:hidden;margin-bottom:8px}
@@ -3848,10 +3853,10 @@ function renderBudgetCard(proj, allData, compact) {
   let inner = '';
   if (budget) {
     const warn = budget.usedPct >= 85 || budget.overspent;
-    const remCls = budget.overspent ? ' style="color:#b91c1c"' : '';
+    const remBoxCls = 'budget-stat remainder' + (budget.overspent ? ' overspent' : '');
     inner = `<div class="budget-stats">
       <div class="budget-stat"><div class="budget-stat-label">Потрачено</div><div class="budget-stat-value">${fmtMoney(budget.spent, cur)}</div></div>
-      <div class="budget-stat"><div class="budget-stat-label">${budget.overspent ? 'Перерасход' : 'Остаток сейчас'}</div><div class="budget-stat-value"${remCls}>${fmtMoney(Math.abs(budget.remainder), cur)}</div></div>
+      <div class="${remBoxCls}"><div class="budget-stat-label">${budget.overspent ? 'Перерасход' : 'Остаток сейчас'}</div><div class="budget-stat-value">${fmtMoney(Math.abs(budget.remainder), cur)}</div></div>
       <div class="budget-stat"><div class="budget-stat-label">Бюджет всего</div><div class="budget-stat-value">${fmtMoney(budget.total, cur)}</div></div>
     </div>
     <div class="budget-progress"><div class="budget-progress-fill${warn ? ' warn' : ''}" style="width:${Math.min(100, budget.usedPct).toFixed(1)}%"></div></div>
