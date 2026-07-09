@@ -167,8 +167,13 @@ body{
 .tile-metric{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:11px 13px}
 .tile-metric.accent .tile-metric-label{color:rgba(162,155,254,0.85)}
 .tile-metric.accent .tile-metric-value{color:#c4b5fd}
+.tile-metric.live{border-color:rgba(34,197,94,0.28);background:rgba(34,197,94,0.07)}
+.tile-metric.live .tile-metric-label{color:rgba(134,239,172,0.9)}
+.tile-metric.live .tile-metric-value{color:#86efac}
 .tile-metric-label{font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-dim);margin-bottom:5px}
 .tile-metric-value{font-size:17px;font-weight:600;color:var(--text);line-height:1}
+.tile-metric-sub{font-size:10px;color:var(--text-muted);margin-top:5px;line-height:1.3}
+.tile-live-note{font-size:10px;color:rgba(134,239,172,0.85);padding:0 20px 2px;line-height:1.35}
 .tile-footer{display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding:12px 22px;border-top:1px solid var(--border);cursor:pointer}
 .tile-cta{font-size:12px;color:var(--accent);font-weight:600}
 .tile-arrow{color:rgba(108,92,231,0.5);font-size:14px}
@@ -2217,10 +2222,12 @@ function isPlantoProject(proj, rows) {
 }
 
 function getPlantoView(projId) {
+  const v = plantoViewByProject[projId];
+  if (v && PLANTO_VIEWS[v]) return v;
+  if (v) delete plantoViewByProject[projId]; // e.g. устаревший 'today'
   const p = projects.find(x => x.id === projId);
   if (p && isPlantoAutoFeed(p)) return 'summary';
-  const v = plantoViewByProject[projId];
-  return PLANTO_VIEWS[v] ? v : 'installs';
+  return 'installs';
 }
 
 function getPlantoMetricKeys(view, rows) {
@@ -2231,6 +2238,62 @@ function getPlantoMetricKeys(view, rows) {
     });
   }
   return keys;
+}
+
+function getPlantoOverviewDailyMetrics(proj) {
+  const info = getPlantoTodayRow(getPlantoDailyRows());
+  if (!info?.row) {
+    return {
+      note: 'Нет дневных данных — дождитесь обновления feed',
+      metrics: [{ key: 'today_empty', label: 'Дневная стата', value: '—', live: true, sub: 'обновление ~каждые 2 часа' }],
+    };
+  }
+  const r = info.row;
+  const cur = proj.currency;
+  const spend = r.spend || 0;
+  const installs = r.installs || 0;
+  const trials = r.trials || 0;
+  const bills = r.fb || 0;
+  const sold = r.sold || 0;
+  const clicks = r.clicks || 0;
+  const impressions = r.impressions || 0;
+  const cpi = installs ? spend / installs : null;
+  const cpt = trials ? spend / trials : null;
+  const cpb = bills ? spend / bills : null;
+  const ctr = impressions ? (clicks / impressions * 100) : null;
+  const cpc = clicks ? spend / clicks : null;
+  const estimated = !!plantoMetaCache?.spend_today_estimated && info.isToday;
+  const dateLabel = r.dateStr || fmtDateStr(r.date);
+  const note = info.isToday
+    ? `Сегодня · обновление ~каждые 2 часа${estimated ? ' · спенд ≈' : ''}`
+    : `Последний день · ${dateLabel}`;
+
+  const metrics = [
+    { key: 'today_spend', label: 'Расход', value: fmtMoney(spend, cur), live: true, sub: estimated ? 'оценочный' : dateLabel },
+    { key: 'today_installs', label: 'Установки', value: fmtInt(installs), live: true, sub: 'за день' },
+    { key: 'today_cpi', label: 'CPI', value: cpi != null ? fmtMoney(cpi, cur) : '—', accent: true, live: true, sub: 'цена установки' },
+    { key: 'today_trials', label: 'Триалы', value: fmtInt(trials), live: true, sub: 'старты за день' },
+    { key: 'today_cpt', label: 'CPT', value: cpt != null ? fmtMoney(cpt, cur) : '—', accent: true, live: true, sub: 'цена триала' },
+    { key: 'today_bills', label: 'Оплаты', value: fmtInt(bills), live: true, sub: sold ? `yearly: ${fmtInt(sold)}` : (cpb != null ? `Cost/Bill ${fmtMoney(cpb, cur)}` : 'за день') },
+  ];
+  if (clicks || impressions) {
+    metrics.push({
+      key: 'today_ctr',
+      label: 'CTR',
+      value: ctr != null ? fmtPct(ctr) : '—',
+      live: true,
+      sub: `${fmtInt(clicks)} кликов`,
+    });
+    metrics.push({
+      key: 'today_cpc',
+      label: 'CPC',
+      value: cpc != null ? fmtMoney(cpc, cur) : '—',
+      accent: true,
+      live: true,
+      sub: 'за клик',
+    });
+  }
+  return { note, metrics };
 }
 
 function switchPlantoView(mode) {
@@ -2918,6 +2981,21 @@ function getMetrics(proj, rows) {
 
 function getTileMetrics(proj, rows) {
   return getMetrics(proj, rows);
+}
+
+function renderTileMetricCard(projId, m) {
+  const isCost = m.accent || m.live || /cost|цена|cpi|cpt|cpc|cac|roas/i.test(m.label);
+  const isTodayCard = String(m.key || '').startsWith('today_');
+  const adminCls = isAdmin() && !isTodayCard ? ' admin-editable' : '';
+  const liveCls = m.live ? ' live' : '';
+  const labelHtml = (isAdmin() && !isTodayCard)
+    ? renderEditableLabel(projId, m.key, m.label, 'tile-metric-label-wrap')
+    : escHtml(m.label);
+  return `<div class="tile-metric${isCost ? ' accent' : ''}${liveCls}${adminCls}">
+    <div class="tile-metric-label">${labelHtml}</div>
+    <div class="tile-metric-value">${m.value}</div>
+    ${m.sub ? `<div class="tile-metric-sub">${escHtml(m.sub)}</div>` : ''}
+  </div>`;
 }
 
 function getTableConfig(proj, rows) {
@@ -3911,13 +3989,6 @@ function tileSwitchSource(projId, idx, e) {
   renderContent();
 }
 
-function tileSwitchPlantoView(projId, mode, e) {
-  e.stopPropagation();
-  if (!PLANTO_VIEWS[mode]) return;
-  plantoViewByProject[projId] = mode;
-  renderContent();
-}
-
 function getSourceIdx(projId, pack) {
   const max = Math.max(0, (pack?.sources?.length || 1) - 1);
   let idx = sourceIndexByProject[projId];
@@ -4014,7 +4085,8 @@ function renderOverview() {
     const isMulti = isMultiSourceCache(data);
     const rows = selMk ? rowsForMonth(data, selMk) : [];
 
-    const monthTabsHtml = months.length > 0
+    const isPlantoTile = isPlantoProject(p, selMk ? rowsForMonth(data, selMk) : getAllRowsFromCache(data));
+    const monthTabsHtml = (!isPlantoTile && months.length > 0)
       ? `<div class="tile-month-tabs">${months.map(m => {
           const cnt = monthDayCountLabel(data, m);
           return `<button class="tile-tab ${m === selMk ? 'active' : ''}" onclick="tileSwitchMonth('${p.id}','${m}',event)" title="${escHtml(cnt)}">${formatMonthKey(m)}</button>`;
@@ -4022,7 +4094,12 @@ function renderOverview() {
       : '';
 
     let metricsHtml = '';
-    if (isMulti) {
+    if (isPlantoTile) {
+      const daily = getPlantoOverviewDailyMetrics(p);
+      metricsHtml =
+        `<div class="tile-live-note">${escHtml(daily.note)}</div>` +
+        `<div class="tile-metrics" style="padding-bottom:14px">${daily.metrics.map(m => renderTileMetricCard(p.id, m)).join('')}</div>`;
+    } else if (isMulti) {
       const srcIdx = tileSourceIndex[p.id] != null && tileSourceIndex[p.id] < pack.sources.length
         ? tileSourceIndex[p.id]
         : (tileSourceIndex[p.id] = 0);
@@ -4040,35 +4117,13 @@ function renderOverview() {
           <div class="tile-metric-value">${m.value}</div>
         </div>`;
       }).join('')}</div>`;
-    } else if (isPlantoProject(p, selMk ? rowsForMonth(data, selMk) : getAllRowsFromCache(data))) {
-      const sr = selMk ? rowsForMonth(data, selMk) : (getAllRowsFromCache(data) || []);
-      const pv = getPlantoView(p.id);
-      const srcTabsHtml = `<div class="tile-month-tabs">${Object.entries(PLANTO_VIEWS).map(([id, cfg]) =>
-        `<button type="button" class="tile-tab ${id === pv ? 'active' : ''}" onclick="tileSwitchPlantoView('${p.id}','${id}',event)">${escHtml(cfg.label)}</button>`
-      ).join('')}</div>`;
-      const metrics = getMetrics(p, sr);
-      metricsHtml = srcTabsHtml + `<div class="tile-metrics${isAdmin() ? ' admin-zone' : ''}" style="padding-bottom:14px" ${isAdmin() ? 'onclick="event.stopPropagation()"' : ''}>${metrics.map(m => {
-        const isCost = m.accent || m.label.toLowerCase().includes('cost') || m.label.toLowerCase().includes('цена');
-        const adminCls = isAdmin() ? ' admin-editable' : '';
-        return `<div class="tile-metric${isCost ? ' accent' : ''}${adminCls}">
-          <div class="tile-metric-label">${renderEditableLabel(p.id, m.key, m.label, 'tile-metric-label-wrap')}</div>
-          <div class="tile-metric-value">${m.value}</div>
-        </div>`;
-      }).join('')}</div>`;
     } else {
-      const metrics = getMetrics(p, rows);
-      metricsHtml = metrics.map(m => {
-        const isCost = m.accent || m.label.toLowerCase().includes('cost') || m.label.toLowerCase().includes('цена');
-        const adminCls = isAdmin() ? ' admin-editable' : '';
-        return `<div class="tile-metric${isCost ? ' accent' : ''}${adminCls}">
-          <div class="tile-metric-label">${renderEditableLabel(p.id, m.key, m.label, 'tile-metric-label-wrap')}</div>
-          <div class="tile-metric-value">${m.value}</div>
-        </div>`;
-      }).join('');
+      const metrics = getTileMetrics(p, rows);
+      metricsHtml = metrics.map(m => renderTileMetricCard(p.id, m)).join('');
       metricsHtml = `<div class="tile-metrics${isAdmin()?' admin-zone':''}" style="padding-bottom:14px" ${isAdmin()?'onclick="event.stopPropagation()"':''}>${metricsHtml}</div>`;
     }
 
-    const budgetTile = renderBudgetCard(p, data, true);
+    const budgetTile = isPlantoTile ? '' : renderBudgetCard(p, data, true);
 
     html += `<div class="proj-tile" onclick="tileOpenProject('${p.id}', event)">
       <div class="tile-body">
