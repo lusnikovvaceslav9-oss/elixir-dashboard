@@ -1736,6 +1736,19 @@ function getFbScraperTriggerBase() {
   return (saved || FB_SCRAPER_TRIGGER_DEFAULT).replace(/\/$/, '');
 }
 
+function isFbScraperHttpsBlocked() {
+  if (location.protocol !== 'https:') return false;
+  const base = getFbScraperTriggerBase();
+  return /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/i.test(base);
+}
+
+function fbScraperUnavailableHint(errMsg) {
+  if (isFbScraperHttpsBlocked()) {
+    return 'GitHub Pages (HTTPS) не может достучаться до Mac (HTTP). Запустите в терминале: cd fb-ads-scraper && bash open_dashboard.sh — и работайте с http://127.0.0.1:8080/elixir.html';
+  }
+  return `Mac-сервер недоступен: ${errMsg}. Запустите: cd fb-ads-scraper && bash start_trigger.sh`;
+}
+
 function setFbScraperTriggerBase(url) {
   const v = (url || '').trim().replace(/\/$/, '');
   if (v) localStorage.setItem(FB_SCRAPER_TRIGGER_KEY, v);
@@ -1840,7 +1853,7 @@ async function triggerFbScraperFromDashboard(projId) {
     fbScraperBusy = false;
     if (btn) btn.disabled = false;
     if (statusEl) {
-      statusEl.textContent = `Mac-сервер недоступен: ${e.message}. Запустите start_trigger.sh`;
+      statusEl.textContent = fbScraperUnavailableHint(e.message);
       statusEl.className = 'fb-scraper-status err';
     }
     return;
@@ -1898,7 +1911,9 @@ function renderFbScraperAdminBlock(proj) {
     : (targets.length ? `🔄 Парсить все FB (${targets.length})` : '🔄 Парсить все FB');
   const hint = onProjectWithoutFb
     ? `Заполните FB Ads Scraper: AdsPower profile, act, BM — и сохраните проект.`
-    : 'Каждый проект парсится локально на Mac по своим настройкам из дашборда (JSONBin).';
+    : (isFbScraperHttpsBlocked()
+      ? '⚠️ С github.io кнопка не работает — откройте локально: bash open_dashboard.sh'
+      : 'Каждый проект парсится локально на Mac по своим настройкам из дашборда (JSONBin).');
   return `<div class="fb-scraper-admin">
     <div class="fb-scraper-admin-title">FB Ads Scraper</div>
     <div class="form-hint" style="margin-bottom:10px">${hint} Запрос на Mac: <code>${escHtml(triggerBase)}</code></div>
