@@ -320,6 +320,9 @@ td:first-child{text-align:left;color:#F0F0F0;font-weight:500}
 .fb-scraper-project-row:last-child{border-bottom:none}
 .fb-scraper-project-meta{flex:1;min-width:180px;display:flex;flex-direction:column;gap:2px;font-size:13px}
 .fb-scraper-project-sub{font-size:11px;color:rgba(255,255,255,0.35)}
+.fb-scraper-local-banner{margin-bottom:12px;padding:12px 14px;border-radius:10px;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.25);font-size:12px;line-height:1.5;color:#FDE68A}
+.fb-scraper-local-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:10px}
+.fb-scraper-local-cmd{font-size:11px;color:rgba(255,255,255,0.4)}
 .btn-sm{padding:7px 14px;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;font-family:'Inter',sans-serif;transition:all 0.15s ease}
 .btn-logout{border:1px solid rgba(255,255,255,0.1);background:transparent;color:rgba(255,255,255,0.45)}
 .btn-logout:hover{border-color:rgba(239,68,68,0.4);color:#EF4444;background:rgba(239,68,68,0.05)}
@@ -832,6 +835,7 @@ const PLANTO_GH_BRANCH = 'main';
 const PLANTO_FEED_TRIGGER_URL = '/.netlify/functions/trigger-planto-feed';
 const FB_SCRAPER_TRIGGER_KEY = 'fb_scraper_trigger_url';
 const FB_SCRAPER_TRIGGER_DEFAULT = 'http://127.0.0.1:8765';
+const LOCAL_DASHBOARD_URL = 'http://127.0.0.1:8080/elixir.html';
 let fbScraperBusy = {};
 
 const DEFAULT_PROJECTS = [
@@ -1936,9 +1940,7 @@ function renderFbScraperRow(p) {
 
 function renderFbScraperAdminBlock(proj) {
   const triggerBase = getFbScraperTriggerBase();
-  const httpsNote = isFbScraperHttpsBlocked()
-    ? '<div class="form-hint" style="margin-bottom:10px;color:#FBBF24">⚠️ С github.io не работает — bash open_dashboard.sh</div>'
-    : '';
+  const httpsNote = renderFbScraperHttpsNote();
   if (proj) {
     if (!isFbScraperConfigured(proj)) {
       return `<div class="fb-scraper-admin">
@@ -1963,6 +1965,17 @@ function renderFbScraperAdminBlock(proj) {
     ${configured.length
       ? configured.map(renderFbScraperRow).join('')
       : '<div class="form-hint">Нет настроенных проектов. Заполните FB Ads Scraper в каждом проекте.</div>'}
+  </div>`;
+}
+
+function renderFbScraperHttpsNote() {
+  if (!isFbScraperHttpsBlocked()) return '';
+  return `<div class="fb-scraper-local-banner">
+    <div>⚠️ С <b>github.io</b> кнопка «Парсить» не работает — браузер блокирует доступ к Mac.</div>
+    <div class="fb-scraper-local-actions">
+      <a class="btn-sm btn-add-proj" href="${LOCAL_DASHBOARD_URL}" target="_blank" rel="noopener">Открыть локальный дашборд</a>
+      <span class="fb-scraper-local-cmd">или: <code>bash open_dashboard.sh</code></span>
+    </div>
   </div>`;
 }
 
