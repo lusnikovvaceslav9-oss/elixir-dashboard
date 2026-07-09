@@ -1,0 +1,44 @@
+{
+  "source": "elixir-dashboard",
+  "notes": "Каждый enabled-проект = AdsPower profile → Google Sheet проекта в дашборде",
+  "projects": [
+    {
+      "enabled": true,
+      "dashboard_id": "rumbleads_1781784196399",
+      "name": "RumbleADS",
+      "icon": "📊",
+      "currency": "$",
+      "profile_id": "k1dk8d3g",
+      "bm_id": "",
+      "ad_account_id": "",
+      "sheet_id": "1hzR5VhC8Supr8K_jFx9_Pr3yFIVo0i6OOP_sPTG-9NE",
+      "dashboard_sheet": "Лист 1",
+      "detail_sheet": "FB Кампании",
+      "export_mode": "campaign"
+    },
+    {
+      "enabled": false,
+      "dashboard_id": "qlosophy_1781854711230",
+      "name": "Qlosophy",
+      "icon": "🌍",
+      "currency": "$",
+      "profile_id": "",
+      "sheet_id": "16QvJtqiDu0NjdGN2NWSb1D0dOAfwjOKxGnv5JNzBbYA",
+      "dashboard_sheet": "Лист1",
+      "detail_sheet": "FB Кампании",
+      "export_mode": "campaign"
+    },
+    {
+      "enabled": false,
+      "dashboard_id": "jggl_1782286914976",
+      "name": "JGGL",
+      "icon": "📊",
+      "currency": "$",
+      "profile_id": "",
+      "sheet_id": "1JaFcXIYM-KiBDLxcjNg2r6eS7xkDxjIUy7hZzA-hBnc",
+      "dashboard_sheet": "Waitlist",
+      "detail_sheet": "FB Кампании",
+      "export_mode": "campaign"
+    }
+  ]
+}

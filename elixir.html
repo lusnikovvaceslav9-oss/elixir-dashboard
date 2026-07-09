@@ -675,6 +675,47 @@ body.admin-mode th.th-editable:hover{background:rgba(91,75,245,0.06)}
           </div>
           <div id="proj-urls-list-edit" style="display:none"></div>
         </div>
+        <div class="edit-section" id="fb-scraper-section">
+          <div class="edit-section-title">FB Ads Scraper (Mac)</div>
+          <div class="form-hint" style="margin-bottom:12px">
+            Настройки для локального парсера AdsPower → Google Sheets. Сохраняются на сервер — Mac-скрипт подтягивает их перед каждым запуском.
+          </div>
+          <label class="mep-check" style="margin-bottom:14px;display:flex;align-items:center;gap:8px">
+            <input type="checkbox" id="fb-scraper-enabled"> Парсить этот проект автоматически
+          </label>
+          <div class="form-row">
+            <div class="form-group">
+              <label>AdsPower profile ID</label>
+              <input type="text" id="fb-scraper-profile" placeholder="k1dk8d3g">
+            </div>
+            <div class="form-group">
+              <label>Business Manager ID</label>
+              <input type="text" id="fb-scraper-bm" placeholder="123456789">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Ad account (act)</label>
+              <input type="text" id="fb-scraper-act" placeholder="1781784196399">
+              <div class="form-hint">Номер рекламного кабинета — откуда брать РК</div>
+            </div>
+            <div class="form-group">
+              <label>ID таблицы</label>
+              <input type="text" id="fb-scraper-sheet-id" readonly style="opacity:0.7">
+              <div class="form-hint">Берётся из ссылки Google Sheets выше</div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Лист для дашборда</label>
+              <input type="text" id="fb-scraper-dash-sheet" placeholder="Лист 1">
+            </div>
+            <div class="form-group">
+              <label>Лист детализации</label>
+              <input type="text" id="fb-scraper-detail-sheet" placeholder="FB Кампании">
+            </div>
+          </div>
+        </div>
         <div class="edit-section" id="proj-metrics-section">
           <div class="edit-section-title" style="display:flex;justify-content:space-between;align-items:center">
             <span>Метрики</span>
@@ -904,7 +945,62 @@ function normalizeProject(p) {
       .filter(ms => ms && ms.month && ms.url)
       .map(ms => ({ month: ms.month, url: normalizeToCSVUrl(ms.url) })),
     type: p.type || 'auto',
+    fbScraper: normalizeFbScraper(p, sheetSources),
   };
+}
+
+function normalizeFbScraper(p, sheetSources) {
+  const fb = p.fbScraper || {};
+  const firstLabel = sheetSources?.[0]?.label || '';
+  return {
+    enabled: !!fb.enabled,
+    profileId: (fb.profileId || '').trim(),
+    bmId: (fb.bmId || '').trim(),
+    adAccountId: (fb.adAccountId || '').trim(),
+    dashboardSheet: (fb.dashboardSheet || firstLabel || 'Лист 1').trim(),
+    detailSheet: (fb.detailSheet || 'FB Кампании').trim(),
+    exportMode: fb.exportMode || 'campaign',
+  };
+}
+
+function sheetIdFromUrls(urls) {
+  for (const url of urls || []) {
+    const m = String(url).match(/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+    if (m) return m[1];
+  }
+  return '';
+}
+
+function fillFbScraperEditor(p) {
+  const fb = p.fbScraper || normalizeFbScraper(p, p.sheetSources || []);
+  const enabledEl = document.getElementById('fb-scraper-enabled');
+  if (!enabledEl) return;
+  document.getElementById('fb-scraper-enabled').checked = !!fb.enabled;
+  document.getElementById('fb-scraper-profile').value = fb.profileId || '';
+  document.getElementById('fb-scraper-bm').value = fb.bmId || '';
+  document.getElementById('fb-scraper-act').value = fb.adAccountId || '';
+  document.getElementById('fb-scraper-dash-sheet').value = fb.dashboardSheet || '';
+  document.getElementById('fb-scraper-detail-sheet').value = fb.detailSheet || 'FB Кампании';
+  document.getElementById('fb-scraper-sheet-id').value = sheetIdFromUrls(p.urls) || '';
+}
+
+function getFbScraperFromEditor() {
+  const enabledEl = document.getElementById('fb-scraper-enabled');
+  if (!enabledEl) return null;
+  return {
+    enabled: enabledEl.checked,
+    profileId: document.getElementById('fb-scraper-profile').value.trim(),
+    bmId: document.getElementById('fb-scraper-bm').value.trim(),
+    adAccountId: document.getElementById('fb-scraper-act').value.trim(),
+    dashboardSheet: document.getElementById('fb-scraper-dash-sheet').value.trim(),
+    detailSheet: document.getElementById('fb-scraper-detail-sheet').value.trim(),
+    exportMode: 'campaign',
+  };
+}
+
+function refreshFbScraperSheetIdHint(urls) {
+  const el = document.getElementById('fb-scraper-sheet-id');
+  if (el) el.value = sheetIdFromUrls(urls) || '';
 }
 
 function applyPlantoAutoSource(list) {
@@ -3686,6 +3782,7 @@ async function onSheetUrlInput(isEdit) {
   const urlEl = document.getElementById(isEdit ? 'proj-sheet-url-edit' : 'proj-sheet-url');
   const statusEl = document.getElementById(isEdit ? 'sheet-status-edit' : 'sheet-status');
   const url = urlEl.value.trim();
+  if (isEdit) refreshFbScraperSheetIdHint(url ? [normalizeToCSVUrl(url)] : []);
   if (!url || !extractSheetId(url)) return;
   const key = isEdit ? 'edit' : 'add';
   statusEl.textContent = 'Ищу вкладки…';
@@ -3923,6 +4020,7 @@ function openEditProject(projId) {
   if (p.urls && p.urls.length) {
     onSheetUrlInput(true);
   }
+  fillFbScraperEditor(p);
   setWizardUI();
   document.getElementById('overlay-proj').classList.add('show');
 }
@@ -4095,7 +4193,15 @@ function saveProject() {
 
   if (editingProjId) {
     const idx = projects.findIndex(x => x.id === editingProjId);
-    if (idx >= 0) { projects[idx] = { ...projects[idx], icon, name, currency, type, urls: allUrls, sheetSources, monthlySheets, metrics, sheetColumns, budgetRemainder }; cache[editingProjId] = 'loading'; }
+    const fbScraper = getFbScraperFromEditor();
+    if (idx >= 0) {
+      projects[idx] = {
+        ...projects[idx],
+        icon, name, currency, type, urls: allUrls, sheetSources, monthlySheets, metrics, sheetColumns, budgetRemainder,
+        ...(fbScraper ? { fbScraper } : {}),
+      };
+      cache[editingProjId] = 'loading';
+    }
   } else {
     const id = genId(name);
     projects.push({ id, name, icon, currency, type, urls: allUrls, sheetSources, monthlySheets, metrics, sheetColumns, budgetRemainder });
