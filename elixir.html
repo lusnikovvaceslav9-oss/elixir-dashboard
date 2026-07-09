@@ -147,6 +147,20 @@ body{
 .tile-icon-wrap{width:40px;height:40px;border-radius:12px;background:var(--accent-soft);border:1px solid rgba(0,0,0,0.2);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
 .tile-icon{font-size:20px}
 .tile-badge{font-size:10px;font-weight:600;color:#0a0a0a;background:rgba(0,0,0,0.15);border-radius:6px;padding:3px 8px;letter-spacing:0.04em}
+.status-badge{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;border-radius:999px;padding:4px 9px;border:1px solid transparent;line-height:1;white-space:nowrap}
+.status-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
+.status-badge.run{color:#166534;background:rgba(22,101,52,0.1);border-color:rgba(22,101,52,0.28)}
+.status-badge.pause{color:#92400e;background:rgba(146,64,14,0.1);border-color:rgba(146,64,14,0.28)}
+.status-badge.stop{color:#991b1b;background:rgba(153,27,27,0.1);border-color:rgba(153,27,27,0.28)}
+.status-select{appearance:none;-webkit-appearance:none;border-radius:999px;padding:5px 26px 5px 10px;font-size:11px;font-weight:700;font-family:inherit;letter-spacing:0.03em;text-transform:uppercase;cursor:pointer;border:1px solid transparent;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;outline:none}
+.status-select.run{color:#166534;background-color:rgba(22,101,52,0.1);border-color:rgba(22,101,52,0.28)}
+.status-select.pause{color:#92400e;background-color:rgba(146,64,14,0.1);border-color:rgba(146,64,14,0.28)}
+.status-select.stop{color:#991b1b;background-color:rgba(153,27,27,0.1);border-color:rgba(153,27,27,0.28)}
+.status-select:focus{box-shadow:0 0 0 2px rgba(0,0,0,0.12)}
+.proj-tile.status-pause{opacity:0.92}
+.proj-tile.status-stop{opacity:0.78}
+.proj-tile.status-stop .tile-name{color:rgba(0,0,0,0.55)}
+.page-status{margin-left:10px;vertical-align:middle}
 /* month tabs inside tile */
 .tile-month-tabs{display:flex;gap:4px;flex-wrap:wrap;padding:0 16px 12px;border-bottom:1px solid rgba(0,0,0,0.04)}
 .tile-tab{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:500;border:1px solid rgba(0,0,0,0.08);background:transparent;cursor:pointer;color:rgba(0,0,0,0.35);font-family:'Inter',sans-serif;transition:all 0.12s ease}
@@ -664,6 +678,12 @@ thead tr{background:#f7f7f7}
   border-color:#b91c1c!important;
 }
 .budget-stat.remainder.overspent .budget-stat-value{color:#fecaca!important}
+.status-badge.run{color:#166534!important;background:rgba(22,101,52,0.1)!important;border-color:rgba(22,101,52,0.28)!important}
+.status-badge.pause{color:#92400e!important;background:rgba(146,64,14,0.1)!important;border-color:rgba(146,64,14,0.28)!important}
+.status-badge.stop{color:#991b1b!important;background:rgba(153,27,27,0.1)!important;border-color:rgba(153,27,27,0.28)!important}
+.status-select.run{color:#166534!important}
+.status-select.pause{color:#92400e!important}
+.status-select.stop{color:#991b1b!important}
 .tile-metric.live .tile-metric-label{color:rgba(21,128,61,0.85)!important}
 .tile-metric.live .tile-metric-value,.tile-live-note{color:#166534!important}
 .tile-metric.accent .tile-metric-value,.metric-card.accent .metric-value,.planto-kpi.accent .planto-kpi-value{color:#0a0a0a!important}
@@ -792,6 +812,15 @@ thead th{color:rgba(0,0,0,0.58)!important;font-weight:700!important}
             <option value="€">€ Евро</option>
           </select>
         </div>
+        <div class="form-group">
+          <label>Статус</label>
+          <select id="proj-status">
+            <option value="run">Пролив</option>
+            <option value="pause">Пауза</option>
+            <option value="stop">Стоп</option>
+          </select>
+          <div class="form-hint">Показывается на обзоре и в карточке проекта</div>
+        </div>
           <div class="form-group">
           <label>Остаток бюджета <span style="font-weight:400;text-transform:none;color:var(--text-dim)">(на сегодня)</span></label>
           <input type="text" id="proj-budget-remainder" placeholder="Например: 2833" inputmode="decimal">
@@ -855,6 +884,16 @@ thead th{color:rgba(0,0,0,0.58)!important;font-weight:700!important}
                 <option value="€">€ Евро</option>
               </select>
             </div>
+            <div class="form-group">
+              <label>Статус</label>
+              <select id="proj-status-edit">
+                <option value="run">Пролив</option>
+                <option value="pause">Пауза</option>
+                <option value="stop">Стоп</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
             <div class="form-group">
               <label>Тип данных</label>
               <div id="proj-type-auto-display" class="auto-type-badge">Определяется из таблицы автоматически</div>
@@ -1028,13 +1067,65 @@ let lastPlantoFeedRefresh = null; // { ok, fresh, message, at }
 
 
 const DEFAULT_PROJECTS = [
-  { id: 'planto',   name: 'Planto',      icon: '🌱', currency: '₽', type: 'planto',
+  { id: 'planto',   name: 'Planto',      icon: '🌱', currency: '₽', type: 'planto', status: 'run',
     urls: [PLANTO_DATA_URL], dataSource: 'auto' },
-  { id: 'quadcode', name: 'Quadcode AI', icon: '💻', currency: '$', type: 'quadcode',
+  { id: 'quadcode', name: 'Quadcode AI', icon: '💻', currency: '$', type: 'quadcode', status: 'run',
     urls: ['https://docs.google.com/spreadsheets/d/1GRLgK6CnvH4innf7n4k8K_bhQ9nsTl2Q/export?format=csv'] },
-  { id: 'streamfi', name: 'StreamFi',    icon: '📡', currency: '$', type: 'streamfi',
+  { id: 'streamfi', name: 'StreamFi',    icon: '📡', currency: '$', type: 'streamfi', status: 'run',
     urls: ['https://docs.google.com/spreadsheets/d/1j3HKzBOB_4vejxNNgMGTFTnAana1Xoqo/export?format=csv'] },
 ];
+
+const PROJECT_STATUSES = [
+  { id: 'run',   label: 'Пролив' },
+  { id: 'pause', label: 'Пауза' },
+  { id: 'stop',  label: 'Стоп' },
+];
+
+function normalizeProjectStatus(status) {
+  const id = String(status || 'run').toLowerCase();
+  return PROJECT_STATUSES.some(s => s.id === id) ? id : 'run';
+}
+
+function getProjectStatus(proj) {
+  return normalizeProjectStatus(proj?.status);
+}
+
+function getProjectStatusMeta(status) {
+  const id = normalizeProjectStatus(status);
+  return PROJECT_STATUSES.find(s => s.id === id) || PROJECT_STATUSES[0];
+}
+
+function renderStatusBadge(projOrStatus) {
+  const id = typeof projOrStatus === 'string' ? normalizeProjectStatus(projOrStatus) : getProjectStatus(projOrStatus);
+  const meta = getProjectStatusMeta(id);
+  return `<span class="status-badge ${id}">${escHtml(meta.label)}</span>`;
+}
+
+function renderStatusSelect(projId, status, extraClass = '') {
+  const id = normalizeProjectStatus(status);
+  const opts = PROJECT_STATUSES.map(s =>
+    `<option value="${s.id}"${s.id === id ? ' selected' : ''}>${escHtml(s.label)}</option>`
+  ).join('');
+  return `<select class="status-select ${id}${extraClass ? ' ' + extraClass : ''}" data-proj-id="${escHtml(projId)}" onclick="event.stopPropagation()" onchange="setProjectStatus('${escHtml(projId)}', this.value, event)">${opts}</select>`;
+}
+
+async function setProjectStatus(projId, status, e) {
+  if (e) e.stopPropagation();
+  if (!isAdmin()) return;
+  const idx = projects.findIndex(p => p.id === projId);
+  if (idx < 0) return;
+  const next = normalizeProjectStatus(status);
+  if (getProjectStatus(projects[idx]) === next) return;
+  projects[idx] = { ...projects[idx], status: next };
+  try {
+    await saveProjects();
+  } catch (err) {
+    console.warn('Status save failed:', err);
+    alert('Не удалось сохранить статус: ' + (err.message || err));
+  }
+  renderTopbar();
+  renderContent();
+}
 
 // ═══════════════════════════════════════════════════════════════
 // STATE
@@ -1157,6 +1248,7 @@ function normalizeProject(p) {
       .filter(ms => ms && ms.month && ms.url)
       .map(ms => ({ month: ms.month, url: normalizeToCSVUrl(ms.url) })),
     type: p.type || 'auto',
+    status: normalizeProjectStatus(p.status),
     ...(p.id === 'planto' || p.dataSource === 'auto' ? {} : { fbScraper: normalizeFbScraper(p, sheetSources) }),
   };
 }
@@ -4279,19 +4371,24 @@ function updateProjPickerTrigger() {
   } else {
     const p = projects.find(x => x.id === view);
     if (p) {
-      el.innerHTML = `<span class="proj-picker-icon">${p.icon}</span><span>${escHtml(p.name)}</span>`;
-      if (pageTitle) pageTitle.textContent = p.name;
+      el.innerHTML = `<span class="proj-picker-icon">${p.icon}</span><span>${escHtml(p.name)}</span> ${renderStatusBadge(p)}`;
+      if (pageTitle) pageTitle.innerHTML = `${escHtml(p.name)} <span class="page-status">${renderStatusBadge(p)}</span>`;
     }
   }
 }
 
-function projPickerItemHtml(id, icon, name, subId) {
+function projPickerItemHtml(id, icon, name, subId, status) {
   const active = view === id ? ' active' : '';
+  const statusHtml = subId !== 'overview' && status
+    ? `<span class="proj-picker-item-id">${renderStatusBadge(status)}</span>`
+    : (subId !== 'overview'
+      ? `<span class="proj-picker-item-id">${escHtml(subId)}</span>`
+      : '<span class="proj-picker-item-id">overview</span>');
   return `<button type="button" class="proj-picker-item${active}" data-proj-id="${escHtml(id)}">
     <span class="proj-picker-item-icon">${icon}</span>
     <span class="proj-picker-item-info">
       <span class="proj-picker-item-name">${escHtml(name)}</span>
-      ${subId !== 'overview' ? `<span class="proj-picker-item-id">${escHtml(subId)}</span>` : '<span class="proj-picker-item-id">overview</span>'}
+      ${statusHtml}
     </span>
     <svg class="proj-picker-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
   </button>`;
@@ -4311,7 +4408,7 @@ function renderProjPickerList() {
   }
   html += `<div class="proj-picker-section">Проекты${filtered.length ? ' · ' + filtered.length : ''}</div>`;
   if (filtered.length) {
-    html += filtered.map(p => projPickerItemHtml(p.id, p.icon, p.name, p.id)).join('');
+    html += filtered.map(p => projPickerItemHtml(p.id, p.icon, p.name, p.id, getProjectStatus(p))).join('');
   } else if (q) {
     html += `<div style="padding:16px 12px;font-size:12px;color:var(--text-dim);text-align:center">Ничего не найдено</div>`;
   }
@@ -4387,7 +4484,7 @@ function highlightProjPickerFocus() {
 }
 
 function tileOpenProject(id, e) {
-  if (e.target.closest('.tile-month-tabs, .admin-zone, .budget-input-row, .btn-budget-save, button, input, a')) return;
+  if (e.target.closest('.tile-month-tabs, .admin-zone, .budget-input-row, .btn-budget-save, button, input, select, a, .status-select')) return;
   switchView(id);
 }
 
@@ -4616,13 +4713,18 @@ function renderOverview() {
     const data = cache[p.id];
     const isLoading = data === 'loading';
     const isError = data === null;
+    const status = getProjectStatus(p);
+    const statusCtrl = isAdmin() ? renderStatusSelect(p.id, status) : renderStatusBadge(status);
 
     if (isLoading) {
-      html += `<div class="proj-tile" onclick="tileOpenProject('${p.id}', event)">
+      html += `<div class="proj-tile status-${status}" onclick="tileOpenProject('${p.id}', event)">
         <div class="tile-body">
           <div class="tile-header">
             <div class="tile-name"><span class="tile-icon-wrap">${p.icon}</span>${p.name}</div>
-            <span class="tile-badge">${p.currency}</span>
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+              ${statusCtrl}
+              <span class="tile-badge">${p.currency}</span>
+            </div>
           </div>
         </div>
         <div class="tile-loading"><span class="mini-spinner"></span>Загрузка…</div>
@@ -4631,11 +4733,14 @@ function renderOverview() {
     }
 
     if (isError) {
-      html += `<div class="proj-tile" onclick="tileOpenProject('${p.id}', event)">
+      html += `<div class="proj-tile status-${status}" onclick="tileOpenProject('${p.id}', event)">
         <div class="tile-body">
           <div class="tile-header">
             <div class="tile-name"><span class="tile-icon-wrap">${p.icon}</span>${p.name}</div>
-            <span class="tile-badge">${p.currency}</span>
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+              ${statusCtrl}
+              <span class="tile-badge">${p.currency}</span>
+            </div>
           </div>
         </div>
         <div class="tile-error">Ошибка загрузки данных</div>
@@ -4691,11 +4796,12 @@ function renderOverview() {
 
     const budgetTile = isPlantoTile ? '' : renderBudgetCard(p, data, true);
 
-    html += `<div class="proj-tile" onclick="tileOpenProject('${p.id}', event)">
+    html += `<div class="proj-tile status-${status}" onclick="tileOpenProject('${p.id}', event)">
       <div class="tile-body">
         <div class="tile-header">
           <div class="tile-name"><span class="tile-icon-wrap">${p.icon}</span>${p.name}${isMulti ? `<span style="font-size:10px;color:var(--text-dim);margin-left:6px">${pack.sources.length} листа</span>` : ''}</div>
-          <div style="display:flex;gap:6px;align-items:center">
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+            ${statusCtrl}
             <span class="tile-badge">${p.currency}</span>
           </div>
         </div>
@@ -5412,6 +5518,7 @@ function openAddProject() {
   document.getElementById('proj-name').value = '';
   document.getElementById('proj-icon').value = '📊';
   document.getElementById('proj-currency').value = '$';
+  document.getElementById('proj-status').value = 'run';
   document.getElementById('proj-budget-remainder').value = '';
   document.getElementById('proj-type').value = 'auto';
   document.getElementById('proj-sheet-url').value = '';
@@ -5441,6 +5548,7 @@ function openEditProject(projId) {
   document.getElementById('proj-icon-edit').value = p.icon;
   document.getElementById('proj-name-edit').value = p.name;
   document.getElementById('proj-currency-edit').value = p.currency;
+  document.getElementById('proj-status-edit').value = getProjectStatus(p);
   const rem = getBudgetRemainder(p);
   document.getElementById('proj-budget-remainder-edit').value = rem != null ? rem : '';
   document.getElementById('proj-type-auto-display').textContent = 'Определяется из таблицы…';
@@ -5593,7 +5701,7 @@ function getMonthlySheetsFromEditor() {
 
 function saveProject() {
   const errEl = document.getElementById('proj-error');
-  let icon, name, currency, sheetSources, metrics, remRaw;
+  let icon, name, currency, status, sheetSources, metrics, remRaw;
   const monthlySheets = getMonthlySheetsFromEditor();
   const detectedType = getDetectedTypeFromCache();
 
@@ -5601,6 +5709,7 @@ function saveProject() {
     icon = document.getElementById('proj-icon-edit').value.trim() || '📊';
     name = document.getElementById('proj-name-edit').value.trim();
     currency = document.getElementById('proj-currency-edit').value;
+    status = normalizeProjectStatus(document.getElementById('proj-status-edit').value);
     sheetSources = getSelectedSheetSources(true);
     if (!sheetSources.length && editingProjId) {
       const existing = projects.find(x => x.id === editingProjId);
@@ -5615,6 +5724,7 @@ function saveProject() {
     icon = document.getElementById('proj-icon').value.trim() || '📊';
     name = document.getElementById('proj-name').value.trim();
     currency = document.getElementById('proj-currency').value;
+    status = normalizeProjectStatus(document.getElementById('proj-status').value);
     sheetSources = getSelectedSheetSources(false);
     if (!sheetSources.length) { errEl.textContent = 'Подключите Google Sheets и выберите лист'; errEl.style.display='block'; return; }
     metrics = buildDefaultMetrics(detectedType, sheetPreviewCache.headers);
@@ -5637,7 +5747,7 @@ function saveProject() {
       const withBudget = applyBudgetRemainderUpdate(projects[idx], remRaw, budgetData, { force: false });
       projects[idx] = {
         ...withBudget,
-        icon, name, currency, type, urls: allUrls, sheetSources, monthlySheets, metrics, sheetColumns,
+        icon, name, currency, status, type, urls: allUrls, sheetSources, monthlySheets, metrics, sheetColumns,
         ...(fbScraper ? { fbScraper } : {}),
       };
       cache[editingProjId] = 'loading';
@@ -5645,7 +5755,7 @@ function saveProject() {
   } else {
     const id = genId(name);
     projects.push({
-      id, name, icon, currency, type, urls: allUrls, sheetSources, monthlySheets, metrics, sheetColumns,
+      id, name, icon, currency, status, type, urls: allUrls, sheetSources, monthlySheets, metrics, sheetColumns,
       ...buildBudgetSnapshot(remRaw, null, todayIsoLocal()),
     });
     cache[id] = 'loading';
