@@ -1584,13 +1584,33 @@ function resolveUploadLabel(proj, selected, rows) {
   return selected || 'CSV';
 }
 
+/** Суммирует строки с одной датой (нужно для Meta Ads: много кампаний → один день). */
+function aggregateRowsByDate(rows) {
+  const map = new Map();
+  (rows || []).forEach(r => {
+    if (!r?.date) return;
+    const key = fmtDateStr(r.date);
+    if (!map.has(key)) {
+      map.set(key, { ...r, dateStr: key });
+      return;
+    }
+    const ex = map.get(key);
+    Object.keys(r).forEach(k => {
+      if (k === 'date' || k === 'dateStr' || k === 'campaign') return;
+      if (typeof r[k] === 'number') ex[k] = (ex[k] || 0) + r[k];
+    });
+  });
+  return [...map.values()].sort((a, b) => a.date - b.date);
+}
+
 function mergeRowsByDate(baseRows, uploadRows) {
   const map = new Map();
-  (baseRows || []).forEach(r => {
+  aggregateRowsByDate(baseRows).forEach(r => {
     if (!r?.date) return;
     map.set(fmtDateStr(r.date), r);
   });
-  (uploadRows || []).forEach(r => {
+  // Свежий upload перекрывает день целиком
+  aggregateRowsByDate(uploadRows).forEach(r => {
     if (!r?.date) return;
     map.set(fmtDateStr(r.date), r);
   });
@@ -1604,6 +1624,93 @@ function monthKeyFromSourceLabel(label) {
   const idx = names.indexOf(m[1].slice(0, 3));
   if (idx < 0) return null;
   return `${m[2]}-${String(idx + 1).padStart(2, '0')}`;
+}
+
+function sourceMonthKey(source) {
+  if (!source) return null;
+  if (source.id && String(source.id).startsWith('month_')) return String(source.id).slice(6);
+  return monthKeyFromSourceLabel(source.label);
+}
+
+function sourcesAreMonthPartitioned(pack) {
+  const sources = pack?.sources || [];
+  if (sources.length < 2) return sources.length === 1 && !!sourceMonthKey(sources[0]);
+  const keyed = sources.filter(s => sourceMonthKey(s));
+  return keyed.length >= Math.ceil(sources.length * 0.5);
+}
+
+function findBestSourceIdxForMonth(pack, monthKey) {
+  const sources = pack?.sources || [];
+  if (!sources.length) return 0;
+  if (!monthKey) return 0;
+  const exact = sources.findIndex(s => sourceMonthKey(s) === monthKey);
+  let bestIdx = exact >= 0 ? exact : 0;
+  let bestCount = -1;
+  sources.forEach((s, i) => {
+    const c = rowsForMonthOnRows(s.rows || [], monthKey).length;
+    const boost = sourceMonthKey(s) === monthKey ? 100000 : 0;
+    const score = c + boost;
+    if (score > bestCount) {
+      bestCount = score;
+      bestIdx = i;
+    }
+  });
+  return bestIdx;
+}
+
+function syncSourceIndexToMonth(projId, pack, monthKey) {
+  if (!pack?.sources?.length || !monthKey) return;
+  if (!sourcesAreMonthPartitioned(pack) && !isQuadcodeProject(projects.find(p => p.id === projId))) return;
+  sourceIndexByProject[projId] = findBestSourceIdxForMonth(pack, monthKey);
+}
+
+/** Раскладывает загрузки по месяцам по датам строк (не только по label). */
+function expandUploadedSourcesByMonth(uploaded, proj) {
+  if (!isQuadcodeProject(proj)) return uploaded || [];
+  const byMonth = new Map();
+  (uploaded || []).forEach(src => {
+    const groups = new Map();
+    (src.rows || []).forEach(r => {
+      if (!r?.date) return;
+      const mk = dateToMonthKey(r.date);
+      if (!mk) return;
+      if (!groups.has(mk)) groups.set(mk, []);
+      groups.get(mk).push(r);
+    });
+    if (!groups.size) {
+      const fallbackMk = monthKeyFromSourceLabel(src.label) || dominantMonthKeyFromRows(src.rows);
+      if (fallbackMk) groups.set(fallbackMk, src.rows || []);
+      else {
+        byMonth.set(String(src.label || src.id).toLowerCase(), { ...src });
+        return;
+      }
+    }
+    groups.forEach((rows, mk) => {
+      const label = formatMonthKey(mk);
+      const key = label.toLowerCase();
+      const piece = {
+        ...src,
+        id: `upload_month_${mk}`,
+        label,
+        rows: aggregateRowsByDate(rows),
+        fileNames: src.fileNames || [src.fileName].filter(Boolean),
+        uploadIds: src.uploadIds || [src.storageId].filter(Boolean),
+        hashes: src.hashes || [src.hash].filter(Boolean),
+      };
+      if (byMonth.has(key)) {
+        const prev = byMonth.get(key);
+        prev.rows = mergeRowsByDate(prev.rows || [], piece.rows || []);
+        prev.fileNames = [...new Set([...(prev.fileNames || []), ...(piece.fileNames || [])])];
+        prev.uploadIds = [...new Set([...(prev.uploadIds || []), ...(piece.uploadIds || [])])];
+        prev.hashes = [...new Set([...(prev.hashes || []), ...(piece.hashes || [])].filter(Boolean))];
+        prev.uploadedAt = [prev.uploadedAt, piece.uploadedAt].filter(Boolean).sort().slice(-1)[0] || prev.uploadedAt;
+        if (piece.sheetColumns?.length) prev.sheetColumns = piece.sheetColumns;
+      } else {
+        byMonth.set(key, piece);
+      }
+    });
+  });
+  return [...byMonth.values()];
 }
 
 function loadCsvUploads() {
@@ -1775,28 +1882,34 @@ async function applyUploadedCsvToCache(projId, preferLabel) {
   try {
     const pack = await fetchProject(p);
     cache[projId] = pack;
-    // После загрузки сразу открываем этот лист и месяц, где есть строки.
+    // После загрузки сразу открываем месяц и лист, где есть строки.
     const sources = normalizeCacheData(pack)?.sources || [];
-    let srcIdx = 0;
-    if (preferLabel) {
-      const want = String(preferLabel).toLowerCase();
-      const found = sources.findIndex(s => String(s.label || '').toLowerCase() === want);
-      if (found >= 0) srcIdx = found;
-      else {
-        const uploadIdx = sources.findIndex(s => String(s.url || '').startsWith('upload://'));
-        if (uploadIdx >= 0) srcIdx = uploadIdx;
-      }
+    const preferMk = monthKeyFromSourceLabel(preferLabel)
+      || dominantMonthKeyFromRows(
+        preferLabel
+          ? (sources.find(s => String(s.label || '').toLowerCase() === String(preferLabel).toLowerCase())?.rows || [])
+          : sources.flatMap(s => s.rows || [])
+      );
+    if (preferMk) {
+      currentMonth = preferMk;
+      tileMonths[projId] = preferMk;
+      syncSourceIndexToMonth(projId, pack, preferMk);
+      tileSourceIndex[projId] = sourceIndexByProject[projId];
     } else {
-      const uploadIdx = sources.findIndex(s => String(s.url || '').startsWith('upload://'));
-      if (uploadIdx >= 0) srcIdx = uploadIdx;
-    }
-    sourceIndexByProject[projId] = srcIdx;
-    tileSourceIndex[projId] = srcIdx;
-    const srcRows = sources[srcIdx]?.rows || [];
-    const months = [...new Set(srcRows.map(r => dateToMonthKey(r.date)).filter(Boolean))].sort();
-    if (months.length) {
-      currentMonth = months[months.length - 1];
-      tileMonths[projId] = currentMonth;
+      let srcIdx = 0;
+      if (preferLabel) {
+        const want = String(preferLabel).toLowerCase();
+        const found = sources.findIndex(s => String(s.label || '').toLowerCase() === want);
+        if (found >= 0) srcIdx = found;
+      }
+      sourceIndexByProject[projId] = srcIdx;
+      tileSourceIndex[projId] = srcIdx;
+      const srcRows = sources[srcIdx]?.rows || [];
+      const months = [...new Set(srcRows.map(r => dateToMonthKey(r.date)).filter(Boolean))].sort();
+      if (months.length) {
+        currentMonth = months[months.length - 1];
+        tileMonths[projId] = currentMonth;
+      }
     }
   } catch (e) {
     console.error(e);
@@ -2653,7 +2766,7 @@ async function fetchMultiSourcesMonthly(sourceDefs, monthly) {
 }
 
 async function fetchProject(proj) {
-  const uploaded = getUploadedCsvSources(proj);
+  const uploaded = expandUploadedSourcesByMonth(getUploadedCsvSources(proj), proj);
   const sourceDefs = (await getProjectSourcesWithLocalCsv(proj))
     .filter(s => !String(s.url || '').startsWith('upload://'));
   const monthly = (proj.monthlySheets || []).filter(ms => ms.month && ms.url);
@@ -4613,8 +4726,12 @@ function rowsForMonthOnRows(rows, mk) {
 function monthDayCountLabel(data, mk) {
   const pack = normalizeCacheData(data);
   if (!pack || pack === 'loading' || pack === null) return '—';
-  if (pack.sources.length <= 1) {
-    return String(rowsForMonthOnRows(pack.sources[0]?.rows || [], mk).length);
+  if (pack.sources.length <= 1 || sourcesAreMonthPartitioned(pack)) {
+    const rows = sourcesAreMonthPartitioned(pack)
+      ? (pack.sources.find(s => sourceMonthKey(s) === mk)?.rows
+          || pack.sources.flatMap(s => s.rows || []))
+      : (pack.sources[0]?.rows || []);
+    return String(rowsForMonthOnRows(rows, mk).length);
   }
   return pack.sources
     .map(s => {
@@ -5030,6 +5147,13 @@ function renderSheetSwitcher(pack, projId, monthKey) {
 
 function switchSource(idx) {
   sourceIndexByProject[view] = idx;
+  const pack = normalizeCacheData(cache[view]);
+  const src = pack?.sources?.[idx];
+  const mk = sourceMonthKey(src);
+  if (mk) {
+    currentMonth = mk;
+    tileMonths[view] = mk;
+  }
   destroyDetailCharts();
   renderContent();
 }
@@ -5194,6 +5318,9 @@ function renderProjectDetail(projId) {
   const pack = normalizeCacheData(data);
   const months = getMonths(data, p);
   if (!currentMonth || !months.includes(currentMonth)) currentMonth = months[months.length-1] || null;
+  if (pack && pack !== 'loading' && pack !== null && currentMonth) {
+    syncSourceIndexToMonth(projId, pack, currentMonth);
+  }
   const isMulti = isMultiSourceCache(data);
   const allRows = currentMonth ? rowsForMonth(data, currentMonth) : (getAllRowsFromCache(data) || []);
 
@@ -5240,11 +5367,21 @@ function renderProjectDetail(projId) {
   if (isMulti) {
     const srcIdx = getSourceIdx(projId, pack);
     const src = pack.sources[srcIdx];
-    const rows = currentMonth ? rowsForMonthOnRows(src.rows, currentMonth) : (src.rows || []);
+    const monthPartitioned = sourcesAreMonthPartitioned(pack);
+    // Месячные листы: показываем выбранный месяц из синхронизированного листа.
+    // Иначе (несколько листов Ads/App): строки месяца со всех листов, чтобы не было пустоты.
+    const viewRows = currentMonth
+      ? (monthPartitioned
+          ? rowsForMonthOnRows(src.rows || [], currentMonth)
+          : rowsForMonthOnRows(pack.sources.flatMap(s => s.rows || []), currentMonth))
+      : (monthPartitioned ? (src.rows || []) : (getAllRowsFromCache(data) || []));
+    const sectionSource = monthPartitioned && currentMonth
+      ? { ...src, label: formatMonthKey(currentMonth) }
+      : src;
     html += renderCsvUploadCard(p);
-    html += renderSheetSwitcher(pack, projId, currentMonth);
-    html += renderAnalyticsSection(p, data, rows, currentMonth);
-    html += renderSourceSection(p, src, rows, currentMonth, srcIdx, true, 'mainChart', false);
+    if (!monthPartitioned) html += renderSheetSwitcher(pack, projId, currentMonth);
+    html += renderAnalyticsSection(p, data, viewRows, currentMonth);
+    html += renderSourceSection(p, sectionSource, viewRows, currentMonth, srcIdx, true, 'mainChart', false);
     content.innerHTML = html;
     renderChartsForProject(p, pack, currentMonth, srcIdx);
     return;
@@ -5439,6 +5576,11 @@ function switchView(v) {
 
 function switchMonth(m) {
   currentMonth = m;
+  const pack = normalizeCacheData(cache[view]);
+  if (pack && pack !== 'loading' && pack !== null) {
+    syncSourceIndexToMonth(view, pack, m);
+    tileMonths[view] = m;
+  }
   renderContent();
 }
 
