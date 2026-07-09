@@ -525,6 +525,12 @@ def process_project(
 
 
 def main():
+    import argparse
+
+    parser = argparse.ArgumentParser(description="FB Ads Scraper")
+    parser.add_argument("--project-id", default=None, help="Только один проект (dashboard_id)")
+    args = parser.parse_args()
+
     try:
         config = load_config()
     except Exception as e:
@@ -542,6 +548,14 @@ def main():
         logger.error(e)
         sys.exit(1)
     logger.info(f"Источник конфига: {projects_source}")
+
+    if args.project_id:
+        needle = args.project_id.strip()
+        projects = [p for p in projects if p.get("dashboard_id") == needle]
+        if not projects:
+            logger.error(f"Проект не найден или не включён: {needle}")
+            sys.exit(1)
+        logger.info(f"Фильтр по проекту: {needle}")
 
     gc = get_gspread_client(logger)
     adspower = AdsPowerClient(

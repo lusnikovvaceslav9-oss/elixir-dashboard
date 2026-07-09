@@ -10,5 +10,8 @@
   "headless": false,
   "close_browser_after": true,
   "wait_timeout": 30,
-  "log_file": "fb_ads_scraper.log"
+  "log_file": "fb_ads_scraper.log",
+  "trigger_host": "127.0.0.1",
+  "trigger_port": 8765,
+  "trigger_token": ""
 }

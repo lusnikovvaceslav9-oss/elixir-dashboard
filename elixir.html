@@ -310,6 +310,12 @@ td:first-child{text-align:left;color:#F0F0F0;font-weight:500}
 .admin-link-left{display:flex;align-items:center;gap:8px}
 .admin-link-ext{color:rgba(255,255,255,0.25);font-size:11px}
 .admin-actions{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap}
+.fb-scraper-admin{margin-top:16px;padding-top:16px;border-top:1px solid rgba(91,75,245,0.15)}
+.fb-scraper-admin-title{font-size:11px;font-weight:600;color:#7B6FF8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px}
+.fb-scraper-status{margin-top:10px;font-size:12px;color:rgba(255,255,255,0.45);min-height:18px}
+.fb-scraper-status.busy{color:#A5B4FC}
+.fb-scraper-status.ok{color:#34D399}
+.fb-scraper-status.err{color:#F87171}
 .btn-sm{padding:7px 14px;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;font-family:'Inter',sans-serif;transition:all 0.15s ease}
 .btn-logout{border:1px solid rgba(255,255,255,0.1);background:transparent;color:rgba(255,255,255,0.45)}
 .btn-logout:hover{border-color:rgba(239,68,68,0.4);color:#EF4444;background:rgba(239,68,68,0.05)}
@@ -815,6 +821,9 @@ const PLANTO_META_URL = 'data/planto-meta.json';
 const PLANTO_GH_REPO = 'lusnikovvaceslav9-oss/elixir-dashboard';
 const PLANTO_GH_BRANCH = 'main';
 const PLANTO_FEED_TRIGGER_URL = '/.netlify/functions/trigger-planto-feed';
+const FB_SCRAPER_TRIGGER_KEY = 'fb_scraper_trigger_url';
+const FB_SCRAPER_TRIGGER_DEFAULT = 'http://127.0.0.1:8765';
+let fbScraperBusy = false;
 
 const DEFAULT_PROJECTS = [
   { id: 'planto',   name: 'Planto',      icon: '🌱', currency: '₽', type: 'planto',
@@ -1718,6 +1727,152 @@ async function triggerPlantoFeedAndWait() {
     }
     await sleep(pollMs);
   }
+}
+
+function getFbScraperTriggerBase() {
+  const saved = (localStorage.getItem(FB_SCRAPER_TRIGGER_KEY) || '').trim();
+  return (saved || FB_SCRAPER_TRIGGER_DEFAULT).replace(/\/$/, '');
+}
+
+function setFbScraperTriggerBase(url) {
+  const v = (url || '').trim().replace(/\/$/, '');
+  if (v) localStorage.setItem(FB_SCRAPER_TRIGGER_KEY, v);
+  else localStorage.removeItem(FB_SCRAPER_TRIGGER_KEY);
+}
+
+function projectsWithFbScraper(proj) {
+  if (proj) {
+    const fb = proj.fbScraper;
+    return fb?.enabled && fb?.profileId ? [proj] : [];
+  }
+  return projects.filter(p => p.fbScraper?.enabled && p.fbScraper?.profileId);
+}
+
+async function fetchFbScraperStatus() {  const base = getFbScraperTriggerBase();
+  const resp = await fetchWithTimeout(fetch(`${base}/status`, { cache: 'no-store' }), 8000);
+  if (!resp.ok) throw new Error(`status ${resp.status}`);
+  return await resp.json();
+}
+
+async function triggerFbScraperFromDashboard(projId) {
+  if (!isAdmin() || fbScraperBusy) return;
+  const targets = projectsWithFbScraper(projId ? projects.find(p => p.id === projId) : null);
+  const base = getFbScraperTriggerBase();
+  const statusEl = document.getElementById('fb-scraper-status');
+  const btn = document.getElementById('btn-fb-scraper-trigger');
+  fbScraperBusy = true;
+  if (btn) btn.disabled = true;
+  if (statusEl) {
+    statusEl.textContent = 'Запускаю парсинг на Mac…';
+    statusEl.className = 'fb-scraper-status busy';
+  }
+
+  const startedAt = Date.now();
+  let prevUpdated = null;
+  try {
+    const prev = await fetchFbScraperStatus().catch(() => null);
+    prevUpdated = prev?.updated_at || null;
+  } catch (_) {}
+
+  try {
+    const qs = projId ? `?project_id=${encodeURIComponent(projId)}` : '';
+    const resp = await fetchWithTimeout(
+      fetch(`${base}/trigger${qs}`, { method: 'POST', headers: { 'Content-Type': 'application/json' } }),
+      15000
+    );
+    const data = await resp.json().catch(() => ({}));
+    if (resp.status === 409) {
+      if (statusEl) statusEl.textContent = 'Парсинг уже выполняется…';
+    } else if (!resp.ok && resp.status !== 202) {
+      throw new Error(data.error || `HTTP ${resp.status}`);
+    } else if (statusEl) {
+      statusEl.textContent = projId
+        ? `Парсинг запущен для проекта…`
+        : `Парсинг запущен${targets.length ? ` (${targets.length} проект.)` : ''}…`;
+    }
+  } catch (e) {
+    fbScraperBusy = false;
+    if (btn) btn.disabled = false;
+    if (statusEl) {
+      statusEl.textContent = `Mac-сервер недоступен: ${e.message}. Запустите start_trigger.sh`;
+      statusEl.className = 'fb-scraper-status err';
+    }
+    return;
+  }
+
+  const deadline = Date.now() + 300000;
+  while (Date.now() < deadline) {
+    await sleep(3000);
+    try {
+      const st = await fetchFbScraperStatus();
+      if (statusEl) {
+        if (st.running) {
+          statusEl.textContent = 'Парсинг выполняется на Mac…';
+          statusEl.className = 'fb-scraper-status busy';
+        } else if (st.projects?.length) {
+          const ok = st.projects.filter(p => p.status === 'ok').length;
+          const err = st.projects.length - ok;
+          statusEl.textContent = `Готово: успешно ${ok}, ошибок ${err} · ${st.updated_at || ''}`;
+          statusEl.className = err && !ok ? 'fb-scraper-status err' : 'fb-scraper-status ok';
+        }
+      }
+      const fresh = st.updated_at && st.updated_at !== prevUpdated && !st.running;
+      if (fresh) {
+        const ids = projId ? [projId] : (targets.length ? targets.map(p => p.id) : projects.map(p => p.id));
+        await Promise.all(ids.map(async id => {
+          const p = projects.find(x => x.id === id);
+          if (!p) return;
+          cache[id] = 'loading';
+          try {
+            cache[id] = await fetchProject(p);
+          } catch (e) {
+            console.error(e);
+            cache[id] = null;
+          }
+        }));
+        renderContent();
+        break;
+      }
+      if (!st.running && st.updated_at && Date.now() - startedAt > 12000) break;
+    } catch (e) {
+      if (statusEl) {
+        statusEl.textContent = `Ожидание статуса… (${e.message})`;
+        statusEl.className = 'fb-scraper-status busy';
+      }
+    }
+  }
+
+  fbScraperBusy = false;
+  if (btn) btn.disabled = false;
+}
+
+function renderFbScraperAdminBlock(proj) {
+  const targets = projectsWithFbScraper(proj || null);
+  const triggerBase = getFbScraperTriggerBase();
+  const projArg = proj ? `'${proj.id}'` : 'null';
+  const label = proj
+    ? '🔄 Запустить FB парсинг'
+    : (targets.length ? `🔄 Запустить FB парсинг (${targets.length})` : '🔄 Запустить FB парсинг');
+  const hint = targets.length
+    ? 'Проекты с галочкой FB Scraper в настройках.'
+    : 'На Mac запустятся все enabled-проекты из конфига (JSONBin / projects.json).';
+  return `<div class="fb-scraper-admin">
+    <div class="fb-scraper-admin-title">FB Ads Scraper</div>
+    <div class="form-hint" style="margin-bottom:10px">${hint} Запрос на Mac: <code>${escHtml(triggerBase)}</code></div>
+    <div class="admin-actions" style="margin-top:0">
+      <button class="btn-sm btn-add-proj" id="btn-fb-scraper-trigger" onclick="triggerFbScraperFromDashboard(${projArg})">${label}</button>
+      <button class="btn-sm btn-logout" onclick="promptFbScraperTriggerUrl()">⚙️ URL Mac</button>
+    </div>
+    <div class="fb-scraper-status" id="fb-scraper-status"></div>
+  </div>`;
+}
+
+function promptFbScraperTriggerUrl() {
+  const cur = getFbScraperTriggerBase();
+  const next = prompt('URL Mac-сервера триггера (без /trigger):', cur);
+  if (next === null) return;
+  setFbScraperTriggerBase(next);
+  renderContent();
 }
 
 function fmtRub(n) {
@@ -3501,6 +3656,7 @@ function renderAdminPanel(proj) {
       <button class="btn-sm btn-add-proj" onclick="openEditProject('${proj.id}')">✏️ Редактировать проект</button>
       <button class="btn-sm btn-logout" onclick="adminLogout()">Выйти из Admin</button>
     </div>
+    ${renderFbScraperAdminBlock(proj)}
     <div style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:10px">Наведите на название метрики — появится ✏️ для переименования и скрытия</div>`;
   } else {
     // overview: show all sheets
@@ -3517,6 +3673,7 @@ function renderAdminPanel(proj) {
       <button class="btn-sm btn-add-proj" onclick="openAddProject()">+ Добавить проект</button>
       <button class="btn-sm btn-logout" onclick="adminLogout()">Выйти из Admin</button>
     </div>
+    ${renderFbScraperAdminBlock(null)}
     <div style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:10px">Наведите на метрику на карточке — ✏️ для редактирования</div>`;
   }
   return `<div class="admin-panel">
