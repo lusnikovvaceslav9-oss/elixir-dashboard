@@ -1476,8 +1476,9 @@ function detectSheetType(headerRow) {
   const hasImpressions = findCol(headers, ['impression', 'impress'], []) >= 0;
   const hasClicks = findCol(headers, ['click'], ['ctr']) >= 0;
   if (hasSpend && (hasImpressions || hasClicks)) return 'campaign';
+  // Quadcode: Reg + Instal + Purch — до широкого match по install/inst
+  if (findCol(headers, ['purchase', 'purch'], []) >= 0 && findCol(headers, ['reg'], ['целев', 'цена', 'cost']) >= 0) return 'quadcode';
   if (findCol(headers, ['install', 'inst', 'trial', 'fb'], ['cost', 'цена', '/']) >= 0) return 'planto';
-  if (findCol(headers, ['purchase', 'purch'], []) >= 0 && findCol(headers, ['reg'], ['целев', 'цена']) >= 0) return 'quadcode';
   if (findCol(headers, ['целев', 'результат', 'действ', 'ключев', 'qual', 'qreg', 'target'], ['цена', 'cost', 'cpa', 'цел. рег', 'целевая рег', '/']) >= 0) return 'streamfi';
   if (findCol(headers, ['спенд', 'spend', 'расход'], []) >= 0) return 'streamfi';
   return 'generic';
@@ -2218,6 +2219,10 @@ function isPlantoAutoFeed(proj) {
 }
 
 function isPlantoProject(proj, rows) {
+  if (!proj) return false;
+  // Явные проекты не должны «перетекать» в Planto из-за эвристик по колонкам.
+  if (proj.id === 'planto') return true;
+  if (proj.id === 'quadcode' || proj.id === 'streamfi') return false;
   return getEffectiveType(proj, rows) === 'planto';
 }
 
@@ -4085,7 +4090,7 @@ function renderOverview() {
     const isMulti = isMultiSourceCache(data);
     const rows = selMk ? rowsForMonth(data, selMk) : [];
 
-    const isPlantoTile = isPlantoProject(p, selMk ? rowsForMonth(data, selMk) : getAllRowsFromCache(data));
+    const isPlantoTile = p.id === 'planto';
     const monthTabsHtml = (!isPlantoTile && months.length > 0)
       ? `<div class="tile-month-tabs">${months.map(m => {
           const cnt = monthDayCountLabel(data, m);
