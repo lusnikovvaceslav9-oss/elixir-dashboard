@@ -119,14 +119,17 @@ body{
   .overview-grid{grid-template-columns:1fr}
   .metrics-grid{grid-template-columns:1fr 1fr}
   .tile-metrics{grid-template-columns:1fr 1fr}
-  .month-switcher{gap:8px}
-  .month-btn{padding:8px 14px;min-width:75px}
+  .month-switcher{gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap;padding-bottom:2px}
+  .month-btn{padding:8px 14px;min-width:75px;flex-shrink:0}
   .month-btn-name{font-size:12px}
   .chart-wrap{height:170px}
+  .chart-card,.overview-chart-card,.table-card{padding:14px}
+  .table-wrap{margin:0 -14px;padding:0 14px}
   .modal{padding:20px;border-radius:12px;max-height:88vh}
   .form-row{grid-template-columns:1fr}
   table{font-size:12px}
   td,th{padding:7px 10px}
+  .section-header{margin-bottom:2px}
 }
 
 /* ── OVERVIEW GRID ── */
@@ -281,18 +284,39 @@ td:first-child{text-align:left;color:#F0F0F0;font-weight:500}
 .cohort-table .pnl-early{color:#F59E0B;font-weight:600}
 .cohort-table .pnl-pos{color:var(--success);font-weight:600}
 .cohort-table .pnl-neg{color:var(--danger);font-weight:600}
-.planto-blocks{display:flex;flex-direction:column;gap:14px;margin:4px 0 18px}
-.planto-block{background:rgba(18,18,26,0.85);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px}
-.planto-block-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:12px}
-.planto-block-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim)}
-.planto-block-hint{font-size:11px;color:var(--text-muted)}
-.planto-block-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
-.planto-kpi{padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px}
-.planto-kpi-label{font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:0.06em;color:rgba(255,255,255,0.35);margin-bottom:6px}
-.planto-kpi-value{font-size:18px;font-weight:600;color:#F0F0F0;line-height:1.15}
-.planto-kpi-sub{font-size:10px;color:var(--text-muted);margin-top:5px}
-.planto-kpi.pending .planto-kpi-value{color:rgba(255,255,255,0.28);font-size:14px;font-weight:500}
-.planto-kpi.accent .planto-kpi-value{color:#9B8FFD}
+.planto-blocks{display:flex;flex-direction:column;gap:16px;margin:2px 0 20px}
+.planto-block{background:rgba(18,18,26,0.88);border:1px solid var(--border);border-radius:14px;padding:18px 20px;overflow:hidden}
+.planto-block-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:6px}
+.planto-block-title-wrap{min-width:0;flex:1}
+.planto-block-num{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:7px;background:rgba(108,92,231,0.18);border:1px solid rgba(108,92,231,0.28);color:#c4b5fd;font-size:11px;font-weight:700;margin-right:8px;vertical-align:middle;flex-shrink:0}
+.planto-block-title{font-size:13px;font-weight:600;color:var(--text);letter-spacing:0;text-transform:none;line-height:1.35}
+.planto-block-desc{font-size:12px;color:var(--text-muted);margin:6px 0 14px;line-height:1.45;max-width:62ch}
+.planto-block-hint{font-size:10px;font-weight:500;color:var(--text-dim);white-space:nowrap;padding:4px 8px;border-radius:999px;background:rgba(255,255,255,0.04);border:1px solid var(--border);flex-shrink:0}
+.planto-block-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.planto-block-grid.cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.planto-kpi{padding:14px 14px 12px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.07);border-radius:12px;min-width:0;display:flex;flex-direction:column;gap:4px;min-height:92px}
+.planto-kpi.primary{background:rgba(108,92,231,0.08);border-color:rgba(108,92,231,0.22)}
+.planto-kpi.wide{grid-column:1 / -1;min-height:auto}
+.planto-kpi-label{font-size:11px;font-weight:500;color:rgba(255,255,255,0.45);letter-spacing:0.01em;text-transform:none;margin:0;line-height:1.3}
+.planto-kpi-value{font-size:22px;font-weight:650;color:#F0F0F0;line-height:1.15;font-variant-numeric:tabular-nums;word-break:break-word}
+.planto-kpi-sub{font-size:11px;color:var(--text-muted);margin-top:auto;line-height:1.35}
+.planto-kpi.pending{opacity:0.72}
+.planto-kpi.pending .planto-kpi-value{color:rgba(255,255,255,0.32);font-size:14px;font-weight:500}
+.planto-kpi.accent .planto-kpi-value{color:#B8AFFF}
+.planto-kpi.good .planto-kpi-value{color:#86efac}
+.planto-kpi.warn .planto-kpi-value{color:#fbbf24}
+.planto-kpi.bad .planto-kpi-value{color:#fca5a5}
+.planto-bar{margin-top:8px;height:6px;background:rgba(255,255,255,0.06);border-radius:99px;overflow:hidden}
+.planto-bar > i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#6C5CE7,#22C55E);max-width:100%}
+.planto-bar.warn > i{background:linear-gradient(90deg,#F59E0B,#EF4444)}
+.planto-feat-list{display:flex;flex-direction:column;gap:10px;margin-top:4px}
+.planto-feat-row{display:grid;grid-template-columns:minmax(0,1fr) 64px;gap:10px;align-items:center}
+.planto-feat-name{font-size:12px;color:var(--text-muted)}
+.planto-feat-val{font-size:12px;font-weight:600;color:var(--text);text-align:right;font-variant-numeric:tabular-nums}
+.planto-feat-track{grid-column:1 / -1;height:6px;background:rgba(255,255,255,0.06);border-radius:99px;overflow:hidden;margin-top:-4px}
+.planto-feat-track > i{display:block;height:100%;border-radius:99px;background:rgba(108,92,231,0.85)}
+.planto-pending-note{margin-top:12px;padding:10px 12px;border-radius:10px;background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.18);font-size:11px;color:#fcd34d;line-height:1.4}
+.cohort-card .table-wrap{-webkit-overflow-scrolling:touch}
 .feed-badge{font-size:10px;font-weight:600;padding:3px 8px;border-radius:6px;background:rgba(34,197,94,0.15);color:#86efac;border:1px solid rgba(34,197,94,0.3);margin-left:8px;vertical-align:middle}
 .feed-stamp{font-size:11px;font-weight:500;color:var(--text-muted);margin-left:4px}
 .feed-warn{color:#fbbf24!important}
@@ -300,9 +324,31 @@ td:first-child{text-align:left;color:#F0F0F0;font-weight:500}
 .tile-budget-top{display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-bottom:6px}
 .tile-budget-bar{height:5px;background:rgba(255,255,255,0.06);border-radius:99px;overflow:hidden}
 .tile-budget-fill{height:100%;border-radius:99px;background:var(--accent)}
+@media(max-width:900px){
+  .planto-block-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .planto-block-grid > .planto-kpi:last-child:nth-child(odd){grid-column:1 / -1}
+}
 @media(max-width:768px){
   .budget-stats{grid-template-columns:1fr}
   .analytics-grid{grid-template-columns:1fr}
+  .planto-blocks{gap:12px;margin-bottom:14px}
+  .planto-block{padding:14px}
+  .planto-block-head{flex-direction:column;gap:8px}
+  .planto-block-hint{align-self:flex-start}
+  .planto-block-desc{font-size:11px;margin-bottom:12px}
+  .planto-block-grid,.planto-block-grid.cols-2{grid-template-columns:1fr 1fr;gap:8px}
+  .planto-block-grid > .planto-kpi:last-child:nth-child(odd){grid-column:1 / -1}
+  .planto-kpi{padding:12px;min-height:84px;border-radius:10px}
+  .planto-kpi.wide{grid-column:1 / -1}
+  .planto-kpi-value{font-size:18px}
+  .planto-kpi-label{font-size:10px}
+  .planto-kpi-sub{font-size:10px}
+  .planto-kpi.pending{display:none}
+  .cohort-table{min-width:720px}
+  .cohort-meta{font-size:10px;line-height:1.4}
+  .funnel-step-label{min-width:88px;font-size:11px}
+  .compare-grid{grid-template-columns:1fr}
+  .analytics-section .analytics-card{padding:14px}
 }
 .empty-state{text-align:center;padding:36px;color:rgba(255,255,255,0.22);font-size:13px}
 .error-state{text-align:center;padding:36px;color:#EF4444;font-size:13px}
@@ -2078,18 +2124,16 @@ function renderPlantoCohortSection(monthKey) {
     <td>${fmtRub(tPaid)}</td>
     <td>${fmtRub(maturePnl)}${immature ? ` (+${immature} рано)` : ''}</td>
   </tr>`;
-  const attr = meta?.trial_attribution === 'supabase_trial_start'
-    ? 'Inst — AppMetrica · Триалы — Supabase (RuStore), старт триала (ACTIVATED/CLIENT_SYNC/CANCELLED)'
-    : 'Inst — AppMetrica · Триалы — Supabase (RuStore)';
+  const attr = 'Установки — AppMetrica · Триалы — Supabase · Trial→Paid и ROAS — только зрелые когорты';
   const monthHint = monthKey && allRows.length > visible.length
-    ? ` · показан ${formatMonthKey(monthKey)} (${visible.length} из ${allRows.length} корзин)`
+    ? ` · ${formatMonthKey(monthKey)} (${visible.length} из ${allRows.length})`
     : '';
   const title = monthKey
     ? `Когорты — ${formatMonthKey(monthKey)}`
-    : `Когорты (7 дней от ${c.anchor || '2026-06-05'})`;
+    : `Когорты (от ${c.anchor || '2026-06-05'})`;
   return `<div class="cohort-card">
     <div class="card-title">${escHtml(title)}</div>
-    <div class="cohort-meta">${attr} · Trial→Paid и ROAS D7 — только зрелые когорты (лаг ${c.trial_lag_days || 7} д) · ROAS D14/D30 — позже${monthHint}${updated ? ' · обновлено ' + escHtml(updated) : ''}</div>
+    <div class="cohort-meta">${attr} · лаг ${c.trial_lag_days || 7} дн.${monthHint}${updated ? ' · обновлено ' + escHtml(updated) : ''}</div>
     <div class="table-wrap"><table class="cohort-table">
       <thead><tr>
         <th>Когорта</th><th>Spend</th><th>Inst</th><th>Триалы</th><th>Продано</th><th>CPI</th><th>CPT</th><th>Inst→Trial</th><th>Trial→Paid</th><th>CAC</th><th>ROAS D7</th><th>Paid net</th><th>P&L</th>
@@ -2249,12 +2293,58 @@ function renderPlantoBreakdownCard(proj, rows) {
   </div>`;
 }
 
-function plantoKpiCell(label, value, { sub = '', accent = false, pending = false } = {}) {
-  return `<div class="planto-kpi${accent ? ' accent' : ''}${pending ? ' pending' : ''}">
+function plantoKpiCell(label, value, {
+  sub = '',
+  accent = false,
+  pending = false,
+  primary = false,
+  tone = '',
+  bar = null,
+  wide = false,
+} = {}) {
+  const cls = [
+    'planto-kpi',
+    accent ? 'accent' : '',
+    pending ? 'pending' : '',
+    primary ? 'primary' : '',
+    wide ? 'wide' : '',
+    tone || '',
+  ].filter(Boolean).join(' ');
+  const barHtml = (bar != null && !pending)
+    ? `<div class="planto-bar${bar.warn ? ' warn' : ''}"><i style="width:${Math.max(0, Math.min(100, bar.pct))}%"></i></div>`
+    : '';
+  return `<div class="${cls}">
     <div class="planto-kpi-label">${escHtml(label)}</div>
     <div class="planto-kpi-value">${value}</div>
     ${sub ? `<div class="planto-kpi-sub">${escHtml(sub)}</div>` : ''}
+    ${barHtml}
   </div>`;
+}
+
+function plantoFeatureRows(items) {
+  const rows = items.filter(it => it.value != null).map(it => {
+    const pct = Math.max(0, Math.min(100, Number(it.value) || 0));
+    return `<div class="planto-feat-row">
+      <div class="planto-feat-name">${escHtml(it.label)}</div>
+      <div class="planto-feat-val">${fmtPct(pct)}</div>
+      <div class="planto-feat-track"><i style="width:${pct}%"></i></div>
+    </div>`;
+  }).join('');
+  return rows ? `<div class="planto-feat-list">${rows}</div>` : '';
+}
+
+function plantoBlock(num, title, desc, hint, gridHtml, { cols = 3, footer = '' } = {}) {
+  return `<section class="planto-block">
+    <div class="planto-block-head">
+      <div class="planto-block-title-wrap">
+        <div class="planto-block-title"><span class="planto-block-num">${num}</span>${escHtml(title)}</div>
+      </div>
+      ${hint ? `<div class="planto-block-hint">${escHtml(hint)}</div>` : ''}
+    </div>
+    ${desc ? `<div class="planto-block-desc">${escHtml(desc)}</div>` : ''}
+    <div class="planto-block-grid${cols === 2 ? ' cols-2' : ''}">${gridHtml}</div>
+    ${footer || ''}
+  </section>`;
 }
 
 function getMatureCohortMetrics(monthKey) {
@@ -2313,122 +2403,141 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
 
   const cancels = unit?.trial_cancellations;
   const cancelRate = (cancels != null && tr > 0) ? (cancels / tr * 100) : null;
+  const installToTrial = ins ? (tr / ins * 100) : null;
+  const trialToPaid = mature?.trialToPaid != null
+    ? mature.trialToPaid
+    : (tr ? ((sold || fb) / tr * 100) : null);
+  const ctr = (hasAds && impressions) ? (clicks / impressions * 100) : null;
+  const cpi = ins ? (sp / ins) : null;
+  const cpt = tr ? (sp / tr) : null;
+  const cpc = (hasAds && clicks) ? (sp / clicks) : null;
+  const cac = (sold || fb) ? (sp / (sold || fb)) : null;
+  const roasD7 = mature?.roasD7 != null
+    ? mature.roasD7
+    : (sp && paidNet != null ? (paidNet / sp * 100) : null);
+  const roasD14 = unit?.roas_d14 ?? mature?.roasD14 ?? null;
+  const roasD30 = unit?.roas_d30 ?? mature?.roasD30 ?? null;
 
   const acquisition = [
-    plantoKpiCell('Spend', fmtMoney(sp, cur)),
-    plantoKpiCell('Installs', fmtInt(ins)),
-    plantoKpiCell('CPI', ins ? fmtMoney(sp / ins, cur) : '—', { accent: true }),
+    plantoKpiCell('Расход', fmtMoney(sp, cur), { primary: true, sub: 'рекламный spend' }),
+    plantoKpiCell('Установки', fmtInt(ins), { sub: 'AppMetrica' }),
+    plantoKpiCell('CPI', cpi != null ? fmtMoney(cpi, cur) : '—', { accent: true, sub: 'стоимость установки' }),
     hasAds
-      ? plantoKpiCell('CTR', impressions ? fmtPct(clicks / impressions * 100) : '—', { sub: `${fmtInt(clicks)} кликов` })
-      : plantoKpiCell('CTR', 'ожидает feed', { pending: true, sub: 'clicks/impressions из Direct' }),
+      ? plantoKpiCell('CTR', ctr != null ? fmtPct(ctr) : '—', {
+          sub: `${fmtInt(clicks)} кликов`,
+          bar: ctr != null ? { pct: Math.min(ctr * 8, 100) } : null,
+        })
+      : plantoKpiCell('CTR', 'скоро', { pending: true, sub: 'после обновления feed' }),
     hasAds
-      ? plantoKpiCell('CPC', clicks ? fmtMoney(sp / clicks, cur) : '—', { accent: true })
-      : plantoKpiCell('CPC', 'ожидает feed', { pending: true, sub: 'clicks из Direct' }),
+      ? plantoKpiCell('CPC', cpc != null ? fmtMoney(cpc, cur) : '—', { accent: true, sub: 'цена клика' })
+      : plantoKpiCell('CPC', 'скоро', { pending: true, sub: 'после обновления feed' }),
   ].join('');
 
   const trialsBlock = [
-    plantoKpiCell('Trials Started', fmtInt(tr)),
-    plantoKpiCell('CPT', tr ? fmtMoney(sp / tr, cur) : '—', { accent: true }),
-    plantoKpiCell('Install → Trial', ins ? fmtPct(tr / ins * 100) : '—'),
+    plantoKpiCell('Старты триала', fmtInt(tr), { primary: true, sub: 'начали пробный период' }),
+    plantoKpiCell('CPT', cpt != null ? fmtMoney(cpt, cur) : '—', { accent: true, sub: 'стоимость триала' }),
+    plantoKpiCell('Install → Trial', installToTrial != null ? fmtPct(installToTrial) : '—', {
+      sub: 'конверсия в триал',
+      bar: installToTrial != null ? { pct: Math.min(installToTrial * 12, 100) } : null,
+    }),
     cancels != null
-      ? plantoKpiCell('Trial Cancellations', fmtInt(cancels), {
-          sub: cancelRate != null ? `${fmtPct(cancelRate)} от триалов · CANCELLED` : 'TRIAL + CANCELLED',
+      ? plantoKpiCell('Отмены триала', fmtInt(cancels), {
+          tone: cancelRate != null && cancelRate >= 20 ? 'warn' : '',
+          sub: cancelRate != null ? `${fmtPct(cancelRate)} от стартов` : 'до первого списания',
         })
-      : plantoKpiCell('Trial Cancellations', 'нет данных', { pending: true, sub: 'нужен счётчик отмен в Supabase' }),
-    mature?.trialToPaid != null
-      ? plantoKpiCell('Trial → Paid (7d+)', fmtPct(mature.trialToPaid), { sub: `${mature.buckets} зрелых когорт` })
-      : plantoKpiCell('Trial → Paid (7d+)', tr ? fmtPct((sold || fb) / tr * 100) : '—', { sub: 'по дням оплаты · когорты зреют' }),
+      : plantoKpiCell('Отмены триала', 'нет данных', { pending: true, sub: 'подтянем из Supabase' }),
+    plantoKpiCell('Trial → Paid', trialToPaid != null ? fmtPct(trialToPaid) : '—', {
+      accent: true,
+      sub: mature?.trialToPaid != null
+        ? `зрелые когорты · лаг 7+ дн.`
+        : 'по дням оплаты · когорты зреют',
+      bar: trialToPaid != null ? { pct: Math.min(trialToPaid * 2, 100) } : null,
+    }),
   ].join('');
 
   const unitBlock = [
-    plantoKpiCell('Paid Subscriptions', fmtInt(fb), { sub: sold ? `yearly sold: ${fmtInt(sold)}` : '' }),
-    plantoKpiCell('CAC', (sold || fb) ? fmtMoney(sp / (sold || fb), cur) : '—', { accent: true, sub: 'spend / paid' }),
+    plantoKpiCell('Оплаты', fmtInt(fb), {
+      primary: true,
+      sub: sold ? `из них yearly: ${fmtInt(sold)}` : 'новые + ребиллы',
+    }),
+    plantoKpiCell('CAC', cac != null ? fmtMoney(cac, cur) : '—', { accent: true, sub: 'стоимость платящего' }),
     unit?.arpu != null
-      ? plantoKpiCell('ARPU', fmtMoneyOrDash(unit.arpu, cur), { sub: `revenue / ${fmtInt(unit.active_users || 0)} active` })
-      : plantoKpiCell('ARPU', 'нет данных', { pending: true, sub: 'нужна база активных пользователей' }),
+      ? plantoKpiCell('ARPU', fmtMoneyOrDash(unit.arpu, cur), { sub: `на ${fmtInt(unit.active_users || 0)} активных` })
+      : plantoKpiCell('ARPU', 'нет данных', { pending: true, sub: 'нужна база активных' }),
     unit?.arppu != null
-      ? plantoKpiCell('ARPPU', fmtMoneyOrDash(unit.arppu, cur), { sub: `revenue / ${fmtInt(unit.active_payers || 0)} payers` })
+      ? plantoKpiCell('ARPPU', fmtMoneyOrDash(unit.arppu, cur), { sub: `на ${fmtInt(unit.active_payers || 0)} платящих` })
       : plantoKpiCell('ARPPU', 'нет данных', { pending: true, sub: 'нужна база платящих' }),
     unit?.ltv != null
-      ? plantoKpiCell('LTV', fmtMoneyOrDash(unit.ltv, cur), { accent: true, sub: unit.ltv_note || 'прокси по ребиллам' })
+      ? plantoKpiCell('LTV', fmtMoneyOrDash(unit.ltv, cur), { accent: true, sub: 'оценка с учётом ребиллов' })
       : plantoKpiCell('LTV', 'нет данных', { pending: true, sub: 'нужна кривая ребиллов' }),
-    mature?.roasD7 != null
-      ? plantoKpiCell('ROAS D7', fmtPct(mature.roasD7), { accent: true, sub: 'paid_net / spend · зрелые' })
-      : plantoKpiCell('ROAS', sp && paidNet != null ? fmtPct(paidNet / sp * 100) : '—', { accent: true, sub: 'прокси по периоду' }),
-    (unit?.roas_d14 != null || mature?.roasD14 != null)
-      ? plantoKpiCell('ROAS D14', fmtPct(unit?.roas_d14 ?? mature.roasD14), { sub: 'корзины ≥14д' })
+    plantoKpiCell('ROAS D7', roasD7 != null ? fmtPct(roasD7) : '—', {
+      accent: true,
+      tone: roasD7 != null && roasD7 >= 100 ? 'good' : (roasD7 != null && roasD7 < 40 ? 'warn' : ''),
+      sub: 'окупаемость к 7 дню',
+      bar: roasD7 != null ? { pct: Math.min(roasD7, 100), warn: roasD7 < 40 } : null,
+    }),
+    roasD14 != null
+      ? plantoKpiCell('ROAS D14', fmtPct(roasD14), { sub: 'зрелые корзины ≥14 дн.' })
       : plantoKpiCell('ROAS D14', 'рано', { pending: true, sub: 'мало зрелых когорт' }),
-    (unit?.roas_d30 != null || mature?.roasD30 != null)
-      ? plantoKpiCell('ROAS D30', fmtPct(unit?.roas_d30 ?? mature.roasD30), { sub: 'корзины ≥30д' })
+    roasD30 != null
+      ? plantoKpiCell('ROAS D30', fmtPct(roasD30), { sub: 'зрелые корзины ≥30 дн.' })
       : plantoKpiCell('ROAS D30', 'рано', { pending: true, sub: 'мало зрелых когорт' }),
   ].join('');
 
   const gardenAvg = product?.garden_avg_plants;
-  const productBlock = [
-    ret.d1 != null
-      ? plantoKpiCell('Retention D1', fmtPct(ret.d1))
-      : plantoKpiCell('Retention D1', 'нет данных', { pending: true, sub: 'нужен Retention/Logs API' }),
-    ret.d3 != null
-      ? plantoKpiCell('Retention D3', fmtPct(ret.d3))
-      : plantoKpiCell('Retention D3', 'нет данных', { pending: true, sub: 'нужен Retention/Logs API' }),
-    ret.d7 != null
-      ? plantoKpiCell('Retention D7', fmtPct(ret.d7))
-      : plantoKpiCell('Retention D7', 'нет данных', { pending: true, sub: 'нужен Retention/Logs API' }),
+  const productCards = [
     product?.garden_activation_pct != null
       ? plantoKpiCell('Активация в сад', fmtPct(product.garden_activation_pct), {
-          sub: `plant_added users / install${gardenAvg != null ? ` · avg ${gardenAvg} plants` : ''}`,
+          primary: true,
+          sub: gardenAvg != null ? `добавили растение · ср. ${gardenAvg}` : 'plant_added / install',
+          bar: { pct: Math.min(product.garden_activation_pct, 100) },
         })
       : plantoKpiCell('Активация в сад', 'нет данных', { pending: true, sub: 'plant_added / install' }),
     product?.garden_depth_icp_pct != null
-      ? plantoKpiCell('Глубина сада (ICP)', fmtPct(product.garden_depth_icp_pct), { sub: '≥3 plants / install' })
-      : plantoKpiCell('Глубина сада (ICP)', gardenAvg != null ? `avg ${gardenAvg}` : 'нет данных', {
+      ? plantoKpiCell('Глубина сада', fmtPct(product.garden_depth_icp_pct), { sub: '≥3 растения / install' })
+      : plantoKpiCell('Глубина сада', gardenAvg != null ? `${gardenAvg} раст.` : 'нет данных', {
           pending: product?.garden_depth_icp_pct == null,
-          sub: gardenAvg != null ? 'прокси: plants/user · ≥3% нужен Logs API' : '≥3 own plants / install',
+          sub: gardenAvg != null ? 'среднее на пользователя' : '≥3 plants / install',
         }),
     product?.paywall_cta_pct != null
-      ? plantoKpiCell('CTA пейволла', fmtPct(product.paywall_cta_pct), { accent: true, sub: 'paywall_cta / paywall_shown' })
-      : plantoKpiCell('CTA пейволла', 'нет данных', { pending: true, sub: 'paywall_cta / paywall_shown' }),
+      ? plantoKpiCell('CTA пейволла', fmtPct(product.paywall_cta_pct), {
+          accent: true,
+          sub: 'клик по оплате / показ',
+          bar: { pct: Math.min(product.paywall_cta_pct, 100) },
+        })
+      : plantoKpiCell('CTA пейволла', 'нет данных', { pending: true, sub: 'paywall CTA / shown' }),
     product?.care_engagement_pct != null
-      ? plantoKpiCell('Вовлечение в уход', fmtPct(product.care_engagement_pct), { sub: 'user_score5 / install' })
+      ? plantoKpiCell('Вовлечение в уход', fmtPct(product.care_engagement_pct), {
+          sub: 'user_score5 / install',
+          bar: { pct: Math.min(product.care_engagement_pct * 4, 100) },
+        })
       : plantoKpiCell('Вовлечение в уход', 'нет данных', { pending: true, sub: 'user_score5 / install' }),
-    (feat.scan_pct != null || feat.watering_pct != null || feat.ai_pct != null)
-      ? plantoKpiCell(
-          'Диагностика / полив / ИИ',
-          [feat.scan_pct, feat.watering_pct, feat.ai_pct].map(v => (v != null ? fmtPct(v) : '—')).join(' · '),
-          { sub: 'scan / watering / ai_route vs install' },
-        )
-      : plantoKpiCell('Диагностика / полив / ИИ', 'нет данных', { pending: true, sub: 'feature events AppMetrica' }),
+  ].join('');
+
+  const featureHtml = plantoFeatureRows([
+    { label: 'Диагностика (scan)', value: feat.scan_pct },
+    { label: 'Полив настроен', value: feat.watering_pct },
+    { label: 'ИИ-ассистент', value: feat.ai_pct },
+  ]);
+
+  const retentionPending = ret.d1 == null && ret.d3 == null && ret.d7 == null;
+  const productFooter = [
+    featureHtml
+      ? `<div class="planto-kpi wide" style="margin-top:10px">
+          <div class="planto-kpi-label">Ключевые фичи</div>
+          ${featureHtml}
+        </div>`
+      : '',
+    retentionPending
+      ? `<div class="planto-pending-note">Retention D1 / D3 / D7 пока недоступны — нужен AppMetrica Retention или Logs API.</div>`
+      : '',
   ].join('');
 
   return `<div class="planto-blocks">
-    <div class="planto-block">
-      <div class="planto-block-head">
-        <div class="planto-block-title">1. Привлечение и стоимость трафика</div>
-        <div class="planto-block-hint">Direct + AppMetrica</div>
-      </div>
-      <div class="planto-block-grid">${acquisition}</div>
-    </div>
-    <div class="planto-block">
-      <div class="planto-block-head">
-        <div class="planto-block-title">2. Воронка триалов</div>
-        <div class="planto-block-hint">лаг 7 дней · когорты</div>
-      </div>
-      <div class="planto-block-grid">${trialsBlock}</div>
-    </div>
-    <div class="planto-block">
-      <div class="planto-block-head">
-        <div class="planto-block-title">3. Юнит-экономика и монетизация</div>
-        <div class="planto-block-hint">RuStore + AppMetrica users</div>
-      </div>
-      <div class="planto-block-grid">${unitBlock}</div>
-    </div>
-    <div class="planto-block">
-      <div class="planto-block-head">
-        <div class="planto-block-title">4. Использование продукта</div>
-        <div class="planto-block-hint">AppMetrica events</div>
-      </div>
-      <div class="planto-block-grid">${productBlock}</div>
-    </div>
+    ${plantoBlock(1, 'Привлечение', 'Сколько стоит трафик и насколько кликабельны объявления.', 'Direct', acquisition)}
+    ${plantoBlock(2, 'Воронка триалов', 'Из-за 7-дневного триала смотрим конверсии и отмены, а не только день-в-день.', 'лаг 7 дней', trialsBlock)}
+    ${plantoBlock(3, 'Юнит-экономика', 'Окупаемость и ценность платящего пользователя.', 'RuStore', unitBlock)}
+    ${plantoBlock(4, 'Продукт', 'Дошёл ли пользователь до ценности — сад, пейволл, уход и ключевые фичи.', 'AppMetrica', productCards, { cols: 2, footer: productFooter })}
   </div>`;
 }
 
