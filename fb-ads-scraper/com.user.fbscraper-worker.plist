@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.user.fbscraper-worker</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>/Users/vaceslavlusnikov/Desktop/дашборд/fb-ads-scraper/fb_scraper_worker.py</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/vaceslavlusnikov/Desktop/дашборд/fb-ads-scraper</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/fb_scraper_worker.out</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/fb_scraper_worker.err</string>
+</dict>
+</plist>

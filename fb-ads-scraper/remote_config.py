@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import re
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
@@ -135,6 +136,41 @@ def dashboard_to_scraper_projects(
                 "export_mode": (fb.get("exportMode") or "campaign").strip(),
             }
         )
+    return out
+
+
+def save_dashboard_projects(config: dict, projects: list[dict]) -> None:
+    bin_id = (config.get("jsonbin_bin_id") or os.environ.get("JSONBIN_BIN_ID") or "").strip()
+    master_key = (
+        config.get("jsonbin_master_key") or os.environ.get("JSONBIN_MASTER_KEY") or ""
+    ).strip()
+    if not bin_id or not master_key:
+        raise RuntimeError("JSONBin не настроен для записи")
+
+    api_base = (config.get("jsonbin_api_base") or "https://api.jsonbin.io/v3").rstrip("/")
+    response = requests.put(
+        f"{api_base}/b/{bin_id}",
+        headers={
+            "Content-Type": "application/json",
+            "X-Master-Key": master_key,
+        },
+        json=projects,
+        timeout=30,
+    )
+    response.raise_for_status()
+
+
+def upsert_worker_heartbeat(config: dict, projects: list[dict]) -> list[dict]:
+    now = datetime.now().isoformat(timespec="seconds")
+    out = [p for p in projects if p.get("id") != "_worker"]
+    out.append(
+        {
+            "id": "_worker",
+            "name": "FB Worker",
+            "icon": "⚙️",
+            "fbScraper": {"heartbeat": now, "status": "online"},
+        }
+    )
     return out
 
 
