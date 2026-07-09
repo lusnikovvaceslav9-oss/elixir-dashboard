@@ -1631,11 +1631,31 @@ function slugifyCsvLabel(label) {
     .slice(0, 32) || 'csv';
 }
 
+async function hashUploadText(text) {
+  const data = new TextEncoder().encode(String(text || ''));
+  if (globalThis.crypto?.subtle) {
+    const buf = await crypto.subtle.digest('SHA-256', data);
+    return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+  // fallback: простой некриптографический хеш
+  let h = 2166136261;
+  for (let i = 0; i < data.length; i++) {
+    h ^= data[i];
+    h = Math.imul(h, 16777619);
+  }
+  return (`00000000${(h >>> 0).toString(16)}`).slice(-8).padStart(16, '0');
+}
+
+function shortHash(hash) {
+  return String(hash || '').slice(0, 10);
+}
+
 function buildUploadedSource(projId, id, upload) {
   const text = upload?.text || '';
   const csvRows = parseCSV(text);
   return {
     id: `upload_${id}`,
+    storageId: id,
     label: upload.label || id,
     url: `upload://${projId}/${id}`,
     rows: text.trim() ? parseSheet(text) : [],
@@ -1643,21 +1663,40 @@ function buildUploadedSource(projId, id, upload) {
     uploaded: true,
     uploadedAt: upload.uploadedAt || null,
     fileName: upload.fileName || '',
+    hash: upload.hash || null,
   };
 }
 
 function getUploadedCsvSources(proj) {
   if (!proj?.id) return [];
   const map = getProjectCsvUploads(proj.id);
-  return Object.entries(map).map(([id, u]) => {
+  const byLabel = new Map();
+  Object.entries(map).forEach(([id, u]) => {
     const src = buildUploadedSource(proj.id, id, u);
     // Старые загрузки "Main"/"Ads" → привязать к месяцу по датам CSV
     if (isQuadcodeProject(proj) && /^(main|ads|organic|csv)$/i.test(src.label || id)) {
       const mk = dominantMonthKeyFromRows(src.rows || []);
       if (mk) src.label = formatMonthKey(mk);
     }
-    return src;
+    const key = String(src.label || id).toLowerCase();
+    if (byLabel.has(key)) {
+      const prev = byLabel.get(key);
+      prev.rows = mergeRowsByDate(prev.rows || [], src.rows || []);
+      if (src.sheetColumns?.length) prev.sheetColumns = src.sheetColumns;
+      prev.uploadedAt = [prev.uploadedAt, src.uploadedAt].filter(Boolean).sort().slice(-1)[0] || prev.uploadedAt;
+      prev.fileNames = [...new Set([...(prev.fileNames || []), src.fileName].filter(Boolean))];
+      prev.uploadIds = [...new Set([...(prev.uploadIds || []), id])];
+      prev.hashes = [...new Set([...(prev.hashes || []), src.hash].filter(Boolean))];
+    } else {
+      byLabel.set(key, {
+        ...src,
+        fileNames: [src.fileName].filter(Boolean),
+        uploadIds: [id],
+        hashes: [src.hash].filter(Boolean),
+      });
+    }
   });
+  return [...byLabel.values()];
 }
 
 function mergeUploadedSources(sources, uploaded) {
@@ -1680,9 +1719,10 @@ function mergeUploadedSources(sources, uploaded) {
         sheetColumns: up.sheetColumns?.length ? up.sheetColumns : base.sheetColumns,
         uploaded: true,
         uploadedAt: up.uploadedAt || base.uploadedAt || null,
-        fileName: up.fileName || base.fileName || '',
-        // keep original month sheet id/url; mark overlay
+        fileName: (up.fileNames || [up.fileName]).filter(Boolean).join(', ') || base.fileName || '',
         uploadOverlay: up.url,
+        uploadIds: up.uploadIds || base.uploadIds,
+        hashes: up.hashes || base.hashes,
       };
     } else {
       out.push(up);
@@ -1691,18 +1731,33 @@ function mergeUploadedSources(sources, uploaded) {
   return out;
 }
 
-function saveUploadedCsv(projId, label, fileName, text) {
-  const id = slugifyCsvLabel(label);
+/** Сохраняет файл по content-hash: повторная загрузка того же файла не дублирует, разные файлы накапливаются. */
+async function saveUploadedCsv(projId, label, fileName, text) {
+  const hash = await hashUploadText(text);
   const all = loadCsvUploads();
   if (!all[projId]) all[projId] = {};
+  const existingId = Object.keys(all[projId]).find(id => all[projId][id]?.hash === hash);
+  if (existingId) {
+    // обновим метку/имя файла при необходимости, текст тот же
+    all[projId][existingId] = {
+      ...all[projId][existingId],
+      label: (label || all[projId][existingId].label || existingId).trim(),
+      fileName: fileName || all[projId][existingId].fileName || '',
+      hash,
+    };
+    saveCsvUploads(all);
+    return { id: existingId, hash, duplicate: true };
+  }
+  const id = `${slugifyCsvLabel(label)}_${shortHash(hash)}`;
   all[projId][id] = {
     label: (label || id).trim(),
     fileName: fileName || '',
     uploadedAt: new Date().toISOString(),
+    hash,
     text,
   };
   saveCsvUploads(all);
-  return id;
+  return { id, hash, duplicate: false };
 }
 
 function deleteUploadedCsv(projId, id) {
@@ -1828,18 +1883,12 @@ async function onCsvUploadFile(projId, inputEl) {
     const rows = parseSheet(text);
     if (!rows.length) throw new Error('Не удалось разобрать файл — проверь заголовки Date/Spend/Reg');
     const label = resolveUploadLabel(p, selected, rows);
-    // Убрать устаревший upload "Main", если теперь кладём в месяц
-    if (isQuadcodeProject(p) && label !== 'Main') {
-      const all = loadCsvUploads();
-      if (all[projId]?.main) {
-        delete all[projId].main;
-        if (!Object.keys(all[projId]).length) delete all[projId];
-        saveCsvUploads(all);
-      }
-    }
-    saveUploadedCsv(projId, label, file.name, text);
+    const saved = await saveUploadedCsv(projId, label, file.name, text);
     inputEl.value = '';
     await applyUploadedCsvToCache(projId, label);
+    if (saved.duplicate) {
+      console.info(`Файл уже был загружен (hash ${shortHash(saved.hash)}) — данные сохранены без дубля`);
+    }
   } catch (e) {
     alert(`Не удалось загрузить файл: ${e.message || e}`);
     inputEl.value = '';
@@ -1861,27 +1910,30 @@ async function removeUploadedCsv(projId, id) {
 function renderCsvUploadCard(proj) {
   if (!supportsCsvUpload(proj)) return '';
   const uploads = getProjectCsvUploads(proj.id);
-  const items = Object.entries(uploads).map(([id, u]) => {
-    const when = u.uploadedAt ? new Date(u.uploadedAt).toLocaleString('ru-RU') : '';
-    const days = (() => {
-      try { return parseSheet(u.text || '').length; } catch (_) { return 0; }
-    })();
-    return `<div class="csv-upload-item">
-      <div>
-        <strong>${escHtml(u.label || id)}</strong>
-        <div class="csv-upload-meta">${escHtml(u.fileName || 'csv')} · ${days} дн.${when ? ` · ${escHtml(when)}` : ''}</div>
-      </div>
-      <button type="button" class="btn-csv-del" onclick="removeUploadedCsv('${proj.id}','${escHtml(id)}')">Удалить</button>
-    </div>`;
-  }).join('');
+  const items = Object.entries(uploads)
+    .sort((a, b) => String(b[1].uploadedAt || '').localeCompare(String(a[1].uploadedAt || '')))
+    .map(([id, u]) => {
+      const when = u.uploadedAt ? new Date(u.uploadedAt).toLocaleString('ru-RU') : '';
+      const days = (() => {
+        try { return parseSheet(u.text || '').length; } catch (_) { return 0; }
+      })();
+      const hashShort = u.hash ? shortHash(u.hash) : id.slice(-10);
+      return `<div class="csv-upload-item">
+        <div>
+          <strong>${escHtml(u.label || id)}</strong>
+          <div class="csv-upload-meta">${escHtml(u.fileName || 'file')} · ${days} дн.${when ? ` · ${escHtml(when)}` : ''} · #${escHtml(hashShort)}</div>
+        </div>
+        <button type="button" class="btn-csv-del" onclick="removeUploadedCsv('${proj.id}','${escHtml(id)}')">Удалить</button>
+      </div>`;
+    }).join('');
 
   const presets = csvUploadPresets(proj);
   const presetOpts = presets.map((p, i) =>
     `<option value="${escHtml(p.value)}"${i === 0 ? ' selected' : ''}>${escHtml(p.label)}</option>`
   ).join('');
   const hint = isQuadcodeProject(proj)
-    ? 'CSV/XLSX подставится в лист месяца по датам (Июн/Июл…). «Авто по датам» — рекомендуемый режим.'
-    : 'Можно CSV или Excel (.xlsx) — файл попадёт в разбивку. Хранится в этом браузере.';
+    ? 'Можно грузить несколько CSV/XLSX подряд — каждый файл сохраняется по хешу, данные сливаются по датам в лист месяца.'
+    : 'Можно грузить несколько файлов подряд (CSV/XLSX). Каждый сохраняется по хешу, одинаковые не дублируются.';
 
   return `<div class="csv-upload-card">
     <div class="csv-upload-head">
