@@ -8,6 +8,7 @@ import logging
 import subprocess
 import sys
 import threading
+from datetime import datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -46,25 +47,46 @@ def json_response(handler: BaseHTTPRequestHandler, code: int, payload: dict) -> 
 
 
 def read_status() -> dict:
-    if not STATUS_PATH.exists():
-        return {"updated_at": None, "projects": [], "running": RUNNING_PATH.exists()}
-    try:
-        data = json.loads(STATUS_PATH.read_text(encoding="utf-8"))
-    except Exception:
-        data = {"updated_at": None, "projects": []}
+    data = {"updated_at": None, "projects": []}
+    if STATUS_PATH.exists():
+        try:
+            data = json.loads(STATUS_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    last_run_path = SCRIPT_DIR / "last_run.json"
+    if last_run_path.exists():
+        try:
+            data["last_run"] = json.loads(last_run_path.read_text(encoding="utf-8"))
+        except Exception:
+            pass
     data["running"] = RUNNING_PATH.exists()
     return data
 
 
 def run_scraper(project_id: str | None) -> None:
     RUNNING_PATH.write_text("1", encoding="utf-8")
+    last_run_path = SCRIPT_DIR / "last_run.json"
+    started_at = datetime.now().isoformat(timespec="seconds")
+    exit_code = 1
     try:
         cmd = [sys.executable, str(SCRIPT_DIR / "fb_ads_scraper.py")]
         if project_id:
             cmd.extend(["--project-id", project_id])
         logger.info("Запуск: %s", " ".join(cmd))
-        subprocess.run(cmd, cwd=str(SCRIPT_DIR), check=False)
+        result = subprocess.run(cmd, cwd=str(SCRIPT_DIR), check=False)
+        exit_code = int(result.returncode)
     finally:
+        payload = {
+            "started_at": started_at,
+            "finished_at": datetime.now().isoformat(timespec="seconds"),
+            "project_id": project_id,
+            "exit_code": exit_code,
+            "ok": exit_code == 0,
+        }
+        last_run_path.write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
         if RUNNING_PATH.exists():
             RUNNING_PATH.unlink()
 

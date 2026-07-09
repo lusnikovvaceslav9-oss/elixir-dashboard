@@ -1754,6 +1754,48 @@ async function fetchFbScraperStatus() {  const base = getFbScraperTriggerBase();
   return await resp.json();
 }
 
+function formatFbScraperResult(st, prevUpdated, startedAt) {
+  const lastRun = st?.last_run;
+  const runFailed = lastRun
+    && lastRun.finished_at
+    && lastRun.started_at >= new Date(startedAt - 5000).toISOString().slice(0, 19)
+    && lastRun.exit_code !== 0;
+  const fresh = st?.updated_at && st.updated_at !== prevUpdated;
+
+  if (st?.running) {
+    return { text: 'Парсинг выполняется на Mac…', cls: 'busy' };
+  }
+  if (runFailed && !fresh) {
+    const pid = lastRun.project_id;
+    if (pid) {
+      return {
+        text: `Проект «${pid}» не настроен на Mac или выключен. Настройте FB Scraper в проекте или жмите кнопку с Overview.`,
+        cls: 'err',
+      };
+    }
+    return { text: 'Прогон завершился с ошибкой на Mac. Смотрите fb_ads_scraper.log', cls: 'err' };
+  }
+  if (st?.projects?.length && fresh) {
+    const ok = st.projects.filter(p => p.status === 'ok').length;
+    const err = st.projects.length - ok;
+    const errDetail = st.projects.find(p => p.status !== 'ok')?.error;
+    const text = errDetail && err
+      ? `Готово: успешно ${ok}, ошибок ${err} · ${errDetail}`
+      : `Готово: успешно ${ok}, ошибок ${err} · ${st.updated_at || ''}`;
+    return { text, cls: err && !ok ? 'err' : 'ok', fresh: true };
+  }
+  if (st?.projects?.length && !fresh && Date.now() - startedAt > 15000) {
+    const errDetail = st.projects.find(p => p.status !== 'ok')?.error;
+    return {
+      text: errDetail
+        ? `Старый статус (${st.updated_at}): ${errDetail}`
+        : `Новый прогон не обновил статус. Проверьте Mac-сервер и лог.`,
+      cls: 'err',
+    };
+  }
+  return null;
+}
+
 async function triggerFbScraperFromDashboard(projId) {
   if (!isAdmin() || fbScraperBusy) return;
   const targets = projectsWithFbScraper(projId ? projects.find(p => p.id === projId) : null);
@@ -1805,18 +1847,12 @@ async function triggerFbScraperFromDashboard(projId) {
     await sleep(3000);
     try {
       const st = await fetchFbScraperStatus();
-      if (statusEl) {
-        if (st.running) {
-          statusEl.textContent = 'Парсинг выполняется на Mac…';
-          statusEl.className = 'fb-scraper-status busy';
-        } else if (st.projects?.length) {
-          const ok = st.projects.filter(p => p.status === 'ok').length;
-          const err = st.projects.length - ok;
-          statusEl.textContent = `Готово: успешно ${ok}, ошибок ${err} · ${st.updated_at || ''}`;
-          statusEl.className = err && !ok ? 'fb-scraper-status err' : 'fb-scraper-status ok';
-        }
+      const formatted = formatFbScraperResult(st, prevUpdated, startedAt);
+      if (formatted && statusEl) {
+        statusEl.textContent = formatted.text;
+        statusEl.className = `fb-scraper-status ${formatted.cls}`;
       }
-      const fresh = st.updated_at && st.updated_at !== prevUpdated && !st.running;
+      const fresh = formatted?.fresh || (st.updated_at && st.updated_at !== prevUpdated && !st.running);
       if (fresh) {
         const ids = projId ? [projId] : (targets.length ? targets.map(p => p.id) : projects.map(p => p.id));
         await Promise.all(ids.map(async id => {
@@ -1833,7 +1869,9 @@ async function triggerFbScraperFromDashboard(projId) {
         renderContent();
         break;
       }
-      if (!st.running && st.updated_at && Date.now() - startedAt > 12000) break;
+      if (!st.running && formatted?.cls === 'err' && Date.now() - startedAt > 12000) break;
+      if (!st.running && fresh) break;
+      if (!st.running && st.updated_at && Date.now() - startedAt > 120000) break;
     } catch (e) {
       if (statusEl) {
         statusEl.textContent = `Ожидание статуса… (${e.message})`;
@@ -1850,17 +1888,20 @@ function renderFbScraperAdminBlock(proj) {
   const targets = projectsWithFbScraper(proj || null);
   const triggerBase = getFbScraperTriggerBase();
   const projArg = proj ? `'${proj.id}'` : 'null';
+  const onProjectWithoutFb = proj && !targets.length;
   const label = proj
-    ? '🔄 Запустить FB парсинг'
-    : (targets.length ? `🔄 Запустить FB парсинг (${targets.length})` : '🔄 Запустить FB парсинг');
-  const hint = targets.length
-    ? 'Проекты с галочкой FB Scraper в настройках.'
-    : 'На Mac запустятся все enabled-проекты из конфига (JSONBin / projects.json).';
+    ? (onProjectWithoutFb ? 'FB Scraper не настроен' : '🔄 Запустить FB парсинг')
+    : (targets.length ? `🔄 Запустить FB парсинг (${targets.length})` : '🔄 Запустить FB парсинг (все на Mac)');
+  const hint = onProjectWithoutFb
+    ? `«${proj.name}» не подключён к FB Scraper. Откройте Редактировать → FB Ads Scraper, или запускайте с Overview.`
+    : (targets.length
+      ? 'Проекты с галочкой FB Scraper в настройках.'
+      : 'На Mac запустятся все enabled-проекты из конфига (JSONBin / projects.json).');
   return `<div class="fb-scraper-admin">
     <div class="fb-scraper-admin-title">FB Ads Scraper</div>
     <div class="form-hint" style="margin-bottom:10px">${hint} Запрос на Mac: <code>${escHtml(triggerBase)}</code></div>
     <div class="admin-actions" style="margin-top:0">
-      <button class="btn-sm btn-add-proj" id="btn-fb-scraper-trigger" onclick="triggerFbScraperFromDashboard(${projArg})">${label}</button>
+      <button class="btn-sm btn-add-proj" id="btn-fb-scraper-trigger" ${onProjectWithoutFb ? 'disabled' : ''} onclick="triggerFbScraperFromDashboard(${projArg})">${label}</button>
       <button class="btn-sm btn-logout" onclick="promptFbScraperTriggerUrl()">⚙️ URL Mac</button>
     </div>
     <div class="fb-scraper-status" id="fb-scraper-status"></div>

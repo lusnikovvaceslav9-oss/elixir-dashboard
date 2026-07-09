@@ -315,15 +315,19 @@ def scrape_fb_ads(
 
     time.sleep(8)
 
-    for parser in (_parse_js, _parse_selenium):
-        try:
-            rows = parser(driver, logger, timeout)
-            rows = _normalize_raw_rows(rows)
-            rows = _filter_campaign_rows(rows)
-            if rows:
-                return rows
-        except Exception as e:
-            logger.warning(f"{parser.__name__}: {e}")
+    for attempt in range(6):
+        for parser in (_parse_js, _parse_selenium):
+            try:
+                rows = parser(driver, logger, timeout)
+                rows = _normalize_raw_rows(rows)
+                rows = _filter_campaign_rows(rows)
+                if rows:
+                    return rows
+            except Exception as e:
+                logger.warning(f"{parser.__name__} (попытка {attempt + 1}): {e}")
+        if attempt < 5:
+            logger.info(f"Строк пока нет, жду 5с… ({attempt + 1}/6)")
+            time.sleep(5)
 
     shot = SCRIPT_DIR / f"debug_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
     try:
@@ -551,9 +555,22 @@ def main():
 
     if args.project_id:
         needle = args.project_id.strip()
-        projects = [p for p in projects if p.get("dashboard_id") == needle]
+        projects = [
+            p for p in projects
+            if p.get("dashboard_id") == needle
+            or p.get("name", "").strip().lower() == needle.lower()
+        ]
         if not projects:
-            logger.error(f"Проект не найден или не включён: {needle}")
+            msg = f"Проект не найден или не включён на Mac: {needle}"
+            logger.error(msg)
+            write_status([{
+                "dashboard_id": needle,
+                "name": needle,
+                "status": "error",
+                "campaigns": 0,
+                "spend_total": 0,
+                "error": msg,
+            }])
             sys.exit(1)
         logger.info(f"Фильтр по проекту: {needle}")
 
