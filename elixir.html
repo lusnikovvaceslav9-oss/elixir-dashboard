@@ -3420,6 +3420,47 @@ function getPlantoTodayRow(rows) {
   return latest ? { row: latest, isToday: false } : null;
 }
 
+/** Последний календарный день в данных (сегодня, иначе max date), с агрегацией кампаний. */
+function getLatestDayInfo(rows) {
+  const daily = aggregateRowsByDate(rows || []);
+  if (!daily.length) return null;
+  const today = new Date();
+  const exact = daily.find(r => r.date && sameCalendarDay(r.date, today));
+  if (exact) return { row: exact, isToday: true };
+  const latest = [...daily].sort((a, b) => b.date - a.date)[0];
+  return latest ? { row: latest, isToday: false } : null;
+}
+
+/** Сводка за последний день для карточки на главной (как у Planto). */
+function getOverviewDailyMetrics(proj, data) {
+  if (proj?.id === 'planto' || isPlantoAutoFeed(proj)) {
+    return getPlantoOverviewDailyMetrics(proj);
+  }
+  const allRows = getAllRowsFromCache(data) || [];
+  const info = getLatestDayInfo(allRows);
+  if (!info?.row) {
+    return {
+      note: 'Нет дневных данных',
+      metrics: [{ key: 'today_empty', label: 'Дневная стата', value: '—', live: true, sub: 'откройте проект для деталей' }],
+    };
+  }
+  const dayRows = [info.row];
+  const srcProj = withEffectiveType(proj, dayRows);
+  const metrics = getMetrics(srcProj, dayRows)
+    .slice(0, 8)
+    .map(m => ({
+      ...m,
+      key: `today_${m.key}`,
+      live: true,
+      sub: m.sub || (m.accent ? undefined : 'за день'),
+    }));
+  const dateLabel = info.row.dateStr || fmtDateStr(info.row.date);
+  const note = info.isToday
+    ? `Сегодня · ${dateLabel}`
+    : `Последний день · ${dateLabel}`;
+  return { note, metrics };
+}
+
 function plantoBlock(id, num, title, desc, hint, gridHtml, { cols = 3, footer = '', live = false } = {}) {
   const collapsed = isPlantoBlockCollapsed(id);
   const chevron = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
@@ -5226,51 +5267,15 @@ function renderOverview() {
       return;
     }
 
-    const months = getMonths(data, p);
-    const selMk = tileMonths[p.id] && months.includes(tileMonths[p.id])
-      ? tileMonths[p.id]
-      : (tileMonths[p.id] = months[months.length - 1] || null);
     const pack = normalizeCacheData(data);
     const isMulti = isMultiSourceCache(data);
-    const rows = selMk ? rowsForMonth(data, selMk) : [];
+    const isPlantoTile = p.id === 'planto' || isPlantoAutoFeed(p);
 
-    const isPlantoTile = p.id === 'planto';
-    const monthTabsHtml = (!isPlantoTile && months.length > 0)
-      ? `<div class="tile-month-tabs">${months.map(m => {
-          const cnt = monthDayCountLabel(data, m);
-          return `<button class="tile-tab ${m === selMk ? 'active' : ''}" onclick="tileSwitchMonth('${p.id}','${m}',event)" title="${escHtml(cnt)}">${formatMonthKey(m)}</button>`;
-        }).join('')}</div>`
-      : '';
-
-    let metricsHtml = '';
-    if (isPlantoTile) {
-      const daily = getPlantoOverviewDailyMetrics(p);
-      metricsHtml =
-        `<div class="tile-live-note">${escHtml(daily.note)}</div>` +
-        `<div class="tile-metrics" style="padding-bottom:14px">${daily.metrics.map(m => renderTileMetricCard(p.id, m)).join('')}</div>`;
-    } else if (isMulti) {
-      const srcIdx = tileSourceIndex[p.id] != null && tileSourceIndex[p.id] < pack.sources.length
-        ? tileSourceIndex[p.id]
-        : (tileSourceIndex[p.id] = 0);
-      const src = pack.sources[srcIdx];
-      const sr = selMk ? rowsForMonthOnRows(src.rows, selMk) : (src.rows || []);
-      const srcTabsHtml = `<div class="tile-month-tabs">${pack.sources.map((s, i) =>
-        `<button type="button" class="tile-tab ${i === srcIdx ? 'active' : ''}" onclick="tileSwitchSource('${p.id}',${i},event)">${escHtml(s.label)}</button>`
-      ).join('')}</div>`;
-      const metrics = getMetrics(projForSource(p, src), sr);
-      metricsHtml = srcTabsHtml + `<div class="tile-metrics${isAdmin() ? ' admin-zone' : ''}" style="padding-bottom:14px" ${isAdmin() ? 'onclick="event.stopPropagation()"' : ''}>${metrics.map(m => {
-        const isCost = m.accent || m.label.toLowerCase().includes('cost') || m.label.toLowerCase().includes('цена');
-        const adminCls = isAdmin() ? ' admin-editable' : '';
-        return `<div class="tile-metric${isCost ? ' accent' : ''}${adminCls}">
-          <div class="tile-metric-label">${renderEditableLabel(p.id, m.key, m.label, 'tile-metric-label-wrap')}</div>
-          <div class="tile-metric-value">${m.value}</div>
-        </div>`;
-      }).join('')}</div>`;
-    } else {
-      const metrics = getTileMetrics(p, rows);
-      metricsHtml = metrics.map(m => renderTileMetricCard(p.id, m)).join('');
-      metricsHtml = `<div class="tile-metrics${isAdmin()?' admin-zone':''}" style="padding-bottom:14px" ${isAdmin()?'onclick="event.stopPropagation()"':''}>${metricsHtml}</div>`;
-    }
+    // На главной — только последний день (как Planto); полные данные внутри проекта.
+    const daily = getOverviewDailyMetrics(p, data);
+    const metricsHtml =
+      `<div class="tile-live-note">${escHtml(daily.note)}</div>` +
+      `<div class="tile-metrics" style="padding-bottom:14px">${daily.metrics.map(m => renderTileMetricCard(p.id, m)).join('')}</div>`;
 
     const budgetTile = isPlantoTile ? '' : renderBudgetCard(p, data, true);
 
@@ -5285,7 +5290,6 @@ function renderOverview() {
           </div>
         </div>
       </div>
-      ${monthTabsHtml}
       ${budgetTile}
       ${metricsHtml}
       <div class="tile-footer">
