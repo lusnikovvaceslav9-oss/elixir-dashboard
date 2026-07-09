@@ -20,6 +20,7 @@ from remote_config import (
 SCRIPT_DIR = Path(__file__).parent
 CONFIG_PATH = SCRIPT_DIR / "config.json"
 POLL_SEC = 12
+WORKER_STATUS_PATH = SCRIPT_DIR / "worker_status.json"
 
 
 def load_config() -> dict:
@@ -78,14 +79,18 @@ def read_local_status(project_id: str) -> dict | None:
 
 
 def process_pending(config: dict, logger: logging.Logger) -> bool:
+    WORKER_STATUS_PATH.write_text(
+        json.dumps(
+            {"heartbeat": datetime.now().isoformat(timespec="seconds"), "status": "online"},
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
     projects = fetch_dashboard_projects(config)
-    projects = upsert_worker_heartbeat(config, projects)
-    save_dashboard_projects(config, projects)
+    projects = [p for p in projects if p.get("id") not in ("_worker", "planto")]
 
     pending = []
     for project in projects:
-        if project.get("id") == "_worker":
-            continue
         fb = project.get("fbScraper") or {}
         if fb.get("jobStatus") == "pending":
             pending.append(project.get("id"))
@@ -100,6 +105,7 @@ def process_pending(config: dict, logger: logging.Logger) -> bool:
         now = datetime.now().isoformat(timespec="seconds")
 
         projects = fetch_dashboard_projects(config)
+        projects = [p for p in projects if p.get("id") != "_worker"]
         projects = set_project_fb(
             projects,
             project_id,
@@ -115,6 +121,7 @@ def process_pending(config: dict, logger: logging.Logger) -> bool:
         local = read_local_status(project_id) or {}
 
         projects = fetch_dashboard_projects(config)
+        projects = [p for p in projects if p.get("id") != "_worker"]
         projects = set_project_fb(
             projects,
             project_id,

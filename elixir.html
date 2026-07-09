@@ -819,14 +819,6 @@ async function jbLoad() {
   return (data.record || []).filter(p => p && p.id !== '_worker').map(p => normalizeProject(p));
 }
 
-async function jbSave(arr) {
-  await fetch(`${JB_API}/b/${JB_BIN}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', 'X-Master-Key': JB_KEY },
-    body: JSON.stringify(arr)
-  });
-}
-
 const PLANTO_DATA_URL = 'data/planto-daily.csv';
 const PLANTO_COHORT_URL = 'data/planto-cohort.json';
 const PLANTO_META_URL = 'data/planto-meta.json';
@@ -967,7 +959,7 @@ function normalizeProject(p) {
       .filter(ms => ms && ms.month && ms.url)
       .map(ms => ({ month: ms.month, url: normalizeToCSVUrl(ms.url) })),
     type: p.type || 'auto',
-    fbScraper: normalizeFbScraper(p, sheetSources),
+    ...(p.id === 'planto' || p.dataSource === 'auto' ? {} : { fbScraper: normalizeFbScraper(p, sheetSources) }),
   };
 }
 
@@ -1023,7 +1015,30 @@ function workerOnline() {
 }
 
 function isFbScraperConfigured(p) {
+  if (!p || p.id === 'planto' || p.dataSource === 'auto') return false;
   return !!String(p?.fbScraper?.profileId || '').trim();
+}
+
+function sanitizeProjectsForSave(list) {
+  return (list || [])
+    .filter(p => p && p.id !== '_worker')
+    .map(p => {
+      if (p.id === 'planto' || p.dataSource === 'auto') {
+        const clean = { ...p };
+        delete clean.fbScraper;
+        return clean;
+      }
+      return p;
+    });
+}
+
+async function jbSave(arr) {
+  const payload = sanitizeProjectsForSave(arr);
+  await fetch(`${JB_API}/b/${JB_BIN}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'X-Master-Key': JB_KEY },
+    body: JSON.stringify(payload)
+  });
 }
 
 function formatFbJobStatus(fb, name) {
@@ -1131,9 +1146,8 @@ function renderFbScraperRow(p) {
 }
 
 function renderFbScraperAdminBlock(proj) {
-  const workerLine = workerOnline()
-    ? '<div class="form-hint" style="color:#34D399;margin-bottom:10px">● Mac-воркер активен — кнопка работает с github.io</div>'
-    : '<div class="form-hint" style="color:#FBBF24;margin-bottom:10px">○ Воркер не виден — один раз на Mac: <code>bash install_mac_services.sh</code></div>';
+  if (proj && (proj.id === 'planto' || proj.dataSource === 'auto')) return '';
+  const workerLine = '<div class="form-hint" style="margin-bottom:10px;color:rgba(255,255,255,0.45)">Задача уходит в очередь JSONBin — Mac-воркер подхватит. Planto не затрагивается.</div>';
   if (proj) {
     if (!isFbScraperConfigured(proj)) {
       return `<div class="fb-scraper-admin">
@@ -1202,14 +1216,16 @@ function refreshFbScraperSheetIdHint(urls) {
 function applyPlantoAutoSource(list) {
   return list.map(p => {
     if (p.id !== 'planto') return p;
-    return normalizeProject({
+    const clean = {
       ...p,
       type: 'planto',
       urls: [PLANTO_DATA_URL],
       dataSource: 'auto',
       sheetSources: [{ id: 'auto', url: PLANTO_DATA_URL, label: 'Auto feed' }],
       monthlySheets: [],
-    });
+    };
+    delete clean.fbScraper;
+    return normalizeProject(clean);
   });
 }
 
@@ -1234,6 +1250,7 @@ async function loadProjects() {
 }
 
 function saveProjects() {
+  projects = applyPlantoAutoSource(projects);
   localStorage.setItem(PROJ_KEY, JSON.stringify(projects));
   jbSave(projects).catch(e => console.warn('JSONBin save failed:', e.message));
 }
@@ -4224,6 +4241,8 @@ function openEditProject(projId) {
     onSheetUrlInput(true);
   }
   fillFbScraperEditor(p);
+  const fbSection = document.getElementById('fb-scraper-section');
+  if (fbSection) fbSection.style.display = (p.id === 'planto' || p.dataSource === 'auto') ? 'none' : '';
   setWizardUI();
   document.getElementById('overlay-proj').classList.add('show');
 }

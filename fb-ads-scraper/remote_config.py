@@ -96,6 +96,8 @@ def dashboard_to_scraper_projects(
     """manual=True — все проекты с заполненным profileId (кнопка в дашборде)."""
     out = []
     for project in dashboard_projects:
+        if project.get("id") in ("_worker", "planto"):
+            continue
         fb = project.get("fbScraper") or {}
         profile_id = (fb.get("profileId") or "").strip()
         if not manual and not fb.get("enabled"):
@@ -161,17 +163,8 @@ def save_dashboard_projects(config: dict, projects: list[dict]) -> None:
 
 
 def upsert_worker_heartbeat(config: dict, projects: list[dict]) -> list[dict]:
-    now = datetime.now().isoformat(timespec="seconds")
-    out = [p for p in projects if p.get("id") != "_worker"]
-    out.append(
-        {
-            "id": "_worker",
-            "name": "FB Worker",
-            "icon": "⚙️",
-            "fbScraper": {"heartbeat": now, "status": "online"},
-        }
-    )
-    return out
+    """Worker heartbeat хранится локально, не в JSONBin проектов."""
+    return [p for p in projects if p.get("id") != "_worker"]
 
 
 def filter_projects_by_id(projects: list[dict], project_id: str) -> list[dict]:
