@@ -137,10 +137,17 @@ body{
 
 /* ── OVERVIEW GRID ── */
 .overview-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:18px}
-.proj-tile{background:rgba(18,18,26,0.7);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:var(--radius-lg);padding:0;transition:all 0.22s ease;position:relative;overflow:hidden;box-shadow:var(--shadow);cursor:pointer}
+.proj-tile{background:rgba(18,18,26,0.7);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:var(--radius-lg);padding:0;transition:border-color 0.22s ease,box-shadow 0.22s ease,transform 0.22s ease,opacity 0.15s ease;position:relative;overflow:hidden;box-shadow:var(--shadow);cursor:grab;touch-action:manipulation;user-select:none;-webkit-user-select:none}
 .proj-tile:hover{border-color:rgba(0,0,0,0.4);transform:translateY(-2px);box-shadow:0 12px 40px rgba(0,0,0,0.4),0 0 0 1px rgba(0,0,0,0.15)}
 .proj-tile::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent),transparent);opacity:0;transition:opacity 0.22s}
 .proj-tile:hover::before{opacity:1}
+.proj-tile.dragging{opacity:0.45;cursor:grabbing;transform:scale(0.98);box-shadow:none}
+.proj-tile.drag-over{border-color:#0a0a0a;box-shadow:0 0 0 2px rgba(0,0,0,0.35);transform:translateY(-2px)}
+.overview-grid.is-dragging .proj-tile:hover{transform:none}
+.overview-grid.is-dragging .proj-tile:not(.dragging):not(.drag-over):hover::before{opacity:0}
+.tile-drag-hint{position:absolute;top:10px;right:10px;font-size:10px;font-weight:600;letter-spacing:0.04em;color:rgba(0,0,0,0.28);opacity:0;transition:opacity 0.15s;pointer-events:none;z-index:2}
+.proj-tile:hover .tile-drag-hint{opacity:1}
+.overview-grid.is-dragging .tile-drag-hint{opacity:0}
 .tile-body{padding:20px 22px 0}
 .tile-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
 .tile-name{display:flex;align-items:center;gap:12px;font-family:var(--font-display);font-size:15px;font-weight:600;color:var(--text)}
@@ -4484,8 +4491,81 @@ function highlightProjPickerFocus() {
 }
 
 function tileOpenProject(id, e) {
+  if (tileJustDragged) { tileJustDragged = false; return; }
   if (e.target.closest('.tile-month-tabs, .admin-zone, .budget-input-row, .btn-budget-save, button, input, select, a, .status-select')) return;
   switchView(id);
+}
+
+let tileDragId = null;
+let tileJustDragged = false;
+
+function tileDragIgnoreTarget(el) {
+  return !!el?.closest?.('button, input, select, a, .status-select, .tile-month-tabs, .admin-zone, .budget-input-row');
+}
+
+function onTileDragStart(e, projId) {
+  if (tileDragIgnoreTarget(e.target)) {
+    e.preventDefault();
+    return;
+  }
+  tileDragId = projId;
+  tileJustDragged = false;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', projId);
+  const tile = e.currentTarget;
+  requestAnimationFrame(() => {
+    tile.classList.add('dragging');
+    document.querySelector('.overview-grid')?.classList.add('is-dragging');
+  });
+}
+
+function onTileDragEnd(e) {
+  e.currentTarget.classList.remove('dragging');
+  document.querySelectorAll('.proj-tile.drag-over').forEach(el => el.classList.remove('drag-over'));
+  document.querySelector('.overview-grid')?.classList.remove('is-dragging');
+  tileDragId = null;
+}
+
+function onTileDragOver(e, projId) {
+  if (!tileDragId || tileDragId === projId) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  document.querySelectorAll('.proj-tile.drag-over').forEach(el => {
+    if (el.dataset.projId !== projId) el.classList.remove('drag-over');
+  });
+  e.currentTarget.classList.add('drag-over');
+}
+
+function onTileDragLeave(e) {
+  if (!e.currentTarget.contains(e.relatedTarget)) {
+    e.currentTarget.classList.remove('drag-over');
+  }
+}
+
+async function onTileDrop(e, targetId) {
+  e.preventDefault();
+  e.stopPropagation();
+  e.currentTarget.classList.remove('drag-over');
+  const fromId = tileDragId || e.dataTransfer.getData('text/plain');
+  if (!fromId || fromId === targetId) return;
+  const from = projects.findIndex(p => p.id === fromId);
+  const to = projects.findIndex(p => p.id === targetId);
+  if (from < 0 || to < 0 || from === to) return;
+  const [item] = projects.splice(from, 1);
+  projects.splice(to, 0, item);
+  tileJustDragged = true;
+  setTimeout(() => { tileJustDragged = false; }, 250);
+  try {
+    await saveProjects();
+  } catch (err) {
+    console.warn('Reorder save failed:', err);
+  }
+  renderTopbar();
+  renderContent();
+}
+
+function projTileAttrs(projId) {
+  return `draggable="true" data-proj-id="${escHtml(projId)}" ondragstart="onTileDragStart(event,'${escHtml(projId)}')" ondragend="onTileDragEnd(event)" ondragover="onTileDragOver(event,'${escHtml(projId)}')" ondragleave="onTileDragLeave(event)" ondrop="onTileDrop(event,'${escHtml(projId)}')"`;
 }
 
 document.addEventListener('keydown', e => {
@@ -4717,7 +4797,8 @@ function renderOverview() {
     const statusCtrl = isAdmin() ? renderStatusSelect(p.id, status) : renderStatusBadge(status);
 
     if (isLoading) {
-      html += `<div class="proj-tile status-${status}" onclick="tileOpenProject('${p.id}', event)">
+      html += `<div class="proj-tile status-${status}" ${projTileAttrs(p.id)} onclick="tileOpenProject('${p.id}', event)">
+        <div class="tile-drag-hint">⋮⋮</div>
         <div class="tile-body">
           <div class="tile-header">
             <div class="tile-name"><span class="tile-icon-wrap">${p.icon}</span>${p.name}</div>
@@ -4733,7 +4814,8 @@ function renderOverview() {
     }
 
     if (isError) {
-      html += `<div class="proj-tile status-${status}" onclick="tileOpenProject('${p.id}', event)">
+      html += `<div class="proj-tile status-${status}" ${projTileAttrs(p.id)} onclick="tileOpenProject('${p.id}', event)">
+        <div class="tile-drag-hint">⋮⋮</div>
         <div class="tile-body">
           <div class="tile-header">
             <div class="tile-name"><span class="tile-icon-wrap">${p.icon}</span>${p.name}</div>
@@ -4796,7 +4878,8 @@ function renderOverview() {
 
     const budgetTile = isPlantoTile ? '' : renderBudgetCard(p, data, true);
 
-    html += `<div class="proj-tile status-${status}" onclick="tileOpenProject('${p.id}', event)">
+    html += `<div class="proj-tile status-${status}" ${projTileAttrs(p.id)} onclick="tileOpenProject('${p.id}', event)">
+      <div class="tile-drag-hint">⋮⋮</div>
       <div class="tile-body">
         <div class="tile-header">
           <div class="tile-name"><span class="tile-icon-wrap">${p.icon}</span>${p.name}${isMulti ? `<span style="font-size:10px;color:var(--text-dim);margin-left:6px">${pack.sources.length} листа</span>` : ''}</div>
