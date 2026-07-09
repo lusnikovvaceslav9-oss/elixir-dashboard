@@ -1533,8 +1533,31 @@ function isJgglProject(p) {
   return !!(p && (/jggl/i.test(p.id || '') || /^jggl$/i.test(p.name || '')));
 }
 
+function isQuadcodeProject(p) {
+  return !!(p && (/quadcode/i.test(p.id || '') || /quadcode/i.test(p.name || '')));
+}
+
 function supportsCsvUpload(proj) {
-  return isJgglProject(proj);
+  return isJgglProject(proj) || isQuadcodeProject(proj);
+}
+
+function csvUploadPresets(proj) {
+  if (isJgglProject(proj)) {
+    return [
+      { value: 'App', label: 'App' },
+      { value: 'Web', label: 'Web' },
+      { value: 'Waitlist', label: 'Waitlist' },
+      { value: 'Redirect', label: 'Redirect' },
+    ];
+  }
+  if (isQuadcodeProject(proj)) {
+    return [
+      { value: 'Main', label: 'Main' },
+      { value: 'Ads', label: 'Ads' },
+      { value: 'Organic', label: 'Organic' },
+    ];
+  }
+  return [{ value: 'CSV', label: 'CSV' }];
 }
 
 function loadCsvUploads() {
@@ -1682,19 +1705,24 @@ function renderCsvUploadCard(proj) {
     </div>`;
   }).join('');
 
+  const presets = csvUploadPresets(proj);
+  const presetOpts = presets.map((p, i) =>
+    `<option value="${escHtml(p.value)}"${i === 0 ? ' selected' : ''}>${escHtml(p.label)}</option>`
+  ).join('');
+  const hint = isQuadcodeProject(proj)
+    ? 'Загрузи CSV — появится как отдельный лист в разбивке. Хранится в этом браузере.'
+    : 'Утром просто выбери файл — он попадёт в разбивку (App / свой лист). Хранится в этом браузере.';
+
   return `<div class="csv-upload-card">
     <div class="csv-upload-head">
       <div>
         <div class="csv-upload-title">Загрузить CSV</div>
-        <div class="csv-upload-hint">Утром просто выбери файл — он попадёт в разбивку (App / свой лист). Хранится в этом браузере.</div>
+        <div class="csv-upload-hint">${hint}</div>
       </div>
     </div>
     <div class="csv-upload-row">
       <select id="csv-upload-label-${proj.id}" onchange="onCsvUploadLabelChange('${proj.id}')">
-        <option value="App" selected>App</option>
-        <option value="Web">Web</option>
-        <option value="Waitlist">Waitlist</option>
-        <option value="Redirect">Redirect</option>
+        ${presetOpts}
         <option value="__custom__">Своё имя…</option>
       </select>
       <input id="csv-upload-custom-${proj.id}" type="text" placeholder="Название листа" style="display:none;min-width:120px">
