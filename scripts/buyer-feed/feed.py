@@ -17,24 +17,23 @@ from cohort import analyze_cohort_from_daily, default_anchor
 from daily import estimate_today_spend, load_daily_csv, merge_daily, write_daily_csv
 from direct import fetch_direct_by_day
 from payments import (
-    bills_by_day as csv_bills_by_day,
+    bills_by_cohort_day as csv_bills_by_day,
     load_payments,
     paid_net_by_cohort_day as csv_paid_net_by_cohort_day,
     payments_breakdown,
     sold_trials_by_cohort_day as csv_sold_by_cohort_day,
-    sold_trials_by_day as csv_sold_by_day,
+    sold_trials_by_cohort_day as csv_sold_by_day,
 )
 from secrets import load_secrets
 from supabase import (
     bills_breakdown,
-    bills_by_day,
+    bills_by_cohort_day,
     fetch_bills,
     fetch_trial_cancellations_by_day,
     fetch_trial_starts,
     fetch_unit_economics_snapshot,
     paid_net_by_cohort_day,
     sold_by_cohort_day,
-    sold_by_day,
     trials_by_day_from_starts,
 )
 
@@ -176,14 +175,18 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
             errors.append(f"supabase: {exc}")
             print(f"  Supabase failed: {exc}")
         try:
+            # Daily fb/sold = по дню когорты (yearly: оплата − 7д = старт триала).
             bills_list = fetch_bills(db_url, anchor, until)
-            bills = bills_by_day(bills_list)
-            sold = sold_by_day(bills_list)
+            bills = bills_by_cohort_day(bills_list)
+            sold = sold_by_cohort_day(bills_list)
             paid_by_cohort_day = paid_net_by_cohort_day(bills_list)
             sold_by_cohort_day_map = sold_by_cohort_day(bills_list)
             bills_by_plan = bills_breakdown(bills_list)
-            sources["bills"] = "supabase_main_active"
-            print(f"  Supabase bills: {len(bills_list)} charges (MAIN active)")
+            sources["bills"] = "supabase_main_active_cohort_day"
+            print(
+                f"  Supabase bills: {len(bills_list)} charges "
+                f"(daily = cohort day, yearly −{7}d)"
+            )
         except Exception as exc:
             errors.append(f"supabase_bills: {exc}")
             print(f"  Supabase bills failed: {exc}")
@@ -204,14 +207,17 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
 
     # CSV — fallback (если Supabase недоступен) + ручные корректировки/возвраты.
     payments = load_payments(payments_path)
-    if payments and sources.get("bills") != "supabase_main_active":
+    if payments and sources.get("bills") not in (
+        "supabase_main_active",
+        "supabase_main_active_cohort_day",
+    ):
         bills = csv_bills_by_day(payments)
         sold = csv_sold_by_day(payments)
         paid_by_cohort_day = csv_paid_net_by_cohort_day(payments)
         sold_by_cohort_day_map = csv_sold_by_cohort_day(payments)
         bills_by_plan = payments_breakdown(payments)
-        sources["bills"] = "rustore_payments_csv"
-        print(f"  Payments (CSV fallback): {len(payments)} records")
+        sources["bills"] = "rustore_payments_csv_cohort_day"
+        print(f"  Payments (CSV fallback, cohort day): {len(payments)} records")
 
     full_spend = spend
     full_clicks = clicks
@@ -267,9 +273,8 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
             d += timedelta(days=1)
         full_trials = filled
 
-    # Аналогично для биллов: Supabase — источник истины, дни без списаний = 0,
-    # иначе в CSV висят старые (ручные) значения fb/sold.
-    if sources.get("bills") == "supabase_main_active":
+    # Аналогично для биллов: дни без списаний (по когорте) = 0.
+    if sources.get("bills") in ("supabase_main_active", "supabase_main_active_cohort_day"):
         filled_bills = dict(bills)
         filled_sold = dict(sold)
         d = anchor

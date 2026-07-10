@@ -3221,7 +3221,7 @@ function getPlantoOverviewDailyMetrics(proj) {
     { key: 'today_cpi', label: 'CPI', value: cpi != null ? fmtMoney(cpi, cur) : '—', accent: true, live: true, sub: 'цена установки' },
     { key: 'today_trials', label: 'Триалы', value: fmtInt(trials), live: true, sub: 'старты за день' },
     { key: 'today_cpt', label: 'CPT', value: cpt != null ? fmtMoney(cpt, cur) : '—', accent: true, live: true, sub: 'цена триала' },
-    { key: 'today_bills', label: 'Оплаты', value: fmtInt(bills), live: true, sub: sold ? `yearly: ${fmtInt(sold)}` : (cpb != null ? `Cost/Bill ${fmtMoney(cpb, cur)}` : 'за день') },
+    { key: 'today_bills', label: 'Оплаты', value: fmtInt(bills), live: true, sub: sold ? `yearly→день триала (−7д): ${fmtInt(sold)}` : (cpb != null ? `Cost/Bill ${fmtMoney(cpb, cur)}` : 'к дню триала (−7д)') },
   ];
   if (clicks || impressions) {
     metrics.push({
@@ -3316,7 +3316,7 @@ function renderPlantoBreakdownCard(proj, rows) {
       : '';
     return `<div class="analytics-card planto-breakdown-card">
       <div class="analytics-card-title">Auto feed <span class="feed-badge">live</span></div>
-      <div class="budget-hint">Direct + AppMetrica installs/trials + RuStore bills${attr}${updated ? ' · обновлено ' + escHtml(updated) : ''}</div>
+      <div class="budget-hint">Direct + AppMetrica installs/trials + RuStore bills (yearly → день триала −7д)${attr}${updated ? ' · обновлено ' + escHtml(updated) : ''}</div>
       ${xcHtml}${healthHtml}${refreshHtml}${payHtml}
     </div>`;
   }

@@ -48,7 +48,7 @@ python -m http.server 8081 --bind 127.0.0.1
 
 - **Spend** — Yandex Direct API (без НДС)
 - **Installs** — AppMetrica **Reporting API** (агрегаты по дням)
-- **Trials** — AppMetrica `trial_started` (уники по дням, `trial_attribution: appmetrica_trial_started`); RuStore/Supabase — сверка + bills
+- **Bills / Sold** — RuStore MAIN ACTIVE; в daily на **день старта триала** (yearly: оплата − 7д), monthly — день оплаты
 - **Bills (fb) / Продано / Paid net** — Supabase (`bills: supabase_main_active`): подписка дошла до `period='MAIN'` + `status='ACTIVE'` = списание прошло. Возвраты (`MAIN CLOSED`) отсекаются сами. Сумма по продукту (годовой 2490 ₽, месячный 399 ₽), дата — `last_event_time`. `data/rustore-payments.csv` — **fallback** (если БД недоступна) и ручные корректировки
 - **Когорты** — 7 календарных дней от якоря **2026-06-05**; триалы в корзине = distinct users с trial start в днях корзины
 

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-10T19:13:36+07:00",
+  "generated_at": "2026-07-10T19:49:06+07:00",
   "anchor": "2026-06-05",
   "until": "2026-07-10",
   "window_start": "2026-07-01",
@@ -11,7 +11,7 @@
     "installs": "appmetrica_reporting",
     "trials_am_crosscheck": "appmetrica_reporting_users",
     "trials": "appmetrica_trial_started",
-    "bills": "supabase_main_active",
+    "bills": "supabase_main_active_cohort_day",
     "trial_cancellations": "supabase_trial_cancelled",
     "unit_economics": "supabase_entitlements",
     "product": "appmetrica_reporting"
@@ -115,7 +115,7 @@
     "appmetrica": 8,
     "supabase": 6,
     "dashboard": 8,
-    "note": "В дашборде trials = AppMetrica trial_started (уники). RuStore — сверка оплат."
+    "note": "Trials=AM. Bills/sold на день старта триала (yearly pay−7д)."
   },
   "trials_sb_crosscheck_total": 100,
   "trials_sb_crosscheck_by_day": {
@@ -149,5 +149,6 @@
     "2026-07-08": 5,
     "2026-07-09": 6,
     "2026-07-10": 1
-  }
+  },
+  "bill_attribution": "cohort_day_yearly_minus_7"
 }

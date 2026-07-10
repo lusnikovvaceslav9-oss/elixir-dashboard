@@ -40,6 +40,17 @@ def bills_by_day(payments: list[dict]) -> dict[str, int]:
     return dict(sorted(out.items()))
 
 
+def bills_by_cohort_day(payments: list[dict]) -> dict[str, int]:
+    """Bills by cohort day: yearly pay−7d, monthly same day."""
+    out: dict[str, int] = defaultdict(int)
+    for p in payments:
+        d = date.fromisoformat(p["pay_date"])
+        if p.get("plan") == "yearly":
+            d = d - timedelta(days=TRIAL_LAG_DAYS)
+        out[d.isoformat()] += 1
+    return dict(sorted(out.items()))
+
+
 def sold_trials_by_day(payments: list[dict]) -> dict[str, int]:
     """Проданные триалы (годовая конверсия trial→paid) по дате оплаты. Месячные не в счёт."""
     out: dict[str, int] = defaultdict(int)

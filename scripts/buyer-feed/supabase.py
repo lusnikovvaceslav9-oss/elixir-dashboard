@@ -286,6 +286,15 @@ def bills_by_day(bills: list[Bill]) -> dict[str, int]:
     return dict(sorted(out.items()))
 
 
+def bills_by_cohort_day(bills: list[Bill]) -> dict[str, int]:
+    """Списания по дню когорты: yearly = оплата − 7д (старт триала), monthly = день оплаты."""
+    out: dict[str, int] = {}
+    for b in bills:
+        key = b.cohort_day.isoformat()
+        out[key] = out.get(key, 0) + 1
+    return dict(sorted(out.items()))
+
+
 def sold_by_day(bills: list[Bill]) -> dict[str, int]:
     """Проданные триалы (годовая конверсия) по дню оплаты. Месячные не в счёт."""
     out: dict[str, int] = {}
