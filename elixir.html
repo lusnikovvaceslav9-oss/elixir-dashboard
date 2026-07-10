@@ -187,6 +187,8 @@ body{
 .sheet-switcher-label{font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;flex-shrink:0}
 .sheet-switcher-btns{margin-bottom:0!important;flex:1}
 .csv-upload-card{background:rgba(18,18,26,0.8);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin:0 0 18px}
+.csv-drop-zone{transition:border-color 0.15s ease,background 0.15s ease}
+.csv-drop-zone.csv-drop-active{border-color:rgba(0,0,0,0.45);background:rgba(0,0,0,0.04)}
 .csv-upload-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px}
 .csv-upload-title{font-size:13px;font-weight:600;color:var(--text)}
 .csv-upload-hint{font-size:11px;color:var(--text-muted);line-height:1.4}
@@ -1358,6 +1360,7 @@ function serializeUploadRows(rows) {
     const out = { ...r };
     if (r.date instanceof Date && !isNaN(r.date.getTime())) {
       out.date = `${r.date.getFullYear()}-${String(r.date.getMonth() + 1).padStart(2, '0')}-${String(r.date.getDate()).padStart(2, '0')}`;
+      if (!out.dateStr) out.dateStr = fmtDateStr(r.date);
     }
     return out;
   });
@@ -1373,12 +1376,31 @@ function deserializeUploadRows(rows) {
         return isNaN(d.getTime()) ? null : d;
       })();
     }
+    if (!dt && r.dateStr) dt = parseDate(r.dateStr);
     return {
       ...r,
       date: dt,
       dateStr: dt ? fmtDateStr(dt) : (r.dateStr || ''),
     };
   }).filter(r => r.date);
+}
+
+function mergeCsvUploadStores(local, remote) {
+  const out = JSON.parse(JSON.stringify(remote || {}));
+  Object.entries(local || {}).forEach(([projId, files]) => {
+    if (!out[projId]) out[projId] = {};
+    Object.entries(files || {}).forEach(([id, file]) => {
+      const prev = out[projId][id];
+      if (!prev) {
+        out[projId][id] = file;
+        return;
+      }
+      const prevAt = String(prev.uploadedAt || '');
+      const nextAt = String(file.uploadedAt || '');
+      if (nextAt >= prevAt) out[projId][id] = file;
+    });
+  });
+  return out;
 }
 
 function uploadsForRemote(all) {
@@ -1403,29 +1425,34 @@ function uploadsForRemote(all) {
 }
 
 async function jbSaveCsvUploads(localUploads) {
-  const remotePayload = uploadsForRemote(localUploads);
+  const remote = await jbLoadCsvUploads().catch(() => ({}));
+  const merged = mergeCsvUploadStores(localUploads, remote || {});
+  const remotePayload = uploadsForRemote(merged);
   await jbSaveRecord(raw => {
     const rest = raw.filter(p => p && p.id !== '_csv_uploads');
     return [...rest, { id: '_csv_uploads', uploads: remotePayload, updatedAt: new Date().toISOString() }];
   });
+  return merged;
 }
 
 async function hydrateCsvUploadsFromRemote() {
-  const remote = await jbLoadCsvUploads();
+  const remote = await jbLoadCsvUploads().catch(() => null);
   const local = loadCsvUploads();
-  if (remote && Object.keys(remote).length) {
-    localStorage.setItem(CSV_UPLOAD_KEY, JSON.stringify(remote));
-    return 'remote';
+  const merged = mergeCsvUploadStores(local, remote || {});
+  if (JSON.stringify(merged) !== JSON.stringify(local)) {
+    localStorage.setItem(CSV_UPLOAD_KEY, JSON.stringify(merged));
   }
-  if (isAdmin() && local && Object.keys(local).length) {
+  const shouldPush = JSON.stringify(merged) !== JSON.stringify(remote || {});
+  if (shouldPush) {
     try {
-      await jbSaveCsvUploads(local);
-      return 'migrated';
+      const saved = await jbSaveCsvUploads(merged);
+      localStorage.setItem(CSV_UPLOAD_KEY, JSON.stringify(saved));
+      return 'synced';
     } catch (e) {
-      console.warn('CSV uploads migrate failed:', e.message || e);
+      console.warn('CSV uploads cloud sync failed:', e.message || e);
     }
   }
-  return 'none';
+  return Object.keys(merged).length ? 'merged' : 'none';
 }
 
 async function jbSave(arr) {
@@ -1880,10 +1907,11 @@ function loadCsvUploads() {
 async function saveCsvUploads(all) {
   localStorage.setItem(CSV_UPLOAD_KEY, JSON.stringify(all));
   try {
-    await jbSaveCsvUploads(all);
+    const merged = await jbSaveCsvUploads(all);
+    localStorage.setItem(CSV_UPLOAD_KEY, JSON.stringify(merged));
   } catch (e) {
     console.warn('CSV uploads cloud save failed:', e.message || e);
-    if (isAdmin()) throw e;
+    throw e;
   }
 }
 
@@ -2074,7 +2102,10 @@ async function applyUploadedCsvToCache(projId, preferLabel) {
       let srcIdx = 0;
       if (preferLabel) {
         const want = String(preferLabel).toLowerCase();
-        const found = sources.findIndex(s => String(s.label || '').toLowerCase() === want);
+        const found = sources.findIndex(s =>
+          sourceLabelsMatch(p, s.label, preferLabel)
+          || String(s.label || '').toLowerCase() === want
+        );
         if (found >= 0) srcIdx = found;
       }
       sourceIndexByProject[projId] = srcIdx;
@@ -2156,30 +2187,60 @@ async function readUploadFileAsCsvText(file) {
   return text;
 }
 
-async function onCsvUploadFile(projId, inputEl) {
-  const file = inputEl?.files?.[0];
-  if (!file) return;
+async function processCsvUploadFile(projId, file) {
   const p = projects.find(x => x.id === projId);
+  if (!p || !file) return;
   const presets = csvUploadPresets(p);
   const fallbackLabel = presets[0]?.value || 'CSV';
   const labelEl = document.getElementById(`csv-upload-label-${projId}`);
   const customEl = document.getElementById(`csv-upload-custom-${projId}`);
   let selected = (labelEl?.value || fallbackLabel).trim();
   if (selected === '__custom__') selected = (customEl?.value || '').trim() || fallbackLabel;
+  const text = await readUploadFileAsCsvText(file);
+  const rows = parseSheet(text);
+  if (!rows.length) throw new Error('Не удалось разобрать файл — проверь заголовки Date/Spend/Reg');
+  const label = canonicalSourceLabel(p, resolveUploadLabel(p, selected, rows));
+  const saved = await saveUploadedCsv(projId, label, file.name, text);
+  await applyUploadedCsvToCache(projId, label);
+  if (saved.duplicate) {
+    console.info(`Файл уже был загружен (hash ${shortHash(saved.hash)}) — данные сохранены без дубля`);
+  }
+}
+
+async function onCsvUploadFile(projId, inputEl) {
+  const file = inputEl?.files?.[0];
+  if (!file) return;
   try {
-    const text = await readUploadFileAsCsvText(file);
-    const rows = parseSheet(text);
-    if (!rows.length) throw new Error('Не удалось разобрать файл — проверь заголовки Date/Spend/Reg');
-    const label = canonicalSourceLabel(p, resolveUploadLabel(p, selected, rows));
-    const saved = await saveUploadedCsv(projId, label, file.name, text);
+    await processCsvUploadFile(projId, file);
     inputEl.value = '';
-    await applyUploadedCsvToCache(projId, label);
-    if (saved.duplicate) {
-      console.info(`Файл уже был загружен (hash ${shortHash(saved.hash)}) — данные сохранены без дубля`);
-    }
   } catch (e) {
     alert(`Не удалось загрузить файл: ${e.message || e}`);
     inputEl.value = '';
+  }
+}
+
+function onCsvDropOver(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  e.currentTarget.classList.add('csv-drop-active');
+}
+
+function onCsvDropLeave(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  e.currentTarget.classList.remove('csv-drop-active');
+}
+
+async function onCsvDropFile(projId, e) {
+  e.preventDefault();
+  e.stopPropagation();
+  e.currentTarget.classList.remove('csv-drop-active');
+  const file = e.dataTransfer?.files?.[0];
+  if (!file) return;
+  try {
+    await processCsvUploadFile(projId, file);
+  } catch (err) {
+    alert(`Не удалось загрузить файл: ${err.message || err}`);
   }
 }
 
@@ -2226,11 +2287,15 @@ function renderCsvUploadCard(proj) {
     ? 'Можно грузить несколько CSV/XLSX подряд — каждый файл сохраняется по хешу, данные сливаются по датам в лист месяца.'
     : 'Можно грузить несколько файлов подряд (CSV/XLSX). Статистика сохраняется в облако и видна всем на дашборде.';
 
-  return `<div class="csv-upload-card">
+  return `<div class="csv-upload-card csv-drop-zone"
+    ondragenter="onCsvDropOver(event)"
+    ondragover="onCsvDropOver(event)"
+    ondragleave="onCsvDropLeave(event)"
+    ondrop="onCsvDropFile('${proj.id}', event)">
     <div class="csv-upload-head">
       <div>
         <div class="csv-upload-title">Загрузить CSV / Excel</div>
-        <div class="csv-upload-hint">${hint}</div>
+        <div class="csv-upload-hint">${hint} Можно перетащить файл сюда.</div>
       </div>
     </div>
     <div class="csv-upload-row">
