@@ -1058,7 +1058,7 @@ async function jbLoad() {
   });
   if (!res.ok) throw new Error(`JSONBin ${res.status}`);
   const data = await res.json();
-  return (data.record || []).filter(p => p && p.id !== '_worker').map(p => normalizeProject(p));
+  return (data.record || []).filter(p => p && p.id !== '_worker' && p.id !== '_csv_uploads').map(p => normalizeProject(p));
 }
 
 const PLANTO_DATA_URL = 'data/planto-daily.csv';
@@ -1330,14 +1330,110 @@ function sanitizeProjectsForSave(list) {
     });
 }
 
-async function jbSave(arr) {
-  const payload = sanitizeProjectsForSave(arr);
+async function jbSaveRecord(mutator) {
+  const raw = await jbLoadRaw();
+  const base = Array.isArray(raw) ? raw : [];
+  const next = mutator(base);
   const res = await fetch(`${JB_API}/b/${JB_BIN}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', 'X-Master-Key': JB_KEY },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(next),
   });
   if (!res.ok) throw new Error(`JSONBin ${res.status}`);
+}
+
+async function jbLoadCsvUploads() {
+  try {
+    const raw = await jbLoadRaw();
+    const entry = raw.find(p => p?.id === '_csv_uploads');
+    return entry?.uploads || null;
+  } catch (e) {
+    console.warn('jbLoadCsvUploads:', e.message || e);
+    return null;
+  }
+}
+
+function serializeUploadRows(rows) {
+  return (rows || []).map(r => {
+    const out = { ...r };
+    if (r.date instanceof Date && !isNaN(r.date.getTime())) {
+      out.date = `${r.date.getFullYear()}-${String(r.date.getMonth() + 1).padStart(2, '0')}-${String(r.date.getDate()).padStart(2, '0')}`;
+    }
+    return out;
+  });
+}
+
+function deserializeUploadRows(rows) {
+  return (rows || []).map(r => {
+    let dt = null;
+    if (r.date instanceof Date) dt = r.date;
+    else if (typeof r.date === 'string') {
+      dt = parseDate(r.date) || (() => {
+        const d = new Date(r.date);
+        return isNaN(d.getTime()) ? null : d;
+      })();
+    }
+    return {
+      ...r,
+      date: dt,
+      dateStr: dt ? fmtDateStr(dt) : (r.dateStr || ''),
+    };
+  }).filter(r => r.date);
+}
+
+function uploadsForRemote(all) {
+  const out = {};
+  Object.entries(all || {}).forEach(([projId, files]) => {
+    out[projId] = {};
+    Object.entries(files || {}).forEach(([id, u]) => {
+      const rows = u.rows?.length
+        ? deserializeUploadRows(u.rows)
+        : (u.text ? parseSheet(u.text) : []);
+      out[projId][id] = {
+        label: u.label,
+        fileName: u.fileName,
+        uploadedAt: u.uploadedAt,
+        hash: u.hash,
+        sheetColumns: u.sheetColumns || (u.text ? (parseCSV(u.text)[0] || []).map(h => (h || '').trim()) : []),
+        rows: serializeUploadRows(rows),
+      };
+    });
+  });
+  return out;
+}
+
+async function jbSaveCsvUploads(localUploads) {
+  const remotePayload = uploadsForRemote(localUploads);
+  await jbSaveRecord(raw => {
+    const rest = raw.filter(p => p && p.id !== '_csv_uploads');
+    return [...rest, { id: '_csv_uploads', uploads: remotePayload, updatedAt: new Date().toISOString() }];
+  });
+}
+
+async function hydrateCsvUploadsFromRemote() {
+  const remote = await jbLoadCsvUploads();
+  const local = loadCsvUploads();
+  if (remote && Object.keys(remote).length) {
+    localStorage.setItem(CSV_UPLOAD_KEY, JSON.stringify(remote));
+    return 'remote';
+  }
+  if (isAdmin() && local && Object.keys(local).length) {
+    try {
+      await jbSaveCsvUploads(local);
+      return 'migrated';
+    } catch (e) {
+      console.warn('CSV uploads migrate failed:', e.message || e);
+    }
+  }
+  return 'none';
+}
+
+async function jbSave(arr) {
+  const payload = sanitizeProjectsForSave(arr);
+  await jbSaveRecord(raw => {
+    const special = raw.filter(p => p && (p.id === '_worker' || p.id === '_csv_uploads'));
+    return [...payload, ...special];
+  });
 }
 
 function formatFbJobStatus(fb, name) {
@@ -1781,8 +1877,14 @@ function loadCsvUploads() {
   }
 }
 
-function saveCsvUploads(all) {
+async function saveCsvUploads(all) {
   localStorage.setItem(CSV_UPLOAD_KEY, JSON.stringify(all));
+  try {
+    await jbSaveCsvUploads(all);
+  } catch (e) {
+    console.warn('CSV uploads cloud save failed:', e.message || e);
+    if (isAdmin()) throw e;
+  }
 }
 
 function getProjectCsvUploads(projId) {
@@ -1819,14 +1921,17 @@ function shortHash(hash) {
 
 function buildUploadedSource(projId, id, upload) {
   const text = upload?.text || '';
-  const csvRows = parseCSV(text);
+  const rows = upload?.rows?.length
+    ? deserializeUploadRows(upload.rows)
+    : (text.trim() ? parseSheet(text) : []);
+  const csvRows = text.trim() ? parseCSV(text) : [upload.sheetColumns || []];
   return {
     id: `upload_${id}`,
     storageId: id,
     label: upload.label || id,
     url: `upload://${projId}/${id}`,
-    rows: text.trim() ? parseSheet(text) : [],
-    sheetColumns: (csvRows[0] || []).map(h => (h || '').trim()),
+    rows,
+    sheetColumns: (upload.sheetColumns?.length ? upload.sheetColumns : (csvRows[0] || [])).map(h => (h || '').trim()),
     uploaded: true,
     uploadedAt: upload.uploadedAt || null,
     fileName: upload.fileName || '',
@@ -1906,16 +2011,21 @@ async function saveUploadedCsv(projId, label, fileName, text) {
   const hash = await hashUploadText(text);
   const all = loadCsvUploads();
   if (!all[projId]) all[projId] = {};
+  const csvRows = parseCSV(text);
+  const rows = parseSheet(text);
+  const sheetColumns = (csvRows[0] || []).map(h => (h || '').trim());
   const existingId = Object.keys(all[projId]).find(id => all[projId][id]?.hash === hash);
   if (existingId) {
-    // обновим метку/имя файла при необходимости, текст тот же
     all[projId][existingId] = {
       ...all[projId][existingId],
       label: (label || all[projId][existingId].label || existingId).trim(),
       fileName: fileName || all[projId][existingId].fileName || '',
       hash,
+      rows: serializeUploadRows(rows),
+      sheetColumns,
+      text,
     };
-    saveCsvUploads(all);
+    await saveCsvUploads(all);
     return { id: existingId, hash, duplicate: true };
   }
   const id = `${slugifyCsvLabel(label)}_${shortHash(hash)}`;
@@ -1925,17 +2035,19 @@ async function saveUploadedCsv(projId, label, fileName, text) {
     uploadedAt: new Date().toISOString(),
     hash,
     text,
+    rows: serializeUploadRows(rows),
+    sheetColumns,
   };
-  saveCsvUploads(all);
+  await saveCsvUploads(all);
   return { id, hash, duplicate: false };
 }
 
-function deleteUploadedCsv(projId, id) {
+async function deleteUploadedCsv(projId, id) {
   const all = loadCsvUploads();
   if (all[projId]) {
     delete all[projId][id];
     if (!Object.keys(all[projId]).length) delete all[projId];
-    saveCsvUploads(all);
+    await saveCsvUploads(all);
   }
 }
 
@@ -2091,7 +2203,10 @@ function renderCsvUploadCard(proj) {
     .map(([id, u]) => {
       const when = u.uploadedAt ? new Date(u.uploadedAt).toLocaleString('ru-RU') : '';
       const days = (() => {
-        try { return parseSheet(u.text || '').length; } catch (_) { return 0; }
+        try {
+          if (u.rows?.length) return u.rows.length;
+          return parseSheet(u.text || '').length;
+        } catch (_) { return 0; }
       })();
       const hashShort = u.hash ? shortHash(u.hash) : id.slice(-10);
       return `<div class="csv-upload-item">
@@ -2109,7 +2224,7 @@ function renderCsvUploadCard(proj) {
   ).join('');
   const hint = isQuadcodeProject(proj)
     ? 'Можно грузить несколько CSV/XLSX подряд — каждый файл сохраняется по хешу, данные сливаются по датам в лист месяца.'
-    : 'Можно грузить несколько файлов подряд (CSV/XLSX). Каждый сохраняется по хешу, одинаковые не дублируются.';
+    : 'Можно грузить несколько файлов подряд (CSV/XLSX). Статистика сохраняется в облако и видна всем на дашборде.';
 
   return `<div class="csv-upload-card">
     <div class="csv-upload-head">
@@ -6447,6 +6562,7 @@ renderTopbar();
 
 (async () => {
   await loadProjects();
+  await hydrateCsvUploadsFromRemote();
   refreshWorkerCache().catch(() => {});
   renderTopbar();        // re-render with actual projects
   await loadAll();        // fetch CSV data for all projects
