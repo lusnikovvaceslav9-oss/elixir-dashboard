@@ -1391,16 +1391,15 @@ function csvUploadPresets(proj) {
   if (isQlosophyProject(proj)) {
     return [
       { value: 'Лист 1', label: 'Лист 1' },
-      { value: 'App', label: 'App' },
       { value: 'Web', label: 'Web' },
     ];
   }
   if (isJgglProject(proj)) {
     return [
-      { value: 'App', label: 'App' },
-      { value: 'Web', label: 'Web' },
+      { value: '__auto_month__', label: 'Авто по датам CSV' },
       { value: 'Waitlist', label: 'Waitlist' },
       { value: 'Redirect', label: 'Redirect' },
+      { value: 'Web', label: 'Web' },
     ];
   }
   if (isQuadcodeProject(proj)) {
@@ -1429,7 +1428,11 @@ function dominantMonthKeyFromRows(rows) {
 }
 
 function resolveUploadLabel(proj, selected, rows) {
-  if (selected === '__auto_month__' || (isQuadcodeProject(proj) && (!selected || selected === 'Main'))) {
+  if (
+    selected === '__auto_month__'
+    || (isQuadcodeProject(proj) && (!selected || selected === 'Main'))
+    || (isJgglProject(proj) && /^app$/i.test(String(selected || '').trim()))
+  ) {
     const mk = dominantMonthKeyFromRows(rows);
     if (mk) return formatMonthKey(mk);
   }
@@ -1479,6 +1482,15 @@ function collapseEquivalentSources(proj, sources) {
     };
   });
   return out;
+}
+
+/** JGGL: CSV уходит в месячные листы — убираем устаревший лист App. */
+function pruneJgglAppSource(proj, sources) {
+  if (!isJgglProject(proj)) return sources || [];
+  const list = sources || [];
+  const hasMonthSource = list.some(s => sourceMonthKey(s));
+  if (!hasMonthSource) return list;
+  return list.filter(s => !/^app$/i.test(String(s.label || '').trim()));
 }
 
 /** Суммирует строки с одной датой (нужно для Meta Ads: много кампаний → один день). */
@@ -1558,7 +1570,7 @@ function findBestSourceIdxForMonth(pack, monthKey) {
 function syncSourceIndexToMonth(projId, pack, monthKey) {
   if (!pack?.sources?.length || !monthKey) return;
   const p = projects.find(x => x.id === projId);
-  if (!sourcesAreMonthPartitioned(pack) && !isQuadcodeProject(p) && !isQlosophyProject(p)) return;
+  if (!sourcesAreMonthPartitioned(pack) && !isQuadcodeProject(p) && !isQlosophyProject(p) && !isJgglProject(p)) return;
   sourceIndexByProject[projId] = findBestSourceIdxForMonth(pack, monthKey);
 }
 
@@ -1566,6 +1578,7 @@ function syncSourceIndexToMonth(projId, pack, monthKey) {
 function expandUploadedSourcesByMonth(uploaded, proj) {
   const useMonthSplit = isQuadcodeProject(proj)
     || isQlosophyProject(proj)
+    || isJgglProject(proj)
     || !!(proj?.monthlySheets || []).length;
   if (!useMonthSplit) return uploaded || [];
   const byMonth = new Map();
@@ -2030,13 +2043,6 @@ function renderCsvUploadCard(proj) {
 
 /** Опционально: CSV из data/<dir>/ (репо). Основной путь — загрузка в дашборде. */
 const LOCAL_CSV_DIRS = {
-  jggl: {
-    match: isJgglProject,
-    dir: 'data/jggl',
-    defaults: [
-      { id: 'app', label: 'App', file: 'app.csv' },
-    ],
-  },
   qlosophy: {
     match: isQlosophyProject,
     dir: 'data/qlosophy',
@@ -2770,6 +2776,7 @@ async function fetchProject(proj) {
     }));
     sources = mergeUploadedSources(sources, uploaded, proj);
     if (isQlosophyProject(proj)) sources = collapseEquivalentSources(proj, sources);
+    sources = pruneJgglAppSource(proj, sources);
     if (!sources.length) throw new Error('No sheet sources loaded');
     return { sources };
   };
@@ -3437,7 +3444,8 @@ function pickOverviewSourceRows(pack, proj) {
   }
   if (isMultiSheetCsvProject(proj)) {
     const preferred = sources.find(s => sourceLabelKey(proj, s.label) === 'main')
-      || sources.find(s => /^app$/i.test(String(s.label || '').trim()));
+      || sources.find(s => sourceMonthKey(s))
+      || sources.find(s => /^(waitlist|redirect|web)$/i.test(String(s.label || '').trim()));
     if (preferred?.rows?.length) return preferred.rows;
   }
   let best = sources[0];
