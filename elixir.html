@@ -1553,7 +1553,7 @@ function supportsCsvUpload(proj) {
 function csvUploadPresets(proj) {
   if (isQlosophyProject(proj)) {
     return [
-      { value: 'Main', label: 'Main' },
+      { value: 'Лист 1', label: 'Лист 1' },
       { value: 'App', label: 'App' },
       { value: 'Web', label: 'Web' },
     ];
@@ -1597,6 +1597,51 @@ function resolveUploadLabel(proj, selected, rows) {
     if (mk) return formatMonthKey(mk);
   }
   return selected || 'CSV';
+}
+
+/** Ключ для сопоставления листов (Qlosophy: Лист1 = Main). */
+function sourceLabelKey(proj, label) {
+  const compact = String(label || '').trim().toLowerCase().replace(/\s+/g, '');
+  if (isQlosophyProject(proj)) {
+    if (compact === 'main' || compact === 'лист1' || compact === 'sheet1') return 'main';
+  }
+  return compact || 'csv';
+}
+
+function canonicalSourceLabel(proj, label) {
+  if (isQlosophyProject(proj) && sourceLabelKey(proj, label) === 'main') return 'Лист 1';
+  return String(label || '').trim() || 'CSV';
+}
+
+function sourceLabelsMatch(proj, a, b) {
+  return sourceLabelKey(proj, a) === sourceLabelKey(proj, b);
+}
+
+function collapseEquivalentSources(proj, sources) {
+  const out = [];
+  (sources || []).forEach(s => {
+    const key = sourceLabelKey(proj, s.label);
+    const idx = out.findIndex(x => sourceLabelKey(proj, x.label) === key);
+    if (idx < 0) {
+      out.push({ ...s, label: canonicalSourceLabel(proj, s.label) });
+      return;
+    }
+    const base = out[idx];
+    out[idx] = {
+      ...base,
+      label: canonicalSourceLabel(proj, base.label),
+      rows: mergeRowsByDate(base.rows || [], s.rows || []),
+      sheetColumns: (s.sheetColumns?.length ? s.sheetColumns : base.sheetColumns),
+      uploaded: base.uploaded || s.uploaded,
+      uploadedAt: [base.uploadedAt, s.uploadedAt].filter(Boolean).sort().slice(-1)[0] || base.uploadedAt,
+      fileName: [base.fileName, s.fileName].filter(Boolean).join(', ') || base.fileName || '',
+      uploadOverlay: base.uploadOverlay || s.uploadOverlay,
+      uploadIds: [...new Set([...(base.uploadIds || []), ...(s.uploadIds || [])])],
+      hashes: [...new Set([...(base.hashes || []), ...(s.hashes || [])].filter(Boolean))],
+      url: base.url || s.url,
+    };
+  });
+  return out;
 }
 
 /** Суммирует строки с одной датой (нужно для Meta Ads: много кампаний → один день). */
@@ -1795,12 +1840,13 @@ function getUploadedCsvSources(proj) {
   const byLabel = new Map();
   Object.entries(map).forEach(([id, u]) => {
     const src = buildUploadedSource(proj.id, id, u);
+    if (isQlosophyProject(proj)) src.label = canonicalSourceLabel(proj, src.label);
     // Старые загрузки "Main"/"Ads" → привязать к месяцу по датам CSV
     if (isQuadcodeProject(proj) && /^(main|ads|organic|csv)$/i.test(src.label || id)) {
       const mk = dominantMonthKeyFromRows(src.rows || []);
       if (mk) src.label = formatMonthKey(mk);
     }
-    const key = String(src.label || id).toLowerCase();
+    const key = sourceLabelKey(proj, src.label || id);
     if (byLabel.has(key)) {
       const prev = byLabel.get(key);
       prev.rows = mergeRowsByDate(prev.rows || [], src.rows || []);
@@ -1821,7 +1867,7 @@ function getUploadedCsvSources(proj) {
   return [...byLabel.values()];
 }
 
-function mergeUploadedSources(sources, uploaded) {
+function mergeUploadedSources(sources, uploaded, proj) {
   const out = [...(sources || [])];
   uploaded.forEach(up => {
     const upLabel = String(up.label || '').toLowerCase();
@@ -1829,6 +1875,7 @@ function mergeUploadedSources(sources, uploaded) {
     const idx = out.findIndex(s => {
       const sLabel = String(s.label || '').toLowerCase();
       if (upLabel && sLabel === upLabel) return true;
+      if (sourceLabelsMatch(proj, s.label, up.label)) return true;
       if (s.id === up.id) return true;
       if (upMonth && (s.id === `month_${upMonth}` || monthKeyFromSourceLabel(s.label) === upMonth)) return true;
       return false;
@@ -1837,6 +1884,7 @@ function mergeUploadedSources(sources, uploaded) {
       const base = out[idx];
       out[idx] = {
         ...base,
+        label: canonicalSourceLabel(proj, base.label || up.label),
         rows: mergeRowsByDate(base.rows || [], up.rows || []),
         sheetColumns: up.sheetColumns?.length ? up.sheetColumns : base.sheetColumns,
         uploaded: true,
@@ -1847,7 +1895,7 @@ function mergeUploadedSources(sources, uploaded) {
         hashes: up.hashes || base.hashes,
       };
     } else {
-      out.push(up);
+      out.push({ ...up, label: canonicalSourceLabel(proj, up.label) });
     }
   });
   return out;
@@ -2010,7 +2058,7 @@ async function onCsvUploadFile(projId, inputEl) {
     const text = await readUploadFileAsCsvText(file);
     const rows = parseSheet(text);
     if (!rows.length) throw new Error('Не удалось разобрать файл — проверь заголовки Date/Spend/Reg');
-    const label = resolveUploadLabel(p, selected, rows);
+    const label = canonicalSourceLabel(p, resolveUploadLabel(p, selected, rows));
     const saved = await saveUploadedCsv(projId, label, file.name, text);
     inputEl.value = '';
     await applyUploadedCsvToCache(projId, label);
@@ -2095,7 +2143,7 @@ const LOCAL_CSV_DIRS = {
     match: isQlosophyProject,
     dir: 'data/qlosophy',
     defaults: [
-      { id: 'main', label: 'Main', file: 'main.csv' },
+      { id: 'main', label: 'Лист 1', file: 'main.csv' },
     ],
   },
 };
@@ -2104,11 +2152,12 @@ function localCsvDirFor(proj) {
   return Object.values(LOCAL_CSV_DIRS).find(c => c.match(proj)) || null;
 }
 
-function mergeSheetSource(sources, src) {
+function mergeSheetSource(sources, src, proj) {
   const url = (src.url || '').trim();
   if (!url) return sources;
   const exists = sources.some(s =>
     (src.id && s.id === src.id)
+    || sourceLabelsMatch(proj, s.label, src.label)
     || String(s.label || '').toLowerCase() === String(src.label || '').toLowerCase()
     || String(s.url || '') === url
     || (url.includes('/') && String(s.url || '').endsWith(url.split('/').pop()))
@@ -2116,7 +2165,7 @@ function mergeSheetSource(sources, src) {
   if (exists) return sources;
   return [...sources, {
     id: src.id || `csv_${sources.length}`,
-    label: (src.label || src.id || `CSV ${sources.length + 1}`).trim(),
+    label: canonicalSourceLabel(proj, (src.label || src.id || `CSV ${sources.length + 1}`).trim()),
     url,
   }];
 }
@@ -2132,7 +2181,7 @@ function applyLocalCsvSources(list) {
         id: src.id,
         label: src.label,
         url: `${cfg.dir}/${src.file}`,
-      });
+      }, p);
     });
     return normalizeProject({ ...p, sheetSources: sources, urls: sources.map(s => s.url) });
   });
@@ -2171,7 +2220,7 @@ async function getProjectSourcesWithLocalCsv(proj) {
       label: s.label,
       url: `${cfg.dir}/${s.file}`,
     }));
-    extras.forEach(src => { sources = mergeSheetSource(sources, src); });
+    extras.forEach(src => { sources = mergeSheetSource(sources, src, proj); });
   }
   // upload:// источники не фетчим по URL — их подмешиваем после загрузки
   return sources.filter(s => !String(s.url || '').startsWith('upload://'));
@@ -2817,7 +2866,8 @@ async function fetchProject(proj) {
   const monthly = (proj.monthlySheets || []).filter(ms => ms.month && ms.url);
 
   const withUploads = (pack) => {
-    const sources = mergeUploadedSources(pack?.sources || [], uploaded);
+    let sources = mergeUploadedSources(pack?.sources || [], uploaded, proj);
+    if (isQlosophyProject(proj)) sources = collapseEquivalentSources(proj, sources);
     if (!sources.length) throw new Error('No sheet sources loaded');
     return { sources };
   };
@@ -3484,9 +3534,8 @@ function pickOverviewSourceRows(pack, proj) {
     return sources.flatMap(s => s.rows || []);
   }
   if (isMultiSheetCsvProject(proj)) {
-    const preferred = sources.find(s =>
-      /^(main|app|лист\s*1)$/i.test(String(s.label || '').trim())
-    );
+    const preferred = sources.find(s => sourceLabelKey(proj, s.label) === 'main')
+      || sources.find(s => /^app$/i.test(String(s.label || '').trim()));
     if (preferred?.rows?.length) return preferred.rows;
   }
   let best = sources[0];
