@@ -1534,15 +1534,30 @@ function isJgglProject(p) {
   return !!(p && (/jggl/i.test(p.id || '') || /^jggl$/i.test(p.name || '')));
 }
 
+function isQlosophyProject(p) {
+  return !!(p && (/qlosophy/i.test(p.id || '') || /^qlosophy$/i.test(p.name || '')));
+}
+
+function isMultiSheetCsvProject(p) {
+  return isJgglProject(p) || isQlosophyProject(p);
+}
+
 function isQuadcodeProject(p) {
   return !!(p && (/quadcode/i.test(p.id || '') || /quadcode/i.test(p.name || '')));
 }
 
 function supportsCsvUpload(proj) {
-  return isJgglProject(proj) || isQuadcodeProject(proj);
+  return isMultiSheetCsvProject(proj) || isQuadcodeProject(proj);
 }
 
 function csvUploadPresets(proj) {
+  if (isQlosophyProject(proj)) {
+    return [
+      { value: 'Main', label: 'Main' },
+      { value: 'App', label: 'App' },
+      { value: 'Web', label: 'Web' },
+    ];
+  }
   if (isJgglProject(proj)) {
     return [
       { value: 'App', label: 'App' },
@@ -2074,6 +2089,13 @@ const LOCAL_CSV_DIRS = {
     dir: 'data/jggl',
     defaults: [
       { id: 'app', label: 'App', file: 'app.csv' },
+    ],
+  },
+  qlosophy: {
+    match: isQlosophyProject,
+    dir: 'data/qlosophy',
+    defaults: [
+      { id: 'main', label: 'Main', file: 'main.csv' },
     ],
   },
 };
@@ -3461,9 +3483,11 @@ function pickOverviewSourceRows(pack, proj) {
   if (sources.length === 1 || sourcesAreMonthPartitioned(pack)) {
     return sources.flatMap(s => s.rows || []);
   }
-  if (isJgglProject(proj)) {
-    const app = sources.find(s => /^app$/i.test(String(s.label || '').trim()));
-    if (app?.rows?.length) return app.rows;
+  if (isMultiSheetCsvProject(proj)) {
+    const preferred = sources.find(s =>
+      /^(main|app|лист\s*1)$/i.test(String(s.label || '').trim())
+    );
+    if (preferred?.rows?.length) return preferred.rows;
   }
   let best = sources[0];
   let bestDate = null;
