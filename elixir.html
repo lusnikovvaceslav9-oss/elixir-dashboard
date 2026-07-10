@@ -4422,13 +4422,39 @@ function parseBudgetRemainder(val) {
   return n;
 }
 
-function getRowsSpend(allData) {
-  const rows = Array.isArray(allData) ? allData : (getAllRowsFromCache(allData) || []);
+function getBudgetRows(proj, allData) {
+  const pack = normalizeCacheData(allData);
+  if (!pack || pack === 'loading' || pack === null) return [];
+  const sources = pack.sources || [];
+  if (!sources.length) return [];
+  let rows = [];
+  if (sources.length === 1) {
+    rows = sources[0].rows || [];
+  } else if (sourcesAreMonthPartitioned(pack)) {
+    // Quadcode: месячные листы — один аккаунт, суммируем все месяцы
+    rows = sources.flatMap(s => s.rows || []);
+  } else if (isMultiSheetCsvProject(proj)) {
+    // JGGL/Qlosophy: спенд аккаунта на основном листе, не суммируем Waitlist/Web
+    const primary = sources.find(s => sourceLabelKey(proj, s.label) === 'main')
+      || sources.find(s => /^app$/i.test(String(s.label || '').trim()))
+      || sources[0];
+    rows = primary?.rows || [];
+  } else {
+    rows = getAllRowsFromCache(pack) || [];
+  }
+  // Агрегация по дню — иначе breakdown кампаний удваивает spend
+  return aggregateRowsByDate(rows);
+}
+
+function getRowsSpend(allData, proj) {
+  const rows = proj
+    ? getBudgetRows(proj, allData)
+    : (Array.isArray(allData) ? allData : (getAllRowsFromCache(allData) || []));
   return sum(rows, 'spend');
 }
 
 /** Снимок: остаток на дату + spend на момент ввода → total = spentAt + remainder. */
-function buildBudgetSnapshot(remainder, allData, asOf) {
+function buildBudgetSnapshot(remainder, allData, asOf, proj) {
   if (remainder == null || !Number.isFinite(remainder) || remainder < 0) {
     return {
       budgetRemainder: null,
@@ -4437,7 +4463,7 @@ function buildBudgetSnapshot(remainder, allData, asOf) {
       budgetTotal: null,
     };
   }
-  const spentAt = getRowsSpend(allData);
+  const spentAt = getRowsSpend(allData, proj);
   return {
     budgetRemainder: remainder,
     budgetRemainderAsOf: asOf || todayIsoLocal(),
@@ -4459,20 +4485,36 @@ function migrateBudgetSnapshot(proj, allData) {
     return proj;
   }
   // Старый формат: только budgetRemainder — фиксируем снимок от текущего spend.
-  return { ...proj, ...buildBudgetSnapshot(rem, allData, proj.budgetRemainderAsOf || todayIsoLocal()) };
+  return { ...proj, ...buildBudgetSnapshot(rem, allData, proj.budgetRemainderAsOf || todayIsoLocal(), proj) };
+}
+
+/** Если спенд в данных уменьшился (дубли/слияние листов) — пересчитать базу снимка. */
+function reconcileBudgetSnapshot(proj, allData) {
+  const rem = getBudgetRemainder(proj);
+  if (rem == null) return proj;
+  const spentAt = Number(proj.budgetRemainderSpentAt);
+  const total = Number(proj.budgetTotal);
+  if (!Number.isFinite(spentAt) || !Number.isFinite(total)) return proj;
+  const spent = getRowsSpend(allData, proj);
+  if (spentAt > spent + 0.5) {
+    return { ...proj, budgetRemainderSpentAt: spent, budgetTotal: spent + rem };
+  }
+  return proj;
 }
 
 /** Обновить снимок остатка. С карточки — всегда на сегодня; из формы — только если число изменилось. */
 function applyBudgetRemainderUpdate(proj, remRaw, allData, { force = false } = {}) {
-  if (remRaw == null) return { ...proj, ...buildBudgetSnapshot(null) };
+  if (remRaw == null) return { ...proj, ...buildBudgetSnapshot(null, null, null, proj) };
   const prev = getBudgetRemainder(proj);
   const hasSnap = proj.budgetTotal != null && proj.budgetRemainderSpentAt != null;
   if (!force && prev === remRaw && hasSnap) return proj;
-  return { ...proj, ...buildBudgetSnapshot(remRaw, allData, todayIsoLocal()) };
+  return { ...proj, ...buildBudgetSnapshot(remRaw, allData, todayIsoLocal(), proj) };
 }
 
 function computeBudgetAnalytics(proj, allData) {
-  const p = migrateBudgetSnapshot(proj, allData);
+  const budgetData = cache[proj.id] || allData;
+  let p = migrateBudgetSnapshot(proj, budgetData);
+  p = reconcileBudgetSnapshot(p, budgetData);
   // Одноразово дописать снимок в память (сохранится при следующем save).
   if (p !== proj) {
     const idx = projects.findIndex(x => x.id === proj.id);
@@ -4480,7 +4522,7 @@ function computeBudgetAnalytics(proj, allData) {
   }
   const remEntered = getBudgetRemainder(p);
   if (remEntered == null) return null;
-  const spent = getRowsSpend(allData);
+  const spent = getRowsSpend(budgetData, proj);
   const total = Number(p.budgetTotal);
   if (!Number.isFinite(total) || total <= 0) return null;
   const remainder = total - spent;
@@ -4607,7 +4649,8 @@ function computeDayInsights(proj, rows) {
 
 function renderBudgetCard(proj, allData, compact) {
   const cur = proj.currency;
-  const budget = computeBudgetAnalytics(proj, allData);
+  const budgetData = cache[proj.id] || allData;
+  const budget = computeBudgetAnalytics(proj, budgetData);
   const remEntered = getBudgetRemainder(proj);
 
   if (compact) {
@@ -6490,7 +6533,7 @@ function saveProject() {
     const id = genId(name);
     projects.push({
       id, name, icon, currency, status, type, urls: allUrls, sheetSources, monthlySheets, metrics, sheetColumns,
-      ...buildBudgetSnapshot(remRaw, null, todayIsoLocal()),
+      ...buildBudgetSnapshot(remRaw, budgetData, todayIsoLocal(), null),
     });
     cache[id] = 'loading';
   }
