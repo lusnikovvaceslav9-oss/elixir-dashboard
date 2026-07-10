@@ -95,7 +95,7 @@ python scripts/buyer-feed/__main__.py --work-dir /path/to/package
 
 - **Spend** — расход Yandex Direct без НДС.
 - **Installs** — установки, AppMetrica Reporting API.
-- **Trials** — старты триалов из Supabase/RuStore (distinct user_id по дате старта). AppMetrica `trial_started` — только сверка в meta.
+- **Trials** — AppMetrica `trial_started` (уникальные пользователи по дням), чтобы совпадать с UI AppMetrica / Директ. RuStore/Supabase — сверка в meta и источник оплат.
 - **Bills (fb) / Продано / Paid net** — оплаты из Supabase: подписка дошла до `period='MAIN'` + `status='ACTIVE'` = списание прошло. Возвраты (`MAIN CLOSED`) отсекаются сами. Сумма по продукту (годовой 2490 ₽, месячный 399 ₽). Руками ничего вводить не нужно — новую оплату подхватит следующий прогон.
 - **Когорты** — недели по 7 дней от якоря `2026-06-05`; триалы в корзине = distinct users со стартом в дни корзины.
 - `data/rustore-payments.csv` — **fallback** (если Supabase недоступен) и место для ручных корректировок; в обычном режиме не трогается.

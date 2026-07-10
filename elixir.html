@@ -2997,7 +2997,7 @@ function isCohortEarly(r) {
 function enrichCohortRow(r) {
   const spend = Number(r.spend) || 0;
   const inst = Number(r.installs_am) || 0;
-  const trials = Number(r.trials_sb != null ? r.trials_sb : r.trials_am) || 0;
+  const trials = Number(r.trials_am != null ? r.trials_am : r.trials_sb) || 0;
   const sold = Number(r.sold) || 0;
   const paid = Number(r.paid_net) || 0;
   const installToTrial = r.install_to_trial_cr != null
@@ -3045,7 +3045,7 @@ function renderPlantoCohortSection(monthKey) {
   let rows = visible.map(r => {
     const pnlText = formatCohortPnl(r);
     const pnlCls = isCohortEarly(r) ? 'pnl-early' : (r.pnl != null && r.pnl >= 0 ? 'pnl-pos' : 'pnl-neg');
-    const trials = r.trials_sb != null ? r.trials_sb : r.trials_am;
+    const trials = r.trials_am != null ? r.trials_am : r.trials_sb;
     return `<tr>
       <td><strong>${escHtml(r.cohort)}</strong></td>
       <td>${fmtRub(r.spend)}</td>
@@ -3064,7 +3064,7 @@ function renderPlantoCohortSection(monthKey) {
   }).join('');
   const tSpend = sumCohortRows(visible, 'spend');
   const tInst = sumCohortRows(visible, 'installs_am');
-  const tTrials = sumCohortRows(visible, 'trials_sb') || sumCohortRows(visible, 'trials_am');
+  const tTrials = sumCohortRows(visible, 'trials_am') || sumCohortRows(visible, 'trials_sb');
   const tSold = sumCohortRows(visible, 'sold');
   const tPaid = sumCohortRows(visible, 'paid_net');
   const maturePnl = visible.filter(r => r.mature && r.pnl != null).reduce((a, r) => a + r.pnl, 0);
@@ -3279,8 +3279,18 @@ function renderPlantoBreakdownCard(proj, rows) {
     const meta = plantoMetaCache;
     const updated = meta?.generated_at ? new Date(meta.generated_at).toLocaleString('ru-RU') : '';
     const health = plantoFeedHealth();
-    const attr = meta?.trial_attribution === 'supabase_trial_start'
-      ? ' · триалы: Supabase trial start'
+    const attr = meta?.trial_attribution === 'appmetrica_trial_started'
+      ? ' · триалы: AppMetrica trial_started'
+      : meta?.trial_attribution === 'supabase_trial_start'
+      ? ' · триалы: Supabase/RuStore'
+      : '';
+    const xc = meta?.trials_crosscheck_yesterday;
+    const dash = xc?.dashboard != null ? xc.dashboard : xc?.appmetrica;
+    const xcHtml = xc && (xc.appmetrica != null || xc.supabase != null)
+      ? `<div class="budget-hint">` +
+        `Триалы ${escHtml(xc.day || '')}: дашборд/AM <strong>${fmtInt(dash || 0)}</strong>` +
+        (xc.supabase != null ? ` · RuStore <strong>${fmtInt(xc.supabase || 0)}</strong>` : '') +
+        `</div>`
       : '';
     const healthHtml = health
       ? `<div class="budget-hint${health.ok && !health.staleVsToday ? '' : ' feed-warn'}">` +
@@ -3306,10 +3316,8 @@ function renderPlantoBreakdownCard(proj, rows) {
       : '';
     return `<div class="analytics-card planto-breakdown-card">
       <div class="analytics-card-title">Auto feed <span class="feed-badge">live</span></div>
-      <div class="budget-hint">Direct + AppMetrica installs + Supabase trials + RuStore bills${attr}${updated ? ' · обновлено ' + escHtml(updated) : ''}</div>
-      ${healthHtml}
-      ${refreshHtml}
-      ${payHtml}
+      <div class="budget-hint">Direct + AppMetrica installs/trials + RuStore bills${attr}${updated ? ' · обновлено ' + escHtml(updated) : ''}</div>
+      ${xcHtml}${healthHtml}${refreshHtml}${payHtml}
     </div>`;
   }
   const sel = getPlantoView(proj.id);
@@ -3523,7 +3531,7 @@ function getMatureCohortMetrics(monthKey) {
   });
   if (!rows.length) return null;
   const spend = sumCohortRows(rows, 'spend');
-  const trials = sumCohortRows(rows, 'trials_sb') || sumCohortRows(rows, 'trials_am');
+  const trials = sumCohortRows(rows, 'trials_am') || sumCohortRows(rows, 'trials_sb');
   const sold = sumCohortRows(rows, 'sold');
   const paid = sumCohortRows(rows, 'paid_net');
   const totals = c.totals || {};

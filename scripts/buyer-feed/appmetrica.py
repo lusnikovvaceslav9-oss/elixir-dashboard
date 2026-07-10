@@ -20,6 +20,8 @@ def _get_json(url: str, token: str, timeout: int = 90) -> dict:
     except urllib.error.HTTPError as exc:
         body = exc.read().decode("utf-8", errors="replace")[:400]
         raise RuntimeError(f"AppMetrica HTTP {exc.code}: {body}") from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"AppMetrica network error: {exc}") from exc
 
 
 def _build_url(base: str, params: dict) -> str:
@@ -101,26 +103,47 @@ def fetch_event_by_day(
     date_since: date,
     date_until: date,
 ) -> dict[str, int]:
-    """Event count per day (e.g. trial_started) via Reporting API."""
-    params = {
+    """Unique users with event per day (falls back to event count)."""
+    # Prefer table + users: matches AppMetrica UI and is more stable than bytime.
+    params_users = {
         "ids": app_id,
         "id": app_id,
         "date1": date_since.isoformat(),
         "date2": date_until.isoformat(),
-        "metrics": "ym:ce:allEvents",
+        "metrics": "ym:ce:users",
+        "dimensions": "ym:ce:date",
+        "filters": f"ym:ce:eventLabel=='{event_name}'",
+        "limit": "10000",
+        "sort": "ym:ce:date",
+    }
+    try:
+        payload = _get_json(_build_url(STAT_TABLE, params_users), token)
+        raw = _parse_table_by_date(payload)
+        if raw:
+            return {d: int(round(v)) for d, v in sorted(raw.items())}
+    except RuntimeError:
+        pass
+
+    params_bytime = {
+        "ids": app_id,
+        "id": app_id,
+        "date1": date_since.isoformat(),
+        "date2": date_until.isoformat(),
+        "metrics": "ym:ce:users",
         "dimensions": "ym:ce:date",
         "filters": f"ym:ce:eventLabel=='{event_name}'",
         "date_dimension": "day",
         "limit": "10000",
     }
     try:
-        payload = _get_json(_build_url(STAT_BYTIME, params), token)
+        payload = _get_json(_build_url(STAT_BYTIME, params_bytime), token)
         raw = _parse_bytime_series(payload)
         if raw:
             return {d: int(round(v)) for d, v in sorted(raw.items())}
     except RuntimeError:
         pass
-    params_table = {
+
+    params_events = {
         "ids": app_id,
         "id": app_id,
         "date1": date_since.isoformat(),
@@ -130,7 +153,7 @@ def fetch_event_by_day(
         "filters": f"ym:ce:eventLabel=='{event_name}'",
         "limit": "10000",
     }
-    payload = _get_json(_build_url(STAT_TABLE, params_table), token)
+    payload = _get_json(_build_url(STAT_TABLE, params_events), token)
     raw = _parse_table_by_date(payload)
     return {d: int(round(v)) for d, v in sorted(raw.items())}
 

@@ -122,20 +122,28 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
 
     am_token = secrets.get("APPMETRICA_OAUTH_TOKEN")
     app_id = secrets.get("APPMETRICA_APPLICATION_ID") or cfg.get("appmetrica_application_id") or "6305902"
+    trials_sb_crosscheck: dict[str, int] = {}
     if am_token:
         try:
             inst_win, _ = fetch_window(am_token, str(app_id), anchor, until, refresh_days, lag)
             installs.update(inst_win)
             sources["installs"] = "appmetrica_reporting"
             try:
-                trials_am_crosscheck = fetch_event_by_day(
-                    am_token, str(app_id), "trial_started", window_start, until
+                # Daily trials = AppMetrica unique users (совпадает с UI / Директ).
+                trials_am = fetch_event_by_day(
+                    am_token, str(app_id), "trial_started", anchor, until
                 )
-                if trials_am_crosscheck:
-                    sources["trials_am_crosscheck"] = "appmetrica_reporting"
+                if trials_am:
+                    trials = trials_am
+                    trials_am_crosscheck = trials_am
+                    sources["trials"] = "appmetrica_trial_started"
+                    sources["trials_am_crosscheck"] = "appmetrica_reporting_users"
             except Exception as exc:
-                errors.append(f"appmetrica_trials_crosscheck: {exc}")
-            print(f"  AppMetrica: {len(installs)} install-days")
+                errors.append(f"appmetrica_trials: {exc}")
+            print(
+                f"  AppMetrica: {len(installs)} install-days · "
+                f"{sum(trials.values())} trial users"
+            )
         except Exception as exc:
             errors.append(f"appmetrica: {exc}")
             print(f"  AppMetrica failed: {exc}")
@@ -145,15 +153,25 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
     db_url = secrets.get("SUPABASE_DB_URL")
     if db_url:
         try:
+            # RuStore — сверка и fallback, если AM недоступна.
             trial_starts = fetch_trial_starts(db_url, anchor, until)
-            trials_sb = trials_by_day_from_starts(trial_starts)
-            trials = trials_sb
-            if trials_sb:
+            trials_sb_crosscheck = trials_by_day_from_starts(trial_starts)
+            if not trials and trials_sb_crosscheck:
+                trials = trials_sb_crosscheck
                 sources["trials"] = "supabase_trial_start"
             print(
-                f"  Supabase trials: {len(trial_starts)} starts (daily = cohort), "
-                f"{len(trials_sb)} days"
+                f"  Supabase trials (crosscheck): {sum(trials_sb_crosscheck.values())} · "
+                f"{len(trials_sb_crosscheck)} days"
             )
+            if trials and trials_sb_crosscheck:
+                yday = (until - timedelta(days=1)).isoformat()
+                am_y = int(trials.get(yday) or 0)
+                sb_y = int(trials_sb_crosscheck.get(yday) or 0)
+                if am_y or sb_y:
+                    print(
+                        f"  Trials {yday}: dashboard/AM={am_y} · "
+                        f"RuStore={sb_y} · delta={am_y - sb_y:+d}"
+                    )
         except Exception as exc:
             errors.append(f"supabase: {exc}")
             print(f"  Supabase failed: {exc}")
@@ -225,17 +243,23 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
             full_installs = fetch_installs_by_day(am_token, str(app_id), anchor, until)
         except Exception:
             full_installs = installs
+        if sources.get("trials") == "appmetrica_trial_started":
+            try:
+                full_trials = fetch_event_by_day(
+                    am_token, str(app_id), "trial_started", anchor, until
+                )
+            except Exception:
+                full_trials = trials
 
-    if anchor < window_start and db_url:
+    if anchor < window_start and db_url and sources.get("trials") == "supabase_trial_start":
         try:
             trial_starts = fetch_trial_starts(db_url, anchor, until)
             full_trials = trials_by_day_from_starts(trial_starts)
         except Exception:
             full_trials = trials
 
-    # Supabase — источник истины по триалам на весь диапазон: дни без стартов = 0,
-    # иначе в CSV остаются старые (до-Supabase) значения и итог не сходится с когортами.
-    if sources.get("trials") == "supabase_trial_start":
+    # Источник истины по триалам: дни без событий = 0 (не оставляем старый CSV).
+    if sources.get("trials") in ("appmetrica_trial_started", "supabase_trial_start"):
         filled = dict(full_trials)
         d = anchor
         while d <= until:
@@ -285,6 +309,7 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
         }
         for k, v in merged.items()
     }
+    # Когорты считают trials из daily (тот же источник, что в таблице по дням).
     cohort = analyze_cohort_from_daily(
         anchor=anchor,
         until=until,
@@ -292,7 +317,7 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
         daily=daily_for_cohort,
         paid_by_cohort_day=paid_by_cohort_day,
         sold_by_cohort_day=sold_by_cohort_day_map,
-        trial_starts=trial_starts if db_url else None,
+        trial_starts=None,
     )
     cohort_path.parent.mkdir(parents=True, exist_ok=True)
     cohort_path.write_text(json.dumps(cohort, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -365,7 +390,7 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
         "anchor": anchor.isoformat(),
         "until": until.isoformat(),
         "window_start": window_start.isoformat(),
-        "trial_attribution": "supabase_trial_start",
+        "trial_attribution": sources.get("trials") or "appmetrica_trial_started",
         "sources": sources,
         "errors": errors,
         "days": len(merged),
@@ -387,8 +412,24 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
     }
     if bills_by_plan:
         meta["payments_by_plan"] = bills_by_plan
+    if trials_sb_crosscheck:
+        meta["trials_sb_crosscheck_total"] = sum(int(v) for v in trials_sb_crosscheck.values())
+        meta["trials_sb_crosscheck_by_day"] = {
+            k: int(v) for k, v in sorted(trials_sb_crosscheck.items())
+        }
     if trials_am_crosscheck:
-        meta["trials_am_crosscheck_total"] = sum(trials_am_crosscheck.values())
+        meta["trials_am_crosscheck_total"] = sum(int(v) for v in trials_am_crosscheck.values())
+        meta["trials_am_crosscheck_by_day"] = {
+            k: int(v) for k, v in sorted(trials_am_crosscheck.items())
+        }
+    yday = (until - timedelta(days=1)).isoformat()
+    meta["trials_crosscheck_yesterday"] = {
+        "day": yday,
+        "appmetrica": int((trials_am_crosscheck or full_trials).get(yday) or 0),
+        "supabase": int(trials_sb_crosscheck.get(yday) or 0),
+        "dashboard": int((merged.get(yday) or {}).get("trials") or 0),
+        "note": "В дашборде trials = AppMetrica trial_started (уники). RuStore — сверка оплат.",
+    }
     if spend_today_estimated:
         meta["spend_today_estimated"] = True
     meta_path.parent.mkdir(parents=True, exist_ok=True)
