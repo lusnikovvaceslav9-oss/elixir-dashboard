@@ -1,47 +1,47 @@
 {
-  "generated_at": "2026-07-14T04:41:27+00:00",
+  "generated_at": "2026-07-14T07:03:58+00:00",
   "anchor": "2026-06-05",
   "until": "2026-07-14",
   "product": {
     "from": "2026-06-05",
     "to": "2026-07-14",
-    "installs": 8348,
-    "active_users": 8519,
+    "installs": 8380,
+    "active_users": 8555,
     "events": {
       "plant_added": {
-        "users": 2664,
-        "events": 4526,
-        "vs_install_pct": 31.91,
+        "users": 2675,
+        "events": 4543,
+        "vs_install_pct": 31.92,
         "avg_per_user": 1.7
       },
       "paywall_shown": {
-        "users": 6426,
-        "events": 9634,
-        "vs_install_pct": 76.98,
+        "users": 6453,
+        "events": 9670,
+        "vs_install_pct": 77.0,
         "avg_per_user": 1.5
       },
       "paywall_cta_clicked": {
-        "users": 2171,
-        "events": 3068,
+        "users": 2180,
+        "events": 3079,
         "vs_install_pct": 26.01,
         "avg_per_user": 1.41
       },
       "user_score5": {
-        "users": 304,
-        "events": 306,
+        "users": 305,
+        "events": 307,
         "vs_install_pct": 3.64,
         "avg_per_user": 1.01
       },
       "chat_message_sent": {
         "users": 197,
         "events": 387,
-        "vs_install_pct": 2.36,
+        "vs_install_pct": 2.35,
         "avg_per_user": 1.96
       },
       "watering_configured": {
         "users": 187,
         "events": 385,
-        "vs_install_pct": 2.24,
+        "vs_install_pct": 2.23,
         "avg_per_user": 2.06
       },
       "watering_marked": {
@@ -51,34 +51,34 @@
         "avg_per_user": 6.62
       },
       "ai_route": {
-        "users": 1674,
-        "events": 10239,
-        "vs_install_pct": 20.05,
-        "avg_per_user": 6.12
+        "users": 1689,
+        "events": 10307,
+        "vs_install_pct": 20.16,
+        "avg_per_user": 6.1
       },
       "scan_success": {
-        "users": 2824,
-        "events": 8070,
-        "vs_install_pct": 33.83,
-        "avg_per_user": 2.86
+        "users": 2839,
+        "events": 8098,
+        "vs_install_pct": 33.88,
+        "avg_per_user": 2.85
       },
       "user_activated": {
-        "users": 6532,
-        "events": 8196,
-        "vs_install_pct": 78.25,
-        "avg_per_user": 1.25
+        "users": 6563,
+        "events": 8245,
+        "vs_install_pct": 78.32,
+        "avg_per_user": 1.26
       }
     },
-    "garden_activation_pct": 31.91,
+    "garden_activation_pct": 31.92,
     "garden_avg_plants": 1.7,
     "garden_depth_icp_pct": null,
     "paywall_cta_pct": 33.78,
     "care_engagement_pct": 3.64,
-    "chat_per_plant_pct": 7.39,
+    "chat_per_plant_pct": 7.36,
     "feature_activation": {
-      "scan_pct": 33.83,
-      "watering_pct": 2.24,
-      "ai_pct": 20.05
+      "scan_pct": 33.88,
+      "watering_pct": 2.23,
+      "ai_pct": 20.16
     },
     "retention": {
       "d1": null,
@@ -90,8 +90,8 @@
   },
   "unit_economics": {
     "revenue_total": 60063,
-    "spend_total": 165691.46,
-    "active_users": 8519,
+    "spend_total": 166165.5,
+    "active_users": 8555,
     "active_payers": 30,
     "plus_active_users": 80,
     "trial_cancellations": 13,
@@ -104,7 +104,7 @@
       "2026-07-13": 3
     },
     "renewals": 19,
-    "arpu": 7.05,
+    "arpu": 7.02,
     "arppu": 2002.1,
     "ltv": 3270.1,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
