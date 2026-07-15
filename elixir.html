@@ -1512,13 +1512,47 @@ function collapseEquivalentSources(proj, sources) {
   return out;
 }
 
-/** JGGL: CSV уходит в месячные листы — убираем устаревший лист App. */
+/** JGGL: убираем устаревший лист App; всегда держим плашки iOS и Android. */
 function pruneJgglAppSource(proj, sources) {
   if (!isJgglProject(proj)) return sources || [];
-  const list = sources || [];
-  const hasMonthSource = list.some(s => sourceMonthKey(s));
-  if (!hasMonthSource) return list;
-  return list.filter(s => !/^app$/i.test(String(s.label || '').trim()));
+  return (sources || []).filter(s => !/^app$/i.test(String(s.label || '').trim()));
+}
+
+function ensureJgglPlatformSources(proj, sources) {
+  if (!isJgglProject(proj)) return sources || [];
+  const list = [...(sources || [])];
+  const hasIos = list.some(s => /^ios$/i.test(String(s.label || '').trim()));
+  const hasAndroid = list.some(s => /^android$/i.test(String(s.label || '').trim()));
+  // Если есть хотя бы одна платформа — дорисовываем вторую (даже с 0 дн.)
+  if (!hasIos && !hasAndroid) return list;
+
+  if (!hasIos) {
+    list.push({
+      id: 'upload_ios',
+      label: 'iOS',
+      url: 'upload://jggl/ios',
+      rows: [],
+      uploaded: true,
+    });
+  }
+  if (!hasAndroid) {
+    list.push({
+      id: 'upload_android',
+      label: 'Android',
+      url: 'upload://jggl/android',
+      rows: [],
+      uploaded: true,
+    });
+  }
+
+  const order = ['ios', 'android', 'waitlist', 'redirect', 'web'];
+  return list.sort((a, b) => {
+    const ka = String(a.label || '').trim().toLowerCase();
+    const kb = String(b.label || '').trim().toLowerCase();
+    const ia = order.indexOf(ka);
+    const ib = order.indexOf(kb);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || ka.localeCompare(kb);
+  });
 }
 
 /** Суммирует строки с одной датой (нужно для Meta Ads: много кампаний → один день). */
@@ -2937,6 +2971,7 @@ async function fetchProject(proj) {
     sources = mergeUploadedSources(sources, uploaded, proj);
     if (isQlosophyProject(proj)) sources = collapseEquivalentSources(proj, sources);
     sources = pruneJgglAppSource(proj, sources);
+    sources = ensureJgglPlatformSources(proj, sources);
     if (!sources.length) throw new Error('No sheet sources loaded');
     return { sources };
   };
