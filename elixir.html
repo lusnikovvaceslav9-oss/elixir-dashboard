@@ -1632,7 +1632,9 @@ function findBestSourceIdxForMonth(pack, monthKey) {
 function syncSourceIndexToMonth(projId, pack, monthKey) {
   if (!pack?.sources?.length || !monthKey) return;
   const p = projects.find(x => x.id === projId);
-  if (!sourcesAreMonthPartitioned(pack) && !isQuadcodeProject(p) && !isQlosophyProject(p) && !isJgglProject(p)) return;
+  // JGGL: листы — iOS/Android/Waitlist, не месяцы. Не перебиваем клик пользователя.
+  if (isJgglProject(p) && !sourcesAreMonthPartitioned(pack)) return;
+  if (!sourcesAreMonthPartitioned(pack) && !isQuadcodeProject(p) && !isQlosophyProject(p)) return;
   sourceIndexByProject[projId] = findBestSourceIdxForMonth(pack, monthKey);
 }
 
