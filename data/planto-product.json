@@ -1,28 +1,28 @@
 {
-  "generated_at": "2026-07-15T18:55:25+00:00",
+  "generated_at": "2026-07-15T20:02:42+00:00",
   "anchor": "2026-06-05",
   "until": "2026-07-15",
   "product": {
     "from": "2026-06-05",
     "to": "2026-07-15",
-    "installs": 8627,
-    "active_users": 8792,
+    "installs": 8630,
+    "active_users": 8797,
     "events": {
       "plant_added": {
-        "users": 2741,
-        "events": 4682,
+        "users": 2742,
+        "events": 4683,
         "vs_install_pct": 31.77,
         "avg_per_user": 1.71
       },
       "paywall_shown": {
-        "users": 6640,
-        "events": 10020,
-        "vs_install_pct": 76.97,
+        "users": 6643,
+        "events": 10024,
+        "vs_install_pct": 76.98,
         "avg_per_user": 1.51
       },
       "paywall_cta_clicked": {
-        "users": 2267,
-        "events": 3189,
+        "users": 2268,
+        "events": 3190,
         "vs_install_pct": 26.28,
         "avg_per_user": 1.41
       },
@@ -51,21 +51,21 @@
         "avg_per_user": 6.68
       },
       "ai_route": {
-        "users": 1778,
-        "events": 10957,
+        "users": 1779,
+        "events": 10959,
         "vs_install_pct": 20.61,
         "avg_per_user": 6.16
       },
       "scan_success": {
-        "users": 2927,
-        "events": 8390,
+        "users": 2928,
+        "events": 8391,
         "vs_install_pct": 33.93,
         "avg_per_user": 2.87
       },
       "user_activated": {
-        "users": 6766,
-        "events": 8550,
-        "vs_install_pct": 78.43,
+        "users": 6770,
+        "events": 8555,
+        "vs_install_pct": 78.45,
         "avg_per_user": 1.26
       }
     },
@@ -90,8 +90,8 @@
   },
   "unit_economics": {
     "revenue_total": 65043,
-    "spend_total": 170349.79,
-    "active_users": 8792,
+    "spend_total": 170406.69,
+    "active_users": 8797,
     "active_payers": 32,
     "plus_active_users": 72,
     "trial_cancellations": 8,
@@ -103,7 +103,7 @@
       "2026-07-13": 2
     },
     "renewals": 21,
-    "arpu": 7.4,
+    "arpu": 7.39,
     "arppu": 2032.59,
     "ltv": 3366.48,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
