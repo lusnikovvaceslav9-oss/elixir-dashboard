@@ -1396,7 +1396,9 @@ function csvUploadPresets(proj) {
   }
   if (isJgglProject(proj)) {
     return [
-      { value: '__auto_month__', label: 'Авто по датам CSV' },
+      { value: '__auto_platform__', label: 'Авто iOS / Android' },
+      { value: 'iOS', label: 'iOS' },
+      { value: 'Android', label: 'Android' },
       { value: 'Waitlist', label: 'Waitlist' },
       { value: 'Redirect', label: 'Redirect' },
       { value: 'Web', label: 'Web' },
@@ -1428,6 +1430,9 @@ function dominantMonthKeyFromRows(rows) {
 }
 
 function resolveUploadLabel(proj, selected, rows) {
+  if (isJgglProject(proj) && (selected === '__auto_platform__' || selected === '__auto_month__')) {
+    return selected;
+  }
   if (
     selected === '__auto_month__'
     || (isQuadcodeProject(proj) && (!selected || selected === 'Main'))
@@ -1437,6 +1442,29 @@ function resolveUploadLabel(proj, selected, rows) {
     if (mk) return formatMonthKey(mk);
   }
   return selected || 'CSV';
+}
+
+/** JGGL: в названии кампании/адсета есть android → Android, иначе iOS. */
+function jgglPlatformFromName(name) {
+  return /android/i.test(String(name || '')) ? 'Android' : 'iOS';
+}
+
+function jgglRowPlatformLabel(row) {
+  const parts = [row?.campaign, row?.adset, row?.ad].filter(Boolean).join(' ');
+  return jgglPlatformFromName(parts);
+}
+
+function isJgglPlatformLabel(label) {
+  return /^(ios|android)$/i.test(String(label || '').trim());
+}
+
+function splitJgglRowsByPlatform(rows) {
+  const out = { iOS: [], Android: [] };
+  (rows || []).forEach(r => {
+    const plat = jgglRowPlatformLabel(r);
+    out[plat].push(r);
+  });
+  return out;
 }
 
 /** Ключ для сопоставления листов (Qlosophy: Лист1 = Main). */
@@ -1574,11 +1602,95 @@ function syncSourceIndexToMonth(projId, pack, monthKey) {
   sourceIndexByProject[projId] = findBestSourceIdxForMonth(pack, monthKey);
 }
 
+/** JGGL: разложить CSV по iOS/Android (android в названии → Android, иначе iOS). */
+function expandJgglUploadedByPlatform(uploaded) {
+  const byKey = new Map();
+  const mergePiece = (key, piece) => {
+    if (byKey.has(key)) {
+      const prev = byKey.get(key);
+      prev.rows = mergeRowsByDate(prev.rows || [], piece.rows || []);
+      prev.fileNames = [...new Set([...(prev.fileNames || []), ...(piece.fileNames || [])])];
+      prev.uploadIds = [...new Set([...(prev.uploadIds || []), ...(piece.uploadIds || [])])];
+      prev.hashes = [...new Set([...(prev.hashes || []), ...(piece.hashes || [])].filter(Boolean))];
+      prev.uploadedAt = [prev.uploadedAt, piece.uploadedAt].filter(Boolean).sort().slice(-1)[0] || prev.uploadedAt;
+      if (piece.sheetColumns?.length) prev.sheetColumns = piece.sheetColumns;
+    } else {
+      byKey.set(key, piece);
+    }
+  };
+
+  (uploaded || []).forEach(src => {
+    const label = String(src.label || '').trim();
+    const labelKey = label.toLowerCase();
+    const baseMeta = {
+      fileNames: src.fileNames || [src.fileName].filter(Boolean),
+      uploadIds: src.uploadIds || [src.storageId].filter(Boolean),
+      hashes: src.hashes || [src.hash].filter(Boolean),
+      sheetColumns: src.sheetColumns,
+      uploaded: true,
+      uploadedAt: src.uploadedAt || null,
+      fileName: src.fileName || '',
+      url: src.url,
+    };
+
+    // Waitlist / Redirect / Web — без платформенного сплита
+    if (/^(waitlist|redirect|web)$/i.test(label)) {
+      mergePiece(labelKey, {
+        ...src,
+        ...baseMeta,
+        id: `upload_${labelKey}`,
+        label,
+        rows: aggregateRowsByDate(src.rows || []),
+      });
+      return;
+    }
+
+    // Уже помечено как iOS/Android — не режем повторно
+    if (isJgglPlatformLabel(label)) {
+      const plat = /^android$/i.test(label) ? 'Android' : 'iOS';
+      mergePiece(plat.toLowerCase(), {
+        ...src,
+        ...baseMeta,
+        id: `upload_${plat.toLowerCase()}`,
+        label: plat,
+        rows: aggregateRowsByDate(src.rows || []),
+      });
+      return;
+    }
+
+    // Авто / месяц / App / сырой CSV — split по названию кампании
+    const split = splitJgglRowsByPlatform(src.rows || []);
+    ['iOS', 'Android'].forEach(plat => {
+      const rows = split[plat] || [];
+      if (!rows.length) return;
+      mergePiece(plat.toLowerCase(), {
+        ...src,
+        ...baseMeta,
+        id: `upload_${plat.toLowerCase()}`,
+        label: plat,
+        rows: aggregateRowsByDate(rows),
+      });
+    });
+  });
+
+  const order = ['ios', 'android', 'waitlist', 'redirect', 'web'];
+  return [...byKey.entries()]
+    .sort((a, b) => {
+      const ia = order.indexOf(a[0]);
+      const ib = order.indexOf(b[0]);
+      const sa = ia < 0 ? 99 : ia;
+      const sb = ib < 0 ? 99 : ib;
+      return sa - sb || a[0].localeCompare(b[0]);
+    })
+    .map(([, v]) => v);
+}
+
 /** Раскладывает загрузки по месяцам по датам строк (не только по label). */
 function expandUploadedSourcesByMonth(uploaded, proj) {
+  if (isJgglProject(proj)) return expandJgglUploadedByPlatform(uploaded);
+
   const useMonthSplit = isQuadcodeProject(proj)
     || isQlosophyProject(proj)
-    || isJgglProject(proj)
     || !!(proj?.monthlySheets || []).length;
   if (!useMonthSplit) return uploaded || [];
   const byMonth = new Map();
@@ -1930,12 +2042,52 @@ async function processCsvUploadFile(projId, file) {
   const text = await readUploadFileAsCsvText(file);
   const rows = parseSheet(text);
   if (!rows.length) throw new Error('Не удалось разобрать файл — проверь заголовки Date/Spend/Reg');
+
+  // JGGL Авто: режем CSV на iOS / Android по названию кампании
+  if (isJgglProject(p) && (selected === '__auto_platform__' || selected === '__auto_month__')) {
+    const split = splitJgglRowsByPlatform(rows);
+    const savedLabels = [];
+    let anyDup = false;
+    for (const plat of ['iOS', 'Android']) {
+      const platRows = split[plat] || [];
+      if (!platRows.length) continue;
+      const platText = rebuildJgglPlatformCsvText(text, plat);
+      if (!platText.trim()) continue;
+      const saved = await saveUploadedCsv(projId, plat, `${file.name} · ${plat}`, platText);
+      savedLabels.push(plat);
+      if (saved.duplicate) anyDup = true;
+    }
+    if (!savedLabels.length) throw new Error('После разделения iOS/Android строк не осталось — проверь колонку Campaign name');
+    await applyUploadedCsvToCache(projId, savedLabels[0]);
+    if (anyDup) console.info('Часть файлов уже была загружена — обновлено без дубля');
+    return;
+  }
+
   const label = canonicalSourceLabel(p, resolveUploadLabel(p, selected, rows));
   const saved = await saveUploadedCsv(projId, label, file.name, text);
   await applyUploadedCsvToCache(projId, label);
   if (saved.duplicate) {
     console.info(`Файл уже был загружен (hash ${shortHash(saved.hash)}) — данные сохранены без дубля`);
   }
+}
+
+/** CSV только строк выбранной платформы (android в названии → Android, иначе iOS). */
+function rebuildJgglPlatformCsvText(originalText, platform) {
+  const matrix = parseCSV(originalText || '');
+  if (!matrix.length) return '';
+  const header = matrix[0];
+  const extra = findCampaignExtraColumns(header);
+  const out = [header];
+  matrix.slice(1).forEach(r => {
+    const campaign = extra.campaignCol >= 0 ? String(r[extra.campaignCol] || '').trim() : '';
+    const adset = extra.adsetCol >= 0 ? String(r[extra.adsetCol] || '').trim() : '';
+    const ad = extra.adCol >= 0 ? String(r[extra.adCol] || '').trim() : '';
+    const name = [campaign, adset, ad].filter(Boolean).join(' ');
+    if (!name) return;
+    if (jgglPlatformFromName(name) !== platform) return;
+    out.push(r);
+  });
+  return sheetMatrixToCsvText(out);
 }
 
 async function onCsvUploadFile(projId, inputEl) {
@@ -2016,6 +2168,8 @@ function renderCsvUploadCard(proj) {
   ).join('');
   const hint = isQuadcodeProject(proj)
     ? 'Можно грузить несколько CSV/XLSX подряд — каждый файл сохраняется по хешу, данные сливаются по датам в лист месяца.'
+    : isJgglProject(proj)
+    ? '«Авто iOS / Android»: строки с android в названии кампании → Android, остальные → iOS. Месяц выбирается отдельно.'
     : 'Можно грузить несколько файлов подряд (CSV/XLSX). Статистика сохраняется в облако и видна всем на дашборде.';
 
   return `<div class="csv-upload-card csv-drop-zone"
@@ -2449,6 +2603,8 @@ function findCampaignExtraColumns(headerRow) {
   const headers = headerRow.map(h => (h || '').toLowerCase().trim());
   return {
     campaignCol: findCol(headers, ['campaign', 'кампани']),
+    adsetCol: findCol(headers, ['ad set name', 'ad set', 'adset', 'группу объяв', 'группа объяв']),
+    adCol: findCol(headers, ['ad name', 'объявлен'], ['ad set', 'adset']),
     impressionsCol: findCol(headers, ['impression', 'impress']),
     clicksCol: findCol(headers, ['click'], ['ctr']),
   };
@@ -2471,12 +2627,16 @@ function parseCampaignRows(rows) {
     const impressions = extra.impressionsCol >= 0 ? parseNum(r[extra.impressionsCol]) : 0;
     const clicks = extra.clicksCol >= 0 ? parseNum(r[extra.clicksCol]) : 0;
     const campaign = extra.campaignCol >= 0 ? (r[extra.campaignCol] || '').trim() : '';
+    const adset = extra.adsetCol >= 0 ? (r[extra.adsetCol] || '').trim() : '';
+    const ad = extra.adCol >= 0 ? (r[extra.adCol] || '').trim() : '';
     if (!spend && !qregs && !regs && !impressions && !clicks) return;
 
     const obj = {
       date: dt, dateStr: fmtDateStr(dt), spend, qregs, impressions, clicks,
       campaign: campaign || '—',
     };
+    if (adset) obj.adset = adset;
+    if (ad) obj.ad = ad;
     if (rc >= 0) obj.regs = regs;
     raw.push(obj);
   });
@@ -3451,9 +3611,13 @@ function pickOverviewSourceRows(pack, proj) {
     return sources.flatMap(s => s.rows || []);
   }
   if (isMultiSheetCsvProject(proj)) {
+    if (isJgglProject(proj)) {
+      const plats = sources.filter(s => isJgglPlatformLabel(s.label));
+      if (plats.length) return plats.flatMap(s => s.rows || []);
+    }
     const preferred = sources.find(s => sourceLabelKey(proj, s.label) === 'main')
       || sources.find(s => sourceMonthKey(s))
-      || sources.find(s => /^(waitlist|redirect|web)$/i.test(String(s.label || '').trim()));
+      || sources.find(s => /^(waitlist|redirect|web|ios|android)$/i.test(String(s.label || '').trim()));
     if (preferred?.rows?.length) return preferred.rows;
   }
   let best = sources[0];
