@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-07-16T20:52:59+00:00",
+  "generated_at": "2026-07-16T21:56:33+00:00",
   "anchor": "2026-06-05",
-  "until": "2026-07-16",
-  "window_start": "2026-07-07",
+  "until": "2026-07-17",
+  "window_start": "2026-07-08",
   "trial_attribution": "appmetrica_trial_started",
   "sources": {
     "spend": "direct_api",
@@ -17,7 +17,7 @@
     "product": "appmetrica_reporting"
   },
   "errors": [],
-  "days": 42,
+  "days": 43,
   "reconcile_diff": {
     "trials_total_old_csv": 117,
     "trials_total_new": 117,
@@ -25,8 +25,8 @@
   },
   "unit_economics": {
     "revenue_total": 65043,
-    "spend_total": 173242.91,
-    "active_users": 8958,
+    "spend_total": 173349.18,
+    "active_users": 8962,
     "active_payers": 32,
     "plus_active_users": 69,
     "trial_cancellations": 5,
@@ -51,9 +51,9 @@
     "paywall_cta_pct": 34.23,
     "care_engagement_pct": 3.71,
     "feature_activation": {
-      "scan_pct": 33.86,
+      "scan_pct": 33.88,
       "watering_pct": 2.23,
-      "ai_pct": 20.78
+      "ai_pct": 20.8
     },
     "retention": {
       "d1": null,
@@ -153,7 +153,7 @@
     "2026-07-16": 2
   },
   "trials_crosscheck_yesterday": {
-    "day": "2026-07-15",
+    "day": "2026-07-16",
     "appmetrica": 2,
     "supabase": 2,
     "dashboard": 2,
