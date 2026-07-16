@@ -1,0 +1,83 @@
+{
+  "generated_at": "2026-07-16T22:43:47+07:00",
+  "project": "hupp",
+  "anchor": "2026-07-01",
+  "until": "2026-07-16",
+  "metric_map": {
+    "trials": "reach_pay",
+    "fb": "view_pay",
+    "sold": "pay_submit",
+    "purchase": "purchase",
+    "contact_info": "contact_info",
+    "form_submit": "form_submit",
+    "contact_sent": "contact_sent",
+    "installs": "metrika_visits",
+    "spend": "direct_csv_upload",
+    "clicks": "direct_csv_upload",
+    "impressions": "direct_csv_upload"
+  },
+  "goals": [
+    {
+      "id": "584550528",
+      "key": "reach_pay",
+      "label": "клик «Получить/Оплатить» → скролл к форме",
+      "csv": "trials"
+    },
+    {
+      "id": "584550529",
+      "key": "view_pay",
+      "label": "карточка оплаты на экране",
+      "csv": "fb"
+    },
+    {
+      "id": "584550530",
+      "key": "pay_submit",
+      "label": "нажал «Оплатить» → ЮKassa",
+      "csv": "sold"
+    },
+    {
+      "id": "584550531",
+      "key": "purchase",
+      "label": "успешная оплата · экран выдачи",
+      "csv": "purchase"
+    },
+    {
+      "id": "584588133",
+      "key": "contact_info",
+      "label": "заполнил контактные данные",
+      "csv": "contact_info"
+    },
+    {
+      "id": "584588134",
+      "key": "form_submit",
+      "label": "отправки всех форм",
+      "csv": "form_submit"
+    },
+    {
+      "id": "584588135",
+      "key": "contact_sent",
+      "label": "отправил контактные данные",
+      "csv": "contact_sent"
+    }
+  ],
+  "sources": {
+    "metrika": "counter_110726695"
+  },
+  "errors": [],
+  "days": 16,
+  "totals": {
+    "spend": 0.0,
+    "installs": 465.0,
+    "trials": 38.0,
+    "sold": 12.0,
+    "fb": 78.0,
+    "purchase": 8.0,
+    "contact_info": 11.0,
+    "form_submit": 17.0,
+    "contact_sent": 11.0,
+    "clicks": 0.0,
+    "impressions": 0.0
+  },
+  "metrika_counter_id": "110726695",
+  "direct_source": "csv_upload"
+}

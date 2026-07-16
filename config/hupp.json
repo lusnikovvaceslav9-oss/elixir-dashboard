@@ -1,0 +1,19 @@
+{
+  "id": "hupp",
+  "name": "Hupp",
+  "anchor": "2026-07-01",
+  "currency": "RUB",
+  "direct_client_login": "partners-m",
+  "metrika_counter_id": "110726695",
+  "goals": [
+    {"id": "584550528", "key": "reach_pay", "label": "клик «Получить/Оплатить» → скролл к форме", "csv": "trials"},
+    {"id": "584550529", "key": "view_pay", "label": "карточка оплаты на экране", "csv": "fb"},
+    {"id": "584550530", "key": "pay_submit", "label": "нажал «Оплатить» → ЮKassa", "csv": "sold"},
+    {"id": "584550531", "key": "purchase", "label": "успешная оплата · экран выдачи", "csv": "purchase"},
+    {"id": "584588133", "key": "contact_info", "label": "заполнил контактные данные", "csv": "contact_info"},
+    {"id": "584588134", "key": "form_submit", "label": "отправки всех форм", "csv": "form_submit"},
+    {"id": "584588135", "key": "contact_sent", "label": "отправил контактные данные", "csv": "contact_sent"}
+  ],
+  "daily_csv": "data/hupp-daily.csv",
+  "meta_json": "data/hupp-meta.json"
+}

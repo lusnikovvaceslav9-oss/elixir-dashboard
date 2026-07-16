@@ -189,6 +189,7 @@ body{
 .csv-upload-card{background:rgba(18,18,26,0.8);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin:0 0 18px}
 .csv-drop-zone{transition:border-color 0.15s ease,background 0.15s ease}
 .csv-drop-zone.csv-drop-active{border-color:rgba(0,0,0,0.45);background:rgba(0,0,0,0.04)}
+.csv-drop-zone.csv-upload-busy{opacity:0.65;pointer-events:none}
 .csv-upload-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px}
 .csv-upload-title{font-size:13px;font-weight:600;color:var(--text)}
 .csv-upload-hint{font-size:11px;color:var(--text-muted);line-height:1.4}
@@ -1008,14 +1009,25 @@ const PLANTO_DATA_URL = 'data/planto-daily.csv';
 const PLANTO_COHORT_URL = 'data/planto-cohort.json';
 const PLANTO_META_URL = 'data/planto-meta.json';
 const PLANTO_PRODUCT_URL = 'data/planto-product.json';
+const HUPP_DATA_URL = 'data/hupp-daily.csv';
+const HUPP_META_URL = 'data/hupp-meta.json';
+const HUPP_START_CSV_URL = 'data/hupp-start.csv';
+const HUPP_START_SEED_FLAG = 'hupp_csv_start_seeded_v1';
+const HUPP_DIRECT_KEYS = ['spend', 'clicks', 'impressions'];
+const HUPP_FEED_WORKFLOW = 'hupp-feed.yml';
 const PLANTO_GH_REPO = 'lusnikovvaceslav9-oss/elixir-dashboard';
 const PLANTO_GH_BRANCH = 'main';
 let lastPlantoFeedRefresh = null; // { ok, fresh, message, at }
+let huppMetaCache = null;
+let lastHuppFeedRefresh = null;
+let workerConfigCache = null;
 
 
 const DEFAULT_PROJECTS = [
   { id: 'planto',   name: 'Planto',      icon: '🌱', currency: '₽', type: 'planto', status: 'run',
     urls: [PLANTO_DATA_URL], dataSource: 'auto' },
+  { id: 'hupp',     name: 'Hupp',        icon: '🟣', currency: '₽', type: 'hupp', status: 'run',
+    urls: [HUPP_DATA_URL], dataSource: 'csv' },
   { id: 'quadcode', name: 'Quadcode AI', icon: '💻', currency: '$', type: 'quadcode', status: 'run',
     urls: ['https://docs.google.com/spreadsheets/d/1GRLgK6CnvH4innf7n4k8K_bhQ9nsTl2Q/export?format=csv'] },
   { id: 'streamfi', name: 'StreamFi',    icon: '📡', currency: '$', type: 'streamfi', status: 'run',
@@ -1168,6 +1180,7 @@ const TYPE_TEMPLATES = [
   { id: 'streamfi', icon: '📡', name: 'StreamFi / UA', desc: 'Спенд + целевые действия / регистрации' },
   { id: 'campaign', icon: '🎯', name: 'Campaign / Ads', desc: 'Reg, Spend, Impressions, Clicks, CPC, CPM' },
   { id: 'planto',   icon: '🌱', name: 'Planto',   desc: 'Installs, Trials, FB' },
+  { id: 'hupp',     icon: '🟣', name: 'Hupp',     desc: 'Metrika visits + payment funnel' },
   { id: 'quadcode', icon: '💻', name: 'Quadcode', desc: 'Regs, Installs, Purchases' },
   { id: 'generic',  icon: '📊', name: 'Generic',  desc: 'Только Spend' },
 ];
@@ -1365,6 +1378,29 @@ function applyPlantoAutoSource(list) {
   });
 }
 
+function applyHuppAutoSource(list) {
+  const withBuiltin = [...(list || [])];
+  if (!withBuiltin.some(p => p?.id === 'hupp')) {
+    const def = DEFAULT_PROJECTS.find(p => p.id === 'hupp');
+    if (def) withBuiltin.push(JSON.parse(JSON.stringify(def)));
+  }
+  return withBuiltin.map(p => {
+    if (p.id !== 'hupp') return p;
+    return normalizeProject({
+      ...p,
+      name: p.name || 'Hupp',
+      icon: p.icon || '🟣',
+      currency: '₽',
+      type: 'hupp',
+      status: p.status || 'run',
+      urls: [HUPP_DATA_URL],
+      dataSource: 'csv',
+      sheetSources: [{ id: 'csv', url: 'upload://hupp', label: 'CSV upload' }],
+      monthlySheets: [],
+    });
+  });
+}
+
 const CSV_UPLOAD_KEY = 'elixir_csv_uploads_v1';
 
 function isJgglProject(p) {
@@ -1383,11 +1419,23 @@ function isQuadcodeProject(p) {
   return !!(p && (/quadcode/i.test(p.id || '') || /quadcode/i.test(p.name || '')));
 }
 
+function isHuppProject(p) {
+  return !!(p && (/^hupp$/i.test(p.id || '') || /^hupp$/i.test(p.name || '')));
+}
+
+/** Hupp: spend только из CSV Директа; визиты/цели — из Метрики (hupp-daily.csv). */
+function isHuppCsvOnly(proj) {
+  return isHuppProject(proj);
+}
+
 function supportsCsvUpload(proj) {
-  return isMultiSheetCsvProject(proj) || isQuadcodeProject(proj);
+  return isMultiSheetCsvProject(proj) || isQuadcodeProject(proj) || isHuppCsvOnly(proj);
 }
 
 function csvUploadPresets(proj) {
+  if (isHuppCsvOnly(proj)) {
+    return [{ value: 'CSV upload', label: 'Direct CSV (spend)' }];
+  }
   if (isQlosophyProject(proj)) {
     return [
       { value: 'Лист 1', label: 'Лист 1' },
@@ -1586,6 +1634,174 @@ function mergeRowsByDate(baseRows, uploadRows) {
     map.set(fmtDateStr(r.date), r);
   });
   return [...map.values()].sort((a, b) => a.date - b.date);
+}
+
+/** Метрика = цели/визиты; Директ CSV = только spend/clicks/impressions. */
+function mergeMetrikaWithDirectSpend(metrikaRows, directRows) {
+  const map = new Map();
+  aggregateRowsByDate(metrikaRows || []).forEach(r => {
+    if (!r?.date) return;
+    const key = fmtDateStr(r.date);
+    const row = { ...r, dateStr: key };
+    HUPP_DIRECT_KEYS.forEach(k => { if (row[k] == null) row[k] = 0; });
+    map.set(key, row);
+  });
+  aggregateRowsByDate(directRows || []).forEach(d => {
+    if (!d?.date) return;
+    const key = fmtDateStr(d.date);
+    const base = map.get(key) || {
+      date: d.date,
+      dateStr: key,
+      installs: 0, trials: 0, sold: 0, fb: 0, purchase: 0,
+      contact_info: 0, form_submit: 0, contact_sent: 0,
+      spend: 0, clicks: 0, impressions: 0,
+    };
+    HUPP_DIRECT_KEYS.forEach(k => {
+      if (d[k] != null) base[k] = d[k];
+    });
+    map.set(key, base);
+  });
+  return [...map.values()].sort((a, b) => a.date - b.date);
+}
+
+function isYandexDirectExportHeaders(headerRow) {
+  const h = (headerRow || []).map(x => String(x || '').toLowerCase());
+  const hasDay = h.some(x => /день|date|дата/.test(x));
+  const hasCampaign = h.some(x => /кампани|campaign/.test(x));
+  const hasSpendOrClicks = h.some(x => /расход|spend|клик|показ/.test(x));
+  return hasDay && hasSpendOrClicks && (hasCampaign || h.some(x => /конверс|cpa|cr/.test(x)));
+}
+
+function parseDirectSpendRows(matrix) {
+  if (!matrix?.length) return [];
+  const headers = matrix[0].map(h => String(h || '').toLowerCase().trim());
+  const find = (names) => {
+    for (let i = 0; i < headers.length; i++) {
+      if (names.some(n => headers[i].includes(n))) return i;
+    }
+    return -1;
+  };
+  const di = find(['день', 'date', 'дата']);
+  const si = find(['расход', 'spend', 'amount spent']);
+  const ii = find(['показ', 'impression']);
+  const ci = find(['клик', 'click']);
+  const byDay = new Map();
+  matrix.slice(1).forEach(r => {
+    const dateStr = String((di >= 0 ? r[di] : r[0]) || '').trim();
+    if (!dateStr || /итого|total/i.test(dateStr)) return;
+    const dt = parseDate(dateStr);
+    if (!dt) return;
+    const key = fmtDateStr(dt);
+    const num = (idx) => {
+      if (idx < 0 || idx >= r.length) return 0;
+      return parseNum(r[idx]);
+    };
+    const prev = byDay.get(key) || { date: dt, dateStr: key, spend: 0, clicks: 0, impressions: 0 };
+    prev.spend += num(si);
+    prev.clicks += Math.round(num(ci));
+    prev.impressions += Math.round(num(ii));
+    byDay.set(key, prev);
+  });
+  return [...byDay.values()].sort((a, b) => a.date - b.date);
+}
+
+function directSpendRowsFromUploadText(text) {
+  const matrix = parseCSV(text || '');
+  if (!matrix.length) return [];
+  if (isYandexDirectExportHeaders(matrix[0])) return parseDirectSpendRows(matrix);
+  const rows = parseSheet(text);
+  return aggregateRowsByDate(rows).map(r => ({
+    date: r.date,
+    dateStr: r.dateStr || fmtDateStr(r.date),
+    spend: r.spend || 0,
+    clicks: r.clicks || 0,
+    impressions: r.impressions || 0,
+  })).filter(r => r.date);
+}
+
+function directSpendRowsToCsvText(rows) {
+  const lines = ['date,spend,clicks,impressions'];
+  (rows || []).forEach(r => {
+    lines.push([
+      r.dateStr || fmtDateStr(r.date),
+      Number(r.spend || 0),
+      Math.round(r.clicks || 0),
+      Math.round(r.impressions || 0),
+    ].join(','));
+  });
+  return lines.join('\n');
+}
+
+function collectHuppDirectRows(proj) {
+  const map = getProjectCsvUploads(proj?.id || 'hupp') || {};
+  const fromUploads = [];
+  Object.values(map).forEach(u => {
+    if (u?.text) {
+      directSpendRowsFromUploadText(u.text).forEach(r => fromUploads.push(r));
+      return;
+    }
+    if (u?.rows?.length) {
+      deserializeUploadRows(u.rows).forEach(r => {
+        fromUploads.push({
+          date: r.date,
+          dateStr: r.dateStr || (r.date ? fmtDateStr(r.date) : ''),
+          spend: r.spend || 0,
+          clicks: r.clicks || 0,
+          impressions: r.impressions || 0,
+        });
+      });
+    }
+  });
+  return aggregateRowsByDate(fromUploads);
+}
+
+function getHuppCsvUploadMeta(proj) {
+  const map = getProjectCsvUploads(proj?.id || 'hupp');
+  const list = Object.values(map || {});
+  if (!list.length) return null;
+  const latest = [...list].sort((a, b) => String(b.uploadedAt || '').localeCompare(String(a.uploadedAt || '')))[0];
+  const rows = list.reduce((n, u) => n + (u.rows?.length || 0), 0);
+  return {
+    uploadedAt: latest?.uploadedAt || null,
+    fileName: latest?.fileName || '',
+    fileCount: list.length,
+    rowCount: rows,
+  };
+}
+
+async function ensureHuppStartCsvSeed() {
+  const p = projects.find(x => x.id === 'hupp');
+  if (!p || !isHuppCsvOnly(p)) return false;
+  const flag = (() => { try { return localStorage.getItem(HUPP_START_SEED_FLAG); } catch (_) { return null; } })();
+  if (flag === '2' && Object.keys(getProjectCsvUploads('hupp') || {}).length) return false;
+  try {
+    const text = await fetchWithFallback(HUPP_START_CSV_URL);
+    if (!text || text.trim().length < 20) throw new Error('empty start csv');
+    const all = loadCsvUploads();
+    delete all.hupp;
+    await saveCsvUploads(all);
+    await saveUploadedCsv('hupp', 'CSV upload', 'partners-m-2026-07-16.csv', text);
+    try { localStorage.setItem(HUPP_START_SEED_FLAG, '2'); } catch (_) {}
+    return true;
+  } catch (e) {
+    console.warn('Hupp start CSV seed failed:', e.message || e);
+    return false;
+  }
+}
+
+async function fetchHuppMetrikaDailyRows() {
+  try {
+    const text = await fetchWithFallback(HUPP_DATA_URL);
+    const rows = parseSheet(text) || [];
+    return rows.map(r => {
+      const copy = { ...r };
+      HUPP_DIRECT_KEYS.forEach(k => { copy[k] = 0; });
+      return copy;
+    });
+  } catch (e) {
+    console.warn('Hupp Metrika daily load failed:', e.message || e);
+    return [];
+  }
 }
 
 function monthKeyFromSourceLabel(label) {
@@ -1922,8 +2138,10 @@ async function saveUploadedCsv(projId, label, fileName, text) {
   const rows = parseSheet(text);
   const sheetColumns = (csvRows[0] || []).map(h => (h || '').trim());
   const existingId = Object.keys(all[projId]).find(id => all[projId][id]?.hash === hash);
+  const p = projects.find(x => x.id === projId);
+  const huppReplace = p && isHuppCsvOnly(p);
   if (existingId) {
-    all[projId][existingId] = {
+    const updated = {
       ...all[projId][existingId],
       label: (label || all[projId][existingId].label || existingId).trim(),
       fileName: fileName || all[projId][existingId].fileName || '',
@@ -1931,12 +2149,14 @@ async function saveUploadedCsv(projId, label, fileName, text) {
       rows: serializeUploadRows(rows),
       sheetColumns,
       text,
+      uploadedAt: new Date().toISOString(),
     };
+    all[projId] = huppReplace ? { [existingId]: updated } : { ...all[projId], [existingId]: updated };
     await saveCsvUploads(all);
     return { id: existingId, hash, duplicate: true };
   }
   const id = `${slugifyCsvLabel(label)}_${shortHash(hash)}`;
-  all[projId][id] = {
+  const entry = {
     label: (label || id).trim(),
     fileName: fileName || '',
     uploadedAt: new Date().toISOString(),
@@ -1945,6 +2165,11 @@ async function saveUploadedCsv(projId, label, fileName, text) {
     rows: serializeUploadRows(rows),
     sheetColumns,
   };
+  if (huppReplace) {
+    all[projId] = { [id]: entry };
+  } else {
+    all[projId][id] = entry;
+  }
   await saveCsvUploads(all);
   return { id, hash, duplicate: false };
 }
@@ -2075,7 +2300,31 @@ async function processCsvUploadFile(projId, file) {
   const customEl = document.getElementById(`csv-upload-custom-${projId}`);
   let selected = (labelEl?.value || fallbackLabel).trim();
   if (selected === '__custom__') selected = (customEl?.value || '').trim() || fallbackLabel;
-  const text = await readUploadFileAsCsvText(file);
+  let text = await readUploadFileAsCsvText(file);
+
+  if (isHuppCsvOnly(p)) {
+    const directRows = directSpendRowsFromUploadText(text);
+    if (!directRows.length) throw new Error('В CSV нет дат/расхода Директа');
+    text = directSpendRowsToCsvText(directRows);
+    const label = canonicalSourceLabel(p, 'CSV upload');
+    const card = document.querySelector(`.csv-drop-zone[ondrop*="'${projId}'"]`);
+    card?.classList.add('csv-upload-busy');
+    try {
+      const saved = await saveUploadedCsv(projId, label, file.name, text);
+      const feed = await triggerHuppFeedAndWait({ dispatch: true });
+      await applyUploadedCsvToCache(projId, label);
+      if (saved.duplicate) console.info(`Файл уже был загружен (hash ${shortHash(saved.hash)}) — данные обновлены`);
+      if (feed && !feed.ok && feed.message) {
+        alert(`CSV сохранён, но Metrika не обновилась: ${feed.message}`);
+      } else if (feed?.fresh) {
+        console.info('Hupp Metrika обновлена после загрузки CSV');
+      }
+    } finally {
+      card?.classList.remove('csv-upload-busy');
+    }
+    return;
+  }
+
   const rows = parseSheet(text);
   if (!rows.length) throw new Error('Не удалось разобрать файл — проверь заголовки Date/Spend/Reg');
 
@@ -2202,7 +2451,9 @@ function renderCsvUploadCard(proj) {
   const presetOpts = presets.map((p, i) =>
     `<option value="${escHtml(p.value)}"${i === 0 ? ' selected' : ''}>${escHtml(p.label)}</option>`
   ).join('');
-  const hint = isQuadcodeProject(proj)
+  const hint = isHuppCsvOnly(proj)
+    ? 'Загрузите выгрузку Yandex Direct (CSV/XLSX). После загрузки автоматически запросим свежие цели из Метрики и сольём с расходом.'
+    : isQuadcodeProject(proj)
     ? 'Можно грузить несколько CSV/XLSX подряд — каждый файл сохраняется по хешу, данные сливаются по датам в лист месяца.'
     : isJgglProject(proj)
     ? '«Авто iOS / Android»: строки с android в названии кампании → Android, остальные → iOS. Месяц выбирается отдельно.'
@@ -2282,7 +2533,7 @@ function applyLocalCsvSources(list) {
 }
 
 function applyProjectDefaults(list) {
-  return applyLocalCsvSources(applyPlantoAutoSource(list));
+  return applyLocalCsvSources(applyHuppAutoSource(applyPlantoAutoSource(list)));
 }
 
 async function loadLocalCsvManifest(dir) {
@@ -2435,10 +2686,14 @@ function findPlantoColumns(headerRow) {
   return {
     dateCol: findDateCol(headers),
     spendCol: findSpendCol(headers),
-    installCol: findCol(headers, ['install', 'inst'], ['cost', 'цена', '/']),
-    trialCol: findCol(headers, ['trial'], ['cost', 'цена', '/', 'fb', 'inst', 'sold', 'продан']),
-    soldCol: findCol(headers, ['sold', 'продан'], ['cost', 'цена', '/']),
-    fbCol: findCol(headers, ['fb'], ['cost', 'цена', '/', 'trial']),
+    installCol: findCol(headers, ['install', 'inst', 'visit'], ['cost', 'цена', '/']),
+    trialCol: findCol(headers, ['trial', 'reach_pay'], ['cost', 'цена', '/', 'fb', 'inst', 'sold', 'продан']),
+    soldCol: findCol(headers, ['sold', 'продан', 'pay_submit'], ['cost', 'цена', '/']),
+    fbCol: findCol(headers, ['fb', 'view_pay'], ['cost', 'цена', '/', 'trial']),
+    purchaseCol: findCol(headers, ['purchase'], ['cost', 'цена', '/']),
+    contactInfoCol: findCol(headers, ['contact_info'], ['cost', 'цена', '/']),
+    formSubmitCol: findCol(headers, ['form_submit'], ['cost', 'цена', '/']),
+    contactSentCol: findCol(headers, ['contact_sent'], ['cost', 'цена', '/']),
     clicksCol: findCol(headers, ['click'], ['ctr']),
     impressionsCol: findCol(headers, ['impression', 'impress'], []),
   };
@@ -2461,6 +2716,10 @@ function parsePlantoRows(rows) {
       sold: cols.soldCol >= 0 ? parseNum(r[cols.soldCol]) : 0,
       fb: cols.fbCol >= 0 ? parseNum(r[cols.fbCol]) : 0,
     };
+    if (cols.purchaseCol >= 0) obj.purchase = parseNum(r[cols.purchaseCol]);
+    if (cols.contactInfoCol >= 0) obj.contact_info = parseNum(r[cols.contactInfoCol]);
+    if (cols.formSubmitCol >= 0) obj.form_submit = parseNum(r[cols.formSubmitCol]);
+    if (cols.contactSentCol >= 0) obj.contact_sent = parseNum(r[cols.contactSentCol]);
     if (cols.impressionsCol >= 0) obj.impressions = parseNum(r[cols.impressionsCol]);
     if (cols.clicksCol >= 0) obj.clicks = parseNum(r[cols.clicksCol]);
     return hasData(obj) ? obj : null;
@@ -2523,6 +2782,7 @@ function isPlantoSheet(headers) {
 
 function detectSheetType(headerRow) {
   const headers = (headerRow || []).map(h => (h || '').toLowerCase().trim());
+  if (findCol(headers, ['reach_pay', 'view_pay', 'pay_submit', 'contact_info', 'contact_sent'], []) >= 0) return 'hupp';
   if (isPlantoSheet(headers)) return 'planto';
   const hasSpend = findSpendCol(headers) >= 0;
   const hasImpressions = findCol(headers, ['impression', 'impress'], []) >= 0;
@@ -2712,6 +2972,7 @@ function parseSheet(text) {
   const rows = parseCSV(text);
   if (!rows.length) return [];
   const t = detectSheetType(rows[0]);
+  if (t === 'hupp')     return parsePlantoRows(rows);
   if (t === 'planto')   return parsePlantoRows(rows);
   if (t === 'quadcode') return parseQuadcodeRows(rows);
   if (t === 'campaign') return parseCampaignRows(rows);
@@ -2722,6 +2983,7 @@ function parseSheet(text) {
 function detectTypeFromRows(rows) {
   if (!rows?.length) return 'generic';
   const s = rows[0];
+  if ('purchase' in s || 'contact_info' in s || 'form_submit' in s || 'contact_sent' in s) return 'hupp';
   if ('installs' in s && ('trials' in s || 'fb' in s)) return 'planto';
   if ('installs' in s && !('regs' in s) && !('qregs' in s)) return 'planto';
   if ('impressions' in s || 'clicks' in s) return 'campaign';
@@ -2735,6 +2997,7 @@ function detectTypeFromRows(rows) {
 }
 
 function getEffectiveType(proj, rows) {
+  if (isHuppProject(proj)) return 'hupp';
   if (proj.sheetColumns?.length) return detectSheetType(proj.sheetColumns);
   if (rows?.length) return detectTypeFromRows(rows);
   return proj.type && proj.type !== 'auto' ? proj.type : 'generic';
@@ -2806,6 +3069,9 @@ function resolveFeedFetchUrl(url) {
   if (url === PLANTO_META_URL || String(url).includes('planto-meta.json')) return resolvePlantoFeedUrl(PLANTO_META_URL);
   if (url === PLANTO_COHORT_URL || String(url).includes('planto-cohort.json')) return resolvePlantoFeedUrl(PLANTO_COHORT_URL);
   if (url === PLANTO_PRODUCT_URL || String(url).includes('planto-product.json')) return resolvePlantoFeedUrl(PLANTO_PRODUCT_URL);
+  if (url === HUPP_DATA_URL || String(url).includes('hupp-daily.csv')) return resolvePlantoFeedUrl(HUPP_DATA_URL);
+  if (url === HUPP_META_URL || String(url).includes('hupp-meta.json')) return resolvePlantoFeedUrl(HUPP_META_URL);
+  if (url === HUPP_START_CSV_URL || String(url).includes('hupp-start.csv')) return resolvePlantoFeedUrl(HUPP_START_CSV_URL);
   return url;
 }
 
@@ -2961,6 +3227,35 @@ async function fetchMultiSourcesMonthly(sourceDefs, monthly) {
 
 async function fetchProject(proj) {
   const uploaded = expandUploadedSourcesByMonth(getUploadedCsvSources(proj), proj);
+
+  if (isHuppCsvOnly(proj)) {
+    const metrikaRows = await fetchHuppMetrikaDailyRows();
+    let directRows = collectHuppDirectRows(proj);
+    if (!directRows.length) {
+      try {
+        const text = await fetchWithFallback(HUPP_START_CSV_URL);
+        directRows = directSpendRowsFromUploadText(text);
+      } catch (_) {}
+    }
+    const rows = mergeMetrikaWithDirectSpend(metrikaRows, directRows);
+    const csvMeta = getHuppCsvUploadMeta(proj);
+    return {
+      sources: [{
+        id: 'csv',
+        label: 'Metrika + Direct',
+        url: HUPP_DATA_URL,
+        rows,
+        sheetColumns: [
+          'date', 'spend', 'installs', 'trials', 'sold', 'fb', 'purchase',
+          'contact_info', 'form_submit', 'contact_sent', 'clicks', 'impressions',
+        ],
+        uploaded: !!csvMeta,
+        fileName: csvMeta?.fileName || '',
+        uploadedAt: csvMeta?.uploadedAt || null,
+      }],
+    };
+  }
+
   const sourceDefs = (await getProjectSourcesWithLocalCsv(proj))
     .filter(s => !String(s.url || '').startsWith('upload://'));
   const monthly = (proj.monthlySheets || []).filter(ms => ms.month && ms.url);
@@ -3109,6 +3404,128 @@ async function fetchPlantoCohort() {
     if (!resp.ok) return null;
     return await resp.json();
   } catch(e) { console.warn('Cohort fetch failed:', e.message); return null; }
+}
+
+async function fetchHuppMeta() {
+  try {
+    const resp = await fetch(bustFeedUrl(resolvePlantoFeedUrl(HUPP_META_URL)), { cache: 'no-store' });
+    if (!resp.ok) return null;
+    return await resp.json();
+  } catch (e) { return null; }
+}
+
+async function loadWorkerConfig() {
+  if (workerConfigCache) return workerConfigCache;
+  try {
+    const raw = await jbLoadRaw();
+    workerConfigCache = raw.find(p => p?.id === '_worker') || {};
+  } catch (e) {
+    console.warn('Worker config load failed:', e.message || e);
+    workerConfigCache = {};
+  }
+  return workerConfigCache;
+}
+
+async function getGithubDispatchToken() {
+  const cfg = await loadWorkerConfig();
+  return cfg.githubDispatchToken || cfg.huppFeedDispatchToken || '';
+}
+
+async function dispatchHuppFeedWorkflow() {
+  if (isLocalDashboard()) return { ok: false, skipped: true, reason: 'local' };
+  const token = await getGithubDispatchToken();
+  if (!token) return { ok: false, skipped: true, reason: 'no_token' };
+  try {
+    const url = `https://api.github.com/repos/${PLANTO_GH_REPO}/actions/workflows/${HUPP_FEED_WORKFLOW}/dispatches`;
+    const resp = await fetchWithTimeout(fetch(url, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${token}`,
+        'X-GitHub-Api-Version': '2022-11-28',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ref: PLANTO_GH_BRANCH }),
+    }), 15000);
+    if (resp.status === 204) return { ok: true };
+    const body = await resp.text();
+    return { ok: false, reason: `GitHub ${resp.status}: ${body.slice(0, 180)}` };
+  } catch (e) {
+    return { ok: false, reason: e.message || String(e) };
+  }
+}
+
+async function triggerHuppFeedAndWait({ dispatch = false } = {}) {
+  if (!projects.some(p => isHuppProject(p))) return null;
+  const prevUntil = huppMetaCache?.until || '';
+  const prevGen = huppMetaCache?.generated_at || '';
+  const prevRef = plantoFeedRef;
+  const local = isLocalDashboard();
+
+  if (dispatch && !local) {
+    const dispatched = await dispatchHuppFeedWorkflow();
+    if (dispatched.skipped && dispatched.reason === 'no_token') {
+      lastHuppFeedRefresh = {
+        ok: false,
+        fresh: false,
+        message: 'Нет githubDispatchToken в JSONBin _worker — Metrika обновится по cron или вручную в Actions',
+        at: Date.now(),
+      };
+      return lastHuppFeedRefresh;
+    }
+    if (!dispatched.ok && !dispatched.skipped) {
+      lastHuppFeedRefresh = {
+        ok: false,
+        fresh: false,
+        message: dispatched.reason || 'Не удалось запустить hupp-feed',
+        at: Date.now(),
+      };
+      return lastHuppFeedRefresh;
+    }
+    if (dispatched.ok) await sleep(8000);
+  }
+
+  await refreshPlantoFeedRef();
+
+  let fresh = false;
+  let meta = null;
+  const deadline = Date.now() + (local || !dispatch ? 4000 : 90000);
+  const pollMs = local ? 500 : 3000;
+  while (Date.now() < deadline) {
+    if (!local) await refreshPlantoFeedRef();
+    meta = await fetchHuppMeta();
+    if (meta) {
+      huppMetaCache = meta;
+      fresh = (meta.generated_at && meta.generated_at !== prevGen)
+        || (meta.until && meta.until !== prevUntil)
+        || (!local && plantoFeedRef !== prevRef);
+      if (fresh || local || !dispatch) break;
+    }
+    if (Date.now() + pollMs >= deadline) break;
+    await sleep(pollMs);
+  }
+
+  if (!meta) {
+    lastHuppFeedRefresh = {
+      ok: false,
+      fresh: false,
+      message: local
+        ? 'Не удалось прочитать data/hupp-meta.json — запусти локальный сервер из корня репо'
+        : 'Не удалось прочитать hupp-meta.json из GitHub',
+      at: Date.now(),
+    };
+    return lastHuppFeedRefresh;
+  }
+
+  lastHuppFeedRefresh = {
+    ok: true,
+    fresh,
+    message: fresh
+      ? `Metrika обновлена · until ${meta.until || '—'}`
+      : `Срез Metrika · until ${meta.until || '—'}${dispatch ? ' (ожидание commit…)' : ''}`,
+    at: Date.now(),
+  };
+  return lastHuppFeedRefresh;
 }
 
 async function triggerPlantoFeedAndWait() {
@@ -3308,7 +3725,9 @@ async function loadAll() {
   renderTopbar();
   renderContent();
   await refreshPlantoFeedRef();
+  await ensureHuppStartCsvSeed();
   plantoMetaCache = await fetchPlantoMeta();
+  huppMetaCache = await fetchHuppMeta();
   plantoCohortCache = await fetchPlantoCohort();
   plantoProductCache = await fetchPlantoProduct();
   if (!plantoProductCache && plantoMetaCache?.product) {
@@ -3330,7 +3749,11 @@ async function refreshData() {
   const btn = document.getElementById('btn-refresh');
   btn.classList.add('spinning'); btn.disabled = true;
   try {
-    await triggerPlantoFeedAndWait();
+    if (view === 'hupp') {
+      await triggerHuppFeedAndWait({ dispatch: false });
+    } else {
+      await triggerPlantoFeedAndWait();
+    }
     await loadAll();
   } finally {
     btn.classList.remove('spinning'); btn.disabled = false;
@@ -3361,7 +3784,7 @@ function isPlantoProject(proj, rows) {
   if (!proj) return false;
   // Явные проекты не должны «перетекать» в Planto из-за эвристик по колонкам.
   if (proj.id === 'planto') return true;
-  if (proj.id === 'quadcode' || proj.id === 'streamfi') return false;
+  if (proj.id === 'quadcode' || proj.id === 'streamfi' || isHuppProject(proj)) return false;
   return getEffectiveType(proj, rows) === 'planto';
 }
 
@@ -3684,6 +4107,23 @@ function getOverviewDailyMetrics(proj, data) {
     };
   }
   const dayRows = [info.row];
+  if (isHuppProject(proj)) {
+    const r = info.row;
+    const dateLabel = r.dateStr || fmtDateStr(r.date);
+    return {
+      note: info.isToday ? `Сегодня · ${dateLabel} · Яндекс Метрика` : `Последний день · ${dateLabel}`,
+      metrics: [
+        { key: 'today_installs', label: 'Visits', value: fmtInt(r.installs), live: true, sub: 'визиты' },
+        { key: 'today_trials', label: 'Reach pay', value: fmtInt(r.trials), live: true, sub: 'клик к оплате' },
+        { key: 'today_fb', label: 'View pay', value: fmtInt(r.fb), live: true, sub: 'форма на экране' },
+        { key: 'today_sold', label: 'Pay submit', value: fmtInt(r.sold), live: true, sub: 'переход в ЮKassa' },
+        { key: 'today_purchase', label: 'Purchase', value: fmtInt(r.purchase), live: true, sub: 'успешная оплата' },
+        { key: 'today_contact_info', label: 'Contact info', value: fmtInt(r.contact_info), live: true, sub: 'заполнил контакты' },
+        { key: 'today_form_submit', label: 'Form submit', value: fmtInt(r.form_submit), live: true, sub: 'отправил форму' },
+        { key: 'today_contact_sent', label: 'Contact sent', value: fmtInt(r.contact_sent), live: true, sub: 'контакты отправлены' },
+      ],
+    };
+  }
   const srcProj = withEffectiveType(proj, dayRows);
   const metrics = getMetrics(srcProj, dayRows)
     .slice(0, 8)
@@ -4008,6 +4448,25 @@ const METRIC_CATALOG = {
     { key: 'cr_trial_paid', label: 'Trial → Paid', accent: false },
     { key: 'roas', label: 'ROAS', accent: true },
   ],
+  hupp: [
+    { key: 'spend', label: 'Spend', accent: false },
+    { key: 'installs', label: 'Visits', accent: false },
+    { key: 'cost_install', label: 'Cost / Visit', accent: true },
+    { key: 'trials', label: 'Reach pay', accent: false },
+    { key: 'cost_trial', label: 'Cost / Reach pay', accent: true },
+    { key: 'fb', label: 'View pay', accent: false },
+    { key: 'sold', label: 'Pay submit', accent: false },
+    { key: 'cost_sold', label: 'Cost / Pay submit', accent: true },
+    { key: 'purchase', label: 'Purchase', accent: false },
+    { key: 'cost_purchase', label: 'Cost / Purchase', accent: true },
+    { key: 'contact_info', label: 'Contact info', accent: false },
+    { key: 'form_submit', label: 'Form submit', accent: false },
+    { key: 'contact_sent', label: 'Contact sent', accent: false },
+    { key: 'clicks', label: 'Clicks', accent: false },
+    { key: 'impressions', label: 'Impressions', accent: false },
+    { key: 'cpc', label: 'CPC', accent: true },
+    { key: 'ctr', label: 'CTR', accent: false },
+  ],
   quadcode: [
     { key: 'spend', label: 'Total Spend', accent: false },
     { key: 'regs', label: 'Registrations', accent: false },
@@ -4070,12 +4529,20 @@ function computeMetricValue(key, type, rows, cur) {
     case 'regs': return fmtInt(sum(rows, 'regs'));
     case 'qregs': return fmtInt(sum(rows, 'qregs'));
     case 'purchases': return fmtInt(sum(rows, 'purchases'));
+    case 'purchase': return fmtInt(sum(rows, 'purchase'));
+    case 'contact_info': return fmtInt(sum(rows, 'contact_info'));
+    case 'form_submit': return fmtInt(sum(rows, 'form_submit'));
+    case 'contact_sent': return fmtInt(sum(rows, 'contact_sent'));
     case 'impressions': return fmtInt(sum(rows, 'impressions'));
     case 'clicks': return fmtInt(sum(rows, 'clicks'));
     case 'cost_install': return ins ? fmtMoney(sp / ins, cur) : '—';
     case 'cost_trial': return tr ? fmtMoney(sp / tr, cur) : '—';
     case 'cost_reg': { const v = sum(rows, 'regs'); return v ? fmtMoney(sp / v, cur) : '—'; }
-    case 'cost_purchase': { const v = sum(rows, 'purchases'); return v ? fmtMoney(sp / v, cur) : '—'; }
+    case 'cost_purchase': {
+      const v = type === 'hupp' ? sum(rows, 'purchase') : sum(rows, 'purchases');
+      return v ? fmtMoney(sp / v, cur) : '—';
+    }
+    case 'cost_sold': { const v = sum(rows, 'sold'); return v ? fmtMoney(sp / v, cur) : '—'; }
     case 'cost_qreg': { const v = sum(rows, 'qregs'); return v ? fmtMoney(sp / v, cur) : '—'; }
     case 'cost_fb': return fb ? fmtMoney(sp / fb, cur) : '—';
     case 'cac': {
@@ -4160,12 +4627,14 @@ function isMetricRelevant(key, rows) {
   if (key === 'spend') return true;
   const field = {
     installs: 'installs', trials: 'trials', fb: 'fb', sold: 'sold', regs: 'regs', qregs: 'qregs',
-    purchases: 'purchases', impressions: 'impressions', clicks: 'clicks',
+    purchases: 'purchases', purchase: 'purchase', contact_info: 'contact_info',
+    form_submit: 'form_submit', contact_sent: 'contact_sent', impressions: 'impressions', clicks: 'clicks',
     cost_install: 'installs', cost_trial: 'trials', cost_reg: 'regs', cost_qreg: 'qregs',
-    cost_purchase: 'purchases', cost_fb: 'fb', cac: 'fb', cpc: 'clicks', cpm: 'impressions', ctr: 'impressions',
+    cost_sold: 'sold', cost_fb: 'fb', cac: 'fb', cpc: 'clicks', cpm: 'impressions', ctr: 'impressions',
     cr_install_trial: 'trials', cr_trial_paid: 'sold', roas: 'fb',
   }[key];
   if (key === 'conv_rate') return rows.some(r => 'regs' in r && 'qregs' in r);
+  if (key === 'cost_purchase') return rows.some(r => 'purchase' in r || 'purchases' in r);
   if (key === 'cr_install_trial') return rows.some(r => 'installs' in r && 'trials' in r);
   if (key === 'cr_trial_paid') return rows.some(r => 'trials' in r && ('sold' in r || 'fb' in r));
   if (key === 'cac') return rows.some(r => 'sold' in r || 'fb' in r);
@@ -4239,7 +4708,49 @@ function getTableConfig(proj, rows) {
   const L = (key, fb) => getMetricLabel(p, key, fb, rows);
   let tbl, colKeys;
 
-  if (type === 'planto') {
+  if (type === 'hupp') {
+    const hasSpend = rows?.some(r => (r.spend || 0) > 0);
+    const hasAds = rows?.some(r => (r.clicks || 0) > 0 || (r.impressions || 0) > 0);
+    colKeys = ['date'];
+    const headers = ['Дата'];
+    const rowCells = [(r) => r.dateStr];
+    const totalCells = [() => 'Итого'];
+    const pushCol = (key, label, cell, total) => {
+      colKeys.push(key);
+      headers.push(L(key, label));
+      rowCells.push(cell);
+      totalCells.push(total);
+    };
+    if (hasSpend) {
+      pushCol('spend', `Spend (${cur})`, r => fmtMoneyFull(r.spend || 0, cur), rs => fmtMoneyFull(sum(rs, 'spend'), cur));
+    }
+    pushCol('installs', 'Visits', r => fmtInt(r.installs), rs => fmtInt(sum(rs, 'installs')));
+    pushCol('trials', 'Reach pay', r => fmtInt(r.trials), rs => fmtInt(sum(rs, 'trials')));
+    pushCol('fb', 'View pay', r => fmtInt(r.fb), rs => fmtInt(sum(rs, 'fb')));
+    pushCol('sold', 'Pay submit', r => fmtInt(r.sold), rs => fmtInt(sum(rs, 'sold')));
+    pushCol('purchase', 'Purchase', r => fmtInt(r.purchase), rs => fmtInt(sum(rs, 'purchase')));
+    if (hasSpend) {
+      pushCol(
+        'cost_purchase',
+        'Cost / Purchase',
+        r => r.purchase ? fmtMoney(r.spend / r.purchase, cur) : '—',
+        rs => { const sp = sum(rs, 'spend'), pu = sum(rs, 'purchase'); return pu ? fmtMoney(sp / pu, cur) : '—'; },
+      );
+    }
+    pushCol('contact_info', 'Contact info', r => fmtInt(r.contact_info), rs => fmtInt(sum(rs, 'contact_info')));
+    pushCol('form_submit', 'Form submit', r => fmtInt(r.form_submit), rs => fmtInt(sum(rs, 'form_submit')));
+    pushCol('contact_sent', 'Contact sent', r => fmtInt(r.contact_sent), rs => fmtInt(sum(rs, 'contact_sent')));
+    if (hasAds) {
+      pushCol('clicks', 'Clicks', r => fmtInt(r.clicks), rs => fmtInt(sum(rs, 'clicks')));
+      pushCol('impressions', 'Impressions', r => fmtInt(r.impressions), rs => fmtInt(sum(rs, 'impressions')));
+    }
+    tbl = {
+      headers,
+      row: r => rowCells.map(fn => fn(r)),
+      total: rs => totalCells.map(fn => fn(rs)),
+      columnKeys: colKeys,
+    };
+  } else if (type === 'planto') {
     if (isPlantoAutoFeed(proj)) {
       const hasAds = rows?.some(r => (r.clicks || 0) > 0 || (r.impressions || 0) > 0);
       colKeys = ['date', 'spend', 'installs', 'cost_install', 'trials', 'cost_trial', 'sold', 'fb', 'cost_fb'];
@@ -5297,6 +5808,7 @@ function getPrimaryResult(type, rows) {
   if (type === 'campaign' || type === 'streamfi') return sum(rows, 'qregs');
   if (type === 'quadcode') return sum(rows, 'regs');
   if (type === 'planto') return sum(rows, 'installs');
+  if (type === 'hupp') return sum(rows, 'purchase');
   return 0;
 }
 
@@ -5712,7 +6224,7 @@ function renderProjectDetail(projId) {
 
   html += `<div class="table-card">
     <div class="table-header">
-      <span class="card-title">По дням — ${rows.length} строк${currentMonth ? ' · '+formatMonthKey(currentMonth) : ''}${plantoViewLabel ? ' · ' + escHtml(plantoViewLabel) : ''}${singleSrc?.label ? ' · ' + escHtml(singleSrc.label) : ''}${isPlanto && isPlantoAutoFeed(p) && plantoMetaCache?.generated_at ? ' <span class="feed-badge">auto</span>' : ''}${isPlanto && isPlantoAutoFeed(p) && plantoMetaCache?.generated_at ? ' <span class="feed-stamp">· обновлено ' + escHtml(new Date(plantoMetaCache.generated_at).toLocaleString('ru-RU')) + (plantoMetaCache.spend_today_estimated ? ' · спенд сегодня оценочный' : '') + '</span>' : ''}</span>
+      <span class="card-title">По дням — ${rows.length} строк${currentMonth ? ' · '+formatMonthKey(currentMonth) : ''}${plantoViewLabel ? ' · ' + escHtml(plantoViewLabel) : ''}${singleSrc?.label ? ' · ' + escHtml(singleSrc.label) : ''}${isPlanto && isPlantoAutoFeed(p) && plantoMetaCache?.generated_at ? ' <span class="feed-badge">auto</span>' : ''}${isPlanto && isPlantoAutoFeed(p) && plantoMetaCache?.generated_at ? ' <span class="feed-stamp">· обновлено ' + escHtml(new Date(plantoMetaCache.generated_at).toLocaleString('ru-RU')) + (plantoMetaCache.spend_today_estimated ? ' · спенд сегодня оценочный' : '') + '</span>' : ''}${isHuppCsvOnly(p) && huppMetaCache?.generated_at ? ' <span class="feed-badge">metrika</span> <span class="feed-stamp">· Metrika ' + escHtml(new Date(huppMetaCache.generated_at).toLocaleString('ru-RU')) + '</span>' : ''}${isHuppCsvOnly(p) && getHuppCsvUploadMeta(p)?.uploadedAt ? ' <span class="feed-badge">csv</span> <span class="feed-stamp">· Direct ' + escHtml(new Date(getHuppCsvUploadMeta(p).uploadedAt).toLocaleString('ru-RU')) + '</span>' : ''}</span>
     </div>
     ${renderDailyTableHtml(p, rows, tbl)}
   </div>`;

@@ -104,6 +104,41 @@ python scripts/buyer-feed/__main__.py --work-dir /path/to/package
 
 ---
 
+## Hupp — Metrika + Direct CSV
+
+Проект Hupp в общем дашборде:
+
+- **Spend / Clicks / Impressions** — из загруженного CSV Yandex Direct (в Admin → «Загрузить CSV»);
+- **Visits и цели** — из `data/hupp-daily.csv`, который обновляет GitHub Actions (`hupp-feed`).
+
+После загрузки CSV дашборд **запускает workflow `hupp-feed`** (Metrika) и ждёт свежий commit. Расход из API Директа не тянется.
+
+### GitHub Actions Secrets
+
+- `HUPP_METRIKA_OAUTH_TOKEN` — OAuth Метрики;
+- `HUPP_METRIKA_COUNTER_ID` — необязательно (в `config/hupp.json` уже `110726695`).
+
+### Триггер Metrika при загрузке CSV
+
+В JSONBin (запись `_worker`) добавьте PAT с правом `actions:write` на репозиторий:
+
+```json
+{ "id": "_worker", "githubDispatchToken": "ghp_..." }
+```
+
+Без токена CSV сохранится, но Metrika обновится только по cron (каждый час) или вручную в Actions → Hupp data feed → Run workflow.
+
+Локальный прогон Metrika-фида:
+
+```bash
+pip install -r scripts/hupp-feed/requirements.txt
+python3 scripts/hupp-feed/__main__.py --work-dir .
+```
+
+Настройки целей — `config/hupp.json`, статус последнего прогона — `data/hupp-meta.json`.
+
+---
+
 ## Траблшутинг
 
 - **`Payments (CSV fallback)` вместо `Supabase bills` в логе** → `SUPABASE_DB_URL` не подхватился. Проверь, что секрет задан именно там, откуда запускаешь (env для Action; `secrets.env` для локали), и что в строке есть пароль.
