@@ -3028,28 +3028,43 @@ function isLocalDashboard() {
 }
 
 let plantoFeedRef = PLANTO_GH_BRANCH;
+let huppFeedRef = PLANTO_GH_BRANCH;
 
-async function refreshPlantoFeedRef() {
+async function refreshGitFeedRef(path, setter, label) {
   if (isLocalDashboard()) return;
   try {
-    const apiUrl = `https://api.github.com/repos/${PLANTO_GH_REPO}/commits?path=data/planto-meta.json&sha=${PLANTO_GH_BRANCH}&per_page=1`;
+    const apiUrl = `https://api.github.com/repos/${PLANTO_GH_REPO}/commits?path=${encodeURIComponent(path)}&sha=${PLANTO_GH_BRANCH}&per_page=1`;
     const resp = await fetchWithTimeout(fetch(apiUrl, {
       headers: { Accept: 'application/vnd.github+json' },
       cache: 'no-store',
     }), 8000);
     if (!resp.ok) throw new Error(`GitHub API ${resp.status}`);
     const commits = await resp.json();
-    if (commits[0]?.sha) plantoFeedRef = commits[0].sha;
-  } catch(e) {
-    console.warn('Planto feed ref resolve failed:', e.message);
-    plantoFeedRef = PLANTO_GH_BRANCH;
+    if (commits[0]?.sha) setter(commits[0].sha);
+  } catch (e) {
+    console.warn(`${label} feed ref resolve failed:`, e.message);
+    setter(PLANTO_GH_BRANCH);
   }
+}
+
+async function refreshPlantoFeedRef() {
+  await refreshGitFeedRef('data/planto-meta.json', sha => { plantoFeedRef = sha; }, 'Planto');
+}
+
+async function refreshHuppFeedRef() {
+  await refreshGitFeedRef('data/hupp-meta.json', sha => { huppFeedRef = sha; }, 'Hupp');
 }
 
 function resolvePlantoFeedUrl(localPath) {
   if (isLocalDashboard()) return localPath;
   const rel = String(localPath || '').replace(/^\//, '');
   return `https://raw.githubusercontent.com/${PLANTO_GH_REPO}/${plantoFeedRef}/${rel}`;
+}
+
+function resolveHuppFeedUrl(localPath) {
+  if (isLocalDashboard()) return localPath;
+  const rel = String(localPath || '').replace(/^\//, '');
+  return `https://raw.githubusercontent.com/${PLANTO_GH_REPO}/${huppFeedRef}/${rel}`;
 }
 
 function bustFeedUrl(url) {
@@ -3064,14 +3079,14 @@ function isRepoDataUrl(url) {
 
 function resolveFeedFetchUrl(url) {
   if (!url) return url;
+  if (url === HUPP_DATA_URL || String(url).includes('hupp-daily.csv')) return resolveHuppFeedUrl(HUPP_DATA_URL);
+  if (url === HUPP_META_URL || String(url).includes('hupp-meta.json')) return resolveHuppFeedUrl(HUPP_META_URL);
+  if (url === HUPP_START_CSV_URL || String(url).includes('hupp-start.csv')) return resolveHuppFeedUrl(HUPP_START_CSV_URL);
   if (isRepoDataUrl(url)) return resolvePlantoFeedUrl(url.trim());
   if (url === PLANTO_DATA_URL || String(url).includes('planto-daily.csv')) return resolvePlantoFeedUrl(PLANTO_DATA_URL);
   if (url === PLANTO_META_URL || String(url).includes('planto-meta.json')) return resolvePlantoFeedUrl(PLANTO_META_URL);
   if (url === PLANTO_COHORT_URL || String(url).includes('planto-cohort.json')) return resolvePlantoFeedUrl(PLANTO_COHORT_URL);
   if (url === PLANTO_PRODUCT_URL || String(url).includes('planto-product.json')) return resolvePlantoFeedUrl(PLANTO_PRODUCT_URL);
-  if (url === HUPP_DATA_URL || String(url).includes('hupp-daily.csv')) return resolvePlantoFeedUrl(HUPP_DATA_URL);
-  if (url === HUPP_META_URL || String(url).includes('hupp-meta.json')) return resolvePlantoFeedUrl(HUPP_META_URL);
-  if (url === HUPP_START_CSV_URL || String(url).includes('hupp-start.csv')) return resolvePlantoFeedUrl(HUPP_START_CSV_URL);
   return url;
 }
 
@@ -3408,7 +3423,7 @@ async function fetchPlantoCohort() {
 
 async function fetchHuppMeta() {
   try {
-    const resp = await fetch(bustFeedUrl(resolvePlantoFeedUrl(HUPP_META_URL)), { cache: 'no-store' });
+    const resp = await fetch(bustFeedUrl(resolveHuppFeedUrl(HUPP_META_URL)), { cache: 'no-store' });
     if (!resp.ok) return null;
     return await resp.json();
   } catch (e) { return null; }
@@ -3459,7 +3474,7 @@ async function triggerHuppFeedAndWait({ dispatch = false } = {}) {
   if (!projects.some(p => isHuppProject(p))) return null;
   const prevUntil = huppMetaCache?.until || '';
   const prevGen = huppMetaCache?.generated_at || '';
-  const prevRef = plantoFeedRef;
+  const prevRef = huppFeedRef;
   const local = isLocalDashboard();
 
   if (dispatch && !local) {
@@ -3485,20 +3500,20 @@ async function triggerHuppFeedAndWait({ dispatch = false } = {}) {
     if (dispatched.ok) await sleep(8000);
   }
 
-  await refreshPlantoFeedRef();
+  await refreshHuppFeedRef();
 
   let fresh = false;
   let meta = null;
   const deadline = Date.now() + (local || !dispatch ? 4000 : 90000);
   const pollMs = local ? 500 : 3000;
   while (Date.now() < deadline) {
-    if (!local) await refreshPlantoFeedRef();
+    if (!local) await refreshHuppFeedRef();
     meta = await fetchHuppMeta();
     if (meta) {
       huppMetaCache = meta;
       fresh = (meta.generated_at && meta.generated_at !== prevGen)
         || (meta.until && meta.until !== prevUntil)
-        || (!local && plantoFeedRef !== prevRef);
+        || (!local && huppFeedRef !== prevRef);
       if (fresh || local || !dispatch) break;
     }
     if (Date.now() + pollMs >= deadline) break;
@@ -3725,6 +3740,7 @@ async function loadAll() {
   renderTopbar();
   renderContent();
   await refreshPlantoFeedRef();
+  await refreshHuppFeedRef();
   await ensureHuppStartCsvSeed();
   plantoMetaCache = await fetchPlantoMeta();
   huppMetaCache = await fetchHuppMeta();
