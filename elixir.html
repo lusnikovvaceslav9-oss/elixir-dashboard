@@ -1287,6 +1287,11 @@ function deserializeUploadRows(rows) {
 function mergeCsvUploadStores(local, remote) {
   const out = JSON.parse(JSON.stringify(remote || {}));
   Object.entries(local || {}).forEach(([projId, files]) => {
+    if (projId === 'hupp') {
+      if (files && Object.keys(files).length) out.hupp = JSON.parse(JSON.stringify(files));
+      else if (out.hupp) out.hupp = pruneHuppUploads(out.hupp);
+      return;
+    }
     if (!out[projId]) out[projId] = {};
     Object.entries(files || {}).forEach(([id, file]) => {
       const prev = out[projId][id];
@@ -1299,7 +1304,26 @@ function mergeCsvUploadStores(local, remote) {
       if (nextAt >= prevAt) out[projId][id] = file;
     });
   });
+  if (out.hupp && !local?.hupp) out.hupp = pruneHuppUploads(out.hupp);
   return out;
+}
+
+/** Hupp: в облаке/кеше держим только последний Direct CSV. */
+function pruneHuppUploads(files) {
+  const entries = Object.entries(files || {});
+  if (entries.length <= 1) return files || {};
+  const [id, file] = entries.sort((a, b) =>
+    String(b[1]?.uploadedAt || '').localeCompare(String(a[1]?.uploadedAt || ''))
+  )[0];
+  return id ? { [id]: file } : {};
+}
+
+function getLatestHuppUpload(map) {
+  const pruned = pruneHuppUploads(map || {});
+  const entries = Object.entries(pruned);
+  if (!entries.length) return null;
+  const [id, file] = entries[0];
+  return { id, ...file };
 }
 
 function uploadsForRemote(all) {
@@ -1338,6 +1362,7 @@ async function hydrateCsvUploadsFromRemote() {
   const remote = await jbLoadCsvUploads().catch(() => null);
   const local = loadCsvUploads();
   const merged = mergeCsvUploadStores(local, remote || {});
+  if (merged.hupp) merged.hupp = pruneHuppUploads(merged.hupp);
   if (JSON.stringify(merged) !== JSON.stringify(local)) {
     localStorage.setItem(CSV_UPLOAD_KEY, JSON.stringify(merged));
   }
@@ -1733,38 +1758,35 @@ function directSpendRowsToCsvText(rows) {
 }
 
 function collectHuppDirectRows(proj) {
-  const map = getProjectCsvUploads(proj?.id || 'hupp') || {};
+  const latest = getLatestHuppUpload(getProjectCsvUploads(proj?.id || 'hupp'));
+  if (!latest) return [];
   const fromUploads = [];
-  Object.values(map).forEach(u => {
-    if (u?.text) {
-      directSpendRowsFromUploadText(u.text).forEach(r => fromUploads.push(r));
-      return;
-    }
-    if (u?.rows?.length) {
-      deserializeUploadRows(u.rows).forEach(r => {
-        fromUploads.push({
-          date: r.date,
-          dateStr: r.dateStr || (r.date ? fmtDateStr(r.date) : ''),
-          spend: r.spend || 0,
-          clicks: r.clicks || 0,
-          impressions: r.impressions || 0,
-        });
+  if (latest.text) {
+    directSpendRowsFromUploadText(latest.text).forEach(r => fromUploads.push(r));
+  } else if (latest.rows?.length) {
+    deserializeUploadRows(latest.rows).forEach(r => {
+      fromUploads.push({
+        date: r.date,
+        dateStr: r.dateStr || (r.date ? fmtDateStr(r.date) : ''),
+        spend: r.spend || 0,
+        clicks: r.clicks || 0,
+        impressions: r.impressions || 0,
       });
-    }
-  });
+    });
+  }
   return aggregateRowsByDate(fromUploads);
 }
 
 function getHuppCsvUploadMeta(proj) {
-  const map = getProjectCsvUploads(proj?.id || 'hupp');
-  const list = Object.values(map || {});
-  if (!list.length) return null;
-  const latest = [...list].sort((a, b) => String(b.uploadedAt || '').localeCompare(String(a.uploadedAt || '')))[0];
-  const rows = list.reduce((n, u) => n + (u.rows?.length || 0), 0);
+  const latest = getLatestHuppUpload(getProjectCsvUploads(proj?.id || 'hupp'));
+  if (!latest) return null;
+  const rows = latest.rows?.length
+    ? latest.rows.length
+    : (latest.text ? directSpendRowsFromUploadText(latest.text).length : 0);
   return {
-    uploadedAt: latest?.uploadedAt || null,
-    fileName: latest?.fileName || '',
-    fileCount: list.length,
+    uploadedAt: latest.uploadedAt || null,
+    fileName: latest.fileName || '',
+    fileCount: 1,
     rowCount: rows,
   };
 }
