@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-07-17T20:53:54+00:00",
+  "generated_at": "2026-07-17T21:42:15+00:00",
   "anchor": "2026-06-05",
-  "until": "2026-07-17",
-  "window_start": "2026-07-08",
+  "until": "2026-07-18",
+  "window_start": "2026-07-09",
   "trial_attribution": "appmetrica_trial_started",
   "sources": {
     "spend": "direct_api",
@@ -17,7 +17,7 @@
     "product": "appmetrica_reporting"
   },
   "errors": [],
-  "days": 43,
+  "days": 44,
   "reconcile_diff": {
     "trials_total_old_csv": 120,
     "trials_total_new": 120,
@@ -25,8 +25,8 @@
   },
   "unit_economics": {
     "revenue_total": 65043,
-    "spend_total": 176753.47,
-    "active_users": 9118,
+    "spend_total": 176832.22,
+    "active_users": 9121,
     "active_payers": 32,
     "plus_active_users": 70,
     "trial_cancellations": 4,
@@ -50,9 +50,9 @@
     "paywall_cta_pct": 34.5,
     "care_engagement_pct": 3.7,
     "feature_activation": {
-      "scan_pct": 33.76,
+      "scan_pct": 33.75,
       "watering_pct": 2.25,
-      "ai_pct": 20.9
+      "ai_pct": 20.89
     },
     "retention": {
       "d1": null,
@@ -154,10 +154,10 @@
     "2026-07-17": 3
   },
   "trials_crosscheck_yesterday": {
-    "day": "2026-07-16",
-    "appmetrica": 2,
-    "supabase": 2,
-    "dashboard": 2,
+    "day": "2026-07-17",
+    "appmetrica": 3,
+    "supabase": 3,
+    "dashboard": 3,
     "note": "В дашборде trials = AppMetrica trial_started (уники). RuStore — сверка оплат."
   }
 }
