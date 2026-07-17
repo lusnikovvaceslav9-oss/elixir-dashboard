@@ -3802,8 +3802,8 @@ async function refreshData() {
 // METRICS / TABLE / CHART CONFIG PER TYPE
 // ═══════════════════════════════════════════════════════════════
 const PLANTO_VIEWS = {
-  summary:  { label: 'Все',      resultKey: 'installs', costKey: 'cost_install', keys: ['spend', 'installs', 'cost_install', 'clicks', 'cpc', 'ctr', 'trials', 'cost_trial', 'cr_install_trial', 'sold', 'fb', 'cost_fb', 'cac', 'cr_trial_paid', 'roas'] },
-  installs: { label: 'Installs', resultKey: 'installs', costKey: 'cost_install', keys: ['spend', 'installs', 'cost_install', 'clicks', 'cpc', 'ctr'] },
+  summary:  { label: 'Все',      resultKey: 'installs', costKey: 'cost_install', keys: ['spend', 'installs', 'cost_install', 'impressions', 'clicks', 'cpc', 'cpm', 'ctr', 'trials', 'cost_trial', 'cr_install_trial', 'sold', 'fb', 'cost_fb', 'cac', 'cr_trial_paid', 'roas'] },
+  installs: { label: 'Installs', resultKey: 'installs', costKey: 'cost_install', keys: ['spend', 'installs', 'cost_install', 'impressions', 'clicks', 'cpc', 'cpm', 'ctr'] },
   trials:   { label: 'Trials',   resultKey: 'trials',   costKey: 'cost_trial',  keys: ['spend', 'trials', 'cost_trial', 'cr_install_trial'] },
   fb:       { label: 'Bills',    resultKey: 'fb',       costKey: 'cost_fb',     keys: ['spend', 'fb', 'cost_fb', 'sold', 'cac', 'roas'] },
 };
@@ -3882,6 +3882,13 @@ function getPlantoOverviewDailyMetrics(proj) {
     { key: 'today_bills', label: 'Оплаты', value: fmtInt(bills), live: true, sub: sold ? `yearly→день триала (−7д): ${fmtInt(sold)}` : (cpb != null ? `Cost/Bill ${fmtMoney(cpb, cur)}` : 'к дню триала (−7д)') },
   ];
   if (clicks || impressions) {
+    metrics.push({
+      key: 'today_impressions',
+      label: 'Показы',
+      value: fmtInt(impressions),
+      live: true,
+      sub: 'Direct',
+    });
     metrics.push({
       key: 'today_ctr',
       label: 'CTR',
@@ -4264,6 +4271,7 @@ function renderPlantoTodayBlock(proj, allRows) {
   const cpb = bills ? spend / bills : null;
   const ctr = impressions ? (clicks / impressions * 100) : null;
   const cpc = clicks ? spend / clicks : null;
+  const cpm = impressions ? spend / impressions * 1000 : null;
   const cr = installs ? (trials / installs * 100) : null;
   const updated = plantoMetaCache?.generated_at
     ? new Date(plantoMetaCache.generated_at).toLocaleString('ru-RU')
@@ -4284,6 +4292,11 @@ function renderPlantoTodayBlock(proj, allRows) {
     plantoKpiCell('Оплаты', fmtInt(bills), {
       sub: sold ? `yearly: ${fmtInt(sold)}` : (cpb != null ? `Cost/Bill ${fmtMoney(cpb, cur)}` : 'за день'),
     }),
+    clicks || impressions
+      ? plantoKpiCell('Показы', fmtInt(impressions), {
+          sub: cpm != null ? `CPM ${fmtMoney(cpm, cur)}` : 'Direct',
+        })
+      : '',
     clicks || impressions
       ? plantoKpiCell('CTR / CPC', `${ctr != null ? fmtPct(ctr) : '—'} · ${cpc != null ? fmtMoney(cpc, cur) : '—'}`, {
           sub: `${fmtInt(clicks)} кликов`,
@@ -4331,6 +4344,7 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
     ? mature.trialToPaid
     : (tr ? ((sold || fb) / tr * 100) : null);
   const ctr = (hasAds && impressions) ? (clicks / impressions * 100) : null;
+  const cpm = (hasAds && impressions) ? (sp / impressions * 1000) : null;
   const cpi = ins ? (sp / ins) : null;
   const cpt = tr ? (sp / tr) : null;
   const cpc = (hasAds && clicks) ? (sp / clicks) : null;
@@ -4345,6 +4359,11 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
     plantoKpiCell('Расход', fmtMoney(sp, cur), { primary: true, sub: 'рекламный spend' }),
     plantoKpiCell('Установки', fmtInt(ins), { sub: 'AppMetrica' }),
     plantoKpiCell('CPI', cpi != null ? fmtMoney(cpi, cur) : '—', { accent: true, sub: 'стоимость установки' }),
+    hasAds
+      ? plantoKpiCell('Показы', fmtInt(impressions), {
+          sub: cpm != null ? `CPM ${fmtMoney(cpm, cur)}` : 'Direct',
+        })
+      : plantoKpiCell('Показы', 'скоро', { pending: true, sub: 'после обновления feed' }),
     hasAds
       ? plantoKpiCell('CTR', ctr != null ? fmtPct(ctr) : '—', {
           sub: `${fmtInt(clicks)} кликов`,
@@ -4795,8 +4814,8 @@ function getTableConfig(proj, rows) {
       let headers = ['Дата', `Spend (${cur})`, L('installs','Installs'), L('cost_install','CPI'),
         L('trials','Trials'), L('cost_trial','CPT'), L('sold','Продано'), L('fb','Paid'), L('cost_fb','Cost/Bill')];
       if (hasAds) {
-        colKeys = colKeys.concat(['clicks', 'cpc', 'ctr']);
-        headers = headers.concat(['Clicks', 'CPC', 'CTR']);
+        colKeys = colKeys.concat(['impressions', 'clicks', 'cpc', 'cpm', 'ctr']);
+        headers = headers.concat(['Показы', 'Clicks', 'CPC', 'CPM', 'CTR']);
       }
       tbl = {
         headers,
@@ -4811,8 +4830,10 @@ function getTableConfig(proj, rows) {
           if (!hasAds) return base;
           const cl = r.clicks || 0, imp = r.impressions || 0;
           return base.concat([
+            fmtInt(imp),
             fmtInt(cl),
             cl ? fmtMoney(r.spend / cl, cur) : '—',
+            imp ? fmtMoney(r.spend / imp * 1000, cur) : '—',
             imp ? fmtPct(cl / imp * 100) : '—',
           ]);
         },
@@ -4823,8 +4844,10 @@ function getTableConfig(proj, rows) {
           if (!hasAds) return base;
           const cl = sum(rows, 'clicks'), imp = sum(rows, 'impressions');
           return base.concat([
+            fmtInt(imp),
             fmtInt(cl),
             cl ? fmtMoney(sp / cl, cur) : '—',
+            imp ? fmtMoney(sp / imp * 1000, cur) : '—',
             imp ? fmtPct(cl / imp * 100) : '—',
           ]);
         },
