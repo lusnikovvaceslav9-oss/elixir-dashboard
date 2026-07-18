@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-18T14:16:10+00:00",
+  "generated_at": "2026-07-18T15:44:50+00:00",
   "anchor": "2026-06-05",
   "until": "2026-07-18",
   "window_start": "2026-07-09",
@@ -24,36 +24,36 @@
     "delta": 0
   },
   "unit_economics": {
-    "revenue_total": 65043,
-    "spend_total": 178692.55,
-    "active_users": 9222,
-    "active_payers": 32,
-    "plus_active_users": 71,
+    "revenue_total": 67533,
+    "spend_total": 178950.61,
+    "active_users": 9234,
+    "active_payers": 33,
+    "plus_active_users": 70,
     "trial_cancellations": 5,
     "trial_cancellations_by_day": {
       "2026-07-12": 2,
       "2026-07-16": 2,
       "2026-07-18": 1
     },
-    "renewals": 21,
-    "arpu": 7.05,
-    "arppu": 2032.59,
-    "ltv": 3366.48,
+    "renewals": 22,
+    "arpu": 7.31,
+    "arppu": 2046.45,
+    "ltv": 3410.75,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
     "roas_d7": 40.6,
     "roas_d14": 34.8,
     "roas_d30": 73.5
   },
   "product": {
-    "garden_activation_pct": 31.5,
+    "garden_activation_pct": 31.49,
     "garden_avg_plants": 1.72,
     "garden_depth_icp_pct": null,
-    "paywall_cta_pct": 34.57,
-    "care_engagement_pct": 3.72,
+    "paywall_cta_pct": 34.61,
+    "care_engagement_pct": 3.73,
     "feature_activation": {
-      "scan_pct": 33.76,
+      "scan_pct": 33.79,
       "watering_pct": 2.23,
-      "ai_pct": 21.07
+      "ai_pct": 21.11
     },
     "retention": {
       "d1": null,
@@ -64,19 +64,19 @@
   },
   "payments_by_plan": {
     "yearly": {
-      "count": 25,
-      "rub": 62250
+      "count": 26,
+      "rub": 64740
     },
     "monthly": {
       "count": 7,
       "rub": 2793
     },
     "total": {
-      "count": 32,
-      "rub": 65043
+      "count": 33,
+      "rub": 67533
     }
   },
-  "trials_sb_crosscheck_total": 108,
+  "trials_sb_crosscheck_total": 107,
   "trials_sb_crosscheck_by_day": {
     "2026-06-07": 1,
     "2026-06-08": 1,
@@ -89,7 +89,7 @@
     "2026-06-18": 2,
     "2026-06-19": 4,
     "2026-06-20": 5,
-    "2026-06-21": 5,
+    "2026-06-21": 4,
     "2026-06-22": 2,
     "2026-06-24": 3,
     "2026-06-25": 2,
