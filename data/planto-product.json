@@ -1,41 +1,41 @@
 {
-  "generated_at": "2026-07-19T07:59:24+00:00",
+  "generated_at": "2026-07-19T09:52:47+00:00",
   "anchor": "2026-06-05",
   "until": "2026-07-19",
   "product": {
     "from": "2026-06-05",
     "to": "2026-07-19",
-    "installs": 9141,
-    "active_users": 9313,
+    "installs": 9161,
+    "active_users": 0,
     "events": {
       "plant_added": {
-        "users": 2872,
-        "events": 4957,
-        "vs_install_pct": 31.42,
+        "users": 2876,
+        "events": 4964,
+        "vs_install_pct": 31.39,
         "avg_per_user": 1.73
       },
       "paywall_shown": {
-        "users": 7044,
-        "events": 10760,
-        "vs_install_pct": 77.06,
-        "avg_per_user": 1.53
+        "users": 0,
+        "events": 0,
+        "vs_install_pct": null,
+        "avg_per_user": null
       },
       "paywall_cta_clicked": {
-        "users": 2444,
-        "events": 3434,
-        "vs_install_pct": 26.74,
-        "avg_per_user": 1.41
+        "users": 0,
+        "events": 0,
+        "vs_install_pct": null,
+        "avg_per_user": null
       },
       "user_score5": {
         "users": 342,
         "events": 344,
-        "vs_install_pct": 3.74,
+        "vs_install_pct": 3.73,
         "avg_per_user": 1.01
       },
       "chat_message_sent": {
         "users": 220,
-        "events": 450,
-        "vs_install_pct": 2.41,
+        "events": 451,
+        "vs_install_pct": 2.4,
         "avg_per_user": 2.05
       },
       "watering_configured": {
@@ -45,40 +45,40 @@
         "avg_per_user": 2.06
       },
       "watering_marked": {
-        "users": 77,
-        "events": 556,
-        "vs_install_pct": 0.84,
-        "avg_per_user": 7.22
+        "users": 78,
+        "events": 558,
+        "vs_install_pct": 0.85,
+        "avg_per_user": 7.15
       },
       "ai_route": {
-        "users": 1944,
-        "events": 12271,
-        "vs_install_pct": 21.27,
-        "avg_per_user": 6.31
+        "users": 0,
+        "events": 0,
+        "vs_install_pct": null,
+        "avg_per_user": null
       },
       "scan_success": {
-        "users": 3091,
-        "events": 8952,
-        "vs_install_pct": 33.81,
-        "avg_per_user": 2.9
+        "users": 0,
+        "events": 0,
+        "vs_install_pct": null,
+        "avg_per_user": null
       },
       "user_activated": {
-        "users": 7231,
-        "events": 9267,
-        "vs_install_pct": 79.11,
-        "avg_per_user": 1.28
+        "users": 0,
+        "events": 0,
+        "vs_install_pct": null,
+        "avg_per_user": null
       }
     },
-    "garden_activation_pct": 31.42,
+    "garden_activation_pct": 31.39,
     "garden_avg_plants": 1.73,
     "garden_depth_icp_pct": null,
-    "paywall_cta_pct": 34.7,
-    "care_engagement_pct": 3.74,
-    "chat_per_plant_pct": 7.66,
+    "paywall_cta_pct": null,
+    "care_engagement_pct": 3.73,
+    "chat_per_plant_pct": 7.65,
     "feature_activation": {
-      "scan_pct": 33.81,
+      "scan_pct": 0.0,
       "watering_pct": 2.25,
-      "ai_pct": 21.27
+      "ai_pct": 0.0
     },
     "retention": {
       "d1": null,
@@ -86,12 +86,19 @@
       "d7": null,
       "note": "AppMetrica Reporting API не отдаёт D1/D3/D7 без Logs/Retention export"
     },
-    "errors": []
+    "errors": [
+      "paywall_shown: AppMetrica HTTP 503: Service unavailable",
+      "paywall_cta_clicked: AppMetrica HTTP 503: Service unavailable",
+      "ai_route: AppMetrica HTTP 503: Service unavailable",
+      "scan_success: AppMetrica HTTP 503: Service unavailable",
+      "user_activated: AppMetrica HTTP 503: Service unavailable",
+      "active_users: AppMetrica HTTP 503: Service unavailable"
+    ]
   },
   "unit_economics": {
     "revenue_total": 67533,
-    "spend_total": 179995.5,
-    "active_users": 9313,
+    "spend_total": 180299.98,
+    "active_users": 0,
     "active_payers": 33,
     "plus_active_users": 69,
     "trial_cancellations": 4,
@@ -101,7 +108,7 @@
       "2026-07-18": 1
     },
     "renewals": 22,
-    "arpu": 7.25,
+    "arpu": null,
     "arppu": 2046.45,
     "ltv": 3410.75,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
