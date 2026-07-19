@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-19T22:41:41+00:00",
+  "generated_at": "2026-07-19T23:48:07+00:00",
   "anchor": "2026-06-05",
   "until": "2026-07-20",
   "window_start": "2026-07-11",
@@ -20,22 +20,22 @@
   "days": 46,
   "reconcile_diff": {
     "trials_total_old_csv": 121,
-    "trials_total_new": 121,
-    "delta": 0
+    "trials_total_new": 122,
+    "delta": 1
   },
   "unit_economics": {
     "revenue_total": 67134,
-    "spend_total": 181428.61,
-    "active_users": 9409,
+    "spend_total": 181456.65,
+    "active_users": 9413,
     "active_payers": 32,
-    "plus_active_users": 65,
+    "plus_active_users": 66,
     "trial_cancellations": 3,
     "trial_cancellations_by_day": {
       "2026-07-18": 1,
       "2026-07-19": 2
     },
     "renewals": 22,
-    "arpu": 7.14,
+    "arpu": 7.13,
     "arppu": 2097.94,
     "ltv": 3540.27,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
@@ -47,11 +47,11 @@
     "garden_activation_pct": 31.25,
     "garden_avg_plants": 1.73,
     "garden_depth_icp_pct": null,
-    "paywall_cta_pct": 34.86,
+    "paywall_cta_pct": 34.88,
     "care_engagement_pct": 3.77,
     "feature_activation": {
       "scan_pct": 33.63,
-      "watering_pct": 2.25,
+      "watering_pct": 2.26,
       "ai_pct": 21.22
     },
     "retention": {
@@ -75,7 +75,7 @@
       "rub": 67134
     }
   },
-  "trials_sb_crosscheck_total": 106,
+  "trials_sb_crosscheck_total": 107,
   "trials_sb_crosscheck_by_day": {
     "2026-06-07": 1,
     "2026-06-08": 1,
@@ -113,9 +113,10 @@
     "2026-07-16": 2,
     "2026-07-17": 3,
     "2026-07-18": 1,
-    "2026-07-19": 1
+    "2026-07-19": 1,
+    "2026-07-20": 1
   },
-  "trials_am_crosscheck_total": 121,
+  "trials_am_crosscheck_total": 122,
   "trials_am_crosscheck_by_day": {
     "2026-06-05": 2,
     "2026-06-07": 1,
@@ -154,7 +155,8 @@
     "2026-07-15": 2,
     "2026-07-16": 2,
     "2026-07-17": 3,
-    "2026-07-19": 1
+    "2026-07-19": 1,
+    "2026-07-20": 1
   },
   "trials_crosscheck_yesterday": {
     "day": "2026-07-19",
