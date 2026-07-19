@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-19T05:12:34+00:00",
+  "generated_at": "2026-07-19T07:59:24+00:00",
   "anchor": "2026-06-05",
   "until": "2026-07-19",
   "window_start": "2026-07-10",
@@ -20,23 +20,23 @@
   "days": 45,
   "reconcile_diff": {
     "trials_total_old_csv": 120,
-    "trials_total_new": 120,
-    "delta": 0
+    "trials_total_new": 121,
+    "delta": 1
   },
   "unit_economics": {
     "revenue_total": 67533,
-    "spend_total": 179665.56,
-    "active_users": 9287,
+    "spend_total": 179995.5,
+    "active_users": 9313,
     "active_payers": 33,
     "plus_active_users": 69,
-    "trial_cancellations": 5,
+    "trial_cancellations": 4,
     "trial_cancellations_by_day": {
       "2026-07-12": 2,
-      "2026-07-16": 2,
+      "2026-07-16": 1,
       "2026-07-18": 1
     },
     "renewals": 22,
-    "arpu": 7.27,
+    "arpu": 7.25,
     "arppu": 2046.45,
     "ltv": 3410.75,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
@@ -46,14 +46,14 @@
   },
   "product": {
     "garden_activation_pct": 31.42,
-    "garden_avg_plants": 1.72,
+    "garden_avg_plants": 1.73,
     "garden_depth_icp_pct": null,
-    "paywall_cta_pct": 34.65,
+    "paywall_cta_pct": 34.7,
     "care_engagement_pct": 3.74,
     "feature_activation": {
-      "scan_pct": 33.8,
+      "scan_pct": 33.81,
       "watering_pct": 2.25,
-      "ai_pct": 21.21
+      "ai_pct": 21.27
     },
     "retention": {
       "d1": null,
@@ -76,7 +76,7 @@
       "rub": 67533
     }
   },
-  "trials_sb_crosscheck_total": 105,
+  "trials_sb_crosscheck_total": 106,
   "trials_sb_crosscheck_by_day": {
     "2026-06-07": 1,
     "2026-06-08": 1,
@@ -113,9 +113,10 @@
     "2026-07-15": 2,
     "2026-07-16": 2,
     "2026-07-17": 3,
-    "2026-07-18": 1
+    "2026-07-18": 1,
+    "2026-07-19": 1
   },
-  "trials_am_crosscheck_total": 120,
+  "trials_am_crosscheck_total": 121,
   "trials_am_crosscheck_by_day": {
     "2026-06-05": 2,
     "2026-06-07": 1,
@@ -153,7 +154,8 @@
     "2026-07-13": 1,
     "2026-07-15": 2,
     "2026-07-16": 2,
-    "2026-07-17": 3
+    "2026-07-17": 3,
+    "2026-07-19": 1
   },
   "trials_crosscheck_yesterday": {
     "day": "2026-07-18",
