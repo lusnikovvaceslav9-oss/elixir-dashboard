@@ -115,7 +115,7 @@ body{
 @media(max-width:768px){
   .topbar{padding:0 14px}
   .brand-name{display:none}
-  .page-title{font-size:15px;max-width:120px}
+  .page-title{font-size:15px;max-width:min(42vw,220px)}
   .proj-picker-trigger{max-width:160px;padding:0 8px 0 10px}
   .proj-picker-label{display:none}
   .topbar-right .btn-refresh .btn-label{display:none}
@@ -1297,7 +1297,9 @@ function mergeCsvUploadStores(local, remote) {
       }
       const prevAt = String(prev.uploadedAt || '');
       const nextAt = String(file.uploadedAt || '');
-      if (nextAt >= prevAt) out[projId][id] = file;
+      // Локальный файл с text предпочтительнее remote-only rows (после JSONBin text срезается).
+      const localRicher = !!(file.text && !prev.text);
+      if (localRicher || nextAt >= prevAt) out[projId][id] = { ...prev, ...file };
     });
   });
   return out;
@@ -1814,9 +1816,11 @@ function directSpendRowsToCsvText(rows) {
 /** Все Direct CSV Hupp: дни из разных файлов накапливаются; одинаковая дата → spend/clicks/impressions суммируются. */
 function collectHuppDirectRows(proj) {
   const uploads = getProjectCsvUploads(proj?.id || 'hupp');
+  const entries = Object.values(uploads || {}).filter(Boolean);
+  const real = entries.filter(u => !isHuppSeedUpload(u));
+  const use = real.length ? real : entries;
   const fromUploads = [];
-  Object.values(uploads || {}).forEach(u => {
-    if (!u) return;
+  use.forEach(u => {
     if (u.text) {
       directSpendRowsFromUploadText(u.text).forEach(r => fromUploads.push(r));
       return;
@@ -1851,18 +1855,53 @@ function getHuppCsvUploadMeta(proj) {
   };
 }
 
+function isHuppSeedUpload(u) {
+  if (!u) return false;
+  if (u.seed) return true;
+  return /partners-m-2026-07-16|hupp-start\.csv/i.test(String(u.fileName || ''));
+}
+
+/** Убирает стартовый seed, чтобы он не суммировался с реальными выгрузками. */
+async function pruneHuppSeedUploads() {
+  const all = loadCsvUploads();
+  const files = all.hupp || {};
+  const ids = Object.keys(files).filter(id => isHuppSeedUpload(files[id]));
+  if (!ids.length) return false;
+  ids.forEach(id => delete files[id]);
+  if (Object.keys(files).length) all.hupp = files;
+  else delete all.hupp;
+  await saveCsvUploads(all);
+  return true;
+}
+
 async function ensureHuppStartCsvSeed() {
   const p = projects.find(x => x.id === 'hupp');
   if (!p || !isHuppCsvOnly(p)) return false;
+  const uploads = getProjectCsvUploads('hupp') || {};
+  const entries = Object.entries(uploads);
+  const hasReal = entries.some(([, u]) => !isHuppSeedUpload(u));
+  if (hasReal) {
+    // Реальные CSV уже есть — seed только мешает (суммируется по датам).
+    await pruneHuppSeedUploads();
+    try { localStorage.setItem(HUPP_START_SEED_FLAG, '2'); } catch (_) {}
+    return false;
+  }
+  if (entries.length) {
+    try { localStorage.setItem(HUPP_START_SEED_FLAG, '2'); } catch (_) {}
+    return false;
+  }
   const flag = (() => { try { return localStorage.getItem(HUPP_START_SEED_FLAG); } catch (_) { return null; } })();
-  if (flag === '2' && Object.keys(getProjectCsvUploads('hupp') || {}).length) return false;
+  if (flag === '2') return false;
   try {
     const text = await fetchWithFallback(HUPP_START_CSV_URL);
     if (!text || text.trim().length < 20) throw new Error('empty start csv');
+    const saved = await saveUploadedCsv('hupp', 'CSV upload', 'partners-m-2026-07-16.csv', text);
+    // Пометим seed, чтобы потом легко вычистить.
     const all = loadCsvUploads();
-    delete all.hupp;
-    await saveCsvUploads(all);
-    await saveUploadedCsv('hupp', 'CSV upload', 'partners-m-2026-07-16.csv', text);
+    if (all.hupp?.[saved.id]) {
+      all.hupp[saved.id].seed = true;
+      await saveCsvUploads(all);
+    }
     try { localStorage.setItem(HUPP_START_SEED_FLAG, '2'); } catch (_) {}
     return true;
   } catch (e) {
@@ -2374,6 +2413,8 @@ async function processHuppCsvUploadFiles(projId, files) {
   const card = document.querySelector(`.csv-drop-zone[ondrop*="'${projId}'"]`);
   card?.classList.add('csv-upload-busy');
   try {
+    // Любая ручная загрузка вытесняет стартовый seed.
+    await pruneHuppSeedUploads();
     let anyDup = false;
     let savedCount = 0;
     for (const file of files) {
@@ -2387,6 +2428,7 @@ async function processHuppCsvUploadFiles(projId, files) {
       savedCount += 1;
       if (saved.duplicate) anyDup = true;
     }
+    try { localStorage.setItem(HUPP_START_SEED_FLAG, '2'); } catch (_) {}
     // Сначала показываем данные в UI, Metrika — фоном (не блокирует загрузку).
     await applyUploadedCsvToCache(projId, label);
     if (anyDup) console.info('Часть файлов уже была загружена (тот же hash) — обновлено без дубля');
@@ -2534,6 +2576,7 @@ function renderCsvUploadCard(proj) {
   if (!supportsCsvUpload(proj)) return '';
   const uploads = getProjectCsvUploads(proj.id);
   const items = Object.entries(uploads)
+    .filter(([, u]) => !(isHuppCsvOnly(proj) && isHuppSeedUpload(u)))
     .sort((a, b) => String(b[1].uploadedAt || '').localeCompare(String(a[1].uploadedAt || '')))
     .map(([id, u]) => {
       const when = u.uploadedAt ? new Date(u.uploadedAt).toLocaleString('ru-RU') : '';
@@ -2558,7 +2601,7 @@ function renderCsvUploadCard(proj) {
     `<option value="${escHtml(p.value)}"${i === 0 ? ' selected' : ''}>${escHtml(p.label)}</option>`
   ).join('');
   const hint = isHuppCsvOnly(proj)
-    ? 'Можно грузить несколько выгрузок Yandex Direct (CSV/XLSX). Дни накапливаются; если дата есть в двух файлах — spend/clicks/impressions суммируются. После загрузки подтянем цели из Метрики.'
+    ? 'Несколько CSV Директа подряд: дни копятся, одинаковые даты — spend/clicks/impressions суммируются.'
     : isQuadcodeProject(proj)
     ? 'Можно грузить несколько CSV/XLSX подряд — каждый файл сохраняется по хешу, данные сливаются по датам в лист месяца.'
     : isJgglProject(proj)
