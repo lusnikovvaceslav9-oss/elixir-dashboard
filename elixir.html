@@ -4335,17 +4335,20 @@ function getOverviewDailyMetrics(proj, data) {
   if (isHuppProject(proj)) {
     const r = info.row;
     const dateLabel = r.dateStr || fmtDateStr(r.date);
+    const spend = r.spend || 0;
+    const impressions = r.impressions || 0;
+    const clicks = r.clicks || 0;
+    const cpc = clicks ? spend / clicks : null;
+    const cpm = impressions ? spend / impressions * 1000 : null;
     return {
-      note: info.isToday ? `Сегодня · ${dateLabel} · Яндекс Метрика` : `Последний день · ${dateLabel}`,
+      note: info.isToday ? `Сегодня · ${dateLabel} · Direct + Метрика` : `Последний день · ${dateLabel}`,
       metrics: [
+        { key: 'today_spend', label: 'Spend', value: fmtMoney(spend, proj.currency || '₽'), live: true, accent: true, sub: 'Direct' },
+        { key: 'today_impressions', label: 'Показы', value: fmtInt(impressions), live: true, sub: cpm != null ? `CPM ${fmtMoney(cpm, proj.currency || '₽')}` : 'Direct' },
+        { key: 'today_clicks', label: 'Клики', value: fmtInt(clicks), live: true, sub: cpc != null ? `CPC ${fmtMoney(cpc, proj.currency || '₽')}` : 'Direct' },
         { key: 'today_installs', label: 'Visits', value: fmtInt(r.installs), live: true, sub: 'визиты' },
         { key: 'today_trials', label: 'Reach pay', value: fmtInt(r.trials), live: true, sub: 'клик к оплате' },
-        { key: 'today_fb', label: 'View pay', value: fmtInt(r.fb), live: true, sub: 'форма на экране' },
-        { key: 'today_sold', label: 'Pay submit', value: fmtInt(r.sold), live: true, sub: 'переход в ЮKassa' },
         { key: 'today_purchase', label: 'Purchase', value: fmtInt(r.purchase), live: true, sub: 'успешная оплата' },
-        { key: 'today_contact_info', label: 'Contact info', value: fmtInt(r.contact_info), live: true, sub: 'заполнил контакты' },
-        { key: 'today_form_submit', label: 'Form submit', value: fmtInt(r.form_submit), live: true, sub: 'отправил форму' },
-        { key: 'today_contact_sent', label: 'Contact sent', value: fmtInt(r.contact_sent), live: true, sub: 'контакты отправлены' },
       ],
     };
   }
@@ -4687,6 +4690,11 @@ const METRIC_CATALOG = {
   ],
   hupp: [
     { key: 'spend', label: 'Spend', accent: false },
+    { key: 'impressions', label: 'Показы', accent: false },
+    { key: 'clicks', label: 'Клики', accent: false },
+    { key: 'cpc', label: 'CPC', accent: true },
+    { key: 'cpm', label: 'CPM', accent: true },
+    { key: 'ctr', label: 'CTR', accent: false },
     { key: 'installs', label: 'Visits', accent: false },
     { key: 'cost_install', label: 'Cost / Visit', accent: true },
     { key: 'trials', label: 'Reach pay', accent: false },
@@ -4699,10 +4707,6 @@ const METRIC_CATALOG = {
     { key: 'contact_info', label: 'Contact info', accent: false },
     { key: 'form_submit', label: 'Form submit', accent: false },
     { key: 'contact_sent', label: 'Contact sent', accent: false },
-    { key: 'clicks', label: 'Clicks', accent: false },
-    { key: 'impressions', label: 'Impressions', accent: false },
-    { key: 'cpc', label: 'CPC', accent: true },
-    { key: 'ctr', label: 'CTR', accent: false },
   ],
   quadcode: [
     { key: 'spend', label: 'Total Spend', accent: false },
@@ -4896,6 +4900,19 @@ function getMetricsCatalogForProj(proj, rows) {
 function getProjectMetricsConfig(proj, rows) {
   const type = rows ? getEffectiveType(proj, rows) : proj.type;
   const catalog = getMetricsCatalogForProj({ ...proj, type }, rows);
+  // Hupp: каталог задаёт порядок (Показы/Клики сразу после Spend), labels/enabled из сохранения.
+  if (type === 'hupp') {
+    const savedMap = Object.fromEntries((proj.metrics || []).map(m => [m.key, m]));
+    return catalog.map(base => {
+      const s = savedMap[base.key];
+      return {
+        key: base.key,
+        label: (s?.label && !/^impressions$/i.test(s.label) ? s.label : base.label),
+        accent: base.accent,
+        enabled: s?.enabled !== false,
+      };
+    });
+  }
   return mergeMetricsConfig(type, proj.metrics, catalog);
 }
 
@@ -4961,6 +4978,28 @@ function getTableConfig(proj, rows) {
     if (hasSpend) {
       pushCol('spend', `Spend (${cur})`, r => fmtMoneyFull(r.spend || 0, cur), rs => fmtMoneyFull(sum(rs, 'spend'), cur));
     }
+    if (hasAds) {
+      pushCol('impressions', 'Показы', r => fmtInt(r.impressions), rs => fmtInt(sum(rs, 'impressions')));
+      pushCol('clicks', 'Клики', r => fmtInt(r.clicks), rs => fmtInt(sum(rs, 'clicks')));
+      pushCol(
+        'cpc',
+        'CPC',
+        r => r.clicks ? fmtMoney(r.spend / r.clicks, cur) : '—',
+        rs => { const sp = sum(rs, 'spend'), cl = sum(rs, 'clicks'); return cl ? fmtMoney(sp / cl, cur) : '—'; },
+      );
+      pushCol(
+        'cpm',
+        'CPM',
+        r => r.impressions ? fmtMoney(r.spend / r.impressions * 1000, cur) : '—',
+        rs => { const sp = sum(rs, 'spend'), imp = sum(rs, 'impressions'); return imp ? fmtMoney(sp / imp * 1000, cur) : '—'; },
+      );
+      pushCol(
+        'ctr',
+        'CTR',
+        r => r.impressions ? fmtPct(r.clicks / r.impressions * 100) : '—',
+        rs => { const imp = sum(rs, 'impressions'), cl = sum(rs, 'clicks'); return imp ? fmtPct(cl / imp * 100) : '—'; },
+      );
+    }
     pushCol('installs', 'Visits', r => fmtInt(r.installs), rs => fmtInt(sum(rs, 'installs')));
     pushCol('trials', 'Reach pay', r => fmtInt(r.trials), rs => fmtInt(sum(rs, 'trials')));
     pushCol('fb', 'View pay', r => fmtInt(r.fb), rs => fmtInt(sum(rs, 'fb')));
@@ -4977,16 +5016,12 @@ function getTableConfig(proj, rows) {
     pushCol('contact_info', 'Contact info', r => fmtInt(r.contact_info), rs => fmtInt(sum(rs, 'contact_info')));
     pushCol('form_submit', 'Form submit', r => fmtInt(r.form_submit), rs => fmtInt(sum(rs, 'form_submit')));
     pushCol('contact_sent', 'Contact sent', r => fmtInt(r.contact_sent), rs => fmtInt(sum(rs, 'contact_sent')));
-    if (hasAds) {
-      pushCol('clicks', 'Clicks', r => fmtInt(r.clicks), rs => fmtInt(sum(rs, 'clicks')));
-      pushCol('impressions', 'Impressions', r => fmtInt(r.impressions), rs => fmtInt(sum(rs, 'impressions')));
-    }
     tbl = {
       headers,
-      row: r => rowCells.map(fn => fn(r)),
-      total: rs => totalCells.map(fn => fn(rs)),
-      columnKeys: colKeys,
+      row: (r) => rowCells.map(fn => fn(r)),
+      total: (rs) => totalCells.map(fn => fn(rs)),
     };
+    return { ...tbl, colKeys };
   } else if (type === 'planto') {
     if (isPlantoAutoFeed(proj)) {
       const hasAds = rows?.some(r => (r.clicks || 0) > 0 || (r.impressions || 0) > 0);
@@ -5631,6 +5666,29 @@ function getChartDatasets(proj, rows) {
       borderColor: '#22C55E', backgroundColor: 'transparent',
       fill: false, yAxisID: 'y1', tension: 0.3, borderWidth: 2, pointRadius: 3,
       pointBackgroundColor: '#22C55E',
+    });
+    return base;
+  }
+  if (p.type === 'hupp') {
+    // Direct-метрики на отдельной оси, чтобы показы были видны, а не тонули в воронке.
+    [
+      { key: 'impressions', label: 'Показы', color: '#2563EB' },
+      { key: 'clicks', label: 'Клики', color: '#06B6D4' },
+      { key: 'installs', label: 'Visits', color: '#22C55E' },
+      { key: 'purchase', label: 'Purchase', color: '#EC4899' },
+    ].forEach(m => {
+      base.push({
+        label: L(m.key, m.label),
+        data: rows.map(r => r[m.key] || 0),
+        borderColor: m.color,
+        backgroundColor: 'transparent',
+        fill: false,
+        yAxisID: 'y1',
+        tension: 0.3,
+        borderWidth: 2,
+        pointRadius: 3,
+        pointBackgroundColor: m.color,
+      });
     });
     return base;
   }
