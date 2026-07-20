@@ -1114,6 +1114,7 @@ function destroyDetailCharts() {
 }
 
 function renderDailyTableHtml(p, rows, tbl) {
+  const columnKeys = tbl.columnKeys || tbl.colKeys || [];
   let tbody = '';
   if (!rows.length) {
     tbody = `<tr><td colspan="${tbl.headers.length}" class="empty-state">Нет данных за этот период</td></tr>`;
@@ -1123,7 +1124,7 @@ function renderDailyTableHtml(p, rows, tbl) {
   }
   return `<div class="table-wrap"><table>
     <thead><tr>${tbl.headers.map((h, i) => {
-      const key = tbl.columnKeys[i];
+      const key = columnKeys[i];
       const editable = isAdmin() && key && key !== 'date';
       return `<th${editable ? ' class="th-editable"' : ''}>${editable ? renderEditableLabel(p.id, key, h, 'th-label-wrap') : escHtml(h)}</th>`;
     }).join('')}</tr></thead>
@@ -5059,7 +5060,7 @@ function getTableConfig(proj, rows) {
       row: (r) => rowCells.map(fn => fn(r)),
       total: (rs) => totalCells.map(fn => fn(rs)),
     };
-    return { ...tbl, colKeys };
+    return { ...tbl, columnKeys: colKeys, colKeys };
   } else if (type === 'planto') {
     if (isPlantoAutoFeed(proj)) {
       const hasAds = rows?.some(r => (r.clicks || 0) > 0 || (r.impressions || 0) > 0);
