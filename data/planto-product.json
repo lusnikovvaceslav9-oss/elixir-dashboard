@@ -1,40 +1,40 @@
 {
-  "generated_at": "2026-07-20T19:25:18+00:00",
+  "generated_at": "2026-07-20T21:01:39+00:00",
   "anchor": "2026-06-05",
-  "until": "2026-07-20",
+  "until": "2026-07-21",
   "product": {
     "from": "2026-06-05",
-    "to": "2026-07-20",
-    "installs": 9468,
-    "active_users": 9642,
+    "to": "2026-07-21",
+    "installs": 9482,
+    "active_users": 9656,
     "events": {
       "plant_added": {
-        "users": 2930,
-        "events": 5087,
-        "vs_install_pct": 30.95,
-        "avg_per_user": 1.74
+        "users": 0,
+        "events": 0,
+        "vs_install_pct": null,
+        "avg_per_user": null
       },
       "paywall_shown": {
-        "users": 7283,
-        "events": 11198,
-        "vs_install_pct": 76.92,
+        "users": 7293,
+        "events": 11216,
+        "vs_install_pct": 76.91,
         "avg_per_user": 1.54
       },
       "paywall_cta_clicked": {
-        "users": 2556,
-        "events": 3597,
+        "users": 2560,
+        "events": 3602,
         "vs_install_pct": 27.0,
         "avg_per_user": 1.41
       },
       "user_score5": {
-        "users": 356,
-        "events": 358,
-        "vs_install_pct": 3.76,
+        "users": 357,
+        "events": 359,
+        "vs_install_pct": 3.77,
         "avg_per_user": 1.01
       },
       "chat_message_sent": {
-        "users": 225,
-        "events": 462,
+        "users": 226,
+        "events": 464,
         "vs_install_pct": 2.38,
         "avg_per_user": 2.05
       },
@@ -46,39 +46,39 @@
       },
       "watering_marked": {
         "users": 81,
-        "events": 589,
-        "vs_install_pct": 0.86,
-        "avg_per_user": 7.27
+        "events": 592,
+        "vs_install_pct": 0.85,
+        "avg_per_user": 7.31
       },
       "ai_route": {
-        "users": 2016,
-        "events": 12904,
-        "vs_install_pct": 21.29,
+        "users": 2022,
+        "events": 12938,
+        "vs_install_pct": 21.32,
         "avg_per_user": 6.4
       },
       "scan_success": {
-        "users": 3158,
-        "events": 9220,
-        "vs_install_pct": 33.35,
+        "users": 3163,
+        "events": 9236,
+        "vs_install_pct": 33.36,
         "avg_per_user": 2.92
       },
       "user_activated": {
-        "users": 7522,
-        "events": 9701,
-        "vs_install_pct": 79.45,
+        "users": 7536,
+        "events": 9718,
+        "vs_install_pct": 79.48,
         "avg_per_user": 1.29
       }
     },
-    "garden_activation_pct": 30.95,
-    "garden_avg_plants": 1.74,
+    "garden_activation_pct": 0.0,
+    "garden_avg_plants": null,
     "garden_depth_icp_pct": null,
     "paywall_cta_pct": 35.1,
-    "care_engagement_pct": 3.76,
-    "chat_per_plant_pct": 7.68,
+    "care_engagement_pct": 3.77,
+    "chat_per_plant_pct": null,
     "feature_activation": {
-      "scan_pct": 33.35,
+      "scan_pct": 33.36,
       "watering_pct": 2.26,
-      "ai_pct": 21.29
+      "ai_pct": 21.32
     },
     "retention": {
       "d1": null,
@@ -86,12 +86,14 @@
       "d7": null,
       "note": "AppMetrica Reporting API не отдаёт D1/D3/D7 без Logs/Retention export"
     },
-    "errors": []
+    "errors": [
+      "plant_added: AppMetrica HTTP 400: {\"errors\":[{\"error_type\":\"query_error\",\"message\":\"Query is too complicated. Please reduce the date interval or sampling.\"}],\"code\":400,\"message\":\"Query is too complicated. Please reduce the date interval or sampling.\"}"
+    ]
   },
   "unit_economics": {
     "revenue_total": 67134,
-    "spend_total": 185820.65,
-    "active_users": 9642,
+    "spend_total": 185941.83,
+    "active_users": 9656,
     "active_payers": 32,
     "plus_active_users": 66,
     "trial_cancellations": 3,
@@ -100,12 +102,12 @@
       "2026-07-19": 2
     },
     "renewals": 22,
-    "arpu": 6.96,
+    "arpu": 6.95,
     "arppu": 2097.94,
     "ltv": 3540.27,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
-    "roas_d7": 40.3,
-    "roas_d14": 34.8,
-    "roas_d30": 73.5
+    "roas_d7": 38.5,
+    "roas_d14": 40.3,
+    "roas_d30": 47.7
   }
 }
