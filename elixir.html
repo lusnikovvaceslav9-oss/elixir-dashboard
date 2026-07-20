@@ -1288,19 +1288,20 @@ function deserializeUploadRows(rows) {
 function mergeCsvUploadStores(local, remote) {
   const out = JSON.parse(JSON.stringify(remote || {}));
   Object.entries(local || {}).forEach(([projId, files]) => {
-    if (!out[projId]) out[projId] = {};
+    // Локальная карта проекта — источник истины (удалённые id, в т.ч. seed, не возвращаются из remote).
+    const next = {};
     Object.entries(files || {}).forEach(([id, file]) => {
-      const prev = out[projId][id];
+      const prev = out[projId]?.[id];
       if (!prev) {
-        out[projId][id] = file;
+        next[id] = file;
         return;
       }
       const prevAt = String(prev.uploadedAt || '');
       const nextAt = String(file.uploadedAt || '');
-      // Локальный файл с text предпочтительнее remote-only rows (после JSONBin text срезается).
       const localRicher = !!(file.text && !prev.text);
-      if (localRicher || nextAt >= prevAt) out[projId][id] = { ...prev, ...file };
+      next[id] = (localRicher || nextAt >= prevAt) ? { ...prev, ...file } : { ...file, ...prev };
     });
+    out[projId] = next;
   });
   return out;
 }
@@ -1338,21 +1339,20 @@ async function jbSaveCsvUploads(localUploads) {
 }
 
 async function hydrateCsvUploadsFromRemote() {
-  const remote = await jbLoadCsvUploads().catch(() => null);
+  const remote = await Promise.race([
+    jbLoadCsvUploads().catch(() => null),
+    sleep(8000).then(() => null),
+  ]);
   const local = loadCsvUploads();
   const merged = mergeCsvUploadStores(local, remote || {});
   if (JSON.stringify(merged) !== JSON.stringify(local)) {
     localStorage.setItem(CSV_UPLOAD_KEY, JSON.stringify(merged));
   }
-  const shouldPush = JSON.stringify(merged) !== JSON.stringify(remote || {});
+  const shouldPush = remote != null && JSON.stringify(merged) !== JSON.stringify(remote || {});
   if (shouldPush) {
-    try {
-      const saved = await jbSaveCsvUploads(merged);
-      localStorage.setItem(CSV_UPLOAD_KEY, JSON.stringify(saved));
-      return 'synced';
-    } catch (e) {
-      console.warn('CSV uploads cloud sync failed:', e.message || e);
-    }
+    // Не блокируем старт дашборда облачным PUT.
+    saveCsvUploads(merged, { awaitCloud: false });
+    return 'synced';
   }
   return Object.keys(merged).length ? 'merged' : 'none';
 }
@@ -1864,13 +1864,12 @@ function isHuppSeedUpload(u) {
 /** Убирает стартовый seed, чтобы он не суммировался с реальными выгрузками. */
 async function pruneHuppSeedUploads() {
   const all = loadCsvUploads();
-  const files = all.hupp || {};
+  const files = { ...(all.hupp || {}) };
   const ids = Object.keys(files).filter(id => isHuppSeedUpload(files[id]));
   if (!ids.length) return false;
   ids.forEach(id => delete files[id]);
-  if (Object.keys(files).length) all.hupp = files;
-  else delete all.hupp;
-  await saveCsvUploads(all);
+  all.hupp = files; // даже {} — чтобы remote seed не вернулся через merge
+  await saveCsvUploads(all, { awaitCloud: false });
   return true;
 }
 
@@ -1881,7 +1880,6 @@ async function ensureHuppStartCsvSeed() {
   const entries = Object.entries(uploads);
   const hasReal = entries.some(([, u]) => !isHuppSeedUpload(u));
   if (hasReal) {
-    // Реальные CSV уже есть — seed только мешает (суммируется по датам).
     await pruneHuppSeedUploads();
     try { localStorage.setItem(HUPP_START_SEED_FLAG, '2'); } catch (_) {}
     return false;
@@ -1893,14 +1891,16 @@ async function ensureHuppStartCsvSeed() {
   const flag = (() => { try { return localStorage.getItem(HUPP_START_SEED_FLAG); } catch (_) { return null; } })();
   if (flag === '2') return false;
   try {
-    const text = await fetchWithFallback(HUPP_START_CSV_URL);
+    const text = await Promise.race([
+      fetchWithFallback(HUPP_START_CSV_URL),
+      sleep(5000).then(() => { throw new Error('hupp start csv timeout'); }),
+    ]);
     if (!text || text.trim().length < 20) throw new Error('empty start csv');
     const saved = await saveUploadedCsv('hupp', 'CSV upload', 'partners-m-2026-07-16.csv', text);
-    // Пометим seed, чтобы потом легко вычистить.
     const all = loadCsvUploads();
     if (all.hupp?.[saved.id]) {
       all.hupp[saved.id].seed = true;
-      await saveCsvUploads(all);
+      await saveCsvUploads(all, { awaitCloud: false });
     }
     try { localStorage.setItem(HUPP_START_SEED_FLAG, '2'); } catch (_) {}
     return true;
@@ -2120,14 +2120,28 @@ function loadCsvUploads() {
   }
 }
 
-async function saveCsvUploads(all) {
+async function saveCsvUploads(all, { awaitCloud = false, timeoutMs = 6000 } = {}) {
   localStorage.setItem(CSV_UPLOAD_KEY, JSON.stringify(all));
-  try {
+  const sync = async () => {
     const merged = await jbSaveCsvUploads(all);
     localStorage.setItem(CSV_UPLOAD_KEY, JSON.stringify(merged));
+    return merged;
+  };
+  if (!awaitCloud) {
+    Promise.race([
+      sync(),
+      sleep(timeoutMs).then(() => { throw new Error(`csv cloud save timeout ${timeoutMs}ms`); }),
+    ]).catch(e => console.warn('CSV uploads cloud save failed:', e.message || e));
+    return all;
+  }
+  try {
+    return await Promise.race([
+      sync(),
+      sleep(timeoutMs).then(() => { throw new Error(`csv cloud save timeout ${timeoutMs}ms`); }),
+    ]);
   } catch (e) {
-    // Локально уже сохранено — облако не должно ронять загрузку файла.
     console.warn('CSV uploads cloud save failed:', e.message || e);
+    return all;
   }
 }
 
@@ -3443,12 +3457,18 @@ async function fetchProject(proj) {
   const uploaded = expandUploadedSourcesByMonth(getUploadedCsvSources(proj), proj);
 
   if (isHuppCsvOnly(proj)) {
-    const metrikaRows = await fetchHuppMetrikaDailyRows();
+    const metrikaRows = await Promise.race([
+      fetchHuppMetrikaDailyRows(),
+      sleep(12000).then(() => []),
+    ]);
     let directRows = collectHuppDirectRows(proj);
     if (!directRows.length) {
       try {
-        const text = await fetchWithFallback(HUPP_START_CSV_URL);
-        directRows = directSpendRowsFromUploadText(text);
+        const text = await Promise.race([
+          fetchWithFallback(HUPP_START_CSV_URL),
+          sleep(5000).then(() => ''),
+        ]);
+        if (text) directRows = directSpendRowsFromUploadText(text);
       } catch (_) {}
     }
     const rows = mergeMetrikaWithDirectSpend(metrikaRows, directRows);
@@ -3938,13 +3958,25 @@ async function loadAll() {
   projects.forEach(p => { cache[p.id] = 'loading'; });
   renderTopbar();
   renderContent();
-  await refreshPlantoFeedRef();
-  await refreshHuppFeedRef();
-  await ensureHuppStartCsvSeed();
-  plantoMetaCache = await fetchPlantoMeta();
-  huppMetaCache = await fetchHuppMeta();
-  plantoCohortCache = await fetchPlantoCohort();
-  plantoProductCache = await fetchPlantoProduct();
+  await Promise.allSettled([
+    refreshPlantoFeedRef(),
+    refreshHuppFeedRef(),
+  ]);
+  // Seed/prune не должны держать UI в «Загрузка…».
+  try {
+    await Promise.race([
+      ensureHuppStartCsvSeed(),
+      sleep(4000).then(() => false),
+    ]);
+  } catch (e) {
+    console.warn('Hupp seed skipped:', e.message || e);
+  }
+  await Promise.allSettled([
+    fetchPlantoMeta().then(m => { plantoMetaCache = m; }),
+    fetchHuppMeta().then(m => { huppMetaCache = m; }),
+    fetchPlantoCohort().then(m => { plantoCohortCache = m; }),
+    fetchPlantoProduct().then(m => { plantoProductCache = m; }),
+  ]);
   if (!plantoProductCache && plantoMetaCache?.product) {
     plantoProductCache = {
       product: plantoMetaCache.product,
@@ -3952,12 +3984,18 @@ async function loadAll() {
     };
   }
   await Promise.allSettled(projects.map(async p => {
-    try { cache[p.id] = await fetchProject(p); }
-    catch(e) { console.error(p.id, e); cache[p.id] = null; }
+    try {
+      cache[p.id] = await Promise.race([
+        fetchProject(p),
+        sleep(20000).then(() => { throw new Error(`fetchProject timeout: ${p.id}`); }),
+      ]);
+    } catch (e) {
+      console.error(p.id, e);
+      cache[p.id] = null;
+    }
     if (view === 'overview') renderContent();
     else if (view === p.id) renderContent();
   }));
-  // На случай если remote-список проектов поменял id — ещё раз применить сохранённый view.
   restoreViewState();
   persistViewState();
   renderContent();
