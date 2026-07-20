@@ -2,10 +2,16 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="refresh" content="0; url=elixir.html">
   <title>ELIXIR Dashboard</title>
+  <script>
+    // Сохраняем hash/query при редиректе (meta refresh их теряет).
+    location.replace('elixir.html' + location.search + location.hash);
+  </script>
 </head>
 <body>
-  <p><a href="elixir.html">ELIXIR Dashboard</a></p>
+  <p><a id="go" href="elixir.html">ELIXIR Dashboard</a></p>
+  <script>
+    document.getElementById('go').href = 'elixir.html' + location.search + location.hash;
+  </script>
 </body>
 </html>

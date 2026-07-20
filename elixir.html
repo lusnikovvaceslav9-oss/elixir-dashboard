@@ -971,6 +971,7 @@ const FETCHERS = [
 const ADMIN_PW = 'elixir2026';
 const ADMIN_KEY = 'elixir_admin';
 const PROJ_KEY  = 'elixir_projects';
+const VIEW_KEY  = 'elixir_last_view';
 const CHART_PREF_KEY = 'elixir_chart_prefs';
 
 const CHART_TYPE_OPTIONS = {
@@ -1287,11 +1288,6 @@ function deserializeUploadRows(rows) {
 function mergeCsvUploadStores(local, remote) {
   const out = JSON.parse(JSON.stringify(remote || {}));
   Object.entries(local || {}).forEach(([projId, files]) => {
-    if (projId === 'hupp') {
-      if (files && Object.keys(files).length) out.hupp = JSON.parse(JSON.stringify(files));
-      else if (out.hupp) out.hupp = pruneHuppUploads(out.hupp);
-      return;
-    }
     if (!out[projId]) out[projId] = {};
     Object.entries(files || {}).forEach(([id, file]) => {
       const prev = out[projId][id];
@@ -1304,26 +1300,7 @@ function mergeCsvUploadStores(local, remote) {
       if (nextAt >= prevAt) out[projId][id] = file;
     });
   });
-  if (out.hupp && !local?.hupp) out.hupp = pruneHuppUploads(out.hupp);
   return out;
-}
-
-/** Hupp: в облаке/кеше держим только последний Direct CSV. */
-function pruneHuppUploads(files) {
-  const entries = Object.entries(files || {});
-  if (entries.length <= 1) return files || {};
-  const [id, file] = entries.sort((a, b) =>
-    String(b[1]?.uploadedAt || '').localeCompare(String(a[1]?.uploadedAt || ''))
-  )[0];
-  return id ? { [id]: file } : {};
-}
-
-function getLatestHuppUpload(map) {
-  const pruned = pruneHuppUploads(map || {});
-  const entries = Object.entries(pruned);
-  if (!entries.length) return null;
-  const [id, file] = entries[0];
-  return { id, ...file };
 }
 
 function uploadsForRemote(all) {
@@ -1362,7 +1339,6 @@ async function hydrateCsvUploadsFromRemote() {
   const remote = await jbLoadCsvUploads().catch(() => null);
   const local = loadCsvUploads();
   const merged = mergeCsvUploadStores(local, remote || {});
-  if (merged.hupp) merged.hupp = pruneHuppUploads(merged.hupp);
   if (JSON.stringify(merged) !== JSON.stringify(local)) {
     localStorage.setItem(CSV_UPLOAD_KEY, JSON.stringify(merged));
   }
@@ -1690,30 +1666,94 @@ function mergeMetrikaWithDirectSpend(metrikaRows, directRows) {
 }
 
 function isYandexDirectExportHeaders(headerRow) {
-  const h = (headerRow || []).map(x => String(x || '').toLowerCase());
-  const hasDay = h.some(x => /день|date|дата/.test(x));
-  const hasCampaign = h.some(x => /кампани|campaign/.test(x));
-  const hasSpendOrClicks = h.some(x => /расход|spend|клик|показ/.test(x));
-  return hasDay && hasSpendOrClicks && (hasCampaign || h.some(x => /конверс|cpa|cr/.test(x)));
+  const h = (headerRow || []).map(x => String(x || '').toLowerCase().trim()).filter(Boolean);
+  if (h.length < 2) return false;
+  const hasDay = h.some(x => /^(день|date|дата)$/.test(x) || /^дата\b/.test(x) || /^день\b/.test(x));
+  const hasSpend = h.some(x => /^(расход|spend|cost)$/.test(x) || x.includes('расход') || x.includes('amount spent')
+    || (x.includes('spend') && !/spent on|budget/.test(x)));
+  const hasClicks = findDirectMetricCol(h, 'clicks') >= 0;
+  const hasImpressions = findDirectMetricCol(h, 'impressions') >= 0;
+  // Кампания не обязательна — суточный отчёт Директа тоже ок.
+  return hasDay && (hasSpend || hasClicks || hasImpressions);
+}
+
+/** Колонка показов/кликов: предпочитаем «Показы»/«Клики», не «Ср. цена клика». */
+function findDirectMetricCol(headers, kind) {
+  const specs = kind === 'impressions'
+    ? {
+      exact: ['показы', 'показ', 'impressions', 'impression', 'impress', 'imps'],
+      soft: ['показ', 'impression', 'impress', 'imps'],
+      exclude: ['доля', 'share', 'win', 'аукцион', 'цена', 'cost', 'rate', '%'],
+    }
+    : {
+      exact: ['клики', 'клик', 'clicks', 'click'],
+      soft: ['клик', 'click'],
+      exclude: ['цена', 'price', 'avg', 'ср.', 'ср ', 'cost', 'cpc', 'ctr', '%'],
+    };
+  const norm = (headers || []).map(h => String(h || '').toLowerCase().trim());
+  for (let i = 0; i < norm.length; i++) {
+    if (specs.exact.includes(norm[i])) return i;
+  }
+  for (let i = 0; i < norm.length; i++) {
+    const h = norm[i];
+    if (specs.exclude.some(e => h.includes(e))) continue;
+    if (specs.soft.some(k => h.includes(k))) return i;
+  }
+  return -1;
+}
+
+function findDirectDateCol(headers) {
+  const norm = (headers || []).map(h => String(h || '').toLowerCase().trim());
+  for (let i = 0; i < norm.length; i++) {
+    if (/^(день|date|дата)$/.test(norm[i])) return i;
+  }
+  for (let i = 0; i < norm.length; i++) {
+    const h = norm[i];
+    if (/reporting start|дата начала|день$|^день\b|^дата\b|^date\b/.test(h)) return i;
+  }
+  return -1;
+}
+
+/** Ищем строку заголовков: у выгрузок Директа сверху часто служебные строки. */
+function findDirectHeaderRowIndex(matrix) {
+  const max = Math.min((matrix || []).length, 40);
+  for (let i = 0; i < max; i++) {
+    if (isYandexDirectExportHeaders(matrix[i])) return i;
+  }
+  for (let i = 0; i < max; i++) {
+    const h = (matrix[i] || []).map(x => String(x || '').toLowerCase().trim());
+    if (findDirectDateCol(h) >= 0 && (findDirectMetricCol(h, 'impressions') >= 0
+      || findDirectMetricCol(h, 'clicks') >= 0 || findSpendCol(h) >= 0)) {
+      return i;
+    }
+  }
+  return 0;
 }
 
 function parseDirectSpendRows(matrix) {
   if (!matrix?.length) return [];
-  const headers = matrix[0].map(h => String(h || '').toLowerCase().trim());
-  const find = (names) => {
+  const headerIdx = findDirectHeaderRowIndex(matrix);
+  const headers = (matrix[headerIdx] || []).map(h => String(h || '').toLowerCase().trim());
+  if (headers.length < 2) return [];
+  const find = (names, exclude = []) => {
     for (let i = 0; i < headers.length; i++) {
-      if (names.some(n => headers[i].includes(n))) return i;
+      const h = headers[i];
+      if (exclude.some(e => h.includes(e))) continue;
+      if (names.some(n => h === n || h.startsWith(n + ' ') || h.startsWith(n + '(') || h.includes(n))) return i;
     }
     return -1;
   };
-  const di = find(['день', 'date', 'дата']);
-  const si = find(['расход', 'spend', 'amount spent']);
-  const ii = find(['показ', 'impression']);
-  const ci = find(['клик', 'click']);
+  let di = findDirectDateCol(headers);
+  if (di < 0) di = find(['день', 'date', 'дата']);
+  const si = find(['расход', 'amount spent', 'spend'], ['цена', 'cpc', 'cpm', 'cpa', 'per']);
+  const siCost = si >= 0 ? si : find(['cost'], ['цена', 'cpc', 'cpm', 'cpa', 'per', 'budget']);
+  const spendCol = si >= 0 ? si : siCost;
+  const ii = findDirectMetricCol(headers, 'impressions');
+  const ci = findDirectMetricCol(headers, 'clicks');
   const byDay = new Map();
-  matrix.slice(1).forEach(r => {
+  matrix.slice(headerIdx + 1).forEach(r => {
     const dateStr = String((di >= 0 ? r[di] : r[0]) || '').trim();
-    if (!dateStr || /итого|total/i.test(dateStr)) return;
+    if (!dateStr || /итого|total|отчет|period|период/i.test(dateStr)) return;
     const dt = parseDate(dateStr);
     if (!dt) return;
     const key = fmtDateStr(dt);
@@ -1722,7 +1762,7 @@ function parseDirectSpendRows(matrix) {
       return parseNum(r[idx]);
     };
     const prev = byDay.get(key) || { date: dt, dateStr: key, spend: 0, clicks: 0, impressions: 0 };
-    prev.spend += num(si);
+    prev.spend += num(spendCol);
     prev.clicks += Math.round(num(ci));
     prev.impressions += Math.round(num(ii));
     byDay.set(key, prev);
@@ -1733,7 +1773,21 @@ function parseDirectSpendRows(matrix) {
 function directSpendRowsFromUploadText(text) {
   const matrix = parseCSV(text || '');
   if (!matrix.length) return [];
-  if (isYandexDirectExportHeaders(matrix[0])) return parseDirectSpendRows(matrix);
+  const headerIdx = findDirectHeaderRowIndex(matrix);
+  const sliced = matrix.slice(headerIdx);
+  if (isYandexDirectExportHeaders(sliced[0]) || findDirectHeaderRowIndex(matrix) > 0) {
+    const rows = parseDirectSpendRows(matrix);
+    if (rows.length) return rows;
+  }
+  // Уже нормализованный CSV (date,spend,clicks,impressions) или RU-заголовки без «Кампания».
+  const headers = (sliced[0] || []).map(h => String(h || '').toLowerCase().trim());
+  const looksLikeDirectDaily = findDirectDateCol(headers) >= 0
+    && (findSpendCol(headers) >= 0 || findDirectMetricCol(headers, 'impressions') >= 0
+      || findDirectMetricCol(headers, 'clicks') >= 0);
+  if (looksLikeDirectDaily) {
+    const fromDirect = parseDirectSpendRows(matrix);
+    if (fromDirect.some(r => r.impressions || r.clicks || r.spend)) return fromDirect;
+  }
   const rows = parseSheet(text);
   return aggregateRowsByDate(rows).map(r => ({
     date: r.date,
@@ -1757,14 +1811,18 @@ function directSpendRowsToCsvText(rows) {
   return lines.join('\n');
 }
 
+/** Все Direct CSV Hupp: дни из разных файлов накапливаются; одинаковая дата → spend/clicks/impressions суммируются. */
 function collectHuppDirectRows(proj) {
-  const latest = getLatestHuppUpload(getProjectCsvUploads(proj?.id || 'hupp'));
-  if (!latest) return [];
+  const uploads = getProjectCsvUploads(proj?.id || 'hupp');
   const fromUploads = [];
-  if (latest.text) {
-    directSpendRowsFromUploadText(latest.text).forEach(r => fromUploads.push(r));
-  } else if (latest.rows?.length) {
-    deserializeUploadRows(latest.rows).forEach(r => {
+  Object.values(uploads || {}).forEach(u => {
+    if (!u) return;
+    if (u.text) {
+      directSpendRowsFromUploadText(u.text).forEach(r => fromUploads.push(r));
+      return;
+    }
+    if (!u.rows?.length) return;
+    deserializeUploadRows(u.rows).forEach(r => {
       fromUploads.push({
         date: r.date,
         dateStr: r.dateStr || (r.date ? fmtDateStr(r.date) : ''),
@@ -1773,21 +1831,23 @@ function collectHuppDirectRows(proj) {
         impressions: r.impressions || 0,
       });
     });
-  }
+  });
   return aggregateRowsByDate(fromUploads);
 }
 
 function getHuppCsvUploadMeta(proj) {
-  const latest = getLatestHuppUpload(getProjectCsvUploads(proj?.id || 'hupp'));
-  if (!latest) return null;
-  const rows = latest.rows?.length
-    ? latest.rows.length
-    : (latest.text ? directSpendRowsFromUploadText(latest.text).length : 0);
+  const uploads = getProjectCsvUploads(proj?.id || 'hupp');
+  const entries = Object.entries(uploads || {})
+    .sort((a, b) => String(b[1]?.uploadedAt || '').localeCompare(String(a[1]?.uploadedAt || '')));
+  if (!entries.length) return null;
+  const latest = entries[0][1];
+  const names = entries.map(([, u]) => u.fileName || u.label || '').filter(Boolean);
+  const mergedDays = collectHuppDirectRows(proj).length;
   return {
-    uploadedAt: latest.uploadedAt || null,
-    fileName: latest.fileName || '',
-    fileCount: 1,
-    rowCount: rows,
+    uploadedAt: latest?.uploadedAt || null,
+    fileName: names.length > 1 ? `${names[0]} (+${names.length - 1})` : (names[0] || ''),
+    fileCount: entries.length,
+    rowCount: mergedDays,
   };
 }
 
@@ -2027,8 +2087,8 @@ async function saveCsvUploads(all) {
     const merged = await jbSaveCsvUploads(all);
     localStorage.setItem(CSV_UPLOAD_KEY, JSON.stringify(merged));
   } catch (e) {
+    // Локально уже сохранено — облако не должно ронять загрузку файла.
     console.warn('CSV uploads cloud save failed:', e.message || e);
-    throw e;
   }
 }
 
@@ -2160,8 +2220,6 @@ async function saveUploadedCsv(projId, label, fileName, text) {
   const rows = parseSheet(text);
   const sheetColumns = (csvRows[0] || []).map(h => (h || '').trim());
   const existingId = Object.keys(all[projId]).find(id => all[projId][id]?.hash === hash);
-  const p = projects.find(x => x.id === projId);
-  const huppReplace = p && isHuppCsvOnly(p);
   if (existingId) {
     const updated = {
       ...all[projId][existingId],
@@ -2173,7 +2231,7 @@ async function saveUploadedCsv(projId, label, fileName, text) {
       text,
       uploadedAt: new Date().toISOString(),
     };
-    all[projId] = huppReplace ? { [existingId]: updated } : { ...all[projId], [existingId]: updated };
+    all[projId] = { ...all[projId], [existingId]: updated };
     await saveCsvUploads(all);
     return { id: existingId, hash, duplicate: true };
   }
@@ -2187,11 +2245,7 @@ async function saveUploadedCsv(projId, label, fileName, text) {
     rows: serializeUploadRows(rows),
     sheetColumns,
   };
-  if (huppReplace) {
-    all[projId] = { [id]: entry };
-  } else {
-    all[projId][id] = entry;
-  }
+  all[projId][id] = entry;
   await saveCsvUploads(all);
   return { id, hash, duplicate: false };
 }
@@ -2313,9 +2367,50 @@ async function readUploadFileAsCsvText(file) {
   return text;
 }
 
+async function processHuppCsvUploadFiles(projId, files) {
+  const p = projects.find(x => x.id === projId);
+  if (!p || !isHuppCsvOnly(p) || !files?.length) return;
+  const label = canonicalSourceLabel(p, 'CSV upload');
+  const card = document.querySelector(`.csv-drop-zone[ondrop*="'${projId}'"]`);
+  card?.classList.add('csv-upload-busy');
+  try {
+    let anyDup = false;
+    let savedCount = 0;
+    for (const file of files) {
+      let text = await readUploadFileAsCsvText(file);
+      const directRows = directSpendRowsFromUploadText(text);
+      if (!directRows.length) {
+        throw new Error(`В «${file.name}» нет дат/расхода Директа. Нужны колонки День/Дата + Расход (и желательно Показы/Клики).`);
+      }
+      text = directSpendRowsToCsvText(directRows);
+      const saved = await saveUploadedCsv(projId, label, file.name, text);
+      savedCount += 1;
+      if (saved.duplicate) anyDup = true;
+    }
+    // Сначала показываем данные в UI, Metrika — фоном (не блокирует загрузку).
+    await applyUploadedCsvToCache(projId, label);
+    if (anyDup) console.info('Часть файлов уже была загружена (тот же hash) — обновлено без дубля');
+    else if (savedCount > 1) console.info(`Hupp: загружено ${savedCount} CSV, spend по совпадающим датам суммирован`);
+    triggerHuppFeedAndWait({ dispatch: true }).then(feed => {
+      if (feed && !feed.ok && feed.message) {
+        console.warn('Hupp Metrika:', feed.message);
+      } else if (feed?.fresh) {
+        console.info('Hupp Metrika обновлена после загрузки CSV');
+        applyUploadedCsvToCache(projId, label).catch(() => {});
+      }
+    }).catch(e => console.warn('Hupp Metrika refresh failed:', e.message || e));
+  } finally {
+    card?.classList.remove('csv-upload-busy');
+  }
+}
+
 async function processCsvUploadFile(projId, file) {
   const p = projects.find(x => x.id === projId);
   if (!p || !file) return;
+  if (isHuppCsvOnly(p)) {
+    await processHuppCsvUploadFiles(projId, [file]);
+    return;
+  }
   const presets = csvUploadPresets(p);
   const fallbackLabel = presets[0]?.value || 'CSV';
   const labelEl = document.getElementById(`csv-upload-label-${projId}`);
@@ -2323,29 +2418,6 @@ async function processCsvUploadFile(projId, file) {
   let selected = (labelEl?.value || fallbackLabel).trim();
   if (selected === '__custom__') selected = (customEl?.value || '').trim() || fallbackLabel;
   let text = await readUploadFileAsCsvText(file);
-
-  if (isHuppCsvOnly(p)) {
-    const directRows = directSpendRowsFromUploadText(text);
-    if (!directRows.length) throw new Error('В CSV нет дат/расхода Директа');
-    text = directSpendRowsToCsvText(directRows);
-    const label = canonicalSourceLabel(p, 'CSV upload');
-    const card = document.querySelector(`.csv-drop-zone[ondrop*="'${projId}'"]`);
-    card?.classList.add('csv-upload-busy');
-    try {
-      const saved = await saveUploadedCsv(projId, label, file.name, text);
-      const feed = await triggerHuppFeedAndWait({ dispatch: true });
-      await applyUploadedCsvToCache(projId, label);
-      if (saved.duplicate) console.info(`Файл уже был загружен (hash ${shortHash(saved.hash)}) — данные обновлены`);
-      if (feed && !feed.ok && feed.message) {
-        alert(`CSV сохранён, но Metrika не обновилась: ${feed.message}`);
-      } else if (feed?.fresh) {
-        console.info('Hupp Metrika обновлена после загрузки CSV');
-      }
-    } finally {
-      card?.classList.remove('csv-upload-busy');
-    }
-    return;
-  }
 
   const rows = parseSheet(text);
   if (!rows.length) throw new Error('Не удалось разобрать файл — проверь заголовки Date/Spend/Reg');
@@ -2398,10 +2470,15 @@ function rebuildJgglPlatformCsvText(originalText, platform) {
 }
 
 async function onCsvUploadFile(projId, inputEl) {
-  const file = inputEl?.files?.[0];
-  if (!file) return;
+  const files = [...(inputEl?.files || [])];
+  if (!files.length) return;
   try {
-    await processCsvUploadFile(projId, file);
+    const p = projects.find(x => x.id === projId);
+    if (isHuppCsvOnly(p) && files.length > 1) {
+      await processHuppCsvUploadFiles(projId, files);
+    } else {
+      for (const file of files) await processCsvUploadFile(projId, file);
+    }
     inputEl.value = '';
   } catch (e) {
     alert(`Не удалось загрузить файл: ${e.message || e}`);
@@ -2425,10 +2502,17 @@ async function onCsvDropFile(projId, e) {
   e.preventDefault();
   e.stopPropagation();
   e.currentTarget.classList.remove('csv-drop-active');
-  const file = e.dataTransfer?.files?.[0];
-  if (!file) return;
+  const files = [...(e.dataTransfer?.files || [])].filter(f =>
+    /\.(csv|xlsx|xls)$/i.test(f.name || '') || /csv|sheet|excel/i.test(f.type || '')
+  );
+  if (!files.length) return;
   try {
-    await processCsvUploadFile(projId, file);
+    const p = projects.find(x => x.id === projId);
+    if (isHuppCsvOnly(p)) {
+      await processHuppCsvUploadFiles(projId, files);
+    } else {
+      for (const file of files) await processCsvUploadFile(projId, file);
+    }
   } catch (err) {
     alert(`Не удалось загрузить файл: ${err.message || err}`);
   }
@@ -2474,12 +2558,13 @@ function renderCsvUploadCard(proj) {
     `<option value="${escHtml(p.value)}"${i === 0 ? ' selected' : ''}>${escHtml(p.label)}</option>`
   ).join('');
   const hint = isHuppCsvOnly(proj)
-    ? 'Загрузите выгрузку Yandex Direct (CSV/XLSX). После загрузки автоматически запросим свежие цели из Метрики и сольём с расходом.'
+    ? 'Можно грузить несколько выгрузок Yandex Direct (CSV/XLSX). Дни накапливаются; если дата есть в двух файлах — spend/clicks/impressions суммируются. После загрузки подтянем цели из Метрики.'
     : isQuadcodeProject(proj)
     ? 'Можно грузить несколько CSV/XLSX подряд — каждый файл сохраняется по хешу, данные сливаются по датам в лист месяца.'
     : isJgglProject(proj)
     ? '«Авто iOS / Android»: строки с android в названии кампании → Android, остальные → iOS. Месяц выбирается отдельно.'
     : 'Можно грузить несколько файлов подряд (CSV/XLSX). Статистика сохраняется в облако и видна всем на дашборде.';
+  const multiAttr = isHuppCsvOnly(proj) ? ' multiple' : '';
 
   return `<div class="csv-upload-card csv-drop-zone"
     ondragenter="onCsvDropOver(event)"
@@ -2498,7 +2583,7 @@ function renderCsvUploadCard(proj) {
         <option value="__custom__">Своё имя…</option>
       </select>
       <input id="csv-upload-custom-${proj.id}" type="text" placeholder="Название листа" style="display:none;min-width:120px">
-      <input type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onchange="onCsvUploadFile('${proj.id}', this)">
+      <input type="file"${multiAttr} accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onchange="onCsvUploadFile('${proj.id}', this)">
     </div>
     ${items ? `<div class="csv-upload-list">${items}</div>` : '<div class="csv-upload-hint" style="margin-top:8px">Пока нет загруженных файлов</div>'}
   </div>`;
@@ -2603,6 +2688,25 @@ function loadProjectsLocal() {
 
 // Локальный кэш сразу после определения хелперов (до async JSONBin).
 projects = loadProjectsLocal();
+// Синхронно восстанавливаем проект до любых await — иначе мелькает «Все проекты».
+(function earlyRestoreView() {
+  try {
+    const fromHash = decodeURIComponent((location.hash || '').replace(/^#/, '')).trim();
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(VIEW_KEY) || 'null'); } catch (_) {}
+    const candidate = fromHash || saved?.view || '';
+    if (!candidate || candidate === 'overview') return;
+    if (!projects.some(p => p.id === candidate)) return;
+    view = candidate;
+    if (saved?.view === candidate && saved.month) {
+      currentMonth = saved.month;
+      tileMonths[candidate] = saved.month;
+    }
+    if (saved?.view === candidate && saved.sourceIndex != null && Number.isFinite(+saved.sourceIndex)) {
+      sourceIndexByProject[candidate] = Math.max(0, Math.floor(+saved.sourceIndex));
+    }
+  } catch (_) {}
+})();
 
 async function loadProjects() {
   try {
@@ -2628,16 +2732,46 @@ function genId(name) {
 // ═══════════════════════════════════════════════════════════════
 // CSV PARSING
 // ═══════════════════════════════════════════════════════════════
+function detectCsvDelimiter(text) {
+  const lines = String(text || '').replace(/^\uFEFF/, '').split(/\r?\n/).filter(l => l.trim()).slice(0, 15);
+  if (!lines.length) return ',';
+  const score = (delim) => {
+    let best = 0;
+    let consistent = 0;
+    let prev = -1;
+    lines.forEach(line => {
+      let n = 0;
+      let inQ = false;
+      for (let i = 0; i < line.length; i++) {
+        const c = line[i];
+        if (c === '"') { inQ = !inQ; continue; }
+        if (!inQ && c === delim) n += 1;
+      }
+      if (n > best) best = n;
+      if (n > 0 && (prev < 0 || n === prev)) consistent += 1;
+      if (n > 0) prev = n;
+    });
+    return best * 10 + consistent;
+  };
+  const candidates = [
+    { d: ',', s: score(',') },
+    { d: ';', s: score(';') },
+    { d: '\t', s: score('\t') },
+  ].sort((a, b) => b.s - a.s);
+  return candidates[0].s > 0 ? candidates[0].d : ',';
+}
+
 function parseCSV(text) {
   text = String(text || '').replace(/^\uFEFF/, '');
-  return text.split('\n').map(line => {
+  const delim = detectCsvDelimiter(text);
+  return text.split(/\r?\n/).map(line => {
     line = line.trim();
     if (!line) return null;
     const cols = []; let cur = '', inQ = false;
     for (let i = 0; i < line.length; i++) {
       const c = line[i];
       if (c === '"') { inQ = !inQ; continue; }
-      if (c === ',' && !inQ) { cols.push(cur.trim()); cur = ''; } else cur += c;
+      if (c === delim && !inQ) { cols.push(cur.trim()); cur = ''; } else cur += c;
     }
     cols.push(cur.trim());
     return cols;
@@ -2716,8 +2850,8 @@ function findPlantoColumns(headerRow) {
     contactInfoCol: findCol(headers, ['contact_info'], ['cost', 'цена', '/']),
     formSubmitCol: findCol(headers, ['form_submit'], ['cost', 'цена', '/']),
     contactSentCol: findCol(headers, ['contact_sent'], ['cost', 'цена', '/']),
-    clicksCol: findCol(headers, ['click'], ['ctr']),
-    impressionsCol: findCol(headers, ['impression', 'impress'], []),
+    clicksCol: findCol(headers, ['click', 'клик'], ['ctr', 'цена', 'cpc', 'ср.']),
+    impressionsCol: findCol(headers, ['impression', 'impress', 'показ', 'imps'], ['доля', 'share', '%']),
   };
 }
 
@@ -2807,8 +2941,8 @@ function detectSheetType(headerRow) {
   if (findCol(headers, ['reach_pay', 'view_pay', 'pay_submit', 'contact_info', 'contact_sent'], []) >= 0) return 'hupp';
   if (isPlantoSheet(headers)) return 'planto';
   const hasSpend = findSpendCol(headers) >= 0;
-  const hasImpressions = findCol(headers, ['impression', 'impress'], []) >= 0;
-  const hasClicks = findCol(headers, ['click'], ['ctr']) >= 0;
+  const hasImpressions = findCol(headers, ['impression', 'impress', 'показ', 'imps'], ['доля', 'share', '%']) >= 0;
+  const hasClicks = findCol(headers, ['click', 'клик'], ['ctr', 'цена', 'cpc', 'ср.']) >= 0;
   const hasCampaign = findCol(headers, ['campaign name', 'campaign', 'кампани'], []) >= 0;
   // Meta Ads export: Amount spent + Impressions/Clicks/Campaign
   if (hasSpend && (hasImpressions || hasClicks || hasCampaign)) return 'campaign';
@@ -2827,7 +2961,7 @@ function isCostHeader(h) {
 
 function isAdMetricHeader(h) {
   h = (h || '').toLowerCase().trim();
-  return /impression|click|ctr|cpm|cpc|campaign|кампани|reach|frequency|view/.test(h);
+  return /impression|impress|показ|click|клик|ctr|cpm|cpc|campaign|кампани|reach|frequency|view/.test(h);
 }
 
 function findRegColumn(headers) {
@@ -2923,8 +3057,8 @@ function findCampaignExtraColumns(headerRow) {
     campaignCol: findCol(headers, ['campaign', 'кампани']),
     adsetCol: findCol(headers, ['ad set name', 'ad set', 'adset', 'группу объяв', 'группа объяв']),
     adCol: findCol(headers, ['ad name', 'объявлен'], ['ad set', 'adset']),
-    impressionsCol: findCol(headers, ['impression', 'impress']),
-    clicksCol: findCol(headers, ['click'], ['ctr']),
+    impressionsCol: findCol(headers, ['impression', 'impress', 'показ', 'imps'], ['доля', 'share', '%']),
+    clicksCol: findCol(headers, ['click', 'клик'], ['ctr', 'цена', 'cpc', 'ср.']),
   };
 }
 
@@ -3780,6 +3914,9 @@ async function loadAll() {
     if (view === 'overview') renderContent();
     else if (view === p.id) renderContent();
   }));
+  // На случай если remote-список проектов поменял id — ещё раз применить сохранённый view.
+  restoreViewState();
+  persistViewState();
   renderContent();
 }
 
@@ -6046,6 +6183,7 @@ function switchSource(idx) {
     tileMonths[view] = mk;
   }
   destroyDetailCharts();
+  persistViewState();
   renderContent();
 }
 
@@ -6166,7 +6304,14 @@ function renderOverview() {
 // ═══════════════════════════════════════════════════════════════
 function renderProjectDetail(projId) {
   const p = projects.find(x => x.id === projId);
-  if (!p) { switchView('overview'); return; }
+  if (!p) {
+    // Не сбрасываем сохранённый проект через switchView — только показываем заглушку.
+    const content = document.getElementById('content');
+    if (content) {
+      content.innerHTML = `<div class="spinner-wrap"><div class="spinner-text">Проект «${escHtml(projId)}» не найден в списке</div></div>`;
+    }
+    return;
+  }
 
   const data = cache[projId];
   const pack = normalizeCacheData(data);
@@ -6415,12 +6560,75 @@ function renderAdminPanel(proj) {
 // ═══════════════════════════════════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════════════════════════════════
+function getValidViewId(id) {
+  const v = String(id || '').trim();
+  if (!v || v === 'overview') return 'overview';
+  return projects.some(p => p.id === v) ? v : 'overview';
+}
+
+function readViewHash() {
+  try {
+    return decodeURIComponent((location.hash || '').replace(/^#/, '')).trim();
+  } catch (_) {
+    return '';
+  }
+}
+
+function persistViewState() {
+  try {
+    localStorage.setItem(VIEW_KEY, JSON.stringify({
+      view,
+      month: currentMonth || null,
+      sourceIndex: view !== 'overview' ? sourceIndexByProject[view] : null,
+    }));
+  } catch (_) {}
+  try {
+    sessionStorage.setItem(VIEW_KEY, view);
+  } catch (_) {}
+  const next = view === 'overview'
+    ? `${location.pathname}${location.search}`
+    : `${location.pathname}${location.search}#${encodeURIComponent(view)}`;
+  const cur = `${location.pathname}${location.search}${location.hash || ''}`;
+  if (cur !== next) {
+    try { history.replaceState(null, '', next); } catch (_) {}
+  }
+}
+
+function restoreViewState() {
+  let fromHash = '';
+  try {
+    fromHash = decodeURIComponent((location.hash || '').replace(/^#/, '')).trim();
+  } catch (_) { fromHash = ''; }
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(VIEW_KEY) || 'null'); } catch (_) { saved = null; }
+  let fromSession = '';
+  try { fromSession = sessionStorage.getItem(VIEW_KEY) || ''; } catch (_) {}
+  const candidate = fromHash || saved?.view || fromSession || 'overview';
+  const next = getValidViewId(candidate);
+  // Не затираем уже восстановленный view, если кандидат внезапно invalid.
+  if (next !== 'overview' || candidate === 'overview' || !fromHash && !saved?.view && !fromSession) {
+    view = next;
+  } else if (!projects.some(p => p.id === view)) {
+    view = 'overview';
+  }
+  if (view !== 'overview' && saved?.view === view) {
+    if (saved.month) {
+      currentMonth = saved.month;
+      tileMonths[view] = saved.month;
+    }
+    if (saved.sourceIndex != null && Number.isFinite(+saved.sourceIndex)) {
+      sourceIndexByProject[view] = Math.max(0, Math.floor(+saved.sourceIndex));
+    }
+  }
+}
+
 function switchView(v) {
-  view = v;
-  currentMonth = null;
+  view = getValidViewId(v);
+  currentMonth = view === 'overview' ? null : (tileMonths[view] || null);
   destroyDetailCharts();
   if (overviewChartInstance) { overviewChartInstance.destroy(); overviewChartInstance = null; }
   closeProjPicker();
+  persistViewState();
   renderContent();
 }
 
@@ -6431,6 +6639,7 @@ function switchMonth(m) {
     syncSourceIndexToMonth(view, pack, m);
     tileMonths[view] = m;
   }
+  persistViewState();
   renderContent();
 }
 
@@ -7123,6 +7332,7 @@ function deleteCurrentProject() {
   closeAllModals();
   view = 'overview';
   currentMonth = null;
+  persistViewState();
   renderTopbar();
   renderContent();
 }
@@ -7155,8 +7365,11 @@ document.addEventListener('click', e => {
 
 window.addEventListener('resize', () => { if (projPickerOpen) positionProjPickerDropdown(); });
 window.addEventListener('scroll', () => { if (projPickerOpen) positionProjPickerDropdown(); }, true);
+window.addEventListener('hashchange', () => {
+  const next = getValidViewId(readViewHash() || 'overview');
+  if (next !== view) switchView(next);
+});
 
-// ═══════════════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════════
@@ -7168,10 +7381,21 @@ document.getElementById('content').innerHTML = `<div class="spinner-wrap"><div c
 renderTopbar();
 
 (async () => {
-  await loadProjects();
-  await hydrateCsvUploadsFromRemote();
-  renderTopbar();        // re-render with actual projects
-  await loadAll();        // fetch CSV data for all projects
+  try {
+    await loadProjects();
+    // После remote-списка ещё раз валидируем сохранённый view.
+    restoreViewState();
+  } catch (e) {
+    console.warn('loadProjects failed:', e.message || e);
+  }
+  try {
+    await hydrateCsvUploadsFromRemote();
+  } catch (e) {
+    console.warn('CSV hydrate failed:', e.message || e);
+  }
+  renderTopbar();
+  persistViewState();
+  await loadAll();
 })();
 </script>
 </body>
