@@ -1300,11 +1300,14 @@ function deserializeUploadRows(rows) {
 
 function mergeCsvUploadStores(local, remote) {
   const out = JSON.parse(JSON.stringify(remote || {}));
-  Object.entries(local || {}).forEach(([projId, files]) => {
-    // Локальная карта проекта — источник истины (удалённые id, в т.ч. seed, не возвращаются из remote).
-    const next = {};
-    Object.entries(files || {}).forEach(([id, file]) => {
-      const prev = out[projId]?.[id];
+  const projIds = new Set([...Object.keys(out), ...Object.keys(local || {})]);
+  projIds.forEach(projId => {
+    // Начинаем с ВСЕХ id из remote (другие устройства могли залить новые файлы,
+    // которых ещё нет локально) — иначе их молча теряем и, что хуже, при
+    // следующем cloud-push стираем из самого JSONBin (баг: "данные не старше N-го").
+    const next = { ...(out[projId] || {}) };
+    Object.entries((local || {})[projId] || {}).forEach(([id, file]) => {
+      const prev = next[id];
       if (!prev) {
         next[id] = file;
         return;
@@ -1881,8 +1884,25 @@ async function pruneHuppSeedUploads() {
   const ids = Object.keys(files).filter(id => isHuppSeedUpload(files[id]));
   if (!ids.length) return false;
   ids.forEach(id => delete files[id]);
-  all.hupp = files; // даже {} — чтобы remote seed не вернулся через merge
-  await saveCsvUploads(all, { awaitCloud: false });
+  all.hupp = files;
+  localStorage.setItem(CSV_UPLOAD_KEY, JSON.stringify(all));
+  // Явное удаление из JSONBin напрямую — mergeCsvUploadStores теперь union-preserving
+  // (не роняет id, которых нет локально, чтобы не ловить cross-device stale-data баг),
+  // поэтому просто "запушить" урезанный локальный набор больше не удаляет seed из cloud.
+  try {
+    await jbSaveRecord(raw => {
+      const rest = raw.filter(p => p && p.id !== '_csv_uploads');
+      const entry = raw.find(p => p?.id === '_csv_uploads');
+      const uploads = entry?.uploads ? JSON.parse(JSON.stringify(entry.uploads)) : {};
+      if (uploads.hupp) {
+        ids.forEach(id => delete uploads.hupp[id]);
+        if (!Object.keys(uploads.hupp).length) delete uploads.hupp;
+      }
+      return [...rest, { id: '_csv_uploads', uploads, updatedAt: new Date().toISOString() }];
+    });
+  } catch (e) {
+    console.warn('Hupp seed cloud prune failed:', e.message || e);
+  }
   return true;
 }
 
@@ -2321,7 +2341,25 @@ async function deleteUploadedCsv(projId, id) {
   if (all[projId]) {
     delete all[projId][id];
     if (!Object.keys(all[projId]).length) delete all[projId];
-    await saveCsvUploads(all);
+    localStorage.setItem(CSV_UPLOAD_KEY, JSON.stringify(all));
+  }
+  // Explicit direct removal from JSONBin — bypasses mergeCsvUploadStores on purpose:
+  // that merge is union-preserving (never drops an id it doesn't know about, to stop
+  // the cross-device stale-data bug), so it must NOT be used for deletions or the
+  // removed id would just get re-added back from the freshly-fetched remote copy.
+  try {
+    await jbSaveRecord(raw => {
+      const rest = raw.filter(p => p && p.id !== '_csv_uploads');
+      const entry = raw.find(p => p?.id === '_csv_uploads');
+      const uploads = entry?.uploads ? JSON.parse(JSON.stringify(entry.uploads)) : {};
+      if (uploads[projId]) {
+        delete uploads[projId][id];
+        if (!Object.keys(uploads[projId]).length) delete uploads[projId];
+      }
+      return [...rest, { id: '_csv_uploads', uploads, updatedAt: new Date().toISOString() }];
+    });
+  } catch (e) {
+    console.warn('CSV delete cloud sync failed:', e.message || e);
   }
 }
 
