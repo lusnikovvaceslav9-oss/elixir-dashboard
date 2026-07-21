@@ -2153,7 +2153,7 @@ function loadCsvUploads() {
   }
 }
 
-async function saveCsvUploads(all, { awaitCloud = false, timeoutMs = 6000 } = {}) {
+async function saveCsvUploads(all, { awaitCloud = false, timeoutMs = 15000 } = {}) {
   localStorage.setItem(CSV_UPLOAD_KEY, JSON.stringify(all));
   const sync = async () => {
     const merged = await jbSaveCsvUploads(all);
@@ -2175,6 +2175,34 @@ async function saveCsvUploads(all, { awaitCloud = false, timeoutMs = 6000 } = {}
   } catch (e) {
     console.warn('CSV uploads cloud save failed:', e.message || e);
     return all;
+  }
+}
+
+/**
+ * Принудительно заливает ВЕСЬ локальный набор CSV-загрузок в облако и ждёт результат.
+ * Нужен, когда фоновый push при загрузке файла упал/таймнулся и данные (напр. за 20-е)
+ * остались только в этом браузере, а другие устройства их не видят.
+ */
+async function forceSyncCsvToCloud(btn) {
+  if (!isAdmin()) return;
+  const orig = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Синхронизация…'; }
+  try {
+    const local = loadCsvUploads();
+    const merged = await Promise.race([
+      jbSaveCsvUploads(local),
+      sleep(30000).then(() => { throw new Error('таймаут 30с (проверь интернет)'); }),
+    ]);
+    localStorage.setItem(CSV_UPLOAD_KEY, JSON.stringify(merged));
+    const cnt = Object.values(merged || {}).reduce((a, f) => a + Object.keys(f || {}).length, 0);
+    if (view && view !== 'overview') {
+      try { await applyUploadedCsvToCache(view); } catch (_) {}
+    }
+    alert(`Готово ✓ В облаке ${cnt} файлов. На других устройствах обнови страницу (Cmd+Shift+R).`);
+  } catch (e) {
+    alert(`Не удалось синхронизировать: ${e.message || e}`);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = orig; }
   }
 }
 
@@ -2688,6 +2716,9 @@ function renderCsvUploadCard(proj) {
         <div class="csv-upload-title">Загрузить CSV / Excel</div>
         <div class="csv-upload-hint">${hint} Можно перетащить файл сюда.</div>
       </div>
+      <button type="button" class="btn-csv-sync" onclick="forceSyncCsvToCloud(this)"
+        title="Залить локальные данные этого браузера в облако, чтобы их увидели другие устройства"
+        style="white-space:nowrap;padding:8px 12px;border-radius:8px;border:1px solid var(--border,#d0d0d0);background:#111;color:#fff;font-size:12px;font-weight:600;cursor:pointer">☁ Синхронизировать в облако</button>
     </div>
     <div class="csv-upload-row">
       <select id="csv-upload-label-${proj.id}" onchange="onCsvUploadLabelChange('${proj.id}')">
