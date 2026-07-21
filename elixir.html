@@ -145,6 +145,26 @@ body{
   table{font-size:12px}
   td,th{padding:7px 10px}
   .section-header{margin-bottom:2px}
+  .btn-icon{padding:7px 10px}
+  .csv-upload-head{flex-direction:column;align-items:stretch;gap:10px}
+  .btn-csv-sync{width:100%;justify-content:center}
+  .sheet-switcher{flex-direction:column;align-items:flex-start;gap:6px}
+}
+
+@media(max-width:480px){
+  .topbar{padding:0 10px}
+  .topbar-inner{gap:8px}
+  .topbar-right{gap:6px}
+  .btn-add-top .btn-label{display:none}
+  .btn-add-top{padding:7px 9px}
+  .proj-picker-trigger{max-width:46vw}
+  .page-title{max-width:min(34vw,150px);font-size:14px}
+  .month-btn{min-width:auto;padding:8px 12px}
+  table{font-size:11px}
+  td,th{padding:6px 8px}
+  .metric-value{font-size:18px}
+  .metrics-grid{gap:8px}
+  #content{padding:12px 12px 28px;gap:12px}
 }
 
 /* ── OVERVIEW GRID ── */
@@ -1127,6 +1147,7 @@ function destroyDetailCharts() {
 
 function renderDailyTableHtml(p, rows, tbl) {
   const columnKeys = tbl.columnKeys || tbl.colKeys || [];
+  if (tbl.aggregateByDate) rows = aggregateRowsByDate(rows);
   let tbody = '';
   if (!rows.length) {
     tbody = `<tr><td colspan="${tbl.headers.length}" class="empty-state">Нет данных за этот период</td></tr>`;
@@ -5263,32 +5284,21 @@ function getTableConfig(proj, rows) {
       return ['Итого',fmtMoneyFull(sp,cur),fmtInt(rg),rg?fmtMoney(sp/rg,cur):'—',fmtInt(ins),ins?fmtMoney(sp/ins,cur):'—',fmtInt(pu),pu?fmtMoney(sp/pu,cur):'—']; }
     };
   } else if (type === 'campaign') {
-    const hasCampaign = rows?.some(r => r.campaign && r.campaign !== '—');
-    colKeys = hasCampaign
-      ? ['date', 'campaign', 'spend', 'qregs', 'cost_qreg', 'impressions', 'clicks', 'cpc', 'cpm', 'ctr']
-      : ['date', 'spend', 'qregs', 'cost_qreg', 'impressions', 'clicks', 'cpc', 'cpm', 'ctr'];
+    // Колонка Campaign убрана по запросу — данные схлопываются по дате (aggregateByDate).
+    colKeys = ['date', 'spend', 'qregs', 'cost_qreg', 'impressions', 'clicks', 'cpc', 'cpm', 'ctr'];
     const rowCpc = (r) => r.clicks ? fmtMoney(r.spend / r.clicks, cur) : '—';
     const rowCpm = (r) => r.impressions ? fmtMoney(r.spend / r.impressions * 1000, cur) : '—';
     const rowCtr = (r) => r.impressions ? fmtPct(r.clicks / r.impressions * 100) : '—';
-    tbl = hasCampaign ? {
-    headers: ['Дата', 'Campaign', `Spend (${cur})`, L('qregs','Reg'), L('cost_qreg','Cost/Reg'),
-      L('impressions','Impressions'), L('clicks','Clicks'), L('cpc','CPC'), L('cpm','CPM'), L('ctr','CTR')],
-    row: (r) => [r.dateStr, r.campaign || '—', fmtMoneyFull(r.spend,cur), fmtInt(r.qregs),
-      r.qregs ? fmtMoney(r.spend/r.qregs,cur) : '—', fmtInt(r.impressions||0), fmtInt(r.clicks||0),
-      rowCpc(r), rowCpm(r), rowCtr(r)],
-    total: (rows) => {
-      const sp=sum(rows,'spend'), qg=sum(rows,'qregs'), imp=sum(rows,'impressions'), cl=sum(rows,'clicks');
-      return ['Итого','',fmtMoneyFull(sp,cur),fmtInt(qg),qg?fmtMoney(sp/qg,cur):'—',
-        fmtInt(imp),fmtInt(cl),cl?fmtMoney(sp/cl,cur):'—',imp?fmtMoney(sp/imp*1000,cur):'—',imp?fmtPct(cl/imp*100):'—'];
-    }
-    } : {
+    tbl = {
+    aggregateByDate: true,
     headers: ['Дата', `Spend (${cur})`, L('qregs','Reg'), L('cost_qreg','Cost/Reg'),
       L('impressions','Impressions'), L('clicks','Clicks'), L('cpc','CPC'), L('cpm','CPM'), L('ctr','CTR')],
     row: (r) => [r.dateStr, fmtMoneyFull(r.spend,cur), fmtInt(r.qregs),
       r.qregs ? fmtMoney(r.spend/r.qregs,cur) : '—', fmtInt(r.impressions||0), fmtInt(r.clicks||0),
       rowCpc(r), rowCpm(r), rowCtr(r)],
     total: (rows) => {
-      const sp=sum(rows,'spend'), qg=sum(rows,'qregs'), imp=sum(rows,'impressions'), cl=sum(rows,'clicks');
+      const agg = aggregateRowsByDate(rows);
+      const sp=sum(agg,'spend'), qg=sum(agg,'qregs'), imp=sum(agg,'impressions'), cl=sum(agg,'clicks');
       return ['Итого',fmtMoneyFull(sp,cur),fmtInt(qg),qg?fmtMoney(sp/qg,cur):'—',
         fmtInt(imp),fmtInt(cl),cl?fmtMoney(sp/cl,cur):'—',imp?fmtMoney(sp/imp*1000,cur):'—',imp?fmtPct(cl/imp*100):'—'];
     }
@@ -5334,6 +5344,7 @@ function filterTableByMetrics(proj, tbl, colKeys, rows) {
   const enabled = new Set(getProjectMetricsConfig(proj, rows).filter(m => m.enabled !== false).map(m => m.key));
   const indices = colKeys.map((k, i) => (k === 'date' || k === 'spend' || k === 'campaign' || enabled.has(k)) ? i : -1).filter(i => i >= 0);
   return {
+    aggregateByDate: tbl.aggregateByDate,
     headers: indices.map(i => tbl.headers[i]),
     columnKeys: indices.map(i => colKeys[i]),
     row: (r) => indices.map(i => tbl.row(r)[i]),
@@ -6507,8 +6518,8 @@ function renderProjectDetail(projId) {
       : src;
     const scopedData = { sources: [src] };
     html += renderCsvUploadCard(p);
-    if (!monthPartitioned) html += renderSheetSwitcher(pack, projId, currentMonth);
     html += renderAnalyticsSection(p, scopedData, viewRows, currentMonth);
+    if (!monthPartitioned) html += renderSheetSwitcher(pack, projId, currentMonth);
     html += renderSourceSection(p, sectionSource, viewRows, currentMonth, srcIdx, true, 'mainChart', false);
     content.innerHTML = html;
     renderChartsForProject(p, pack, currentMonth, srcIdx);
