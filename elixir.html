@@ -108,6 +108,17 @@ body{
 .proj-picker-kbd{display:inline-block;padding:2px 5px;border-radius:4px;background:var(--bg);border:1px solid var(--border);font-size:9px;font-weight:600;color:var(--text-muted);margin-right:3px}
 .logo-mark{width:32px;height:32px;border-radius:8px;background:var(--matter);background-image:radial-gradient(circle at 30% 25%,rgba(255,255,255,0.28),transparent 45%),linear-gradient(160deg,#1a1a1a,#000);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;letter-spacing:0.04em;flex-shrink:0;box-shadow:inset 0 1px 0 rgba(255,255,255,0.18),0 6px 16px rgba(0,0,0,0.18)}
 
+/* ── GLOBAL INCOME CARD (lives in Analytics segment) ── */
+.income-card{display:flex;flex-direction:column}
+.income-total-box{background:var(--matter);border-radius:10px;padding:14px 16px;margin-bottom:10px}
+.income-total-value{font-family:var(--font-display);font-size:24px;font-weight:700;color:#fff;letter-spacing:-0.01em;line-height:1;font-variant-numeric:tabular-nums;white-space:nowrap}
+.income-breakdown{display:flex;gap:8px;flex-wrap:wrap}
+.income-chips-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.income-chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:rgba(0,0,0,0.6);background:rgba(0,0,0,0.04);border:1px solid var(--border);border-radius:999px;padding:5px 12px;white-space:nowrap}
+.income-chip b{color:#15803d;font-weight:700}
+.income-chip-dot{width:6px;height:6px;border-radius:50%;background:#22C55E;flex-shrink:0}
+@media(max-width:768px){.income-total-value{font-size:20px}}
+
 /* ── CONTENT — normal flow, page scrolls ── */
 #content{padding:28px 32px;display:flex;flex-direction:column;gap:20px;min-height:calc(100vh - 65px)}
 
@@ -127,7 +138,7 @@ body{
   .month-btn{padding:8px 14px;min-width:75px;flex-shrink:0}
   .month-btn-name{font-size:12px}
   .chart-wrap{height:170px}
-  .chart-card,.overview-chart-card,.table-card{padding:14px}
+  .chart-card,.table-card{padding:14px}
   .table-wrap{margin:0 -14px;padding:0 14px}
   .modal{padding:20px;border-radius:12px;max-height:88vh}
   .form-row{grid-template-columns:1fr}
@@ -235,8 +246,8 @@ body{
 .metrics-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px}
 .metric-card{background:rgba(18,18,26,0.8);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;transition:all 0.15s ease}
 .metric-card:hover{border-color:rgba(0,0,0,0.25)}
-.chart-card,.overview-chart-card,.table-card{background:rgba(18,18,26,0.8);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
-.chart-card,.overview-chart-card{padding:20px 24px}
+.chart-card,.table-card{background:rgba(18,18,26,0.8);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+.chart-card{padding:20px 24px}
 .table-card{overflow:hidden}
 .admin-panel{background:var(--accent-soft);border:1px solid rgba(0,0,0,0.25);border-radius:var(--radius)}
 .metric-card.accent .metric-label{color:rgba(0,0,0,0.7)}
@@ -248,10 +259,6 @@ body{
 .chart-card{background:#ffffff;border:1px solid rgba(0,0,0,0.06);border-radius:12px;padding:18px 22px}
 .card-title{font-size:11px;font-weight:600;color:rgba(0,0,0,0.7);margin-bottom:14px;text-transform:uppercase;letter-spacing:0.08em}
 .chart-wrap{position:relative;height:210px}
-.overview-chart-card{background:#ffffff;border:1px solid rgba(0,0,0,0.06);border-radius:14px;padding:18px 22px;margin-bottom:4px}
-.overview-chart-wrap{position:relative;height:220px}
-.overview-chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px}
-.overview-chart-month{font-size:11px;color:rgba(0,0,0,0.55);font-weight:500}
 .chart-card-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap}
 .chart-card-header .card-title{margin-bottom:0}
 .chart-type-picker{display:flex;flex-wrap:wrap;gap:4px;background:rgba(0,0,0,0.04);border:1px solid rgba(0,0,0,0.12);border-radius:10px;padding:3px}
@@ -388,6 +395,9 @@ td:first-child{text-align:left;color:#0a0a0a;font-weight:500}
 .feed-warn{color:#fbbf24!important}
 .tile-budget{margin:0 16px 12px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:10px}
 .tile-budget-top{display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-bottom:6px}
+.tile-income{margin:0 16px 12px;padding:10px 12px;background:var(--matter);border-radius:10px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.tile-income-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:rgba(255,255,255,0.55)}
+.tile-income-value{font-family:var(--font-display);font-size:18px;font-weight:700;color:#86efac;letter-spacing:-0.01em;font-variant-numeric:tabular-nums;white-space:nowrap}
 .tile-budget-bar{height:5px;background:rgba(0,0,0,0.05);border-radius:99px;overflow:hidden}
 .tile-budget-fill{height:100%;border-radius:99px;background:var(--accent)}
 @media(max-width:900px){
@@ -618,7 +628,7 @@ body.admin-mode th.th-editable:hover{background:rgba(0,0,0,0.06)}
 .tile-metric.live .tile-metric-value{color:#15803d}
 .tile-cta{color:var(--text)}
 .tile-arrow{color:rgba(0,0,0,0.35)}
-.metric-card,.chart-card,.overview-chart-card,.table-card,.analytics-card,.csv-upload-card,.planto-block,.cohort-card{background:#fff;box-shadow:var(--shadow)}
+.metric-card,.chart-card,.table-card,.analytics-card,.csv-upload-card,.planto-block,.cohort-card{background:#fff;box-shadow:var(--shadow)}
 .metric-card.accent .metric-label{color:rgba(0,0,0,0.4)}
 .metric-card.accent .metric-value{color:#0a0a0a}
 .budget-progress-fill,.funnel-bar,.planto-bar > i,.planto-feat-track > i,.tile-budget-fill{background:var(--matter)}
@@ -659,7 +669,7 @@ thead tr{background:#f7f7f7}
 
 
 /* ── CONTRAST BOOST ── */
-.tile-metric-label,.metric-label,.planto-kpi-label,.budget-stat-label,.compare-label,.analytics-card-title,.card-title,.section-title,.sheet-switcher-label,.csv-upload-hint,.csv-upload-meta,.tile-live-note,.month-btn-count,.tile-budget-top,.budget-hint,.budget-progress-meta,.planto-block-hint,.planto-kpi-sub,.tile-metric-sub,.proj-picker-label,.admin-link-ext,.overview-chart-month,.funnel-step-label,.insight-row span:first-child,.planto-feat-name,.planto-block-desc,.cohort-meta,.feed-stamp,.empty-state,.spinner-text{
+.tile-metric-label,.metric-label,.planto-kpi-label,.budget-stat-label,.compare-label,.analytics-card-title,.card-title,.section-title,.sheet-switcher-label,.csv-upload-hint,.csv-upload-meta,.tile-live-note,.month-btn-count,.tile-budget-top,.budget-hint,.budget-progress-meta,.planto-block-hint,.planto-kpi-sub,.tile-metric-sub,.proj-picker-label,.admin-link-ext,.funnel-step-label,.insight-row span:first-child,.planto-feat-name,.planto-block-desc,.cohort-meta,.feed-stamp,.empty-state,.spinner-text{
   color:rgba(0,0,0,0.58)!important;
 }
 .tile-metric-value,.metric-value,.planto-kpi-value,.budget-stat-value,.compare-value,.page-title,.tile-name,.brand-name{
@@ -968,7 +978,16 @@ const FETCHERS = [
   url => fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`),
   url => fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`),
 ];
-const ADMIN_PW = 'elixir2026';
+// Пароль больше не хранится в открытом виде — сравнение идёт по SHA-256 хэшу.
+// ВАЖНО: это временная мера (обфускация, а не настоящая защита) — хэш всё ещё
+// статический и не защищает от полного вычисления методом перебора при наличии
+// исходников. Полноценное решение — Cloudflare Worker proxy (см. worker/README.md),
+// который проверяет пароль на сервере и не отдаёт секрет в браузер вообще.
+const ADMIN_PW_HASH = '1f006a9689a19edefbb9e08142486bd14cb27b1da1410e4a01cc47a7cae17ed2';
+async function sha256Hex(text) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
 const ADMIN_KEY = 'elixir_admin';
 const PROJ_KEY  = 'elixir_projects';
 const VIEW_KEY  = 'elixir_last_view';
@@ -979,12 +998,6 @@ const CHART_TYPE_OPTIONS = {
     { id: 'line', label: 'Линия' },
     { id: 'bar', label: 'Столбцы' },
     { id: 'area', label: 'Область' },
-    { id: 'pie', label: 'Круговая' },
-    { id: 'doughnut', label: 'Кольцевая' },
-  ],
-  overview: [
-    { id: 'bar', label: 'Столбцы' },
-    { id: 'line', label: 'Линия' },
     { id: 'pie', label: 'Круговая' },
     { id: 'doughnut', label: 'Кольцевая' },
   ],
@@ -1106,7 +1119,6 @@ let view         = 'overview';
 let currentMonth = null;
 let chartInstance = null;
 let chartInstances = [];
-let overviewChartInstance = null;
 function destroyDetailCharts() {
   chartInstances.forEach(c => { try { c.destroy(); } catch(e) {} });
   chartInstances = [];
@@ -4015,7 +4027,60 @@ async function refreshData() {
   } finally {
     btn.classList.remove('spinning'); btn.disabled = false;
   }
+  lastAutoRefreshAt = Date.now(); // ручное обновление сбрасывает таймер авто-поллинга
 }
+
+// ═══════════════════════════════════════════════════════════════
+// AUTO-REFRESH — периодический поллинг + перечитывание при возврате на вкладку.
+// Лёгкий (без GitHub dispatch): просто перечитывает уже закоммиченные
+// data/planto-meta.json (+cohort/product), которые cron в Actions обновляет сам.
+// Держит plantoMetaCache свежим → доход в плашке Planto и общая стата обновляются
+// сами, без ручного клика на «Обновить».
+// ═══════════════════════════════════════════════════════════════
+const AUTO_REFRESH_MS = 5 * 60 * 1000; // 5 мин — с запасом относительно часового cron фида
+let autoRefreshTimer = null;
+let lastAutoRefreshAt = 0;
+let autoRefreshInFlight = false;
+
+async function refreshPlantoMetaLight() {
+  if (autoRefreshInFlight) return;
+  autoRefreshInFlight = true;
+  try {
+    const [meta, cohort, product] = await Promise.all([
+      fetchPlantoMeta(),
+      fetchPlantoCohort(),
+      fetchPlantoProduct(),
+    ]);
+    if (meta) plantoMetaCache = meta;
+    if (cohort) plantoCohortCache = cohort;
+    if (product) plantoProductCache = product;
+    else if (!plantoProductCache && plantoMetaCache?.product) {
+      plantoProductCache = { product: plantoMetaCache.product, unit_economics: plantoMetaCache.unit_economics };
+    }
+    renderTopbar();
+    renderContent();
+  } catch (e) {
+    console.warn('Auto-refresh (Planto meta) failed:', e.message || e);
+  } finally {
+    lastAutoRefreshAt = Date.now();
+    autoRefreshInFlight = false;
+  }
+}
+
+function startAutoRefresh() {
+  lastAutoRefreshAt = Date.now();
+  if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+  autoRefreshTimer = setInterval(() => {
+    if (document.visibilityState === 'visible') refreshPlantoMetaLight();
+  }, AUTO_REFRESH_MS);
+}
+
+// Возврат на вкладку после долгого отсутствия — сразу подтягиваем свежий срез,
+// не дожидаясь следующего тика таймера.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  if (Date.now() - lastAutoRefreshAt >= AUTO_REFRESH_MS) refreshPlantoMetaLight();
+});
 
 // ═══════════════════════════════════════════════════════════════
 // METRICS / TABLE / CHART CONFIG PER TYPE
@@ -4161,47 +4226,21 @@ function plantoFeedHealth() {
 function renderPlantoBreakdownCard(proj, rows) {
   if (isPlantoAutoFeed(proj)) {
     const meta = plantoMetaCache;
-    const updated = meta?.generated_at ? new Date(meta.generated_at).toLocaleString('ru-RU') : '';
     const health = plantoFeedHealth();
-    const attr = meta?.trial_attribution === 'appmetrica_trial_started'
-      ? ' · триалы: AppMetrica trial_started'
-      : meta?.trial_attribution === 'supabase_trial_start'
-      ? ' · триалы: Supabase/RuStore'
-      : '';
-    const xc = meta?.trials_crosscheck_yesterday;
-    const dash = xc?.dashboard != null ? xc.dashboard : xc?.appmetrica;
-    const xcHtml = xc && (xc.appmetrica != null || xc.supabase != null)
-      ? `<div class="budget-hint">` +
-        `Триалы ${escHtml(xc.day || '')}: дашборд/AM <strong>${fmtInt(dash || 0)}</strong>` +
-        (xc.supabase != null ? ` · RuStore <strong>${fmtInt(xc.supabase || 0)}</strong>` : '') +
-        `</div>`
-      : '';
-    const healthHtml = health
-      ? `<div class="budget-hint${health.ok && !health.staleVsToday ? '' : ' feed-warn'}">` +
-        `Срез feed: <strong>${escHtml(health.until || '—')}</strong> · ` +
-        `в CSV ${health.totalRows} дн.` +
-        (health.julyRows ? ` · июль: ${health.julyRows}` : '') +
-        (health.ok ? '' : ` · ⚠ в CSV только до ${escHtml(health.lastIso || '?')} — перезапусти feed или открой папку с data/`) +
-        (health.staleVsToday ? ` · ⚠ сегодня ${escHtml(health.todayIso)}, feed до ${escHtml(health.until)}` : '') +
-        `</div>`
-      : '';
-    const refresh = lastPlantoFeedRefresh;
-    const refreshHtml = refresh
-      ? `<div class="budget-hint${refresh.ok ? '' : ' feed-warn'}">` +
-        `«Обновить»: ${escHtml(refresh.message || (refresh.ok ? 'ok' : 'ошибка'))}` +
-        `</div>`
+    const warnHtml = (health && (!health.ok || health.staleVsToday))
+      ? `<div class="budget-hint feed-warn">⚠ данные могли устареть — перезапусти feed или обнови страницу</div>`
       : '';
     const pay = meta?.payments_by_plan;
     const payHtml = pay && pay.total?.count
-      ? `<div class="budget-hint">Оплаты: ` +
-        `<strong>${pay.yearly?.count || 0}</strong> годовых (${fmtInt(pay.yearly?.rub || 0)} ₽) · ` +
-        `<strong>${pay.monthly?.count || 0}</strong> месячных (${fmtInt(pay.monthly?.rub || 0)} ₽) · ` +
-        `всего ${fmtInt(pay.total.rub || 0)} ₽</div>`
+      ? `<div class="income-chips-row">` +
+        `<span class="income-chip">Годовых&nbsp;<b>${pay.yearly?.count || 0}</b>&nbsp;· ${fmtInt(pay.yearly?.rub || 0)} ₽</span>` +
+        `<span class="income-chip">Месячных&nbsp;<b>${pay.monthly?.count || 0}</b>&nbsp;· ${fmtInt(pay.monthly?.rub || 0)} ₽</span>` +
+        `<span class="income-chip">Всего&nbsp;<b>${fmtInt(pay.total.rub || 0)} ₽</b></span>` +
+        `</div>`
       : '';
     return `<div class="analytics-card planto-breakdown-card">
       <div class="analytics-card-title">Auto feed <span class="feed-badge">live</span></div>
-      <div class="budget-hint">Direct + AppMetrica installs/trials + RuStore bills (yearly → день триала −7д)${attr}${updated ? ' · обновлено ' + escHtml(updated) : ''}</div>
-      ${xcHtml}${healthHtml}${refreshHtml}${payHtml}
+      ${payHtml}${warnHtml}
     </div>`;
   }
   const sel = getPlantoView(proj.id);
@@ -5510,23 +5549,44 @@ function renderBudgetCard(proj, allData, compact) {
   }
 
   const inputVal = remEntered != null ? remEntered : '';
-  const asOfHint = budget?.asOf
-    ? `<div class="budget-hint">Снимок: остаток ${fmtMoney(budget.remainderEntered, cur)} на ${escHtml(fmtIsoDateRu(budget.asOf))} · при spend ${fmtMoney(budget.spentAt, cur)} → бюджет ${fmtMoney(budget.total, cur)}</div>`
-    : '';
   const adminInput = isAdmin()
     ? `<div class="budget-input-row">
         <input type="text" id="budget-remainder-input" placeholder="Остаток на сегодня (${cur})" value="${inputVal}" inputmode="decimal" onkeydown="if(event.key==='Enter')saveBudgetRemainder('${proj.id}')">
         <button type="button" class="btn-budget-save" onclick="saveBudgetRemainder('${proj.id}')">Сохранить</button>
-      </div>
-      <div class="budget-hint">Вводите актуальный остаток на счёте за сегодня. После сохранения он пишется в JSONBin и учитывается при расчёте.</div>`
+      </div>`
     : (remEntered != null ? '' : '<div class="budget-hint">Остаток не задан — попросите админа указать в настройках проекта.</div>');
 
   return `<div class="analytics-card">
     <div class="analytics-card-title">Бюджет</div>
     ${inner}
     ${adminInput}
-    ${asOfHint}
-    ${budget ? '<div class="budget-hint">Формула: бюджет = spend на момент ввода + остаток · дальше остаток = бюджет − текущий spend</div>' : ''}
+  </div>`;
+}
+
+// Compact revenue chip shown right on the Planto tile (main screen / overview grid).
+// Same source as renderGlobalIncomeCard — plantoMetaCache — so it stays in sync
+// with the global daily refresh cycle automatically.
+function renderTileIncome() {
+  const cur = projects.find(x => x.id === 'planto')?.currency || '₽';
+  const rev = Math.round(plantoMetaCache?.unit_economics?.revenue_total || 0);
+  return `<div class="tile-income"><span class="tile-income-label">Доход</span><span class="tile-income-value">${fmtMoney(rev, cur)}</span></div>`;
+}
+
+// Global income card — sourced from plantoMetaCache, which loadAll()/refreshData()
+// already refreshes on every data cycle. No separate polling needed: this simply
+// reads the freshest cached value each time it's rendered.
+function renderGlobalIncomeCard() {
+  const cur = projects.find(x => x.id === 'planto')?.currency || '₽';
+  const rev = Math.round(plantoMetaCache?.unit_economics?.revenue_total || 0);
+  const fmt = fmtMoney(rev, cur);
+  const updated = plantoMetaCache?.generated_at ? new Date(plantoMetaCache.generated_at).toLocaleString('ru-RU') : '';
+  return `<div class="analytics-card income-card">
+    <div class="analytics-card-title">Общий доход</div>
+    <div class="income-total-box"><span class="income-total-value">${fmt}</span></div>
+    <div class="income-breakdown">
+      <span class="income-chip"><i class="income-chip-dot"></i>Planto&nbsp;<b>${fmt}</b></span>
+    </div>
+    ${updated ? `<div class="budget-hint">Обновляется вместе со статистикой · данные на ${escHtml(updated)}</div>` : ''}
   </div>`;
 }
 
@@ -5536,6 +5596,7 @@ function renderAnalyticsSection(proj, allData, rows, monthKey) {
   const insights = computeDayInsights(proj, rows);
   const budgetHtml = renderBudgetCard(proj, allData, false);
   const plantoBreakdown = isPlantoProject(proj, rows) ? renderPlantoBreakdownCard(proj, rows) : '';
+  const incomeHtml = isPlantoProject(proj, rows) ? renderGlobalIncomeCard() : '';
 
   let compareHtml = '';
   if (compare) {
@@ -5579,11 +5640,12 @@ function renderAnalyticsSection(proj, allData, rows, monthKey) {
     </div>`;
   }
 
-  if (!budgetHtml && !compareHtml && !funnelHtml && !insightsHtml && !plantoBreakdown) return '';
+  if (!budgetHtml && !compareHtml && !funnelHtml && !insightsHtml && !plantoBreakdown && !incomeHtml) return '';
 
   return `<div class="analytics-section">
     <div class="section-header"><span class="section-title">Аналитика</span></div>
     <div class="analytics-grid">
+      ${incomeHtml}
       ${budgetHtml}
       ${plantoBreakdown}
       ${compareHtml}
@@ -5797,8 +5859,6 @@ function switchChartType(scope, type) {
       destroyDetailCharts();
       renderChart(projForSource(p, pack.sources[0] || {}), rows, 'mainChart');
     }
-  } else {
-    renderOverviewChart();
   }
   updateChartTypePickerUI(scope, type);
 }
@@ -6150,130 +6210,6 @@ function getPrimaryResult(type, rows) {
   return 0;
 }
 
-function getOverviewMonth() {
-  let latest = null;
-  projects.forEach(p => {
-    const data = cache[p.id];
-    if (!data || data === 'loading' || data === null) return;
-    const m = getLatestMonth(data, p);
-    if (m && (!latest || m > latest)) latest = m;
-  });
-  return latest;
-}
-
-function getOverviewChartData() {
-  const mk = getOverviewMonth();
-  if (!mk) return null;
-  const items = [];
-  projects.forEach(p => {
-    const data = cache[p.id];
-    if (!data || data === 'loading' || data === null) return;
-    const rows = rowsForMonth(data, mk);
-    if (!rows.length) return;
-    items.push({
-      label: `${p.icon} ${p.name}`,
-      spend: sum(rows, 'spend'),
-      result: getPrimaryResult(p.type, rows),
-      currency: p.currency,
-      type: p.type,
-    });
-  });
-  return items.length ? { month: mk, items } : null;
-}
-
-function renderOverviewChart() {
-  if (overviewChartInstance) { overviewChartInstance.destroy(); overviewChartInstance = null; }
-  const ctx = document.getElementById('overviewChart');
-  if (!ctx) return;
-  const chartData = getOverviewChartData();
-  if (!chartData) return;
-
-  const chartType = getChartPref('overview');
-  const colors = ['#0a0a0a', '#22C55E', '#F59E0B', '#EC4899', '#06B6D4', '#888888'];
-
-  if (chartType === 'pie' || chartType === 'doughnut') {
-    overviewChartInstance = new Chart(ctx, {
-      type: chartType,
-      data: {
-        labels: chartData.items.map(i => i.label),
-        datasets: [{
-          data: chartData.items.map(i => i.spend),
-          backgroundColor: chartData.items.map((_, i) => colors[i % colors.length]),
-          borderColor: '#ffffff',
-          borderWidth: 2,
-        }],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: chartLegendOptions('right'),
-          tooltip: {
-            callbacks: {
-              label(c) {
-                const item = chartData.items[c.dataIndex];
-                const total = chartData.items.reduce((a, x) => a + x.spend, 0);
-                const pct = total ? ((item.spend / total) * 100).toFixed(1) : 0;
-                return ` ${item.label}: ${fmtMoney(item.spend, item.currency)} (${pct}%)`;
-              },
-            },
-          },
-        },
-      },
-    });
-    return;
-  }
-
-  const datasets = [
-    {
-      label: 'Spend',
-      data: chartData.items.map(i => i.spend),
-      borderColor: chartType === 'line' ? colors[0] : chartData.items.map((_, i) => colors[i % colors.length]),
-      backgroundColor: chartType === 'line' ? 'rgba(0,0,0,0.12)' : chartData.items.map((_, i) => colors[i % colors.length] + 'CC'),
-      borderWidth: chartType === 'line' ? 2 : 1,
-      borderRadius: chartType === 'bar' ? 6 : 0,
-      fill: chartType === 'line',
-      tension: 0.3,
-      pointRadius: chartType === 'line' ? 4 : 0,
-      yAxisID: 'y',
-    },
-    {
-      label: 'Результат',
-      data: chartData.items.map(i => i.result),
-      borderColor: '#22C55E',
-      backgroundColor: chartType === 'line' ? 'rgba(34,197,94,0.12)' : 'rgba(34,197,94,0.35)',
-      borderWidth: chartType === 'line' ? 2 : 1,
-      borderRadius: chartType === 'bar' ? 6 : 0,
-      fill: chartType === 'line',
-      tension: 0.3,
-      pointRadius: chartType === 'line' ? 4 : 0,
-      yAxisID: 'y1',
-    },
-  ];
-
-  overviewChartInstance = new Chart(ctx, {
-    type: chartType === 'line' ? 'line' : 'bar',
-    data: { labels: chartData.items.map(i => i.label), datasets },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: chartLegendOptions('top'),
-        tooltip: {
-          callbacks: {
-            label(c) {
-              const item = chartData.items[c.dataIndex];
-              if (c.datasetIndex === 0) return ` Spend: ${fmtMoney(c.parsed.y, item.currency)}`;
-              return ` Результат: ${fmtInt(c.parsed.y)}`;
-            },
-          },
-        },
-      },
-      scales: chartAxisScales('Spend', 'Результат'),
-    },
-  });
-}
-
 // ═══════════════════════════════════════════════════════════════
 // RENDER OVERVIEW
 // ═══════════════════════════════════════════════════════════════
@@ -6333,25 +6269,6 @@ function renderOverview() {
   let html = '';
   if (isAdmin()) html += renderAdminPanel();
 
-  const chartData = getOverviewChartData();
-  const anyLoading = projects.some(p => cache[p.id] === 'loading');
-  if (chartData || anyLoading) {
-    html += `<div class="overview-chart-card">
-      <div class="overview-chart-header">
-        <div class="card-title" style="margin:0">Сводка по продуктам</div>
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          ${chartData ? `<span class="overview-chart-month">${formatMonthKey(chartData.month)}</span>` : ''}
-          ${chartData ? renderChartTypePicker('overview') : ''}
-        </div>
-      </div>
-      <div class="overview-chart-wrap">
-        ${anyLoading && !chartData
-          ? '<div class="tile-loading" style="justify-content:center;height:100%"><span class="mini-spinner"></span>Загрузка данных…</div>'
-          : '<canvas id="overviewChart"></canvas>'}
-      </div>
-    </div>`;
-  }
-
   html += '<div class="overview-grid">';
 
   projects.forEach(p => {
@@ -6406,6 +6323,7 @@ function renderOverview() {
       `<div class="tile-metrics" style="padding-bottom:14px">${daily.metrics.map(m => renderTileMetricCard(p.id, m)).join('')}</div>`;
 
     const budgetTile = isPlantoTile ? '' : renderBudgetCard(p, data, true);
+    const incomeTile = isPlantoTile ? renderTileIncome() : '';
 
     html += `<div class="proj-tile status-${status}" ${projTileAttrs(p.id)} onclick="tileOpenProject('${p.id}', event)">
       <div class="tile-drag-hint">⋮⋮</div>
@@ -6418,6 +6336,7 @@ function renderOverview() {
           </div>
         </div>
       </div>
+      ${incomeTile}
       ${budgetTile}
       ${metricsHtml}
       <div class="tile-footer">
@@ -6436,7 +6355,6 @@ function renderOverview() {
 
   html += '</div>';
   document.getElementById('content').innerHTML = html;
-  if (chartData) renderOverviewChart();
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -6766,7 +6684,6 @@ function switchView(v) {
   view = getValidViewId(v);
   currentMonth = view === 'overview' ? null : (tileMonths[view] || null);
   destroyDetailCharts();
-  if (overviewChartInstance) { overviewChartInstance.destroy(); overviewChartInstance = null; }
   closeProjPicker();
   persistViewState();
   renderContent();
@@ -6802,15 +6719,23 @@ function adminClick() {
   setTimeout(() => document.getElementById('pw-input').focus(), 80);
 }
 
-function doLogin() {
-  if (document.getElementById('pw-input').value === ADMIN_PW) {
-    sessionStorage.setItem(ADMIN_KEY, '1');
-    updateAdminBtn();
-    closeAllModals();
-    renderTopbar();
-    renderContent();
-  } else {
-    document.getElementById('login-error').style.display = 'block';
+async function doLogin() {
+  const input = document.getElementById('pw-input');
+  const btn = document.querySelector('#overlay-login .btn-primary');
+  if (btn) btn.disabled = true;
+  try {
+    const hash = await sha256Hex(input.value);
+    if (hash === ADMIN_PW_HASH) {
+      sessionStorage.setItem(ADMIN_KEY, '1');
+      updateAdminBtn();
+      closeAllModals();
+      renderTopbar();
+      renderContent();
+    } else {
+      document.getElementById('login-error').style.display = 'block';
+    }
+  } finally {
+    if (btn) btn.disabled = false;
   }
 }
 
@@ -7536,7 +7461,9 @@ renderTopbar();
   renderTopbar();
   persistViewState();
   await loadAll();
+  startAutoRefresh();
 })();
 </script>
+
 </body>
 </html>

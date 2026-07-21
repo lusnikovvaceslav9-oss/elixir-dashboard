@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<!-- This is page to be shown in Quadcode.ai ide workspace - SKILL COMPLIANCE REQUIRED
+Any edits must follow skill with alias dev_create_meta_ui_to_work_with_project_data_using_html_js -->
+<html>
+<head>
+<style>
+  body { background: var(--qc-color-bg-primary); color: var(--qc-color-text-primary); font-family: var(--qc-var-font-primary); padding: 0; margin: 0; }
+  .header { padding: 16px 24px; border-bottom: 1px solid var(--qc-color-border); display: flex; justify-content: space-between; align-items: center; }
+  .nav { display: flex; gap: 24px; }
+  .main { padding: 24px; max-width: 1200px; margin: 0 auto; }
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  .panel { background: var(--qc-color-bg-secondary); border: 1px solid var(--qc-color-border); border-radius: 8px; padding: 20px; }
+  .metric { font-size: 28px; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="logo">Quadcode Dashboard</div>
+  <div class="nav">
+    <button class="tab tab--active">Overview</button>
+    <button class="tab">Planto</button>
+    <button class="tab">Hupp</button>
+    <button class="tab">Global</button>
+  </div>
+  <button class="button-small">Refresh</button>
+</div>
+
+<div class="main">
+  <div class="title mb-6">Global Statistics</div>
+  
+  <div class="stats-grid">
+    <div class="panel">
+      <div class="comment">Total Revenue</div>
+      <div class="metric" id="global-revenue">67,134 RUB</div>
+    </div>
+    <div class="panel">
+      <div class="comment">Planto Revenue</div>
+      <div class="metric">67,134 RUB</div>
+    </div>
+    <div class="panel">
+      <div class="comment">Active Users</div>
+      <div class="metric">9,494</div>
+    </div>
+    <div class="panel">
+      <div class="comment">ROAS D30</div>
+      <div class="metric">73.5%</div>
+    </div>
+  </div>
+
+  <div class="panel mt-8">
+    <div class="title mb-4">Recent Activity</div>
+    <div class="comment">Planto payments integrated • 32 payers • 67134 RUB total</div>
+  </div>
+</div>
+
+<script>
+async function init() {
+  await QC.ready();
+  await QC.style.applyMainCss();
+  document.getElementById('__qc-fouc-guard')?.remove();
+}
+init();
+</script>
+</body>
+</html>
+

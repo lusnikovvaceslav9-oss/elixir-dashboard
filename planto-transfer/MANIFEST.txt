@@ -1,0 +1,18 @@
+Planto auto feed — portable package
+===================================
+
+Содержимое (распакуй в корень нового репозитория):
+
+  scripts/buyer-feed/     Python-фид (Direct + AppMetrica + Supabase)
+  data/                   Выходные CSV/JSON (+ примеры текущих данных)
+  .github/workflows/      GitHub Actions (cron каждые 2 ч)
+  secrets.env.example     Шаблон секретов → скопируй в secrets.env
+  run-feed.sh               Локальный прогон фида
+  README.md                 Полная документация переноса
+
+Быстрый старт:
+  cp secrets.env.example secrets.env
+  # заполни 5 ключей
+  ./run-feed.sh
+
+Фронт (отдельно): elixir.html из основного репо — см. README.md §7
