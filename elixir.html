@@ -2577,6 +2577,7 @@ function rebuildJgglPlatformCsvText(originalText, platform) {
 }
 
 async function onCsvUploadFile(projId, inputEl) {
+  if (!isAdmin()) return;
   const files = [...(inputEl?.files || [])];
   if (!files.length) return;
   try {
@@ -2609,6 +2610,7 @@ async function onCsvDropFile(projId, e) {
   e.preventDefault();
   e.stopPropagation();
   e.currentTarget.classList.remove('csv-drop-active');
+  if (!isAdmin()) return;
   const files = [...(e.dataTransfer?.files || [])].filter(f =>
     /\.(csv|xlsx|xls)$/i.test(f.name || '') || /csv|sheet|excel/i.test(f.type || '')
   );
@@ -2633,12 +2635,14 @@ function onCsvUploadLabelChange(projId) {
 }
 
 async function removeUploadedCsv(projId, id) {
+  if (!isAdmin()) return;
   deleteUploadedCsv(projId, id);
   await applyUploadedCsvToCache(projId);
 }
 
 function renderCsvUploadCard(proj) {
   if (!supportsCsvUpload(proj)) return '';
+  if (!isAdmin()) return '';
   const uploads = getProjectCsvUploads(proj.id);
   const items = Object.entries(uploads)
     .filter(([, u]) => !(isHuppCsvOnly(proj) && isHuppSeedUpload(u)))
