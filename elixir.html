@@ -2203,8 +2203,14 @@ async function saveCsvUploads(all, { awaitCloud = false, timeoutMs = 15000 } = {
   localStorage.setItem(CSV_UPLOAD_KEY, JSON.stringify(all));
   const sync = async () => {
     const merged = await jbSaveCsvUploads(all);
-    localStorage.setItem(CSV_UPLOAD_KEY, JSON.stringify(merged));
-    return merged;
+    // За время облачного PUT в localStorage могли добавиться новые файлы
+    // (например, второй CSV при загрузке нескольких подряд). Переобъединяем
+    // с текущим локальным состоянием — иначе результат этого push затрёт их
+    // (баг «не объединяет два CSV»). Локальное приоритетнее (в нём есть сырой text).
+    const current = loadCsvUploads();
+    const finalMerged = mergeCsvUploadStores(current, merged);
+    localStorage.setItem(CSV_UPLOAD_KEY, JSON.stringify(finalMerged));
+    return finalMerged;
   };
   if (!awaitCloud) {
     Promise.race([
@@ -2568,6 +2574,9 @@ async function processHuppCsvUploadFiles(projId, files) {
       if (saved.duplicate) anyDup = true;
     }
     try { localStorage.setItem(HUPP_START_SEED_FLAG, '2'); } catch (_) {}
+    // Финальная консолидирующая синхронизация всего набора: гарантирует, что
+    // ВСЕ загруженные файлы (а не только последний) уходят в облако одним набором.
+    await saveCsvUploads(loadCsvUploads(), { awaitCloud: true, timeoutMs: 20000 });
     // Сначала показываем данные в UI, Metrika — фоном (не блокирует загрузку).
     await applyUploadedCsvToCache(projId, label);
     if (anyDup) console.info('Часть файлов уже была загружена (тот же hash) — обновлено без дубля');
