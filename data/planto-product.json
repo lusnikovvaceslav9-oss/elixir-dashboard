@@ -1,84 +1,84 @@
 {
-  "generated_at": "2026-07-22T04:59:17+00:00",
+  "generated_at": "2026-07-22T07:34:01+00:00",
   "anchor": "2026-06-05",
   "until": "2026-07-22",
   "product": {
     "from": "2026-06-05",
     "to": "2026-07-22",
-    "installs": 9863,
-    "active_users": 10044,
+    "installs": 9912,
+    "active_users": 10089,
     "events": {
       "plant_added": {
-        "users": 3014,
-        "events": 5244,
-        "vs_install_pct": 30.56,
+        "users": 3024,
+        "events": 5259,
+        "vs_install_pct": 30.51,
         "avg_per_user": 1.74
       },
       "paywall_shown": {
-        "users": 7588,
-        "events": 11764,
-        "vs_install_pct": 76.93,
+        "users": 7621,
+        "events": 11831,
+        "vs_install_pct": 76.89,
         "avg_per_user": 1.55
       },
       "paywall_cta_clicked": {
-        "users": 2699,
-        "events": 3800,
-        "vs_install_pct": 27.36,
+        "users": 2708,
+        "events": 3815,
+        "vs_install_pct": 27.32,
         "avg_per_user": 1.41
       },
       "user_score5": {
-        "users": 366,
-        "events": 368,
+        "users": 368,
+        "events": 370,
         "vs_install_pct": 3.71,
         "avg_per_user": 1.01
       },
       "chat_message_sent": {
-        "users": 231,
-        "events": 472,
-        "vs_install_pct": 2.34,
+        "users": 233,
+        "events": 476,
+        "vs_install_pct": 2.35,
         "avg_per_user": 2.04
       },
       "watering_configured": {
-        "users": 215,
-        "events": 460,
+        "users": 216,
+        "events": 462,
         "vs_install_pct": 2.18,
         "avg_per_user": 2.14
       },
       "watering_marked": {
         "users": 85,
-        "events": 610,
+        "events": 612,
         "vs_install_pct": 0.86,
-        "avg_per_user": 7.18
+        "avg_per_user": 7.2
       },
       "ai_route": {
-        "users": 2119,
-        "events": 13570,
-        "vs_install_pct": 21.48,
-        "avg_per_user": 6.4
+        "users": 2130,
+        "events": 13646,
+        "vs_install_pct": 21.49,
+        "avg_per_user": 6.41
       },
       "scan_success": {
-        "users": 3255,
-        "events": 9502,
-        "vs_install_pct": 33.0,
+        "users": 3264,
+        "events": 9530,
+        "vs_install_pct": 32.93,
         "avg_per_user": 2.92
       },
       "user_activated": {
-        "users": 7882,
-        "events": 10224,
-        "vs_install_pct": 79.91,
-        "avg_per_user": 1.3
+        "users": 0,
+        "events": 0,
+        "vs_install_pct": null,
+        "avg_per_user": null
       }
     },
-    "garden_activation_pct": 30.56,
+    "garden_activation_pct": 30.51,
     "garden_avg_plants": 1.74,
     "garden_depth_icp_pct": null,
-    "paywall_cta_pct": 35.57,
+    "paywall_cta_pct": 35.53,
     "care_engagement_pct": 3.71,
-    "chat_per_plant_pct": 7.66,
+    "chat_per_plant_pct": 7.71,
     "feature_activation": {
-      "scan_pct": 33.0,
+      "scan_pct": 32.93,
       "watering_pct": 2.18,
-      "ai_pct": 21.48
+      "ai_pct": 21.49
     },
     "retention": {
       "d1": null,
@@ -86,12 +86,14 @@
       "d7": null,
       "note": "AppMetrica Reporting API не отдаёт D1/D3/D7 без Logs/Retention export"
     },
-    "errors": []
+    "errors": [
+      "user_activated: AppMetrica network error: <urlopen error [Errno 104] Connection reset by peer>"
+    ]
   },
   "unit_economics": {
     "revenue_total": 67134,
-    "spend_total": 193069.94,
-    "active_users": 10044,
+    "spend_total": 193909.68,
+    "active_users": 10089,
     "active_payers": 32,
     "plus_active_users": 70,
     "trial_cancellations": 7,
@@ -102,7 +104,7 @@
       "2026-07-22": 1
     },
     "renewals": 23,
-    "arpu": 6.68,
+    "arpu": 6.65,
     "arppu": 2097.94,
     "ltv": 3605.83,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
