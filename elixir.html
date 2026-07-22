@@ -1878,30 +1878,32 @@ function directSpendRowsToCsvText(rows) {
   return lines.join('\n');
 }
 
-/** Все Direct CSV Hupp: дни из разных файлов накапливаются; одинаковая дата → spend/clicks/impressions суммируются. */
+/** Все Direct CSV Hupp: по каждой дате побеждает более свежий экспорт (не суммируем реаплоады). */
 function collectHuppDirectRows(proj) {
   const uploads = getProjectCsvUploads(proj?.id || 'hupp');
-  const entries = Object.values(uploads || {}).filter(Boolean);
-  const real = entries.filter(u => !isHuppSeedUpload(u));
-  const use = real.length ? real : entries;
-  const fromUploads = [];
-  use.forEach(u => {
+  const entries = Object.entries(uploads || {})
+    .filter(([, u]) => u && !isHuppSeedUpload(u))
+    .sort((a, b) => String(a[1]?.uploadedAt || '').localeCompare(String(b[1]?.uploadedAt || '')));
+  const useEntries = entries.length ? entries : Object.entries(uploads || {}).filter(([, u]) => u);
+  let merged = [];
+  useEntries.forEach(([, u]) => {
+    const chunk = [];
     if (u.text) {
-      directSpendRowsFromUploadText(u.text).forEach(r => fromUploads.push(r));
-      return;
-    }
-    if (!u.rows?.length) return;
-    deserializeUploadRows(u.rows).forEach(r => {
-      fromUploads.push({
-        date: r.date,
-        dateStr: r.dateStr || (r.date ? fmtDateStr(r.date) : ''),
-        spend: r.spend || 0,
-        clicks: r.clicks || 0,
-        impressions: r.impressions || 0,
+      directSpendRowsFromUploadText(u.text).forEach(r => chunk.push(r));
+    } else if (u.rows?.length) {
+      deserializeUploadRows(u.rows).forEach(r => {
+        chunk.push({
+          date: r.date,
+          dateStr: r.dateStr || (r.date ? fmtDateStr(r.date) : ''),
+          spend: r.spend || 0,
+          clicks: r.clicks || 0,
+          impressions: r.impressions || 0,
+        });
       });
-    });
+    }
+    merged = mergeRowsByDate(merged, chunk);
   });
-  return aggregateRowsByDate(fromUploads);
+  return merged;
 }
 
 function getHuppCsvUploadMeta(proj) {
