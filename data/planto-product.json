@@ -1,66 +1,66 @@
 {
-  "generated_at": "2026-07-22T07:34:01+00:00",
+  "generated_at": "2026-07-22T10:15:31+00:00",
   "anchor": "2026-06-05",
   "until": "2026-07-22",
   "product": {
     "from": "2026-06-05",
     "to": "2026-07-22",
     "installs": 9912,
-    "active_users": 10089,
+    "active_users": 0,
     "events": {
       "plant_added": {
-        "users": 3024,
-        "events": 5259,
-        "vs_install_pct": 30.51,
-        "avg_per_user": 1.74
+        "users": 0,
+        "events": 0,
+        "vs_install_pct": null,
+        "avg_per_user": null
       },
       "paywall_shown": {
-        "users": 7621,
-        "events": 11831,
-        "vs_install_pct": 76.89,
-        "avg_per_user": 1.55
+        "users": 0,
+        "events": 0,
+        "vs_install_pct": null,
+        "avg_per_user": null
       },
       "paywall_cta_clicked": {
-        "users": 2708,
-        "events": 3815,
-        "vs_install_pct": 27.32,
-        "avg_per_user": 1.41
+        "users": 0,
+        "events": 0,
+        "vs_install_pct": null,
+        "avg_per_user": null
       },
       "user_score5": {
-        "users": 368,
-        "events": 370,
-        "vs_install_pct": 3.71,
-        "avg_per_user": 1.01
+        "users": 0,
+        "events": 0,
+        "vs_install_pct": null,
+        "avg_per_user": null
       },
       "chat_message_sent": {
-        "users": 233,
-        "events": 476,
-        "vs_install_pct": 2.35,
-        "avg_per_user": 2.04
+        "users": 0,
+        "events": 0,
+        "vs_install_pct": null,
+        "avg_per_user": null
       },
       "watering_configured": {
-        "users": 216,
-        "events": 462,
-        "vs_install_pct": 2.18,
-        "avg_per_user": 2.14
+        "users": 0,
+        "events": 0,
+        "vs_install_pct": null,
+        "avg_per_user": null
       },
       "watering_marked": {
-        "users": 85,
-        "events": 612,
-        "vs_install_pct": 0.86,
-        "avg_per_user": 7.2
+        "users": 0,
+        "events": 0,
+        "vs_install_pct": null,
+        "avg_per_user": null
       },
       "ai_route": {
-        "users": 2130,
-        "events": 13646,
-        "vs_install_pct": 21.49,
-        "avg_per_user": 6.41
+        "users": 0,
+        "events": 0,
+        "vs_install_pct": null,
+        "avg_per_user": null
       },
       "scan_success": {
-        "users": 3264,
-        "events": 9530,
-        "vs_install_pct": 32.93,
-        "avg_per_user": 2.92
+        "users": 0,
+        "events": 0,
+        "vs_install_pct": null,
+        "avg_per_user": null
       },
       "user_activated": {
         "users": 0,
@@ -69,16 +69,16 @@
         "avg_per_user": null
       }
     },
-    "garden_activation_pct": 30.51,
-    "garden_avg_plants": 1.74,
+    "garden_activation_pct": 0.0,
+    "garden_avg_plants": null,
     "garden_depth_icp_pct": null,
-    "paywall_cta_pct": 35.53,
-    "care_engagement_pct": 3.71,
-    "chat_per_plant_pct": 7.71,
+    "paywall_cta_pct": null,
+    "care_engagement_pct": 0.0,
+    "chat_per_plant_pct": null,
     "feature_activation": {
-      "scan_pct": 32.93,
-      "watering_pct": 2.18,
-      "ai_pct": 21.49
+      "scan_pct": 0.0,
+      "watering_pct": 0.0,
+      "ai_pct": 0.0
     },
     "retention": {
       "d1": null,
@@ -87,13 +87,23 @@
       "note": "AppMetrica Reporting API не отдаёт D1/D3/D7 без Logs/Retention export"
     },
     "errors": [
-      "user_activated: AppMetrica network error: <urlopen error [Errno 104] Connection reset by peer>"
+      "plant_added: AppMetrica HTTP 503: Service unavailable",
+      "paywall_shown: AppMetrica HTTP 503: Service unavailable",
+      "paywall_cta_clicked: AppMetrica HTTP 503: Service unavailable",
+      "user_score5: AppMetrica HTTP 503: Service unavailable",
+      "chat_message_sent: AppMetrica HTTP 503: Service unavailable",
+      "watering_configured: AppMetrica HTTP 503: Service unavailable",
+      "watering_marked: AppMetrica HTTP 503: Service unavailable",
+      "ai_route: AppMetrica HTTP 503: Service unavailable",
+      "scan_success: AppMetrica HTTP 503: Service unavailable",
+      "user_activated: AppMetrica HTTP 503: Service unavailable",
+      "active_users: AppMetrica HTTP 503: Service unavailable"
     ]
   },
   "unit_economics": {
     "revenue_total": 67134,
-    "spend_total": 193909.68,
-    "active_users": 10089,
+    "spend_total": 194837.57,
+    "active_users": 0,
     "active_payers": 32,
     "plus_active_users": 70,
     "trial_cancellations": 7,
@@ -104,7 +114,7 @@
       "2026-07-22": 1
     },
     "renewals": 23,
-    "arpu": 6.65,
+    "arpu": null,
     "arppu": 2097.94,
     "ltv": 3605.83,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
