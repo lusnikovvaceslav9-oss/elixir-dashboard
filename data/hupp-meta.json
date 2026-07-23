@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-23T14:35:04+00:00",
+  "generated_at": "2026-07-23T16:48:36+00:00",
   "project": "hupp",
   "anchor": "2026-07-01",
   "until": "2026-07-23",
@@ -67,17 +67,30 @@
   "days": 23,
   "totals": {
     "spend": 0.0,
-    "installs": 2087.0,
-    "trials": 128.0,
+    "installs": 2116.0,
+    "trials": 131.0,
     "sold": 42.0,
-    "fb": 340.0,
+    "fb": 349.0,
     "purchase": 25.0,
     "contact_info": 42.0,
-    "form_submit": 68.0,
+    "form_submit": 69.0,
     "contact_sent": 41.0,
     "clicks": 0.0,
     "impressions": 0.0
   },
   "metrika_counter_id": "110726695",
-  "direct_source": "csv_upload"
+  "direct_source": "csv_upload",
+  "roas_config": {
+    "revenue_source": "proxy_events",
+    "ltv_metric": "fixed",
+    "fixed_ltv_value": null,
+    "assumed_avg_check": 499,
+    "funnel": [
+      "reach_pay",
+      "pay_submit",
+      "purchase"
+    ],
+    "mature_cohort_days": null,
+    "predict_horizon_days": 180
+  }
 }
