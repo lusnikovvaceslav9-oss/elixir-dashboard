@@ -37,7 +37,7 @@
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.2);border-radius:10px}
-html{font-family:Inter,sans-serif;background:var(--bg);color:var(--text)}
+html{font-family:Inter,sans-serif;background:var(--bg);color:var(--text);overflow-x:clip;max-width:100%}
 body{
   font-family:Inter,sans-serif;
   background:var(--bg);
@@ -127,8 +127,10 @@ body{
   .topbar{padding:0 14px}
   .brand-name{display:none}
   .page-title{font-size:15px;max-width:min(42vw,220px)}
-  .proj-picker-trigger{max-width:210px;padding:0 8px 0 10px}
+  .proj-picker{flex-shrink:1;min-width:0}
+  .proj-picker-trigger{max-width:100%;padding:0 8px 0 10px}
   .proj-picker-label{display:none}
+  .page-title-wrap,.topbar-divider{display:none}
   .topbar-right .btn-refresh .btn-label{display:none}
   #content{padding:14px 14px 32px;gap:14px}
   .overview-grid{grid-template-columns:1fr}
@@ -157,8 +159,7 @@ body{
   .topbar-right{gap:6px}
   .btn-add-top .btn-label{display:none}
   .btn-add-top{padding:7px 9px}
-  .proj-picker-trigger{max-width:56vw}
-  .page-title{max-width:min(34vw,150px);font-size:14px}
+  .proj-picker-trigger{max-width:100%}
   .month-btn{min-width:auto;padding:8px 12px}
   table{font-size:11px}
   td,th{padding:6px 8px}
