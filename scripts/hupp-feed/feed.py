@@ -193,6 +193,15 @@ def run_feed(work_dir: Path) -> int:
         "totals": totals,
         "metrika_counter_id": counter_id,
         "direct_source": "csv_upload",
+        "roas_config": {
+            "revenue_source": config.get("revenue_source", "proxy_events"),
+            "ltv_metric": config.get("ltv_metric"),
+            "fixed_ltv_value": config.get("fixed_ltv_value"),
+            "assumed_avg_check": config.get("assumed_avg_check"),
+            "funnel": config.get("funnel"),
+            "mature_cohort_days": config.get("mature_cohort_days"),
+            "predict_horizon_days": config.get("predict_horizon_days"),
+        },
     }
     meta_path = work_dir / config["meta_json"]
     meta_path.parent.mkdir(parents=True, exist_ok=True)

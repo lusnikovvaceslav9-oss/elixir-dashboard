@@ -3,6 +3,11 @@
   "name": "Hupp",
   "anchor": "2026-07-01",
   "currency": "RUB",
+  "revenue_source": "proxy_events",
+  "ltv_metric": "fixed",
+  "assumed_avg_check": 499,
+  "funnel": ["reach_pay", "pay_submit", "purchase"],
+  "predict_horizon_days": 180,
   "direct_client_login": "partners-m",
   "metrika_counter_id": "110726695",
   "goals": [

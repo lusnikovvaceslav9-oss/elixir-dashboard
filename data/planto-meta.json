@@ -23,6 +23,15 @@
     "trials_total_new": 132,
     "delta": 1
   },
+  "roas_config": {
+    "revenue_source": "actual",
+    "ltv_metric": "arppu",
+    "fixed_ltv_value": null,
+    "assumed_avg_check": null,
+    "funnel": null,
+    "mature_cohort_days": 30,
+    "predict_horizon_days": 180
+  },
   "unit_economics": {
     "revenue_total": 67134,
     "spend_total": 201731.4,

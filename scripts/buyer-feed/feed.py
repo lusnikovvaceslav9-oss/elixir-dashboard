@@ -405,6 +405,15 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
             "delta": new_trials_total - old_trials_total,
         },
         "unit_economics": unit_economics,
+        "roas_config": {
+            "revenue_source": cfg.get("revenue_source", "actual"),
+            "ltv_metric": cfg.get("ltv_metric"),
+            "fixed_ltv_value": cfg.get("fixed_ltv_value"),
+            "assumed_avg_check": cfg.get("assumed_avg_check"),
+            "funnel": cfg.get("funnel"),
+            "mature_cohort_days": cfg.get("mature_cohort_days"),
+            "predict_horizon_days": cfg.get("predict_horizon_days"),
+        },
         "product": {
             "garden_activation_pct": (product_metrics or {}).get("garden_activation_pct"),
             "garden_avg_plants": (product_metrics or {}).get("garden_avg_plants"),

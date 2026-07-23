@@ -127,7 +127,7 @@ body{
   .topbar{padding:0 14px}
   .brand-name{display:none}
   .page-title{font-size:15px;max-width:min(42vw,220px)}
-  .proj-picker-trigger{max-width:160px;padding:0 8px 0 10px}
+  .proj-picker-trigger{max-width:210px;padding:0 8px 0 10px}
   .proj-picker-label{display:none}
   .topbar-right .btn-refresh .btn-label{display:none}
   #content{padding:14px 14px 32px;gap:14px}
@@ -157,7 +157,7 @@ body{
   .topbar-right{gap:6px}
   .btn-add-top .btn-label{display:none}
   .btn-add-top{padding:7px 9px}
-  .proj-picker-trigger{max-width:46vw}
+  .proj-picker-trigger{max-width:56vw}
   .page-title{max-width:min(34vw,150px);font-size:14px}
   .month-btn{min-width:auto;padding:8px 12px}
   table{font-size:11px}
@@ -165,6 +165,71 @@ body{
   .metric-value{font-size:18px}
   .metrics-grid{gap:8px}
   #content{padding:12px 12px 28px;gap:12px}
+}
+
+/* ── ROAS FORECAST ── */
+.roas-forecast{margin-top:28px}
+.roas-forecast-title{font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--text);margin:0 0 14px}
+.roas-group{margin-bottom:20px}
+.roas-group-title{font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-dim);margin:0 0 10px;display:flex;align-items:center;gap:8px}
+.roas-group-estimate .roas-group-title::before{content:'≈';font-size:14px;color:#EAB308}
+.roas-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.roas-card{background:rgba(18,18,26,0.7);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px;box-shadow:var(--shadow)}
+.roas-card.roas-proxy{border-style:dashed;border-color:rgba(234,179,8,0.4);background:rgba(234,179,8,0.04)}
+.roas-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.roas-card-name{display:flex;align-items:center;gap:10px;font-family:var(--font-display);font-size:14px;font-weight:600;color:var(--text)}
+.roas-card-name .tile-icon-wrap{width:30px;height:30px;border-radius:9px;font-size:16px}
+.roas-conf{font-size:10px;font-weight:700;letter-spacing:0.03em;padding:3px 8px;border-radius:999px;white-space:nowrap}
+.roas-conf.conf-high{background:rgba(34,197,94,0.16);color:#22C55E}
+.roas-conf.conf-medium{background:rgba(59,130,246,0.16);color:#3B82F6}
+.roas-conf.conf-low{background:rgba(234,179,8,0.16);color:#EAB308}
+.roas-card-body{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.roas-metric-label{font-size:10px;font-weight:600;letter-spacing:0.03em;color:var(--text-dim);margin-bottom:4px}
+.roas-metric-value{font-family:var(--font-display);font-size:22px;font-weight:700;color:var(--text)}
+.roas-metric-value.accent{color:var(--accent)}
+.roas-metric-value.muted{font-size:11px;font-weight:500;color:var(--text-dim);line-height:1.3}
+.roas-card-foot{margin-top:12px;padding-top:10px;border-top:1px solid var(--border);font-size:11px;color:var(--text-dim);line-height:1.4}
+@media(max-width:480px){.roas-cards{grid-template-columns:1fr}}
+
+/* ── PROJECT WORKSPACE NAV (underline tabs) ── */
+.ws-nav{display:flex;flex-wrap:wrap;gap:2px;margin:2px 0 20px;padding:0;border-bottom:1.5px solid rgba(0,0,0,0.09)}
+.ws-nav-btn{position:relative;display:inline-flex;align-items:center;gap:8px;padding:11px 16px;margin-bottom:-1.5px;border:none;border-bottom:2px solid transparent;background:transparent;color:rgba(0,0,0,0.5);font-family:var(--font);font-size:13.5px;font-weight:600;cursor:pointer;transition:color 0.15s,border-color 0.15s;white-space:nowrap;border-radius:8px 8px 0 0}
+.ws-nav-btn:hover{color:#0a0a0a;background:rgba(0,0,0,0.03)}
+.ws-nav-btn.active{color:#0a0a0a;border-bottom-color:#0a0a0a}
+.ws-nav-ic{display:inline-flex;width:16px;height:16px;opacity:0.85}
+.ws-nav-ic svg{width:16px;height:16px;display:block}
+.ws-nav-btn.active .ws-nav-ic{opacity:1}
+.ws-section{animation:wsFade 0.2s ease}
+@keyframes wsFade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* ── PROJECT WORKSPACE KPI CARDS ── */
+.ws-kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(172px,1fr));gap:12px;margin-bottom:18px}
+.ws-kpi{display:flex;flex-direction:column;justify-content:space-between;min-height:96px;background:#fff;border:1px solid rgba(0,0,0,0.08);border-radius:14px;padding:15px 17px;box-shadow:0 1px 2px rgba(0,0,0,0.04);transition:transform 0.14s ease,box-shadow 0.14s ease,border-color 0.14s ease}
+.ws-kpi:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(0,0,0,0.08);border-color:rgba(0,0,0,0.16)}
+.ws-kpi-label{font-size:11.5px;font-weight:600;letter-spacing:0.01em;color:rgba(0,0,0,0.5);line-height:1.3;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.ws-kpi-value{font-family:var(--font-display);font-size:26px;font-weight:700;color:#0a0a0a;line-height:1.05;letter-spacing:-0.01em}
+.ws-kpi.accent{background:linear-gradient(180deg,#fafafa,#f3f3f5);border-color:rgba(0,0,0,0.10)}
+.ws-kpi.accent .ws-kpi-label{color:rgba(0,0,0,0.52)}
+.ws-kpi.accent .ws-kpi-label::before{content:'';width:6px;height:6px;border-radius:50%;background:rgba(0,0,0,0.35);flex-shrink:0}
+.ws-kpi.green{border-color:rgba(22,163,74,0.4);background:linear-gradient(180deg,rgba(22,163,74,0.08),rgba(22,163,74,0.02))}
+.ws-kpi.green .ws-kpi-label{color:#15803d}
+.ws-kpi.green .ws-kpi-value{color:#15803d}
+/* ── INLINE INFO DOT + POPOVER ── */
+.info-wrap{position:relative;display:inline-flex;align-items:center}
+.info-dot{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:rgba(0,0,0,0.12);color:rgba(0,0,0,0.55);font-size:9px;font-weight:700;font-style:normal;line-height:1;cursor:pointer;user-select:none;flex-shrink:0;transition:all 0.14s ease}
+.info-dot:hover{background:rgba(0,0,0,0.22);color:#0a0a0a}
+.info-wrap.open .info-dot{background:var(--matter,#111);color:#fff}
+.info-pop{display:none;position:absolute;bottom:calc(100% + 9px);left:50%;transform:translateX(-50%);width:250px;max-width:72vw;background:#111;color:rgba(255,255,255,0.92);font-size:11.5px;font-weight:400;font-style:normal;line-height:1.5;letter-spacing:0;text-transform:none;text-align:left;white-space:normal;padding:11px 13px;border-radius:11px;box-shadow:0 12px 34px rgba(0,0,0,0.3);z-index:2000}
+.info-pop::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:6px solid transparent;border-top-color:#111}
+.info-wrap.open .info-pop{display:block}
+@media(max-width:768px){.ws-kpis{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}}
+@media(max-width:480px){
+  .ws-nav{gap:0;overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap}
+  .ws-nav-btn{padding:10px 12px;font-size:12.5px;flex-shrink:0}
+  .ws-kpis{grid-template-columns:1fr 1fr;gap:9px}
+  .ws-kpi{min-height:80px;padding:12px 13px;border-radius:12px}
+  .ws-kpi-value{font-size:21px}
+  .ws-kpi-label{font-size:11px;margin-bottom:7px}
 }
 
 /* ── OVERVIEW GRID ── */
@@ -206,8 +271,38 @@ body{
 .tile-tab:hover{border-color:rgba(0,0,0,0.4);color:rgba(0,0,0,0.65)}
 .tile-tab.active{background:var(--matter);color:#fff;border-color:var(--matter);box-shadow:none}
 /* Month switcher in detail view */
-.month-switcher{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px}
+.month-switcher{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
 .month-btn{display:flex;flex-direction:column;align-items:center;padding:10px 20px;border-radius:12px;border:1px solid rgba(0,0,0,0.08);background:rgba(0,0,0,0.025);cursor:pointer;transition:all 0.15s ease;font-family:'Inter',sans-serif;min-width:90px}
+
+/* ── DATE FILTER (calendar) ── */
+.date-filter{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:20px;padding:8px 12px;background:#fff;border:1px solid rgba(0,0,0,0.09);border-radius:12px;box-shadow:0 1px 2px rgba(0,0,0,0.04)}
+.date-filter.active{border-color:#0a0a0a;box-shadow:0 0 0 1px rgba(0,0,0,0.15)}
+.date-filter-ic{display:inline-flex;width:16px;height:16px;color:rgba(0,0,0,0.55)}
+.date-filter-ic svg{width:16px;height:16px;display:block}
+.date-filter-sep{color:rgba(0,0,0,0.4);font-weight:600}
+.date-input{font-family:var(--font);font-size:13px;font-weight:600;color:#0a0a0a;background:#f7f7f8;border:1px solid rgba(0,0,0,0.12);border-radius:9px;padding:7px 10px;cursor:pointer;transition:border-color 0.15s,box-shadow 0.15s}
+.date-input:hover{border-color:rgba(0,0,0,0.3)}
+.date-input:focus{outline:none;border-color:#0a0a0a;box-shadow:0 0 0 3px rgba(0,0,0,0.06);background:#fff}
+.date-input::-webkit-calendar-picker-indicator{cursor:pointer;opacity:0.55;transition:opacity 0.15s}
+.date-input::-webkit-calendar-picker-indicator:hover{opacity:1}
+.df-btn{font-family:var(--font);font-size:12.5px;font-weight:600;border-radius:9px;padding:8px 14px;cursor:pointer;border:1px solid transparent;transition:background 0.15s,color 0.15s,border-color 0.15s}
+.df-apply{background:#0a0a0a;color:#fff}
+.df-apply:hover{background:#000}
+.df-clear{background:transparent;color:rgba(0,0,0,0.6);border-color:rgba(0,0,0,0.14)}
+.df-clear:hover{color:#0a0a0a;border-color:rgba(0,0,0,0.35);background:rgba(0,0,0,0.03)}
+.df-presets{display:inline-flex;gap:6px;margin-left:2px}
+.df-preset{font-family:var(--font);font-size:12px;font-weight:600;color:rgba(0,0,0,0.62);background:rgba(0,0,0,0.04);border:1px solid rgba(0,0,0,0.08);border-radius:8px;padding:7px 11px;cursor:pointer;transition:all 0.15s}
+.df-preset:hover{color:#0a0a0a;background:rgba(0,0,0,0.08);border-color:rgba(0,0,0,0.2)}
+@media(max-width:600px){
+  .date-filter{gap:8px;padding:10px}
+  .date-filter-ic{display:none}
+  .date-input{flex:1 1 0;min-width:0;padding:9px 6px;font-size:13px;text-align:center}
+  .date-filter-sep{flex:0 0 auto}
+  .df-apply{order:3;flex:1 1 100%;width:100%;padding:11px}
+  .df-presets{order:4;flex:1 1 100%;width:100%;margin-left:0;gap:6px}
+  .df-preset{flex:1 1 0;text-align:center;padding:9px 6px}
+  .df-clear{order:5;flex:1 1 100%;width:100%;padding:10px}
+}
 .month-btn:hover{border-color:rgba(0,0,0,0.5);background:rgba(0,0,0,0.08)}
 .month-btn.active{border-color:var(--matter);background:var(--matter);box-shadow:none}
 .month-btn-name{font-size:13px;font-weight:600;color:rgba(0,0,0,0.85);line-height:1}
@@ -1143,6 +1238,7 @@ let projPickerFocusIdx = 0;
 let projPickerFilter = '';
 let view         = 'overview';
 let currentMonth = null;
+let dateFilter   = null; // {start:'YYYY-MM-DD', end:'YYYY-MM-DD'} — календарный фильтр, перекрывает месяц
 let chartInstance = null;
 let chartInstances = [];
 function destroyDetailCharts() {
@@ -5715,7 +5811,7 @@ function renderGlobalIncomeCard() {
   </div>`;
 }
 
-function renderAnalyticsSection(proj, allData, rows, monthKey) {
+function renderAnalyticsSection(proj, allData, rows, monthKey, opts = {}) {
   const compare = computePeriodComparison(proj, allData, monthKey);
   const funnels = computeFunnels(proj, rows);
   const insights = computeDayInsights(proj, rows);
@@ -5765,18 +5861,24 @@ function renderAnalyticsSection(proj, allData, rows, monthKey) {
     </div>`;
   }
 
-  if (!budgetHtml && !compareHtml && !funnelHtml && !insightsHtml && !plantoBreakdown && !incomeHtml) return '';
+  if (!budgetHtml && !compareHtml && !funnelHtml && !insightsHtml && !plantoBreakdown && !incomeHtml) {
+    return opts.bare ? `<div class="table-card"><div class="error-state">Нет аналитических данных за период</div></div>` : '';
+  }
 
-  return `<div class="analytics-section">
-    <div class="section-header"><span class="section-title">Аналитика</span></div>
-    <div class="analytics-grid">
+  const grid = `<div class="analytics-grid">
       ${incomeHtml}
       ${budgetHtml}
       ${plantoBreakdown}
       ${compareHtml}
       ${funnelHtml}
       ${insightsHtml}
-    </div>
+    </div>`;
+
+  if (opts.bare) return grid;
+
+  return `<div class="analytics-section">
+    <div class="section-header"><span class="section-title">Аналитика</span></div>
+    ${grid}
   </div>`;
 }
 
@@ -5971,18 +6073,10 @@ function switchChartType(scope, type) {
   if (!CHART_TYPE_OPTIONS[scope]?.some(o => o.id === type)) return;
   setChartPref(scope, type);
   if (scope === 'detail') {
-    const p = projects.find(x => x.id === view);
-    if (!p) return;
-    const data = cache[view];
-    const pack = normalizeCacheData(data);
-    if (!pack || pack === 'loading' || pack === null) return;
-    if (isMultiSourceCache(data)) {
-      renderChartsForProject(p, pack, currentMonth, getSourceIdx(view, pack));
-    } else {
-      const rows = currentMonth ? rowsForMonth(data, currentMonth) : (pack.sources[0]?.rows || []);
-      if (!rows.length) return;
+    if (view && view !== 'overview') {
       destroyDetailCharts();
-      renderChart(projForSource(p, pack.sources[0] || {}), rows, 'mainChart');
+      renderContent();
+      return;
     }
   }
   updateChartTypePickerUI(scope, type);
@@ -6078,6 +6172,97 @@ function rowsForMonth(data, mk) {
 function rowsForMonthOnRows(rows, mk) {
   if (!rows) return [];
   return rows.filter(r => dateToMonthKey(r.date) === mk).sort((a, b) => a.date - b.date);
+}
+
+// ── Календарный фильтр дат (перекрывает выбор месяца) ──────────────
+function rowIsoStr(r) {
+  let dt = r?.date instanceof Date ? r.date : (r?.dateStr ? parseDate(r.dateStr) : null);
+  if (!(dt instanceof Date) || isNaN(dt)) return '';
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+}
+function isoToLabel(iso) {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-');
+  return `${d}.${m}.${y}`;
+}
+function dateFilterLabel() {
+  if (!dateFilter) return '';
+  return dateFilter.start === dateFilter.end
+    ? isoToLabel(dateFilter.start)
+    : `${isoToLabel(dateFilter.start)} — ${isoToLabel(dateFilter.end)}`;
+}
+// Возвращает строки за выбранный период: календарный фильтр важнее месяца.
+function selectPeriodRows(baseRows, monthKey) {
+  const rows = baseRows || [];
+  if (dateFilter) {
+    return rows
+      .filter(r => { const iso = rowIsoStr(r); return iso && iso >= dateFilter.start && iso <= dateFilter.end; })
+      .sort((a, b) => a.date - b.date);
+  }
+  return monthKey ? rowsForMonthOnRows(rows, monthKey) : rows;
+}
+function getDateBounds(rows) {
+  const isos = (rows || []).map(rowIsoStr).filter(Boolean).sort();
+  return isos.length ? { min: isos[0], max: isos[isos.length - 1] } : null;
+}
+const CAL_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
+function renderDateFilter(universeRows, displayedRows) {
+  const b = getDateBounds(universeRows); // выбираемый диапазон (все данные среза)
+  if (!b) return '';
+  // Значения по умолчанию = то, что реально показано сейчас (выбранный месяц),
+  // чтобы поля не «обещали» больше, чем видно на графике.
+  const d = getDateBounds(displayedRows && displayedRows.length ? displayedRows : universeRows) || b;
+  const start = dateFilter ? (dateFilter.start < b.min ? b.min : dateFilter.start) : d.min;
+  const end = dateFilter ? (dateFilter.end > b.max ? b.max : dateFilter.end) : d.max;
+  const active = !!dateFilter;
+  return `<div class="date-filter${active ? ' active' : ''}">
+    <span class="date-filter-ic">${CAL_ICON}</span>
+    <input type="date" id="df-start" class="date-input" value="${start}" min="${b.min}" max="${b.max}">
+    <span class="date-filter-sep">—</span>
+    <input type="date" id="df-end" class="date-input" value="${end}" min="${b.min}" max="${b.max}">
+    <button class="df-btn df-apply" onclick="applyDateFilter()">Показать</button>
+    <span class="df-presets">
+      <button class="df-preset" onclick="setDatePreset(7)">7 дн</button>
+      <button class="df-preset" onclick="setDatePreset(30)">30 дн</button>
+      <button class="df-preset" onclick="setDateAll()">Весь период</button>
+    </span>
+    ${active ? `<button class="df-btn df-clear" onclick="clearDateFilter()">Сбросить · ${escHtml(dateFilterLabel())}</button>` : ''}
+  </div>`;
+}
+function applyDateFilter() {
+  const s = document.getElementById('df-start')?.value;
+  const e = document.getElementById('df-end')?.value;
+  if (!s || !e) return;
+  dateFilter = s <= e ? { start: s, end: e } : { start: e, end: s };
+  renderContent();
+}
+function clearDateFilter() {
+  dateFilter = null;
+  renderContent();
+}
+function setDateAll() {
+  const startEl = document.getElementById('df-start');
+  const endEl = document.getElementById('df-end');
+  if (!startEl || !endEl) return;
+  const min = startEl.min || startEl.value;
+  const max = endEl.max || endEl.value;
+  if (!min || !max) return;
+  dateFilter = { start: min, end: max };
+  renderContent();
+}
+function setDatePreset(days) {
+  const startEl = document.getElementById('df-start');
+  const endEl = document.getElementById('df-end');
+  if (!startEl || !endEl) return;
+  const maxIso = endEl.max || endEl.value;
+  if (!maxIso) return;
+  const end = new Date(maxIso + 'T00:00:00');
+  const start = new Date(end);
+  start.setDate(start.getDate() - (days - 1));
+  let sIso = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
+  if (startEl.min && sIso < startEl.min) sIso = startEl.min;
+  dateFilter = { start: sIso, end: maxIso };
+  renderContent();
 }
 
 function monthDayCountLabel(data, mk) {
@@ -6388,6 +6573,259 @@ function switchSource(idx) {
   renderContent();
 }
 
+// ═══════════════════════════════════════════════════════════════
+// PREDICTED ROAS — два независимых пути по revenue_source
+//   actual       → реальные платежи (Planto): d0_roas факт + прогноз по когортам
+//   proxy_events → только события воронки (Hupp): дохода нет, оценка через чек
+// Источник истины — config/*.json → фид пишет в meta.json (roas_config).
+// ═══════════════════════════════════════════════════════════════
+const ROAS_CONFIG_FALLBACK = {
+  planto: { revenue_source: 'actual', ltv_metric: 'arppu', fixed_ltv_value: null, mature_cohort_days: 30, predict_horizon_days: 180 },
+  hupp:   { revenue_source: 'proxy_events', ltv_metric: 'fixed', assumed_avg_check: 499, funnel: ['reach_pay', 'pay_submit', 'purchase'], predict_horizon_days: 180 },
+};
+// Цель воронки Hupp (config.funnel key) → колонка в данных
+const HUPP_FUNNEL_KEY_TO_COL = { reach_pay: 'trials', view_pay: 'fb', pay_submit: 'sold', purchase: 'purchase' };
+
+function getProjectRoasMeta(proj) {
+  if (proj?.id === 'planto' || isPlantoAutoFeed(proj)) return plantoMetaCache;
+  if (isHuppProject(proj)) return huppMetaCache;
+  return null;
+}
+
+/** Конфиг ROAS: meta.roas_config поверх локального фолбэка. null → продукт вне модуля. */
+function resolveRoasConfig(proj) {
+  const fromMeta = getProjectRoasMeta(proj)?.roas_config || {};
+  const fallback = ROAS_CONFIG_FALLBACK[proj?.id] || {};
+  const clean = Object.fromEntries(Object.entries(fromMeta).filter(([, v]) => v != null));
+  const cfg = { ...fallback, ...clean };
+  return cfg.revenue_source ? cfg : null;
+}
+
+function getRevenueSource(proj) {
+  return resolveRoasConfig(proj)?.revenue_source || null;
+}
+
+function daysBetween(aIso, bIso) {
+  const a = new Date(aIso), b = new Date(bIso);
+  if (isNaN(a) || isNaN(b)) return null;
+  return Math.round((b - a) / 86400000);
+}
+
+/** young → лог-интерполяция (доход ещё копится); old → зрелая когорта (коэффициент). */
+function classifyCohort(cohort, cfg, reportDate) {
+  const matureDays = Number(cfg.mature_cohort_days) || 30;
+  if (cohort?.mature === true) return 'old';
+  const age = daysBetween(cohort?.start, reportDate);
+  if (age != null && age >= matureDays) return 'old';
+  return 'young';
+}
+
+/** Множитель будущих ребиллов поверх наблюдаемого дохода (реальные ARPPU/LTV). */
+function ltvMultiple(cfg, meta) {
+  const ue = meta?.unit_economics || {};
+  if (cfg.ltv_metric === 'fixed' && cfg.fixed_ltv_value && ue.arppu) return cfg.fixed_ltv_value / ue.arppu;
+  if (cfg.ltv_metric === 'arppu' && ue.ltv && ue.arppu) return ue.ltv / ue.arppu;
+  return 1;
+}
+
+/** Путь A: одна когорта с фактическими платежами → per-cohort результат. */
+function computeActualCohortRoas(proj, cohort, cfg, meta, reportDate) {
+  const spend = Number(cohort.spend) || 0;
+  const revenue = Number(cohort.paid_net) || 0;
+  const d0 = spend > 0 ? revenue / spend * 100 : null;
+  const horizon = Number(cfg.predict_horizon_days) || 180;
+  const cls = classifyCohort(cohort, cfg, reportDate);
+  const age = Math.max(daysBetween(cohort.start, reportDate) || 1, 1);
+  let predicted = null, method;
+  if (cls === 'old') {
+    method = 'ratio_coefficient';
+    predicted = d0 != null ? d0 * ltvMultiple(cfg, meta) : null;
+  } else {
+    method = 'log_interpolation';
+    const share = Math.log(age + 1) / Math.log(horizon + 1);
+    predicted = d0 != null && share > 0 ? d0 / share : null;
+  }
+  const sold = Number(cohort.sold) || 0;
+  let confidence = 'low';
+  if (cls === 'old' && sold >= 5) confidence = 'high';
+  else if (cls === 'old' || sold >= 2) confidence = 'medium';
+  return {
+    product_id: proj.id,
+    revenue_source: 'actual',
+    cohort_date: cohort.start || null,
+    method_used: method,
+    confidence,
+    d0_roas: d0,
+    predicted_roas: predicted,
+    predict_horizon_days: horizon,
+  };
+}
+
+/** Путь A (продукт): агрегируем зрелые/незрелые когорты, взвешивая по spend. */
+function computeActualProductRoas(proj, cfg) {
+  const cohort = plantoCohortCache;
+  const meta = getProjectRoasMeta(proj);
+  const rows = (cohort?.rows || []).filter(c => (Number(c.spend) || 0) > 0);
+  const reportDate = cohort?.report_date || meta?.until || new Date().toISOString().slice(0, 10);
+  const horizon = Number(cfg.predict_horizon_days) || 180;
+  if (!rows.length) {
+    return {
+      product_id: proj.id, revenue_source: 'actual', cohort_date: null,
+      method_used: 'ratio_coefficient', confidence: 'low',
+      d0_roas: null, predicted_roas: null, predict_horizon_days: horizon, cohorts: [],
+    };
+  }
+  const perCohort = rows.map(c => computeActualCohortRoas(proj, c, cfg, meta, reportDate));
+  const totalSpend = rows.reduce((a, c) => a + (Number(c.spend) || 0), 0);
+  const totalRev = rows.reduce((a, c) => a + (Number(c.paid_net) || 0), 0);
+  const d0 = totalSpend > 0 ? totalRev / totalSpend * 100 : null;
+  let wPred = 0, wSum = 0, matureSpend = 0;
+  rows.forEach((c, i) => {
+    const p = perCohort[i].predicted_roas;
+    const sp = Number(c.spend) || 0;
+    if (p != null) { wPred += p * sp; wSum += sp; }
+    if (perCohort[i].method_used === 'ratio_coefficient') matureSpend += sp;
+  });
+  const predicted = wSum > 0 ? wPred / wSum : null;
+  const matureShare = totalSpend > 0 ? matureSpend / totalSpend : 0;
+  const confidence = matureShare >= 0.7 ? 'high' : matureShare >= 0.3 ? 'medium' : 'low';
+  const method = matureShare >= 0.5 ? 'ratio_coefficient' : 'log_interpolation';
+  return {
+    product_id: proj.id, revenue_source: 'actual', cohort_date: null,
+    method_used: method, confidence,
+    d0_roas: d0, predicted_roas: predicted, predict_horizon_days: horizon,
+    cohorts: perCohort,
+  };
+}
+
+/** Путь B: proxy-события (нет реального дохода) → оценка через воронку и чек. */
+function computeProxyProductRoas(proj, cfg) {
+  const meta = getProjectRoasMeta(proj);
+  const totals = meta?.totals || {};
+  const funnel = (Array.isArray(cfg.funnel) && cfg.funnel.length) ? cfg.funnel : ['reach_pay', 'pay_submit', 'purchase'];
+  const endpointKey = funnel[funnel.length - 1];
+  const colOf = k => HUPP_FUNNEL_KEY_TO_COL[k] || k;
+  const funnelCounts = funnel.map(k => ({ key: k, col: colOf(k), count: Number(totals[colOf(k)]) || 0 }));
+  const purchases = Number(totals[colOf(endpointKey)]) || 0;
+  const avgCheck = Number(cfg.assumed_avg_check) || 0;
+  const estRevenue = purchases * avgCheck;
+  // spend — из загруженного Direct CSV (в фиде spend=0)
+  const spend = (collectHuppDirectRows(proj) || []).reduce((a, r) => a + (Number(r.spend) || 0), 0);
+  const horizon = Number(cfg.predict_horizon_days) || 180;
+  const predicted = spend > 0 ? estRevenue / spend * 100 : null;
+  return {
+    product_id: proj.id,
+    revenue_source: 'proxy_events',
+    cohort_date: null,
+    method_used: 'proxy_funnel_estimate',
+    confidence: 'low',
+    d0_roas: null,
+    predicted_roas: predicted,
+    predict_horizon_days: horizon,
+    funnel: funnelCounts,
+    endpoint_key: endpointKey,
+    purchases,
+    assumed_avg_check: avgCheck,
+    estimated_revenue: estRevenue,
+    spend,
+  };
+}
+
+/** Диспетчер: выбирает путь по revenue_source. null → продукт вне модуля. */
+function computeProductRoas(proj) {
+  const cfg = resolveRoasConfig(proj);
+  if (!cfg) return null;
+  if (cfg.revenue_source === 'proxy_events') return computeProxyProductRoas(proj, cfg);
+  if (cfg.revenue_source === 'actual') return computeActualProductRoas(proj, cfg);
+  return null;
+}
+
+const ROAS_CONF_META = {
+  high: { label: 'высокая', cls: 'conf-high' },
+  medium: { label: 'средняя', cls: 'conf-medium' },
+  low: { label: 'низкая', cls: 'conf-low' },
+};
+
+function fmtRoasPct(v) {
+  return v == null ? '—' : `${Math.round(v)}%`;
+}
+
+function roasConfBadge(conf, estimated) {
+  const m = ROAS_CONF_META[conf] || ROAS_CONF_META.low;
+  const txt = estimated ? `оценка · ${m.label}` : m.label;
+  return `<span class="roas-conf ${m.cls}">${txt}</span>`;
+}
+
+function roasActualCardHtml(proj, r) {
+  const horizon = r.predict_horizon_days;
+  return `<div class="roas-card roas-actual">
+    <div class="roas-card-head">
+      <span class="roas-card-name"><span class="tile-icon-wrap">${proj.icon}</span>${escHtml(proj.name)}</span>
+      ${roasConfBadge(r.confidence, false)}
+    </div>
+    <div class="roas-card-body">
+      <div class="roas-metric">
+        <div class="roas-metric-label">D0 ROAS · факт</div>
+        <div class="roas-metric-value">${fmtRoasPct(r.d0_roas)}</div>
+      </div>
+      <div class="roas-metric">
+        <div class="roas-metric-label">Прогноз ROAS · D${horizon}</div>
+        <div class="roas-metric-value accent">${fmtRoasPct(r.predicted_roas)}</div>
+      </div>
+    </div>
+    <div class="roas-card-foot">метод: ${r.method_used === 'ratio_coefficient' ? 'коэффициент зрелости' : 'лог-интерполяция'} · реальные платежи</div>
+  </div>`;
+}
+
+function roasProxyCardHtml(proj, r) {
+  const horizon = r.predict_horizon_days;
+  const cur = proj.currency || '₽';
+  const funnelStr = (r.funnel || []).map(f => fmtInt(f.count)).join(' → ');
+  const predStr = r.predicted_roas == null ? 'нет данных о расходе' : fmtRoasPct(r.predicted_roas);
+  return `<div class="roas-card roas-proxy">
+    <div class="roas-card-head">
+      <span class="roas-card-name"><span class="tile-icon-wrap">${proj.icon}</span>${escHtml(proj.name)}</span>
+      ${roasConfBadge(r.confidence, true)}
+    </div>
+    <div class="roas-card-body">
+      <div class="roas-metric">
+        <div class="roas-metric-label">D0 ROAS</div>
+        <div class="roas-metric-value muted">нет данных о фактических платежах</div>
+      </div>
+      <div class="roas-metric">
+        <div class="roas-metric-label">Оценка ROAS · D${horizon}</div>
+        <div class="roas-metric-value accent">${predStr}</div>
+      </div>
+    </div>
+    <div class="roas-card-foot">
+      воронка ${funnelStr} · оценка дохода = ${fmtInt(r.purchases)} × ${fmtMoney(r.assumed_avg_check, cur)} = ${fmtMoney(r.estimated_revenue, cur)}
+    </div>
+  </div>`;
+}
+
+/** Секция обзора: actual и proxy_events разнесены, без общего рейтинга вперемешку. */
+function renderRoasForecastSection() {
+  const results = projects
+    .map(p => ({ p, r: (cache[p.id] && cache[p.id] !== 'loading' && cache[p.id] !== null) ? computeProductRoas(p) : null }))
+    .filter(x => x.r);
+  if (!results.length) return '';
+  const actual = results.filter(x => x.r.revenue_source === 'actual')
+    .sort((a, b) => (b.r.predicted_roas || 0) - (a.r.predicted_roas || 0));
+  const proxy = results.filter(x => x.r.revenue_source === 'proxy_events');
+  let html = '<section class="roas-forecast">';
+  html += '<h2 class="roas-forecast-title">Прогноз ROAS</h2>';
+  if (actual.length) {
+    html += '<div class="roas-group"><div class="roas-group-title">Фактический ROAS · реальные платежи</div>';
+    html += '<div class="roas-cards">' + actual.map(x => roasActualCardHtml(x.p, x.r)).join('') + '</div></div>';
+  }
+  if (proxy.length) {
+    html += '<div class="roas-group roas-group-estimate"><div class="roas-group-title">Оценочные метрики · без реальных платежей</div>';
+    html += '<div class="roas-cards">' + proxy.map(x => roasProxyCardHtml(x.p, x.r)).join('') + '</div></div>';
+  }
+  html += '</section>';
+  return html;
+}
+
 function renderOverview() {
   document.getElementById('tabs-row').innerHTML = '';
 
@@ -6479,12 +6917,293 @@ function renderOverview() {
   }
 
   html += '</div>';
+  html += renderRoasForecastSection();
   document.getElementById('content').innerHTML = html;
 }
 
 // ═══════════════════════════════════════════════════════════════
 // RENDER PROJECT DETAIL
 // ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// PROJECT ANALYTICS WORKSPACE — навигация по категориям (Qonversion-style)
+// Тир по данным: 'full' (выручка/когорты — Planto) vs 'lite' (события+спенд)
+// ═══════════════════════════════════════════════════════════════
+let sectionByProject = {};
+let pendingWorkspaceChart = null;
+
+const WORKSPACE_GROUPS = [
+  { id: 'ads',    label: 'Реклама',      icon: '📊', keys: ['spend', 'impressions', 'clicks', 'cpm', 'cpc', 'ctr'] },
+  { id: 'users',  label: 'Пользователи', icon: '👥', keys: ['installs', 'cost_install', 'regs', 'cost_reg'] },
+  { id: 'funnel', label: 'Воронка',      icon: '🎯', keys: ['trials', 'cost_trial', 'cr_install_trial', 'fb', 'sold', 'cost_sold', 'purchase', 'cost_purchase', 'contact_info', 'form_submit', 'contact_sent', 'qregs', 'cost_qreg', 'purchases', 'conv_rate'] },
+  { id: 'revenue',label: 'Доход',        icon: '💰', keys: ['roas', 'cac'] },
+];
+
+const WS_NONCHART_KEYS = new Set(['cpc', 'cpm', 'ctr', 'roas', 'cac', 'conv_rate', 'cr_install_trial', 'cr_trial_paid']);
+function wsChartableKey(k) { return !k.startsWith('cost_') && !WS_NONCHART_KEYS.has(k); }
+// Денежные ключи (для раздела «Доход»): spend, любые стоимостные и CPC/CPM.
+const WS_MONEY_KEYS = new Set(['spend', 'cpc', 'cpm', 'cac', 'revenue', 'arppu', 'ltv']);
+function isMoneyKey(k) { return WS_MONEY_KEYS.has(k) || k.startsWith('cost'); }
+
+// Аккуратные линейные иконки разделов (без эмодзи — чище и профессиональнее).
+const WS_ICO = (paths) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+const WS_SECTION_ICONS = {
+  analytics: WS_ICO('<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>'),
+  ads: WS_ICO('<line x1="6" y1="20" x2="6" y2="14"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="18" y1="20" x2="18" y2="9"/>'),
+  users: WS_ICO('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>'),
+  funnel: WS_ICO('<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>'),
+  events: WS_ICO('<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>'),
+  revenue: WS_ICO('<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'),
+  product: WS_ICO('<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>'),
+  forecast: WS_ICO('<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>'),
+  cohorts: WS_ICO('<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>'),
+};
+function wsSectionIcon(id) {
+  return WS_SECTION_ICONS[id === 'funnel' ? 'funnel' : id] || WS_SECTION_ICONS.ads;
+}
+
+function getProjectTier(proj) {
+  return (isPlantoAutoFeed(proj) || getRevenueSource(proj) === 'actual') ? 'full' : 'lite';
+}
+
+/** Секции проекта: пересечение групп метрик с реально доступными в данных. */
+function getProjectSections(proj, rows) {
+  const p = withEffectiveType(proj, rows || []);
+  const available = new Set(getMetricsCatalogForProj(p, rows).map(m => m.key));
+  const sections = [{ id: 'analytics', label: 'Аналитика', icon: 'analytics', keys: [] }];
+  WORKSPACE_GROUPS.forEach(g => {
+    const keys = g.keys.filter(k => available.has(k));
+    if (!keys.length) return;
+    const isHuppFunnel = g.id === 'funnel' && p.type === 'hupp';
+    sections.push({ id: g.id, label: isHuppFunnel ? 'События' : g.label, icon: isHuppFunnel ? 'events' : g.id, keys });
+  });
+  if (isPlantoAutoFeed(proj)) sections.push({ id: 'product', label: 'Продукт', icon: 'product', keys: [] });
+  if (getRevenueSource(p)) sections.push({ id: 'forecast', label: 'Прогноз ROAS', icon: 'forecast', keys: [] });
+  if (isPlantoAutoFeed(proj) && plantoCohortCache?.rows?.length) {
+    sections.push({ id: 'cohorts', label: 'Когорты', icon: 'cohorts', keys: [] });
+  }
+  return sections;
+}
+
+function getActiveSection(projId, sections) {
+  const saved = sectionByProject[projId];
+  if (saved && sections.some(s => s.id === saved)) return saved;
+  return sections[0]?.id || null;
+}
+
+function switchSection(projId, sectionId) {
+  sectionByProject[projId] = sectionId;
+  destroyDetailCharts();
+  renderContent();
+}
+
+function renderSectionNav(projId, sections, active) {
+  return `<div class="ws-nav">${sections.map(s => `
+    <button type="button" class="ws-nav-btn${s.id === active ? ' active' : ''}" onclick="switchSection('${projId}','${s.id}')">
+      <span class="ws-nav-ic">${WS_SECTION_ICONS[s.icon] || WS_SECTION_ICONS.ads}</span><span>${escHtml(s.label)}</span>
+    </button>`).join('')}</div>`;
+}
+
+function renderWorkspaceKpis(proj, rows, keys) {
+  const p = withEffectiveType(proj, rows);
+  const cur = p.currency;
+  const accentMap = Object.fromEntries(getMetricsCatalogForProj(p, rows).map(m => [m.key, m.accent]));
+  const GREEN_HUPP = new Set(['spend', 'purchase', 'cost_purchase']);
+  return `<div class="ws-kpis">${keys.map(k => {
+    const label = getMetricLabel(p, k, k, rows);
+    const val = computeMetricValue(k, p.type, rows, cur);
+    const accent = accentMap[k];
+    const green = p.type === 'hupp' && GREEN_HUPP.has(k);
+    return `<div class="ws-kpi${accent ? ' accent' : ''}${green ? ' green' : ''}">
+      <div class="ws-kpi-label">${escHtml(label)}</div>
+      <div class="ws-kpi-value">${val}</div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+/** Фильтрует таблицу getTableConfig до колонок текущей секции (+ дата). */
+function filterTblByKeys(tbl, allowedKeys) {
+  const cols = tbl.columnKeys || tbl.colKeys || [];
+  const allow = new Set(allowedKeys);
+  const keep = cols.map((k, i) => (k === 'date' || allow.has(k)) ? i : -1).filter(i => i >= 0);
+  return {
+    columnKeys: keep.map(i => cols[i]),
+    headers: keep.map(i => tbl.headers[i]),
+    row: (r) => { const a = tbl.row(r); return keep.map(i => a[i]); },
+    total: (rs) => { const a = tbl.total(rs); return keep.map(i => a[i]); },
+    aggregateByDate: tbl.aggregateByDate,
+  };
+}
+
+function buildSectionChartDatasets(proj, rows, keys) {
+  const p = withEffectiveType(proj, rows);
+  const chartKeys = keys.filter(wsChartableKey);
+  const palette = ['#0a0a0a', '#22C55E', '#2563EB', '#F59E0B', '#EC4899', '#06B6D4', '#8B5CF6', '#EF4444'];
+  const datasets = chartKeys.map((k, i) => {
+    const isSpend = k === 'spend';
+    return {
+      label: getMetricLabel(p, k, k), data: rows.map(r => r[k] || 0),
+      borderColor: palette[i % palette.length],
+      backgroundColor: isSpend ? 'rgba(0,0,0,0.14)' : 'transparent',
+      fill: isSpend, yAxisID: isSpend ? 'y' : 'y1', tension: 0.3, borderWidth: 2, pointRadius: 2,
+      pointBackgroundColor: palette[i % palette.length],
+    };
+  });
+  return { labels: rows.map(r => r.dateStr.slice(0, 5)), datasets };
+}
+
+function renderWorkspaceChart(proj, rows, keys, canvasId = 'mainChart') {
+  const ctx = document.getElementById(canvasId);
+  if (!ctx || !rows.length) return;
+  const chartType = getChartPref('detail');
+  const { labels, datasets } = buildSectionChartDatasets(proj, rows, keys);
+  if (!datasets.length) return;
+  const styled = styleDatasetsForChartType(datasets, chartType);
+  const inst = new Chart(ctx, {
+    type: chartType === 'bar' ? 'bar' : 'line',
+    data: { labels, datasets: styled },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: chartLegendOptions('top'),
+        tooltip: { mode: 'index', intersect: false, backgroundColor: '#111111', borderColor: 'rgba(0,0,0,0.2)', borderWidth: 1, titleColor: '#ffffff', bodyColor: 'rgba(255,255,255,0.85)' },
+      },
+      scales: chartAxisScales('Spend', 'Метрики'),
+    },
+  });
+  registerChart(canvasId, inst);
+}
+
+/** Кликабельная точка-подсказка с всплывающей расшифровкой. */
+function infoDotHtml(text) {
+  return `<span class="info-wrap"><span class="info-dot" role="button" tabindex="0" onclick="toggleInfoDot(event,this)">i</span><span class="info-pop">${escHtml(text)}</span></span>`;
+}
+function toggleInfoDot(e, el) {
+  e.stopPropagation();
+  const wrap = el.closest('.info-wrap');
+  if (!wrap) return;
+  const open = wrap.classList.contains('open');
+  document.querySelectorAll('.info-wrap.open').forEach(w => w.classList.remove('open'));
+  if (!open) wrap.classList.add('open');
+}
+document.addEventListener('click', () => {
+  document.querySelectorAll('.info-wrap.open').forEach(w => w.classList.remove('open'));
+});
+
+/** Доп. карточки выручки для full-тира (Planto unit_economics). */
+function renderRevenueExtras(proj) {
+  if (getProjectTier(proj) !== 'full') return '';
+  const ue = plantoMetaCache?.unit_economics;
+  if (!ue) return '';
+  const cur = proj.currency || '₽';
+  const LTV_INFO = 'Косвенно — значение не измерено по факту, а рассчитано косвенным способом. LTV здесь оценивается от ARPPU с поправкой на ребиллы (ARPPU × (1 + renewals/payers)), потому что полной кривой повторных списаний пока нет. Как только накопим фактические ребиллы, заменим на измеренный LTV.';
+  const cards = [
+    { label: 'Выручка всего', value: fmtMoney(ue.revenue_total, cur), accent: false },
+    { label: 'ARPPU', value: fmtMoney(ue.arppu, cur), accent: true },
+    { label: 'LTV (косвенно)', value: fmtMoney(ue.ltv, cur), accent: true, info: LTV_INFO },
+    { label: 'ROAS D7', value: ue.roas_d7 != null ? ue.roas_d7 + '%' : '—', accent: true },
+    { label: 'ROAS D30', value: ue.roas_d30 != null ? ue.roas_d30 + '%' : '—', accent: true },
+  ];
+  return `<div class="ws-kpis">${cards.map(c => `
+    <div class="ws-kpi${c.accent ? ' accent' : ''}">
+      <div class="ws-kpi-label">${escHtml(c.label)}${c.info ? infoDotHtml(c.info) : ''}</div>
+      <div class="ws-kpi-value">${c.value}</div>
+    </div>`).join('')}</div>`;
+}
+
+/** Детальная секция прогноза ROAS (переиспользует карточки обзора). */
+function renderProductRoasDetail(proj) {
+  const r = computeProductRoas(proj);
+  if (!r) return `<div class="table-card"><div class="error-state">Нет конфигурации ROAS для проекта</div></div>`;
+  let html = `<div class="roas-forecast" style="margin-top:0"><div class="roas-cards" style="grid-template-columns:minmax(300px,420px)">`;
+  html += r.revenue_source === 'actual' ? roasActualCardHtml(proj, r) : roasProxyCardHtml(proj, r);
+  html += `</div></div>`;
+  if (r.revenue_source === 'actual' && r.cohorts?.length) {
+    const cur = proj.currency || '₽';
+    html += `<div class="table-card" style="margin-top:16px"><div class="table-header"><span class="card-title">Прогноз по когортам · D${r.predict_horizon_days}</span></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Когорта</th><th>D0 ROAS · факт</th><th>Прогноз</th><th>Метод</th></tr></thead>
+        <tbody>${r.cohorts.map((c, i) => `<tr class="${i % 2 ? 'row-alt' : ''}">
+          <td class="date-cell">${escHtml(c.cohort_date || '—')}</td>
+          <td>${fmtRoasPct(c.d0_roas)}</td>
+          <td>${fmtRoasPct(c.predicted_roas)}</td>
+          <td>${c.method_used === 'ratio_coefficient' ? 'коэф. зрелости' : 'лог-интерполяция'}</td>
+        </tr>`).join('')}</tbody>
+      </table></div></div>`;
+  } else if (r.revenue_source === 'proxy_events') {
+    html += `<div class="table-card" style="margin-top:16px"><div class="table-header"><span class="card-title">Оценка дохода через воронку</span></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Шаг воронки</th><th>Событий</th></tr></thead>
+        <tbody>${(r.funnel || []).map((f, i) => `<tr class="${i % 2 ? 'row-alt' : ''}"><td class="date-cell">${escHtml(f.key)}</td><td>${fmtInt(f.count)}</td></tr>`).join('')}
+          <tr class="total-row"><td>Оценка дохода = ${fmtInt(r.purchases)} × ${fmtMoney(r.assumed_avg_check, proj.currency || '₽')}</td><td>${fmtMoney(r.estimated_revenue, proj.currency || '₽')}</td></tr>
+        </tbody>
+      </table></div></div>`;
+  }
+  return html;
+}
+
+/** Тело воркспейса: навигация + активная секция. Ставит pendingWorkspaceChart. */
+function renderWorkspaceBody(p, srcProj, rows, monthKey, titleSuffix = '', opts = {}) {
+  const { allData = null, analyticsMonth = monthKey } = opts;
+  const sections = getProjectSections(srcProj, rows);
+  if (!sections.length) {
+    return `<div class="table-card"><div class="error-state">Нет данных для отображения</div></div>`;
+  }
+  const active = getActiveSection(p.id, sections);
+  const section = sections.find(s => s.id === active) || sections[0];
+  let html = renderSectionNav(p.id, sections, section.id);
+  html += `<div class="ws-section">`;
+  if (section.id === 'analytics') {
+    html += renderAnalyticsSection(p, allData != null ? allData : { sources: [{ rows }] }, rows, analyticsMonth, { bare: true });
+  } else if (section.id === 'forecast') {
+    html += renderProductRoasDetail(srcProj);
+  } else if (section.id === 'cohorts') {
+    html += renderPlantoCohortSection(monthKey);
+  } else if (section.id === 'product') {
+    html += renderPlantoMetricBlocks(p, rows, monthKey);
+  } else {
+    if (section.id === 'revenue') html += renderRevenueExtras(srcProj);
+    html += renderWorkspaceKpis(srcProj, rows, section.keys);
+    const chartKeys = section.keys.filter(wsChartableKey);
+    if (rows.length && chartKeys.length) {
+      html += `<div class="chart-card">
+        <div class="chart-card-header">
+          <div class="card-title">${escHtml(section.label)} — динамика${titleSuffix}</div>
+          ${renderChartTypePicker('detail')}
+        </div>
+        <div class="chart-wrap"><canvas id="mainChart"></canvas></div>
+      </div>`;
+      pendingWorkspaceChart = { proj: srcProj, rows, keys: chartKeys };
+    }
+    const fullTbl = getTableConfig(srcProj, rows);
+    let tbl;
+    if (section.id === 'revenue') {
+      // Доход — только деньги по результату: spend + стоимости результата.
+      // Без счётчиков, без установок (cost_install) и без CPC/CPM.
+      const cols = fullTbl.columnKeys || fullTbl.colKeys || [];
+      const exclude = new Set(['cpc', 'cpm', 'cost_install']);
+      const moneyKeys = cols.filter(k => k !== 'date' && isMoneyKey(k) && !exclude.has(k));
+      tbl = filterTblByKeys(fullTbl, moneyKeys);
+    } else {
+      tbl = filterTblByKeys(fullTbl, section.keys);
+      // Если у раздела нет колонок для дневной таблицы — показываем полную.
+      if ((tbl.columnKeys || []).length <= 1) tbl = fullTbl;
+    }
+    html += `<div class="table-card">
+      <div class="table-header"><span class="card-title">По дням — ${rows.length} строк${titleSuffix}</span></div>
+      ${renderDailyTableHtml(p, rows, tbl)}
+    </div>`;
+  }
+  html += `</div>`;
+  return html;
+}
+
+function flushWorkspaceChart() {
+  if (!pendingWorkspaceChart) return;
+  const { proj, rows, keys } = pendingWorkspaceChart;
+  pendingWorkspaceChart = null;
+  renderWorkspaceChart(proj, rows, keys, 'mainChart');
+}
+
 function renderProjectDetail(projId) {
   const p = projects.find(x => x.id === projId);
   if (!p) {
@@ -6519,111 +7238,54 @@ function renderProjectDetail(projId) {
   if (isAdmin()) html += renderAdminPanel(p);
 
   if (data === null) {
-    if (months.length > 0) {
-      html += `<div class="month-switcher">`;
-      months.forEach(m => {
-        html += `<button class="month-btn ${m===currentMonth?'active':''}" onclick="switchMonth('${m}')">
-          <span class="month-btn-name">${formatMonthKey(m)}</span>
-          <span class="month-btn-count">—</span>
-        </button>`;
-      });
-      html += `</div>`;
-    }
     content.innerHTML = html + `<div class="table-card"><div class="error-state">Не удалось загрузить данные. Проверьте URL таблицы.</div></div>`;
     return;
   }
 
-  // ── Month switcher (prominent, in content) ──────────────────
-  if (months.length > 0) {
-    html += `<div class="month-switcher">`;
-    months.forEach(m => {
-      const cntLabel = monthDayCountLabel(data, m);
-      html += `<button class="month-btn ${m===currentMonth?'active':''}" onclick="switchMonth('${m}')">
-        <span class="month-btn-name">${formatMonthKey(m)}</span>
-        <span class="month-btn-count">${isMulti ? cntLabel : escHtml(cntLabel) + ' дн.'}</span>
-      </button>`;
-    });
-    html += `</div>`;
+  // ── Строки, которые реально отображаются (для согласованных границ фильтра) ──
+  let dfSrc = null, dfMonthPartitioned = false, universeRows;
+  if (isMulti) {
+    dfSrc = pack.sources[getSourceIdx(projId, pack)];
+    dfMonthPartitioned = sourcesAreMonthPartitioned(pack);
+    universeRows = dfMonthPartitioned ? pack.sources.flatMap(s => s.rows || []) : (dfSrc.rows || []);
+  } else {
+    universeRows = pack.sources[0]?.rows || allRows;
   }
 
+  // ── Календарный фильтр дат ──────────────────────────────────
+  // По умолчанию поля показывают текущий отображаемый период (выбранный месяц).
+  const displayedRows = dateFilter ? null : (currentMonth ? rowsForMonthOnRows(universeRows, currentMonth) : universeRows);
+  html += renderDateFilter(universeRows, displayedRows);
+
+  // Метка периода в заголовках блоков.
+  const periodSuffix = dateFilter ? ' · ' + escHtml(dateFilterLabel())
+    : (currentMonth ? ' · ' + formatMonthKey(currentMonth) : '');
+  const analyticsMonth = dateFilter ? null : currentMonth;
+
   if (isMulti) {
-    const srcIdx = getSourceIdx(projId, pack);
-    const src = pack.sources[srcIdx];
-    const monthPartitioned = sourcesAreMonthPartitioned(pack);
-    // Всегда один выбранный лист — иначе JGGL App+Waitlist склеиваются и дублируют дни/инсталлы.
-    const viewRows = currentMonth
-      ? rowsForMonthOnRows(src.rows || [], currentMonth)
-      : (src.rows || []);
-    const sectionSource = monthPartitioned && currentMonth
-      ? { ...src, label: formatMonthKey(currentMonth) }
-      : src;
-    const scopedData = { sources: [src] };
+    const src = dfSrc;
+    const monthPartitioned = dfMonthPartitioned;
+    const viewRows = selectPeriodRows(universeRows, currentMonth);
+    const srcProj = projForSource(p, src);
+    const suffix = (src.label && !monthPartitioned && !dateFilter) ? ' · ' + escHtml(src.label) : periodSuffix;
     html += renderCsvUploadCard(p);
-    html += renderAnalyticsSection(p, scopedData, viewRows, currentMonth);
     if (!monthPartitioned) html += renderSheetSwitcher(pack, projId, currentMonth);
-    html += renderSourceSection(p, sectionSource, viewRows, currentMonth, srcIdx, true, 'mainChart', false);
+    html += renderWorkspaceBody(p, srcProj, viewRows, currentMonth, suffix, { allData: { sources: [src] }, analyticsMonth });
     content.innerHTML = html;
-    renderChartsForProject(p, pack, currentMonth, srcIdx);
+    flushWorkspaceChart();
     return;
   }
 
   const singleSrc = pack.sources[0];
   const srcProj = singleSrc ? projForSource(p, singleSrc) : p;
-  const rows = currentMonth ? rowsForMonth(data, currentMonth) : (singleSrc?.rows || allRows);
-  const isPlanto = isPlantoProject(srcProj, rows);
-  const metrics = getMetrics(srcProj, rows);
-  const tbl = getTableConfig(srcProj, rows);
-  const plantoViewLabel = isPlanto ? PLANTO_VIEWS[getPlantoView(p.id)].label : '';
+  const rows = selectPeriodRows(universeRows, currentMonth);
+  const suffix = periodSuffix;
 
   html += renderCsvUploadCard(p);
-  if (isPlanto) {
-    html += renderAnalyticsSection(p, data, rows, currentMonth);
-    html += renderPlantoMetricBlocks(p, rows, currentMonth);
-  }
-
-  // ── Metrics ─────────────────────────────────────────────────
-  if (!isPlanto) {
-    html += `<div class="metrics-grid">${metrics.map(m=>`
-      <div class="metric-card${m.accent?' accent':''}${m.green?' metric-green':''}${isAdmin()?' admin-editable':''}">
-        <div class="metric-label">${renderEditableLabel(p.id, m.key, m.label, 'metric-label-wrap')}</div>
-        <div class="metric-value">${m.value}</div>
-      </div>`).join('')}</div>`;
-  } else if (!isPlantoAutoFeed(p)) {
-    html += `<div class="metrics-grid">${metrics.map(m=>`
-      <div class="metric-card${m.accent?' accent':''}${m.green?' metric-green':''}${isAdmin()?' admin-editable':''}">
-        <div class="metric-label">${renderEditableLabel(p.id, m.key, m.label, 'metric-label-wrap')}</div>
-        <div class="metric-value">${m.value}</div>
-      </div>`).join('')}</div>`;
-  }
-
-  if (!isPlanto) {
-    html += renderAnalyticsSection(p, data, rows, currentMonth);
-  }
-
-  // ── Chart ───────────────────────────────────────────────────
-  if (rows.length) {
-    html += `<div class="chart-card">
-      <div class="chart-card-header">
-        <div class="card-title">Динамика по дням — ${currentMonth ? formatMonthKey(currentMonth) : 'все данные'}${plantoViewLabel ? ' · ' + escHtml(plantoViewLabel) : ''}${singleSrc?.label ? ' · ' + escHtml(singleSrc.label) : ''}</div>
-        ${renderChartTypePicker('detail')}
-      </div>
-      <div class="chart-wrap"><canvas id="mainChart"></canvas></div>
-    </div>`;
-  }
-
-  html += `<div class="table-card">
-    <div class="table-header">
-      <span class="card-title">По дням — ${rows.length} строк${currentMonth ? ' · '+formatMonthKey(currentMonth) : ''}${plantoViewLabel ? ' · ' + escHtml(plantoViewLabel) : ''}${singleSrc?.label ? ' · ' + escHtml(singleSrc.label) : ''}${isPlanto && isPlantoAutoFeed(p) && plantoMetaCache?.generated_at ? ' <span class="feed-badge">auto</span>' : ''}${isPlanto && isPlantoAutoFeed(p) && plantoMetaCache?.generated_at ? ' <span class="feed-stamp">· обновлено ' + escHtml(new Date(plantoMetaCache.generated_at).toLocaleString('ru-RU')) + (plantoMetaCache.spend_today_estimated ? ' · спенд сегодня оценочный' : '') + '</span>' : ''}${isHuppCsvOnly(p) && huppMetaCache?.generated_at ? ' <span class="feed-badge">metrika</span> <span class="feed-stamp">· Metrika ' + escHtml(new Date(huppMetaCache.generated_at).toLocaleString('ru-RU')) + '</span>' : ''}${isHuppCsvOnly(p) && getHuppCsvUploadMeta(p)?.uploadedAt ? ' <span class="feed-badge">csv</span> <span class="feed-stamp">· Direct ' + escHtml(new Date(getHuppCsvUploadMeta(p).uploadedAt).toLocaleString('ru-RU')) + '</span>' : ''}</span>
-    </div>
-    ${renderDailyTableHtml(p, rows, tbl)}
-  </div>`;
-
-  if (isPlanto && isPlantoAutoFeed(p)) {
-    html += renderPlantoCohortSection(currentMonth);
-  }
+  html += renderWorkspaceBody(p, srcProj, rows, currentMonth, suffix, { allData: data, analyticsMonth });
 
   content.innerHTML = html;
-  if (rows.length) renderChart(srcProj, rows, 'mainChart');
+  flushWorkspaceChart();
 }
 
 function renderChartsForProject(proj, pack, monthKey, sourceIdx = 0) {
@@ -6808,6 +7470,7 @@ function restoreViewState() {
 function switchView(v) {
   view = getValidViewId(v);
   currentMonth = view === 'overview' ? null : (tileMonths[view] || null);
+  dateFilter = null;
   destroyDetailCharts();
   closeProjPicker();
   persistViewState();
@@ -6816,6 +7479,7 @@ function switchView(v) {
 
 function switchMonth(m) {
   currentMonth = m;
+  dateFilter = null;
   const pack = normalizeCacheData(cache[view]);
   if (pack && pack !== 'loading' && pack !== null) {
     syncSourceIndexToMonth(view, pack, m);
