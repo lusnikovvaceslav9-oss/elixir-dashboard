@@ -16,5 +16,7 @@ crons = ["0 7 * * *"]
 # Secrets via `npx wrangler secret put <NAME>`:
 #   JSONBIN_MASTER_KEY, SESSION_SECRET,
 #   TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_CHAT_IDS,
+#   TELEGRAM_FORUM_TOPICS (optional: "-100…:topicId" so replies stay in «! Бот»),
 #   TELEGRAM_WEBHOOK_SECRET (optional), ADMIN_PASSWORD (optional)
 #   TELEGRAM_SETUP_KEY (optional; falls back to SESSION_SECRET)
+

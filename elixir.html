@@ -5212,8 +5212,8 @@ function computeMetricValue(key, type, rows, cur) {
     case 'trials': return fmtInt(tr);
     case 'sold': return fmtInt(sold);
     case 'fb': return fmtInt(fb);
-    case 'regs': return fmtInt(sum(rows, 'regs'));
-    case 'qregs': return fmtInt(sum(rows, 'qregs'));
+    case 'regs': return fmtInt(sum(rows, 'regs') || sum(rows, 'qregs'));
+    case 'qregs': return fmtInt(sum(rows, 'qregs') || sum(rows, 'regs'));
     case 'purchases': return fmtInt(sum(rows, 'purchases'));
     case 'purchase': return fmtInt(sum(rows, 'purchase'));
     case 'contact_info': return fmtInt(sum(rows, 'contact_info'));
@@ -5223,7 +5223,7 @@ function computeMetricValue(key, type, rows, cur) {
     case 'clicks': return fmtInt(sum(rows, 'clicks'));
     case 'cost_install': return ins ? fmtMoney(sp / ins, cur) : '—';
     case 'cost_trial': return tr ? fmtMoney(sp / tr, cur) : '—';
-    case 'cost_reg': { const v = sum(rows, 'regs'); return v ? fmtMoney(sp / v, cur) : '—'; }
+    case 'cost_reg': { const v = sum(rows, 'regs') || sum(rows, 'qregs'); return v ? fmtMoney(sp / v, cur) : '—'; }
     case 'cost_purchase': {
       const v = type === 'hupp' ? sum(rows, 'purchase') : sum(rows, 'purchases');
       return v ? fmtMoney(sp / v, cur) : '—';
@@ -5659,8 +5659,11 @@ function getBudgetRows(proj, allData) {
   if (sources.length === 1) {
     rows = sources[0].rows || [];
   } else if (sourcesAreMonthPartitioned(pack)) {
-    // Quadcode: месячные листы — один аккаунт, суммируем все месяцы
-    rows = sources.flatMap(s => s.rows || []);
+    // Quadcode / Qlosophy: суммируем месячные листы.
+    // Не добавляем upload-источники «Лист 1»/Main отдельно — иначе спенд удваивается.
+    const months = sources.filter(s => sourceMonthKey(s) || /20\d{2}/.test(String(s.label || '')));
+    const use = (isQlosophyProject(proj) && months.length) ? months : sources;
+    rows = use.flatMap(s => s.rows || []);
   } else if (isMultiSheetCsvProject(proj)) {
     // JGGL/Qlosophy: спенд аккаунта на основном листе, не суммируем Waitlist/Web
     const primary = sources.find(s => sourceLabelKey(proj, s.label) === 'main')
@@ -8370,6 +8373,8 @@ const CHAT_METRIC_ALIASES = [
   { key: 'impressions', labels: ['показы', 'impressions', 'imp', 'показов', 'показ'] },
   { key: 'clicks', labels: ['клики', 'clicks', 'кликов', 'клик', 'клика'] },
   { key: 'installs', labels: ['инсталлы', 'installs', 'установки', 'установок', 'инстал', 'инсталлов'] },
+  { key: 'regs', labels: ['регистрации', 'регистраций', 'регистрация', 'регистрацию', 'regs', 'registrations'] },
+  { key: 'qregs', labels: ['целевые', 'qregs', 'qreg', 'результаты', 'results'] },
   { key: 'trials', labels: ['триалы', 'trials', 'триал', 'триалов', 'пробные'] },
   { key: 'sold', labels: ['sold', 'проданные триалы', 'конверсии триала'] },
   { key: 'fb', labels: ['билы', 'bills', 'fb', 'оплаты', 'списания'] },
@@ -8378,6 +8383,7 @@ const CHAT_METRIC_ALIASES = [
   { key: 'cpm', labels: ['cpm', 'спм', 'цена тысячи'] },
   { key: 'ctr', labels: ['ctr', 'кликабельность'] },
   { key: 'cost_install', labels: ['cpi', 'cost / install', 'цена инсталла', 'стоимость инсталла'] },
+  { key: 'cost_reg', labels: ['цена регистрации', 'стоимость регистрации', 'cost/reg', 'cost per reg'] },
   { key: 'cost_trial', labels: ['cpt', 'cost / trial', 'цена триала', 'стоимость триала'] },
   { key: 'cac', labels: ['cac', 'стоимость платящего'] },
   { key: 'roas', labels: ['roas', 'роас'] },

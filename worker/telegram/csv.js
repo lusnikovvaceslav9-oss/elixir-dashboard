@@ -91,18 +91,24 @@ export function parseSheetRows(text) {
   const headers = table[0];
   const di = findCol(headers, ['дата', 'date', 'день', 'reporting starts', 'reporting'], ['daypart', 'ends']);
   if (di < 0) return [];
-  const si = findCol(headers, ['spend', 'спенд', 'расход', 'cost', 'затрат', 'amount spent'], ['cpi', 'cpc', 'cpm', 'install', 'trial', 'per result', 'per link', 'per landing']);
-  const cli = findCol(headers, ['link clicks', 'click', 'клик'], ['all)', 'ctr', 'cpc']);
+  // Prefer real Spend — never match «cost Reg» / CPC / CPM
+  const si = findCol(
+    headers,
+    ['amount spent', 'amount_spent', 'spend', 'спенд', 'расход', 'затрат'],
+    ['cost per', 'cost reg', 'cost/', 'цена', 'cpc', 'cpm', 'cpa', 'cpi', 'per result', 'per link', 'per landing', '/']
+  );
+  const cli = findCol(headers, ['link clicks', 'clicks', 'click', 'клик'], ['all)', 'ctr', 'cpc', 'cost']);
   const impi = findCol(headers, ['impression', 'показ', 'impr']);
   const ini = findCol(headers, ['install', 'инстал', 'установ'], ['cost', 'цена', 'campaign']);
-  // Meta Ads: Results = mobile app installs (stored as qregs in dashboard)
-  const resi = findCol(headers, ['results', 'результат', 'qreg', 'целев', 'qual', 'mobile app install'], ['indicator', 'cost', 'цена', 'per']);
+  // Meta Ads: Results = mobile app installs / leads
+  const resi = findCol(headers, ['results', 'результат', 'mobile app install', 'app install'], ['indicator', 'cost', 'цена', 'per']);
   const tri = findCol(headers, ['trial', 'триал']);
   const soli = findCol(headers, ['sold', 'продан']);
   const fbi = findCol(headers, ['fb', 'bill', 'бил']);
   const puri = findCol(headers, ['purchase', 'покуп']);
-  const regi = findCol(headers, ['reg', 'регистр'], ['qreg', 'цел']);
-  const qri = resi >= 0 ? resi : findCol(headers, ['qreg', 'целев', 'qual']);
+  // «Reg» but not «cost Reg»
+  const regi = findCol(headers, ['регистрац', 'registration', 'regs', 'reg'], ['qreg', 'цел', 'cost', 'цена', '/', 'cpc', 'cpm']);
+  const qri = resi >= 0 ? resi : findCol(headers, ['qreg', 'целев', 'qual'], ['cost', 'цена']);
   const camp = findCol(headers, ['campaign', 'кампани']);
 
   const out = [];
@@ -111,8 +117,11 @@ export function parseSheetRows(text) {
     const parts = parseDateParts(row[di]);
     if (!parts) continue;
     const installsRaw = ini >= 0 ? num(row[ini]) : 0;
-    const qregs = qri >= 0 ? num(row[qri]) : 0;
-    const installs = installsRaw || qregs;
+    const qregsRaw = qri >= 0 ? num(row[qri]) : 0;
+    const regsRaw = regi >= 0 ? num(row[regi]) : 0;
+    // Sheet «Reg» without Results → treat as qregs too (dashboard streamfi)
+    const qregs = qregsRaw || regsRaw;
+    const installs = installsRaw || (resi >= 0 ? qregsRaw : 0);
     out.push({
       date: parts.date,
       dateStr: parts.dateStr,
@@ -126,7 +135,7 @@ export function parseSheetRows(text) {
       fb: fbi >= 0 ? num(row[fbi]) : 0,
       purchase: puri >= 0 ? num(row[puri]) : 0,
       purchases: puri >= 0 ? num(row[puri]) : 0,
-      regs: regi >= 0 ? num(row[regi]) : 0,
+      regs: regsRaw,
       qregs,
       campaign: camp >= 0 ? String(row[camp] || '') : '',
     });

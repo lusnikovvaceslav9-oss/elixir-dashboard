@@ -32,15 +32,23 @@ curl -X POST "https://elixir-dashboard-proxy.<subdomain>.workers.dev/telegram/se
 
 ## Использование
 
-1. Напиши боту `/start` — он покажет `chat_id`.
-2. Добавь chat_id в `TELEGRAM_ALLOWED_CHAT_IDS` (`wrangler secret put ...`) и перезадеплой/обнови secret.
-3. Примеры:
-   - `сколько потратили на планта в июле`
-   - `/report Planto`
-   - `/digest`
-   - `/refresh`
+1. Напиши боту в личку `/start` — он покажет `chat_id` / `user_id`.
+2. Добавь id в `TELEGRAM_ALLOWED_CHAT_IDS` (`wrangler secret put ...`).
 
-Утренний дайджест: cron `0 7 * * *` UTC (= 10:00 МСК) → всем id из allowlist.
+### Добавить бота в беседу (группу)
+
+1. В группе: **Добавить участников** → найди `@elexir_dashbot` → добавить.
+2. В группе напиши `/id@elexir_dashbot` — бот пришлёт `chat_id` группы (отрицательный, вида `-100…`).
+3. **Важно — Group Privacy** в [@BotFather](https://t.me/BotFather):
+   - `/mybots` → Elixir → **Bot Settings** → **Group Privacy** → **Turn off**
+   - Иначе бот в группе видит только команды и сообщения с `@elexir_dashbot`, обычный текст («спенд планта») до него не доходит.
+4. После выключения Privacy можно писать свободно. Пока Privacy включён — пиши так:
+   - `@elexir_dashbot спенд планта за июль`
+   - `/report@elexir_dashbot Planto`
+
+Доступ: достаточно твоего `user_id` в whitelist — в любой группе, куда тебя пустили, бот ответит. Либо отдельно добавь `chat_id` группы.
+
+Утренний дайджест: cron `0 7 * * *` UTC (= 10:00 МСК) → всем id из allowlist (лички и группы).
 
 ## Безопасность
 

@@ -14,8 +14,11 @@ const METRIC_ALIASES = [
     'почем инстал', 'почём инстал', 'cost/install', 'cost install',
   ] },
   { key: 'installs', labels: ['инсталлы', 'installs', 'установки', 'установок', 'инсталлов', 'инстал'] },
+  { key: 'regs', labels: ['регистрации', 'регистраций', 'регистрация', 'регистрацию', 'regs', 'registrations', 'регистры'] },
+  { key: 'qregs', labels: ['целевые', 'qregs', 'qreg', 'результаты', 'results'] },
   { key: 'trials', labels: ['триалы', 'trials', 'триал', 'триалов'] },
   { key: 'purchase', labels: ['purchase', 'покупки', 'purchases', 'покупок'] },
+  { key: 'cpr', labels: ['цена регистрации', 'стоимость регистрации', 'cost per reg', 'cost/reg', 'цена рег'] },
   { key: 'cpc', labels: ['cpc', 'спс', 'цена клика', 'стоимость клика'] },
   { key: 'cpm', labels: ['cpm', 'спм', 'цена тысячи'] },
   { key: 'ctr', labels: ['ctr', 'кликабельность'] },
@@ -144,6 +147,10 @@ function findMetric(q) {
     || /(инстал|установ).{0,12}(стоит|цена|стоимость)/.test(nq)) {
     return 'cpi';
   }
+  if (/(цена|стоимость|cost).{0,16}(рег|регистр)/.test(nq) || /cost\s*\/?\s*reg/.test(nq)) {
+    return 'cpr';
+  }
+  if (/регистрац|regs?\b|registration/.test(nq)) return 'regs';
   let best = null;
   for (const m of METRIC_ALIASES) {
     for (const label of m.labels) {
@@ -156,11 +163,17 @@ function findMetric(q) {
   return best ? best.key : 'spend';
 }
 
-/** Meta JGGL/StreamFi: installs live in Results → qregs. */
+/** Meta JGGL: installs in Results→qregs. Qlosophy: Reg column→regs/qregs. */
 function installCount(rows) {
   const inst = sum(rows, 'installs');
   if (inst) return inst;
   return sum(rows, 'qregs') || sum(rows, 'regs') || 0;
+}
+
+function regCount(rows) {
+  const r = sum(rows, 'regs');
+  if (r) return r;
+  return sum(rows, 'qregs') || 0;
 }
 
 function isReportIntent(q) {
@@ -286,7 +299,13 @@ function metricValue(key, proj, rows, pack) {
   if (key === 'clicks') return fmtInt(cl);
   if (key === 'impressions') return fmtInt(im);
   if (key === 'installs') return fmtInt(inst);
+  if (key === 'regs') return fmtInt(regCount(rows));
+  if (key === 'qregs') return fmtInt(sum(rows, 'qregs') || sum(rows, 'regs'));
   if (key === 'cpi') return inst ? fmtMoney(sp / inst, cur) : '—';
+  if (key === 'cpr') {
+    const rg = regCount(rows);
+    return rg ? fmtMoney(sp / rg, cur) : '—';
+  }
   if (key === 'trials') return fmtInt(sum(rows, 'trials'));
   if (key === 'purchase') return fmtInt(sum(rows, 'purchase') || sum(rows, 'purchases'));
   if (key === 'cpc') return cl ? fmtMoney(sp / cl, cur) : '—';
@@ -305,6 +324,9 @@ function metricValue(key, proj, rows, pack) {
 
 function metricLabel(key) {
   if (key === 'cpi') return 'CPI';
+  if (key === 'cpr') return 'cost/reg';
+  if (key === 'regs') return 'регистрации';
+  if (key === 'qregs') return 'целевые';
   return (METRIC_ALIASES.find(m => m.key === key)?.labels[0]) || key;
 }
 

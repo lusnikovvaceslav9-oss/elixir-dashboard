@@ -218,15 +218,15 @@ async function loadProjectPack(proj, env, uploads) {
     return !!s.url;
   });
 
-  // Monthly-only is for StreamFi/Quadcode (one account split by month).
-  // JGGL/Qlosophy keep Waitlist/Redirect/Main sheets + platform uploads.
+  // Monthly partitions: StreamFi/Quadcode multi-sheet overlap, OR single source + monthlySheets (Qlosophy).
   const monthlyIds = new Set(monthly.map(ms => (sourceUrlKey(ms.url) || '').split('::')[0]).filter(Boolean));
   const sourceIds = new Set(defs.map(s => (sourceUrlKey(s.url) || '').split('::')[0]).filter(Boolean));
   let overlap = 0;
   monthlyIds.forEach(id => { if (sourceIds.has(id)) overlap += 1; });
-  const useMonthlyOnly = !isMultiSheetCsv(p)
-    && monthly.length && defs.length > 1
-    && overlap >= Math.min(monthlyIds.size, sourceIds.size);
+  const useMonthlyOnly = monthly.length && (
+    (defs.length <= 1)
+    || (!isJggl(p) && defs.length > 1 && overlap >= Math.min(monthlyIds.size, sourceIds.size))
+  );
 
   const jobs = useMonthlyOnly
     ? monthly.map(ms => ({ id: `month_${ms.month}`, label: monthLabel(ms.month), url: ms.url }))
@@ -261,25 +261,73 @@ async function loadProjectPack(proj, env, uploads) {
   return { sources: dedupeSources(sources), meta };
 }
 
-let cache = { at: 0, projects: null, packs: {} };
+let cache = { at: 0, projects: null, packs: {}, uploads: null };
 
-export async function getDashboardState(env, { force = false } = {}) {
+export async function getDashboardState(env, { force = false, onlyIds = null } = {}) {
   const now = Date.now();
+  const want = onlyIds ? new Set(onlyIds) : null;
+
   if (!force && cache.projects && now - cache.at < 60 * 1000) {
-    return cache;
+    if (!want) return cache;
+    const missing = [...want].filter(id => !cache.packs[id]);
+    if (!missing.length) return cache;
   }
-  const projects = (await loadProjects(env)).map(normalizeProj);
-  const uploads = await loadCsvUploads(env);
-  const packs = {};
-  await Promise.all(projects.map(async (p) => {
+
+  const projects = (cache.projects && !force && now - cache.at < 60 * 1000)
+    ? cache.projects
+    : (await loadProjects(env)).map(normalizeProj);
+
+  const uploads = (cache.uploads && !force && now - cache.at < 60 * 1000)
+    ? cache.uploads
+    : await loadCsvUploads(env);
+
+  const packs = { ...(cache.packs || {}) };
+  const toLoad = want
+    ? projects.filter(p => want.has(p.id) && (force || !packs[p.id]))
+    : projects;
+
+  // Sequential to stay under Cloudflare subrequest limits
+  for (const p of toLoad) {
     try {
       packs[p.id] = await loadProjectPack(p, env, uploads);
     } catch (e) {
       packs[p.id] = { sources: [], error: e.message || String(e) };
     }
-  }));
-  cache = { at: now, projects, packs };
+  }
+
+  cache = { at: now, projects, packs, uploads };
   return cache;
+}
+
+/** Load projects list + only packs needed for the question (avoids CF subrequest limits). */
+export async function getStateForQuestion(env, q) {
+  const nq = String(q || '').toLowerCase().replace(/ё/g, 'е');
+  if (/по всем|всех проект|общий спенд|сводк|\/digest|\/report\s*$/.test(nq)) {
+    return getDashboardState(env);
+  }
+
+  const projects = (cache.projects && Date.now() - cache.at < 60 * 1000)
+    ? cache.projects
+    : (await loadProjects(env)).map(normalizeProj);
+
+  const ids = [];
+  const push = (pred) => {
+    for (const p of projects) {
+      if (pred(p) && !ids.includes(p.id)) ids.push(p.id);
+    }
+  };
+  if (/плант|planto|plant/.test(nq)) push(p => p.id === 'planto' || /planto/i.test(p.name || ''));
+  if (/джигл|jggl|jiggle/.test(nq)) push(p => /jggl/i.test(p.id || '') || /jggl/i.test(p.name || ''));
+  if (/хапп|hupp/.test(nq)) push(p => p.id === 'hupp' || /hupp/i.test(p.name || ''));
+  if (/стрим|streamfi|stream/.test(nq)) push(p => /stream/i.test(p.id || '') || /stream/i.test(p.name || ''));
+  if (/квад|quadcode|quad/.test(nq)) push(p => /quad/i.test(p.id || '') || /quad/i.test(p.name || ''));
+  if (/клософ|qlosophy/.test(nq)) push(p => /qlosophy|клософ/i.test(p.id || '') || /qlosophy|клософ/i.test(p.name || ''));
+  if (/рамбл|rumble/.test(nq)) push(p => /rumble/i.test(p.id || '') || /rumble/i.test(p.name || ''));
+
+  if (!ids.length) return getDashboardState(env);
+  // Ensure projects list is in cache for QA project finder
+  if (!cache.projects) cache = { ...cache, projects, at: cache.at || Date.now() };
+  return getDashboardState(env, { onlyIds: ids });
 }
 
 export function allRows(pack) {
@@ -308,6 +356,14 @@ export function projectRows(proj, pack) {
     }
   }
   if (isQlosophy(proj)) {
+    const months = sources.filter(s =>
+      String(s.id || '').startsWith('month_')
+      || /\b20\d{2}\b/.test(String(s.label || ''))
+    );
+    if (months.length) {
+      return months.flatMap(s => (s.rows || []).map(r => hydrateStoredRow(r) || r))
+        .sort((a, b) => (a.iso || '').localeCompare(b.iso || ''));
+    }
     const primary = sources.find(s => {
       const k = labelKey(s.label);
       return k === 'main' || k === 'лист1' || k === 'sheet1';

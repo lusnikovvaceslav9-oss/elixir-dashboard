@@ -97,8 +97,8 @@ export default {
         }
         const update = await req.json().catch(() => null);
         if (!update) return json({ ok: false }, 400, env);
-        // Respond 200 quickly; process in background when possible
-        ctx.waitUntil(handleTelegramUpdate(env, update).catch(e => console.log('tg err', e.message)));
+        // Process in background so Telegram doesn't drop updates on slow data loads
+        ctx.waitUntil(handleTelegramUpdate(env, update).catch(e => console.log('tg err', e.message || e)));
         return json({ ok: true }, 200, env);
       }
 
