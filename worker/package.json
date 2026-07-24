@@ -1,0 +1,16 @@
+{
+  "name": "elixir-dashboard-proxy",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "test:qa": "node telegram/qa-matrix.mjs",
+    "secret:telegram": "wrangler secret put TELEGRAM_BOT_TOKEN",
+    "secret:chats": "wrangler secret put TELEGRAM_ALLOWED_CHAT_IDS",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "wrangler": "^4.114.0"
+  }
+}

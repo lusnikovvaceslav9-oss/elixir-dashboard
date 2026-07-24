@@ -233,6 +233,37 @@ body{
   .ws-kpi-label{font-size:11px;margin-bottom:7px}
 }
 
+/* ── MINI CHAT BOT ── */
+.chatbot-fab{position:fixed;right:20px;bottom:20px;z-index:1400;width:52px;height:52px;border-radius:16px;border:1px solid rgba(0,0,0,0.12);background:var(--matter);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 10px 28px rgba(0,0,0,0.22);transition:transform 0.15s ease,box-shadow 0.15s ease}
+.chatbot-fab:hover{transform:translateY(-2px);box-shadow:0 14px 34px rgba(0,0,0,0.28)}
+.chatbot-fab svg{width:22px;height:22px}
+.chatbot-fab.open{background:#fff;color:#0a0a0a;border-color:rgba(0,0,0,0.16)}
+.chatbot-panel{position:fixed;right:20px;bottom:84px;z-index:1400;width:min(380px,calc(100vw - 24px));height:min(520px,calc(100vh - 110px));display:none;flex-direction:column;background:#fff;border:1px solid rgba(0,0,0,0.1);border-radius:18px;box-shadow:0 18px 50px rgba(0,0,0,0.18);overflow:hidden}
+.chatbot-panel.open{display:flex}
+.chatbot-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;border-bottom:1px solid rgba(0,0,0,0.08);background:linear-gradient(180deg,#fafafa,#fff)}
+.chatbot-title{font-family:var(--font-display);font-size:15px;font-weight:700;letter-spacing:0.02em}
+.chatbot-sub{font-size:11px;color:rgba(0,0,0,0.45);margin-top:2px}
+.chatbot-close{width:30px;height:30px;border:none;border-radius:8px;background:rgba(0,0,0,0.05);cursor:pointer;color:rgba(0,0,0,0.55);font-size:16px;line-height:1}
+.chatbot-close:hover{background:rgba(0,0,0,0.1);color:#0a0a0a}
+.chatbot-msgs{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;background:#f7f7f8}
+.chatbot-msg{max-width:92%;padding:10px 12px;border-radius:14px;font-size:13px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+.chatbot-msg.bot{align-self:flex-start;background:#fff;border:1px solid rgba(0,0,0,0.08);color:#0a0a0a;border-bottom-left-radius:5px}
+.chatbot-msg.user{align-self:flex-end;background:var(--matter);color:#fff;border-bottom-right-radius:5px}
+.chatbot-msg b{font-weight:700}
+.chatbot-chips{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 10px;background:#f7f7f8}
+.chatbot-chip{border:1px solid rgba(0,0,0,0.1);background:#fff;color:rgba(0,0,0,0.7);border-radius:999px;padding:6px 10px;font-size:11.5px;font-weight:600;cursor:pointer;font-family:inherit}
+.chatbot-chip:hover{border-color:rgba(0,0,0,0.28);color:#0a0a0a}
+.chatbot-input-row{display:flex;gap:8px;padding:12px;border-top:1px solid rgba(0,0,0,0.08);background:#fff}
+.chatbot-input{flex:1;min-width:0;border:1px solid rgba(0,0,0,0.12);border-radius:12px;padding:11px 12px;font-size:13.5px;font-family:inherit;outline:none;background:#fafafa}
+.chatbot-input:focus{border-color:rgba(0,0,0,0.35);background:#fff}
+.chatbot-send{flex-shrink:0;width:42px;height:42px;border:none;border-radius:12px;background:var(--matter);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.chatbot-send:hover{background:#000}
+.chatbot-send svg{width:16px;height:16px}
+@media(max-width:480px){
+  .chatbot-fab{right:14px;bottom:14px;width:48px;height:48px;border-radius:14px}
+  .chatbot-panel{right:10px;left:10px;bottom:72px;width:auto;height:min(70vh,560px)}
+}
+
 /* ── OVERVIEW GRID ── */
 .overview-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:18px}
 .proj-tile{background:rgba(18,18,26,0.7);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:var(--radius-lg);padding:0;transition:border-color 0.22s ease,box-shadow 0.22s ease,transform 0.22s ease,opacity 0.15s ease;position:relative;overflow:hidden;box-shadow:var(--shadow);cursor:grab;touch-action:manipulation;user-select:none;-webkit-user-select:none}
@@ -889,6 +920,28 @@ thead th{color:rgba(0,0,0,0.58)!important;font-weight:700!important}
   <div id="content"></div>
 </div>
 
+<!-- Mini Chat Bot -->
+<button type="button" class="chatbot-fab" id="chatbot-fab" onclick="toggleChatBot()" title="Спросить про статистику" aria-label="Открыть чат">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>
+</button>
+<div class="chatbot-panel" id="chatbot-panel" aria-hidden="true">
+  <div class="chatbot-head">
+    <div>
+      <div class="chatbot-title">Elixir Bot</div>
+      <div class="chatbot-sub">Спроси про спенд, клики, ROAS и др.</div>
+    </div>
+    <button type="button" class="chatbot-close" onclick="toggleChatBot(false)" aria-label="Закрыть">×</button>
+  </div>
+  <div class="chatbot-msgs" id="chatbot-msgs"></div>
+  <div class="chatbot-chips" id="chatbot-chips"></div>
+  <div class="chatbot-input-row">
+    <input type="text" class="chatbot-input" id="chatbot-input" placeholder="Например: спенд Planto за июль" autocomplete="off" onkeydown="if(event.key==='Enter')sendChatBot()">
+    <button type="button" class="chatbot-send" onclick="sendChatBot()" aria-label="Отправить">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+    </button>
+  </div>
+</div>
+
 <!-- Login Modal -->
 <div class="overlay" id="overlay-login">
   <div class="modal">
@@ -1338,13 +1391,19 @@ function normalizeProject(p) {
   if (!sheetSources.length && urls.length) {
     sheetSources = urls.map((url, i) => ({ id: `src_${i}`, url, label: `Лист ${i + 1}` }));
   }
+  // Один и тот же Google Sheet не должен висеть двумя «Листами» —
+  // иначе monthly×sources размножает данные и спенд утраивается.
+  sheetSources = dedupeSourcesByUrlKey(sheetSources);
+  const monthlySheets = dedupeMonthlySheets(
+    (p.monthlySheets || [])
+      .filter(ms => ms && ms.month && ms.url)
+      .map(ms => ({ month: ms.month, url: normalizeToCSVUrl(ms.url) }))
+  );
   return {
     ...p,
-    urls: sheetSources.length ? sheetSources.map(s => s.url) : urls,
+    urls: sheetSources.length ? sheetSources.map(s => s.url) : [...new Set(urls)],
     sheetSources,
-    monthlySheets: (p.monthlySheets || [])
-      .filter(ms => ms && ms.month && ms.url)
-      .map(ms => ({ month: ms.month, url: normalizeToCSVUrl(ms.url) })),
+    monthlySheets,
     type: p.type || 'auto',
     status: normalizeProjectStatus(p.status),
   };
@@ -1687,6 +1746,55 @@ function sourceLabelKey(proj, label) {
     if (compact === 'main' || compact === 'лист1' || compact === 'sheet1') return 'main';
   }
   return compact || 'csv';
+}
+
+function sourceUrlKey(url) {
+  const u = String(url || '').trim();
+  if (!u) return '';
+  if (u.startsWith('upload://') || (typeof isRepoDataUrl === 'function' && isRepoDataUrl(u))) return u;
+  const id = typeof extractSheetId === 'function' ? extractSheetId(u) : '';
+  if (!id) return u;
+  const gidMatch = u.match(/[#&?]gid=(\d+)/);
+  const gid = gidMatch && gidMatch[1] !== '0' ? gidMatch[1] : '0';
+  return `${id}::${gid}`;
+}
+
+function dedupeSourcesByUrlKey(sources) {
+  const seen = new Set();
+  const out = [];
+  (sources || []).forEach(s => {
+    const key = sourceUrlKey(s?.url) || `label:${String(s?.label || '').trim().toLowerCase()}` || `id:${s?.id}`;
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    out.push(s);
+  });
+  return out;
+}
+
+function dedupeMonthlySheets(monthly) {
+  const byMonth = new Map();
+  (monthly || []).forEach(ms => {
+    if (!ms?.month || !ms?.url) return;
+    if (!byMonth.has(ms.month)) byMonth.set(ms.month, ms);
+  });
+  return [...byMonth.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([, ms]) => ms);
+}
+
+function monthlyAndSourcesOverlap(sourceDefs, monthly) {
+  const monthlyIds = new Set(
+    (monthly || []).map(ms => extractSheetId(normalizeToCSVUrl(ms.url))).filter(Boolean)
+  );
+  const sourceIds = new Set(
+    (sourceDefs || []).map(s => extractSheetId(s.url)).filter(Boolean)
+  );
+  if (!monthlyIds.size || !sourceIds.size) return false;
+  let hit = 0;
+  monthlyIds.forEach(id => { if (sourceIds.has(id)) hit += 1; });
+  // Те же таблицы перечислены и как «листы», и как «месяцы» —
+  // cartesian monthly×sources задваивает/утраивает спенд (StreamFi).
+  return hit >= Math.min(monthlyIds.size, sourceIds.size);
 }
 
 function canonicalSourceLabel(proj, label) {
@@ -3743,6 +3851,8 @@ async function fetchProject(proj) {
       label: canonicalSourceLabel(proj, s.label || ''),
     }));
     sources = mergeUploadedSources(sources, uploaded, proj);
+    // Схлопываем дубликаты одного и того же URL (StreamFi: Лист 1 = Лист 3).
+    sources = dedupeSourcesByUrlKey(sources);
     if (isQlosophyProject(proj)) sources = collapseEquivalentSources(proj, sources);
     sources = pruneJgglAppSource(proj, sources);
     sources = ensureJgglPlatformSources(proj, sources);
@@ -3750,7 +3860,31 @@ async function fetchProject(proj) {
     return { sources };
   };
 
+  // monthlySheets + sheetSources указывают на одни и те же таблицы →
+  // не делаем декартово произведение (оно утраивает спенд).
   if (monthly.length && sourceDefs.length > 1) {
+    if (monthlyAndSourcesOverlap(sourceDefs, monthly)) {
+      // Грузим только помесячные файлы (май/июнь), без дублей «Лист N».
+      const sources = [];
+      const results = await Promise.allSettled(
+        monthly.map(ms => fetchCsvWithFallback(normalizeToCSVUrl(ms.url)))
+      );
+      results.forEach((r, i) => {
+        if (r.status !== 'fulfilled') return;
+        const ms = monthly[i];
+        sources.push({
+          id: `month_${ms.month}`,
+          label: formatMonthKey(ms.month),
+          url: normalizeToCSVUrl(ms.url),
+          rows: parseSheet(r.value),
+          sheetColumns: (parseCSV(r.value)[0] || []).map(h => (h || '').trim()),
+        });
+      });
+      if (!sources.length && !uploaded.length && results.every(r => r.status === 'rejected')) {
+        throw results[0].reason;
+      }
+      return withUploads({ sources });
+    }
     return withUploads(await fetchMultiSourcesMonthly(sourceDefs, monthly));
   }
 
@@ -3837,14 +3971,17 @@ function normalizeCacheData(data) {
   if (Array.isArray(data)) {
     return { sources: [{ id: 'legacy', label: '', rows: data, sheetColumns: [] }] };
   }
-  if (data.sources?.length) return data;
+  if (data.sources?.length) {
+    return { ...data, sources: dedupeSourcesByUrlKey(data.sources) };
+  }
   return { sources: [] };
 }
 
 function getAllRowsFromCache(data) {
   const pack = normalizeCacheData(data);
   if (!pack || pack === 'loading' || pack === null) return null;
-  return pack.sources.flatMap(s => s.rows || []);
+  // Не суммируем один и тот же Google Sheet дважды (дубли «Лист 1»/«Лист 3»).
+  return dedupeSourcesByUrlKey(pack.sources || []).flatMap(s => s.rows || []);
 }
 
 function isMultiSourceCache(data) {
@@ -8223,6 +8360,420 @@ window.addEventListener('scroll', () => { if (projPickerOpen) positionProjPicker
 window.addEventListener('hashchange', () => {
   const next = getValidViewId(readViewHash() || 'overview');
   if (next !== view) switchView(next);
+});
+
+// ═══════════════════════════════════════════════════════════════
+// MINI CHAT BOT — ответы по данным дашборда
+// ═══════════════════════════════════════════════════════════════
+const CHAT_METRIC_ALIASES = [
+  { key: 'spend', labels: ['спенд', 'spend', 'расход', 'расхода', 'бюджет потрачен', 'потратили', 'потрачено', 'потратил', 'затраты', 'затрат', 'сколько ушло', 'сколько слили', 'cost total'] },
+  { key: 'impressions', labels: ['показы', 'impressions', 'imp', 'показов', 'показ'] },
+  { key: 'clicks', labels: ['клики', 'clicks', 'кликов', 'клик', 'клика'] },
+  { key: 'installs', labels: ['инсталлы', 'installs', 'установки', 'установок', 'инстал', 'инсталлов'] },
+  { key: 'trials', labels: ['триалы', 'trials', 'триал', 'триалов', 'пробные'] },
+  { key: 'sold', labels: ['sold', 'проданные триалы', 'конверсии триала'] },
+  { key: 'fb', labels: ['билы', 'bills', 'fb', 'оплаты', 'списания'] },
+  { key: 'purchase', labels: ['purchase', 'покупки', 'purchases', 'покупок'] },
+  { key: 'cpc', labels: ['cpc', 'спс', 'цена клика', 'стоимость клика'] },
+  { key: 'cpm', labels: ['cpm', 'спм', 'цена тысячи'] },
+  { key: 'ctr', labels: ['ctr', 'кликабельность'] },
+  { key: 'cost_install', labels: ['cpi', 'cost / install', 'цена инсталла', 'стоимость инсталла'] },
+  { key: 'cost_trial', labels: ['cpt', 'cost / trial', 'цена триала', 'стоимость триала'] },
+  { key: 'cac', labels: ['cac', 'стоимость платящего'] },
+  { key: 'roas', labels: ['roas', 'роас'] },
+  { key: 'revenue', labels: ['доход', 'выручка', 'revenue', 'заработано', 'заработок', 'заработали', 'заработал', 'денег', 'деньги', 'прибыль'] },
+];
+/** Доп. алиасы имён проектов (склонения / транслит). */
+const CHAT_PROJECT_ALIASES = {
+  planto: ['planto', 'плант', 'планта', 'планто', 'plant'],
+  hupp: ['hupp', 'хапп', 'хапа', 'хаппа', 'хаппу', 'хаппом'],
+  jggl: ['jggl', 'джигл', 'джиггл', 'jiggle'],
+  streamfi: ['streamfi', 'стримф', 'стримфай', 'stream', 'стрим'],
+  qlosophy: ['qlosophy', 'клософ', 'qlosof', 'философ'],
+  quadcode: ['quadcode', 'квадкод', 'quad', 'квад'],
+  rumbleads: ['rumbleads', 'rumble', 'рамбл'],
+};
+const CHAT_MONTHS = [
+  { re: /январ/i, mo: 1, name: 'январь' },
+  { re: /феврал/i, mo: 2, name: 'февраль' },
+  { re: /март/i, mo: 3, name: 'март' },
+  { re: /апрел/i, mo: 4, name: 'апрель' },
+  { re: /ма[йяе]/i, mo: 5, name: 'май' },
+  { re: /июн/i, mo: 6, name: 'июнь' },
+  { re: /июл/i, mo: 7, name: 'июль' },
+  { re: /август/i, mo: 8, name: 'август' },
+  { re: /сентябр/i, mo: 9, name: 'сентябрь' },
+  { re: /октябр/i, mo: 10, name: 'октябрь' },
+  { re: /ноябр/i, mo: 11, name: 'ноябрь' },
+  { re: /декабр/i, mo: 12, name: 'декабрь' },
+];
+let chatBotReady = false;
+
+function toggleChatBot(force) {
+  const panel = document.getElementById('chatbot-panel');
+  const fab = document.getElementById('chatbot-fab');
+  if (!panel || !fab) return;
+  const open = typeof force === 'boolean' ? force : !panel.classList.contains('open');
+  panel.classList.toggle('open', open);
+  fab.classList.toggle('open', open);
+  panel.setAttribute('aria-hidden', open ? 'false' : 'true');
+  if (open) {
+    if (!chatBotReady) initChatBot();
+    setTimeout(() => document.getElementById('chatbot-input')?.focus(), 50);
+  }
+}
+
+function initChatBot() {
+  chatBotReady = true;
+  const msgs = document.getElementById('chatbot-msgs');
+  const chips = document.getElementById('chatbot-chips');
+  if (msgs && !msgs.children.length) {
+    appendChatMsg('bot', 'Привет. Пиши своими словами — не только кнопки ниже.\n\nНапример:\n• сколько потратили на планта в июле\n• какой расход у хаппа\n• клики по джиглу android за неделю');
+  }
+  if (chips) {
+    const suggestions = [
+      'спенд по всем проектам',
+      'спенд Planto за июль',
+      'клики Hupp за 7 дней',
+      'доход Planto',
+    ];
+    chips.innerHTML = suggestions.map(s =>
+      `<button type="button" class="chatbot-chip" data-q="${escHtml(s)}">${escHtml(s)}</button>`
+    ).join('');
+    chips.onclick = (e) => {
+      const btn = e.target.closest('.chatbot-chip');
+      if (btn?.dataset.q) askChatBot(btn.dataset.q);
+    };
+  }
+}
+
+function askChatBot(q) {
+  const input = document.getElementById('chatbot-input');
+  if (input) input.value = q;
+  sendChatBot();
+}
+
+function appendChatMsg(role, text) {
+  const box = document.getElementById('chatbot-msgs');
+  if (!box) return;
+  const el = document.createElement('div');
+  el.className = `chatbot-msg ${role}`;
+  el.innerHTML = String(text)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+    .replace(/\n/g, '<br>');
+  box.appendChild(el);
+  box.scrollTop = box.scrollHeight;
+}
+
+function sendChatBot() {
+  const input = document.getElementById('chatbot-input');
+  if (!input) return;
+  const q = (input.value || '').trim();
+  if (!q) return;
+  input.value = '';
+  appendChatMsg('user', q);
+  try {
+    appendChatMsg('bot', answerChatQuestion(q));
+  } catch (e) {
+    appendChatMsg('bot', 'Не удалось ответить: ' + (e.message || e));
+  }
+}
+
+function chatNorm(s) {
+  return String(s || '').toLowerCase().replace(/ё/g, 'е').replace(/[^a-zа-я0-9.$%\s\-_/]/gi, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function chatStem(s) {
+  let t = chatNorm(s);
+  // грубый стем для склонений: хаппа→хапп, джиглу→джигл, планта→плант
+  if (t.length > 4) t = t.replace(/(ами|ями|ов|ев|ах|ях|ом|ем|ой|ей|ую|юю|ая|яя|ые|ие|ых|их|ам|ям|у|ю|а|я|е|и|ы)$/i, '');
+  return t;
+}
+
+function chatProjectAliases(p) {
+  const name = chatNorm(p.name);
+  const idRoot = chatNorm(String(p.id || '').split('_')[0]);
+  const out = new Set([name, idRoot, chatStem(name), chatStem(idRoot)].filter(Boolean));
+  Object.entries(CHAT_PROJECT_ALIASES).forEach(([key, list]) => {
+    if (idRoot.includes(key) || name.includes(key) || list.some(a => name.includes(a) || idRoot.includes(a))) {
+      list.forEach(a => out.add(chatNorm(a)));
+    }
+  });
+  return [...out].filter(a => a.length >= 3);
+}
+
+function chatTokenHit(nq, alias) {
+  if (!alias || alias.length < 3) return false;
+  if (nq.includes(alias)) return true;
+  // стем токенов вопроса
+  return nq.split(/\s+/).some(tok => {
+    const st = chatStem(tok);
+    return st.length >= 3 && (st === alias || alias.startsWith(st) || st.startsWith(alias));
+  });
+}
+
+function chatFindProject(q) {
+  const nq = chatNorm(q);
+  if (/по всем|всех проект|все проект|общий спенд|всего потрат|по кажд|сводк/.test(nq)) {
+    return { all: true };
+  }
+  let best = null;
+  let bestScore = 0;
+  for (const p of projects || []) {
+    const aliases = chatProjectAliases(p);
+    let score = 0;
+    for (const a of aliases) {
+      if (!chatTokenHit(nq, a)) continue;
+      score = Math.max(score, a.length + (nq.includes(a) ? 5 : 0));
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      best = p;
+    }
+  }
+  if (best) return { project: best };
+
+  // Если в вопросе есть «чужое» имя, похожее на проект, но не распознали — не подставляем текущий.
+  const looksLikeName = /\b(по|у|для|про|на|в)\s+[a-zа-я]{3,}/i.test(nq)
+    || /[a-z]{4,}/i.test(nq);
+  if (looksLikeName && !/текущ|этом проект|открыт/.test(nq)) {
+    return { unknownMention: true };
+  }
+
+  // текущий открытый проект — только если имя явно не пытались назвать
+  if (view && view !== 'overview') {
+    const cur = (projects || []).find(p => p.id === view);
+    if (cur) return { project: cur, inferred: true };
+  }
+  return null;
+}
+
+function chatFindMetric(q) {
+  const nq = chatNorm(q);
+  let best = null;
+  for (const m of CHAT_METRIC_ALIASES) {
+    for (const label of m.labels) {
+      const lab = chatNorm(label);
+      if (lab.length < 2) continue;
+      const hit = nq.includes(lab) || (lab.length >= 4 && nq.split(/\s+/).some(t => chatStem(t) === chatStem(lab)));
+      if (hit && (!best || lab.length > best.len)) {
+        best = { key: m.key, len: lab.length, label: lab };
+      }
+    }
+  }
+  // «сколько» / «какой» без метрики → спенд по умолчанию
+  if (!best && /скольк|какой|какая|какие|покажи|скажи|дай/.test(nq)) return 'spend';
+  return best ? best.key : 'spend';
+}
+
+function chatFindSource(q, pack) {
+  if (!pack?.sources?.length) return null;
+  const nq = chatNorm(q);
+  for (const s of pack.sources) {
+    const label = chatNorm(s.label || s.id || '');
+    if (label && (nq.includes(label) || chatTokenHit(nq, chatStem(label)))) return s;
+    if (/ios|айос|iphone|айфон/.test(nq) && /ios|айос|iphone|айфон/.test(label)) return s;
+    if (/android|андроид/.test(nq) && /android|андроид/.test(label)) return s;
+    if (/waitlist|вейтлист|вайтлист/.test(nq) && /waitlist|вейт|вайт/.test(label)) return s;
+    if (/redirect|редирект/.test(nq) && /redirect|редирект/.test(label)) return s;
+  }
+  // месяц как лист: «за май» при источниках «Май 2026»
+  for (const m of CHAT_MONTHS) {
+    if (!m.re.test(nq)) continue;
+    const hit = pack.sources.find(s => m.re.test(chatNorm(s.label || '')));
+    if (hit) return hit;
+  }
+  return null;
+}
+
+function chatParseRange(q) {
+  const nq = chatNorm(q);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+
+  if (/весь период|за все время|всё время|все время|с начала/.test(nq)) return null;
+  if (/сегодня/.test(nq)) return { start: iso(today), end: iso(today), label: 'сегодня' };
+  if (/вчера/.test(nq)) {
+    const y = addDays(today, -1);
+    return { start: iso(y), end: iso(y), label: 'вчера' };
+  }
+  const daysM = nq.match(/за\s+(\d+)\s*дн/);
+  if (daysM) {
+    const n = +daysM[1];
+    return { start: iso(addDays(today, -(n - 1))), end: iso(today), label: `последние ${n} дн.` };
+  }
+  if (/за\s*7\s*дн|за неделю|неделю/.test(nq)) {
+    return { start: iso(addDays(today, -6)), end: iso(today), label: 'последние 7 дн.' };
+  }
+  if (/за\s*30\s*дн|за месяц/.test(nq)) {
+    return { start: iso(addDays(today, -29)), end: iso(today), label: 'последние 30 дн.' };
+  }
+
+  // 01.07 — 22.07 or 01.07.2026-22.07.2026
+  const rangeM = nq.match(/(\d{1,2})[./](\d{1,2})(?:[./](\d{2,4}))?\s*[-—–до]+\s*(\d{1,2})[./](\d{1,2})(?:[./](\d{2,4}))?/);
+  if (rangeM) {
+    const y1 = rangeM[3] ? (+rangeM[3] < 100 ? 2000 + +rangeM[3] : +rangeM[3]) : today.getFullYear();
+    const y2 = rangeM[6] ? (+rangeM[6] < 100 ? 2000 + +rangeM[6] : +rangeM[6]) : y1;
+    const s = `${y1}-${String(+rangeM[2]).padStart(2, '0')}-${String(+rangeM[1]).padStart(2, '0')}`;
+    const e = `${y2}-${String(+rangeM[5]).padStart(2, '0')}-${String(+rangeM[4]).padStart(2, '0')}`;
+    return { start: s, end: e, label: `${isoToLabel(s)} — ${isoToLabel(e)}` };
+  }
+
+  // single date 22.07 / 22.07.2026
+  const oneM = nq.match(/(?:за|на)\s+(\d{1,2})[./](\d{1,2})(?:[./](\d{2,4}))?/);
+  if (oneM) {
+    const y = oneM[3] ? (+oneM[3] < 100 ? 2000 + +oneM[3] : +oneM[3]) : today.getFullYear();
+    const d = `${y}-${String(+oneM[2]).padStart(2, '0')}-${String(+oneM[1]).padStart(2, '0')}`;
+    return { start: d, end: d, label: isoToLabel(d) };
+  }
+
+  // month name
+  for (const m of CHAT_MONTHS) {
+    if (m.re.test(nq)) {
+      let year = today.getFullYear();
+      const ym = nq.match(/(20\d{2})/);
+      if (ym) year = +ym[1];
+      else if (m.mo > today.getMonth() + 1) year -= 1;
+      const last = new Date(year, m.mo, 0).getDate();
+      const s = `${year}-${String(m.mo).padStart(2, '0')}-01`;
+      const e = `${year}-${String(m.mo).padStart(2, '0')}-${String(last).padStart(2, '0')}`;
+      return { start: s, end: e, label: `${m.name} ${year}` };
+    }
+  }
+  return null; // весь доступный период
+}
+
+function chatFilterRows(rows, range) {
+  if (!range) return rows || [];
+  return (rows || []).filter(r => {
+    const iso = rowIsoStr(r);
+    return iso && iso >= range.start && iso <= range.end;
+  });
+}
+
+function chatMetricValue(key, proj, rows) {
+  const cur = proj?.currency || '₽';
+  if (key === 'revenue') {
+    if (proj?.id === 'planto' || isPlantoAutoFeed(proj)) {
+      const ue = plantoMetaCache?.unit_economics;
+      if (ue?.revenue_total != null) return fmtMoney(ue.revenue_total, cur);
+    }
+    return 'нет данных о фактическом доходе';
+  }
+  const type = proj?.type || (proj?.id === 'hupp' ? 'hupp' : 'generic');
+  return computeMetricValue(key, type, rows, cur);
+}
+
+function chatMetricLabel(key) {
+  const m = CHAT_METRIC_ALIASES.find(x => x.key === key);
+  return m ? m.labels[0] : key;
+}
+
+function answerChatQuestion(q) {
+  const nq = chatNorm(q);
+  if (/помощ|что умеешь|команд|пример|как спрос/.test(nq)) {
+    return 'Спрашивай своими словами — не только готовые кнопки.\n\nПонимаю метрики: спенд, клики, показы, инсталлы, триалы, CPC/CPM/CTR, ROAS, доход.\nПериоды: сегодня, вчера, 7/30 дней, июль, 01.07–22.07.\nПроекты: Planto, Hupp, JGGL… (можно «планта», «хаппа», «джиглу»).\n\nПримеры:\n**сколько потратили на планта в июле**\n**какой расход у хаппа**\n**клики по джиглу android за неделю**\n**спенд по всем проектам**';
+  }
+
+  const target = chatFindProject(q);
+  const metric = chatFindMetric(q);
+  const range = chatParseRange(q);
+
+  if (target?.unknownMention) {
+    const names = (projects || []).map(p => p.name).slice(0, 8).join(', ');
+    return `Не распознал проект в запросе.\nДоступны: ${names || '—'}.\nМожно склонять: «планта», «хаппа», «джиглу».`;
+  }
+
+  // Все проекты
+  if (target?.all || (!target?.project && /по всем|всех|итого|всего|сводк/.test(nq))) {
+    const lines = [];
+    let totalRub = 0, totalUsd = 0;
+    for (const p of projects || []) {
+      const data = cache[p.id];
+      if (!data || data === 'loading') continue;
+      const pack = normalizeCacheData(data);
+      const rows = chatFilterRows(
+        aggregateRowsByDate(dedupeSourcesByUrlKey(pack?.sources || []).flatMap(s => s.rows || [])),
+        range
+      );
+      if (!rows.length && metric !== 'revenue') continue;
+      const val = chatMetricValue(metric, p, rows);
+      if (metric === 'spend') {
+        const sp = sum(rows, 'spend');
+        if ((p.currency || '₽') === '$') totalUsd += sp;
+        else totalRub += sp;
+      }
+      lines.push(`• **${p.name}**: ${val}`);
+    }
+    if (!lines.length) return 'Данные ещё не загружены или период пустой.';
+    const period = range ? range.label : 'весь период';
+    let head = `**${chatMetricLabel(metric)}** · ${period}\n` + lines.join('\n');
+    if (metric === 'spend') {
+      const parts = [];
+      if (totalRub) parts.push(fmtMoney(totalRub, '₽'));
+      if (totalUsd) parts.push(fmtMoney(totalUsd, '$'));
+      if (parts.length) head += `\n\nИтого: **${parts.join(' + ')}**`;
+    }
+    return head;
+  }
+
+  if (!target?.project) {
+    const names = (projects || []).map(p => p.name).slice(0, 6).join(', ');
+    return `Не понял проект. Укажи имя — например: ${names || 'Planto, Hupp'}.\nИли спроси: **спенд по всем проектам**`;
+  }
+
+  const proj = target.project;
+  const data = cache[proj.id];
+  if (!data || data === 'loading') {
+    return `Данные по **${proj.name}** ещё загружаются. Обнови страницу или подожди пару секунд.`;
+  }
+  if (data === null) return `Не удалось загрузить данные **${proj.name}**.`;
+
+  const pack = normalizeCacheData(data);
+  const source = chatFindSource(q, pack);
+  let rows = source
+    ? (source.rows || [])
+    : dedupeSourcesByUrlKey(pack.sources || []).flatMap(s => s.rows || []);
+  rows = aggregateRowsByDate(rows);
+  const filtered = chatFilterRows(rows, range);
+
+  if (!filtered.length && metric !== 'revenue') {
+    const period = range ? range.label : 'весь период';
+    // Если спросили месяц, а данные в другом месяце — подсказка
+    const all = aggregateRowsByDate(dedupeSourcesByUrlKey(pack.sources || []).flatMap(s => s.rows || []));
+    const isos = all.map(r => rowIsoStr(r)).filter(Boolean).sort();
+    const hint = isos.length
+      ? `\nДанные есть с ${isoToLabel(isos[0])} по ${isoToLabel(isos[isos.length - 1])}.`
+      : '';
+    return `По **${proj.name}**${source ? ` · ${source.label}` : ''} за период **${period}** строк нет.${hint}`;
+  }
+
+  const val = chatMetricValue(metric, proj, filtered);
+  const period = range ? range.label : 'весь период';
+  const inferred = target.inferred ? ' (текущий проект)' : '';
+  const src = source ? ` · ${source.label}` : (pack.sources?.length > 1 ? ' · все листы' : '');
+
+  let extra = '';
+  if (metric === 'spend' && filtered.length) {
+    const clicks = sum(filtered, 'clicks');
+    const imps = sum(filtered, 'impressions');
+    const parts = [`${filtered.length} дн.`];
+    if (imps) parts.push(`показы ${fmtInt(imps)}`);
+    if (clicks) parts.push(`клики ${fmtInt(clicks)}`);
+    extra = `\n${parts.join(' · ')}`;
+  }
+
+  return `**${chatMetricLabel(metric)}** · **${proj.name}**${inferred}${src}\nПериод: ${period}\n→ **${val}**${extra}`;
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    const panel = document.getElementById('chatbot-panel');
+    if (panel?.classList.contains('open')) toggleChatBot(false);
+  }
 });
 
 // ═══════════════════════════════════════════════════════════════

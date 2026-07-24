@@ -1,15 +1,20 @@
-name = "elixir-dashboard-proxy"
+name = "elixir-ua-bot"
 main = "index.js"
 compatibility_date = "2024-01-01"
 
 [vars]
 JSONBIN_BIN_ID = "6a2d1063f5f4af5e29eaccbd"
-# Restrict to your actual GitHub Pages origin once deployed, e.g.
-# "https://lusnikovvaceslav9-oss.github.io" — "*" is fine while testing.
 ALLOWED_ORIGIN = "*"
 GITHUB_REPO = "lusnikovvaceslav9-oss/elixir-dashboard"
 GITHUB_BRANCH = "main"
 HUPP_FEED_WORKFLOW = "hupp-feed.yml"
 
-# Secrets (NOT stored here — set via `wrangler secret put <NAME>`):
-#   JSONBIN_MASTER_KEY, ADMIN_PASSWORD, SESSION_SECRET, GITHUB_DISPATCH_TOKEN
+# Morning digest 10:00 Europe/Moscow = 07:00 UTC
+[triggers]
+crons = ["0 7 * * *"]
+
+# Secrets via `npx wrangler secret put <NAME>`:
+#   JSONBIN_MASTER_KEY, SESSION_SECRET,
+#   TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_CHAT_IDS,
+#   TELEGRAM_WEBHOOK_SECRET (optional), ADMIN_PASSWORD (optional)
+#   TELEGRAM_SETUP_KEY (optional; falls back to SESSION_SECRET)
