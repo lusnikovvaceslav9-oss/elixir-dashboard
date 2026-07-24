@@ -119,7 +119,7 @@ function labelKey(label) {
 }
 
 function isJggl(proj) {
-  return /jggl/i.test(proj.id || '') || /jggl/i.test(proj.name || '');
+  return /jggl|джигл/i.test(proj.id || '') || /jggl|джигл/i.test(proj.name || '');
 }
 
 function isQlosophy(proj) {
@@ -365,9 +365,9 @@ export function mergeMonthAndGapRows(sources) {
 }
 
 /**
- * Default rows for a project (matches dashboard overview):
+ * Default rows for a project (matches dashboard selectProjectRows):
  * - JGGL: sum iOS + Android only (not Waitlist/Redirect)
- * - Qlosophy: month sheets + upload gaps by date
+ * - Month sheets + upload gaps by date (Qlosophy / Quadcode / any leftover «Лист 1»)
  * - otherwise: all sources
  */
 export function projectRows(proj, pack) {
@@ -383,9 +383,14 @@ export function projectRows(proj, pack) {
         .sort((a, b) => (a.iso || '').localeCompare(b.iso || ''));
     }
   }
-  if (isQlosophy(proj)) {
-    const months = sources.filter(isMonthSource);
-    if (months.length) return mergeMonthAndGapRows(sources);
+  const months = sources.filter(isMonthSource);
+  const others = sources.filter(s => !isMonthSource(s));
+  if (months.length && others.length) return mergeMonthAndGapRows(sources);
+  if (months.length) {
+    return months.flatMap(s => (s.rows || []).map(r => hydrateStoredRow(r) || r))
+      .sort((a, b) => (a.iso || '').localeCompare(b.iso || ''));
+  }
+  if (isQlosophy(proj) || isMultiSheetCsv(proj)) {
     const primary = sources.find(s => {
       const k = labelKey(s.label);
       return k === 'main' || k === 'лист1' || k === 'sheet1';

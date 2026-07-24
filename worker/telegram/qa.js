@@ -163,19 +163,19 @@ function findMetric(q) {
   return best ? best.key : 'spend';
 }
 
-/** Meta JGGL: installs in Results→qregs. Qlosophy: Reg column→regs/qregs. */
-function installCount(rows) {
-  const inst = sum(rows, 'installs');
-  if (inst) return inst;
-  return sum(rows, 'qregs') || sum(rows, 'regs') || 0;
-}
-
 /** REG in campaign sheets is often qregs; uploads may omit regs. Prefer the fuller signal. */
 function regCount(rows) {
   const q = sum(rows, 'qregs') || 0;
   const r = sum(rows, 'regs') || 0;
   if (q > r) return q;
   return r || q;
+}
+
+/** Meta JGGL: installs in Results→qregs. Fallback to regs. */
+function installCount(rows) {
+  const inst = sum(rows, 'installs');
+  if (inst) return inst;
+  return regCount(rows);
 }
 
 function isReportIntent(q) {
@@ -338,6 +338,7 @@ function formatSummary(proj, pack, rows, range, source) {
   const cl = sum(rows, 'clicks');
   const im = sum(rows, 'impressions');
   const inst = installCount(rows);
+  const regs = regCount(rows);
   const trials = sum(rows, 'trials');
   const lines = [
     `отчёт · ${proj.name}${source ? ' · ' + source.label : ''}`,
@@ -348,9 +349,11 @@ function formatSummary(proj, pack, rows, range, source) {
   if (im) bits.push(`показы ${fmtInt(im)}`);
   if (cl) bits.push(`клики ${fmtInt(cl)}`);
   if (inst) bits.push(`инсталлы ${fmtInt(inst)}`);
+  if (regs && regs !== inst) bits.push(`регистрации ${fmtInt(regs)}`);
   if (trials) bits.push(`триалы ${fmtInt(trials)}`);
   if (cl) bits.push(`CPC ${fmtMoney(sp / cl, cur)}`);
   if (inst) bits.push(`CPI ${fmtMoney(sp / inst, cur)}`);
+  if (regs) bits.push(`cost/reg ${fmtMoney(sp / regs, cur)}`);
   if (im) bits.push(`CPM ${fmtMoney(sp / im * 1000, cur)}`);
   if (bits.length) lines.push(bits.join(' · '));
   const ue = pack?.meta?.unit_economics;

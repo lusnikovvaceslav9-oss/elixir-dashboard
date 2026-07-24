@@ -1606,11 +1606,11 @@ function applyHuppAutoSource(list) {
 const CSV_UPLOAD_KEY = 'elixir_csv_uploads_v1';
 
 function isJgglProject(p) {
-  return !!(p && (/jggl/i.test(p.id || '') || /^jggl$/i.test(p.name || '')));
+  return !!(p && (/jggl|джигл/i.test(p.id || '') || /jggl|джигл/i.test(p.name || '')));
 }
 
 function isQlosophyProject(p) {
-  return !!(p && (/qlosophy/i.test(p.id || '') || /^qlosophy$/i.test(p.name || '')));
+  return !!(p && (/qlosophy|клософ/i.test(p.id || '') || /qlosophy|клософ/i.test(p.name || '')));
 }
 
 function isMultiSheetCsvProject(p) {
@@ -1905,6 +1905,21 @@ function mergeRowsByDate(baseRows, uploadRows) {
   aggregateRowsByDate(uploadRows).forEach(r => {
     if (!r?.date) return;
     map.set(fmtDateStr(r.date), r);
+  });
+  return [...map.values()].sort((a, b) => a.date - b.date);
+}
+
+/** Primary wins on overlap; gap rows only fill missing dates (no double-count). */
+function mergeRowsFillGaps(primaryRows, gapRows) {
+  const map = new Map();
+  aggregateRowsByDate(primaryRows || []).forEach(r => {
+    if (!r?.date) return;
+    map.set(fmtDateStr(r.date), r);
+  });
+  aggregateRowsByDate(gapRows || []).forEach(r => {
+    if (!r?.date) return;
+    const key = fmtDateStr(r.date);
+    if (!map.has(key)) map.set(key, r);
   });
   return [...map.values()].sort((a, b) => a.date - b.date);
 }
@@ -2568,10 +2583,15 @@ function mergeUploadedSources(sources, uploaded, proj) {
     });
     if (idx >= 0) {
       const base = out[idx];
+      const intoMonth = !!(upMonth || sourceMonthKey(base));
       out[idx] = {
         ...base,
         label: canonicalSourceLabel(proj, base.label || up.label),
-        rows: mergeRowsByDate(base.rows || [], up.rows || []),
+        // В месячный лист: лист — источник правды, upload только заполняет дыры.
+        // В тот же label (повторный CSV): свежий upload перекрывает день.
+        rows: intoMonth
+          ? mergeRowsFillGaps(base.rows || [], up.rows || [])
+          : mergeRowsByDate(base.rows || [], up.rows || []),
         sheetColumns: up.sheetColumns?.length ? up.sheetColumns : base.sheetColumns,
         uploaded: true,
         uploadedAt: up.uploadedAt || base.uploadedAt || null,
@@ -4735,33 +4755,7 @@ function getLatestDayInfo(rows) {
 
 /** Строки для сводки на главной: не смешивать листы JGGL (App/Waitlist/…). */
 function pickOverviewSourceRows(pack, proj) {
-  const sources = pack?.sources || [];
-  if (!sources.length) return [];
-  if (sources.length === 1) return sources[0].rows || [];
-  if (sourcesAreMonthPartitioned(pack)) {
-    if (isQlosophyProject(proj)) return mergeMonthAndGapRows(sources);
-    return sources.flatMap(s => s.rows || []);
-  }
-  if (isMultiSheetCsvProject(proj)) {
-    if (isJgglProject(proj)) {
-      const plats = sources.filter(s => isJgglPlatformLabel(s.label));
-      if (plats.length) return plats.flatMap(s => s.rows || []);
-    }
-    const preferred = sources.find(s => sourceLabelKey(proj, s.label) === 'main')
-      || sources.find(s => sourceMonthKey(s))
-      || sources.find(s => /^(waitlist|redirect|web|ios|android)$/i.test(String(s.label || '').trim()));
-    if (preferred?.rows?.length) return preferred.rows;
-  }
-  let best = sources[0];
-  let bestDate = null;
-  sources.forEach(s => {
-    const info = getLatestDayInfo(s.rows || []);
-    if (info && (!bestDate || info.row.date > bestDate)) {
-      best = s;
-      bestDate = info.row.date;
-    }
-  });
-  return best?.rows || [];
+  return selectProjectRows(proj, pack);
 }
 
 /** Сводка за последний день для карточки на главной (как у Planto). */
@@ -5203,7 +5197,7 @@ function fmtPct(n) { return n != null && !isNaN(n) ? n.toFixed(2) + '%' : '—';
 
 function computeMetricValue(key, type, rows, cur) {
   const sp = sum(rows, 'spend');
-  const ins = sum(rows, 'installs');
+  const ins = installLikeCount(rows);
   const tr = sum(rows, 'trials');
   const sold = sum(rows, 'sold');
   const fb = sum(rows, 'fb');
@@ -5214,10 +5208,7 @@ function computeMetricValue(key, type, rows, cur) {
     case 'trials': return fmtInt(tr);
     case 'sold': return fmtInt(sold);
     case 'fb': return fmtInt(fb);
-    case 'regs': {
-      const q = sum(rows, 'qregs') || 0, r = sum(rows, 'regs') || 0;
-      return fmtInt(q > r ? q : (r || q));
-    }
+    case 'regs': return fmtInt(regLikeCount(rows));
     case 'qregs': return fmtInt(sum(rows, 'qregs') || sum(rows, 'regs'));
     case 'purchases': return fmtInt(sum(rows, 'purchases'));
     case 'purchase': return fmtInt(sum(rows, 'purchase'));
@@ -5229,8 +5220,7 @@ function computeMetricValue(key, type, rows, cur) {
     case 'cost_install': return ins ? fmtMoney(sp / ins, cur) : '—';
     case 'cost_trial': return tr ? fmtMoney(sp / tr, cur) : '—';
     case 'cost_reg': {
-      const q = sum(rows, 'qregs') || 0, r = sum(rows, 'regs') || 0;
-      const v = q > r ? q : (r || q);
+      const v = regLikeCount(rows);
       return v ? fmtMoney(sp / v, cur) : '—';
     }
     case 'cost_purchase': {
@@ -5238,7 +5228,10 @@ function computeMetricValue(key, type, rows, cur) {
       return v ? fmtMoney(sp / v, cur) : '—';
     }
     case 'cost_sold': { const v = sum(rows, 'sold'); return v ? fmtMoney(sp / v, cur) : '—'; }
-    case 'cost_qreg': { const v = sum(rows, 'qregs'); return v ? fmtMoney(sp / v, cur) : '—'; }
+    case 'cost_qreg': {
+      const v = regLikeCount(rows) || sum(rows, 'qregs');
+      return v ? fmtMoney(sp / v, cur) : '—';
+    }
     case 'cost_fb': return fb ? fmtMoney(sp / fb, cur) : '—';
     case 'cac': {
       const payers = sold || fb;
@@ -5570,6 +5563,7 @@ function getTableConfig(proj, rows) {
   } else if (type === 'campaign') {
     // Колонка Campaign убрана по запросу — данные схлопываются по дате (aggregateByDate).
     colKeys = ['date', 'spend', 'qregs', 'cost_qreg', 'impressions', 'clicks', 'cpc', 'cpm', 'ctr'];
+    const rowReg = (r) => regLikeCount([r]);
     const rowCpc = (r) => r.clicks ? fmtMoney(r.spend / r.clicks, cur) : '—';
     const rowCpm = (r) => r.impressions ? fmtMoney(r.spend / r.impressions * 1000, cur) : '—';
     const rowCtr = (r) => r.impressions ? fmtPct(r.clicks / r.impressions * 100) : '—';
@@ -5577,12 +5571,15 @@ function getTableConfig(proj, rows) {
     aggregateByDate: true,
     headers: ['Дата', `Spend (${cur})`, L('qregs','Reg'), L('cost_qreg','Cost/Reg'),
       L('impressions','Impressions'), L('clicks','Clicks'), L('cpc','CPC'), L('cpm','CPM'), L('ctr','CTR')],
-    row: (r) => [r.dateStr, fmtMoneyFull(r.spend,cur), fmtInt(r.qregs),
-      r.qregs ? fmtMoney(r.spend/r.qregs,cur) : '—', fmtInt(r.impressions||0), fmtInt(r.clicks||0),
-      rowCpc(r), rowCpm(r), rowCtr(r)],
+    row: (r) => {
+      const rg = rowReg(r);
+      return [r.dateStr, fmtMoneyFull(r.spend,cur), fmtInt(rg),
+        rg ? fmtMoney(r.spend/rg,cur) : '—', fmtInt(r.impressions||0), fmtInt(r.clicks||0),
+        rowCpc(r), rowCpm(r), rowCtr(r)];
+    },
     total: (rows) => {
       const agg = aggregateRowsByDate(rows);
-      const sp=sum(agg,'spend'), qg=sum(agg,'qregs'), imp=sum(agg,'impressions'), cl=sum(agg,'clicks');
+      const sp=sum(agg,'spend'), qg=regLikeCount(agg), imp=sum(agg,'impressions'), cl=sum(agg,'clicks');
       return ['Итого',fmtMoneyFull(sp,cur),fmtInt(qg),qg?fmtMoney(sp/qg,cur):'—',
         fmtInt(imp),fmtInt(cl),cl?fmtMoney(sp/cl,cur):'—',imp?fmtMoney(sp/imp*1000,cur):'—',imp?fmtPct(cl/imp*100):'—'];
     }
@@ -5595,15 +5592,16 @@ function getTableConfig(proj, rows) {
     tbl = {
     headers: hasRegs
       ? ['Дата', `Spend (${cur})`, L('regs','Регистрации'), L('qregs','Целевые действия'), L('cost_qreg','Cost/Цел.действие')]
-      : ['Дата', `Spend (${cur})`, L('qregs','Целевые действия'), L('cost_qreg','Cost/Цел.действие')],
+      : ['Дата', `Spend (${cur})`, L('qregs','Reg'), L('cost_qreg','Cost/Reg')],
     row: (r) => {
       const cols = [r.dateStr, fmtMoneyFull(r.spend,cur)];
       if (hasRegs) cols.push(fmtInt(r.regs||0));
-      cols.push(fmtInt(r.qregs), r.qregs?fmtMoney(r.spend/r.qregs,cur):'—');
+      const rg = hasRegs ? (r.qregs || 0) : regLikeCount([r]);
+      cols.push(fmtInt(rg), rg ? fmtMoney(r.spend/rg,cur) : '—');
       return cols;
     },
     total: (rows) => {
-      const sp=sum(rows,'spend'), qg=sum(rows,'qregs'), rg=sum(rows,'regs');
+      const sp=sum(rows,'spend'), qg=hasRegs ? sum(rows,'qregs') : regLikeCount(rows), rg=sum(rows,'regs');
       const cols = ['Итого',fmtMoneyFull(sp,cur)];
       if (hasRegs) cols.push(fmtInt(rg));
       cols.push(fmtInt(qg), qg?fmtMoney(sp/qg,cur):'—');
@@ -5659,49 +5657,64 @@ function parseBudgetRemainder(val) {
   return n;
 }
 
+function isMonthLikeSource(s) {
+  return !!(sourceMonthKey(s) || /\b20\d{2}\b/.test(String(s?.label || '')));
+}
+
 /** Month sheets win on overlap; upload/«Лист 1» only fills missing dates. */
 function mergeMonthAndGapRows(sources) {
   const list = sources || [];
-  const months = list.filter(s => sourceMonthKey(s) || /20\d{2}/.test(String(s.label || '')));
-  const others = list.filter(s => !(sourceMonthKey(s) || /20\d{2}/.test(String(s.label || ''))));
+  const months = list.filter(isMonthLikeSource);
+  const others = list.filter(s => !isMonthLikeSource(s));
   if (!months.length) return list.flatMap(s => s.rows || []);
-  const primary = months.flatMap(s => s.rows || []);
-  const covered = new Set(primary.map(r => rowIsoStr(r)).filter(Boolean));
-  const gaps = others.flatMap(s => s.rows || []).filter(r => {
-    const iso = rowIsoStr(r);
-    return iso && !covered.has(iso);
-  });
-  return primary.concat(gaps);
+  return mergeRowsFillGaps(
+    months.flatMap(s => s.rows || []),
+    others.flatMap(s => s.rows || [])
+  );
+}
+
+/** Единый набор строк проекта: бот / чат / бюджет / обзор / таблица. */
+function selectProjectRows(proj, pack) {
+  const sources = dedupeSourcesByUrlKey(pack?.sources || []);
+  if (!sources.length) return [];
+  if (sources.length === 1) return sources[0].rows || [];
+
+  if (isJgglProject(proj)) {
+    const plats = sources.filter(s => isJgglPlatformLabel(s.label));
+    if (plats.length) return plats.flatMap(s => s.rows || []);
+  }
+
+  const months = sources.filter(isMonthLikeSource);
+  const others = sources.filter(s => !isMonthLikeSource(s));
+  if (months.length && others.length) return mergeMonthAndGapRows(sources);
+  if (months.length) return months.flatMap(s => s.rows || []);
+
+  if (isMultiSheetCsvProject(proj)) {
+    const primary = sources.find(s => sourceLabelKey(proj, s.label) === 'main')
+      || sources.find(s => /^app$/i.test(String(s.label || '').trim()))
+      || sources[0];
+    return primary?.rows || [];
+  }
+  return sources.flatMap(s => s.rows || []);
+}
+
+function regLikeCount(rows) {
+  const q = sum(rows, 'qregs') || 0;
+  const r = sum(rows, 'regs') || 0;
+  return q > r ? q : (r || q);
+}
+
+function installLikeCount(rows) {
+  const inst = sum(rows, 'installs') || 0;
+  if (inst) return inst;
+  return regLikeCount(rows);
 }
 
 function getBudgetRows(proj, allData) {
   const pack = normalizeCacheData(allData);
   if (!pack || pack === 'loading' || pack === null) return [];
-  const sources = pack.sources || [];
-  if (!sources.length) return [];
-  let rows = [];
-  if (sources.length === 1) {
-    rows = sources[0].rows || [];
-  } else if (sourcesAreMonthPartitioned(pack)) {
-    // Qlosophy: месячные листы + дыры из upload (без двойного счёта по дате).
-    // Остальные month-partitioned: все источники как раньше.
-    const months = sources.filter(s => sourceMonthKey(s) || /20\d{2}/.test(String(s.label || '')));
-    if (isQlosophyProject(proj) && months.length) {
-      rows = mergeMonthAndGapRows(sources);
-    } else {
-      rows = sources.flatMap(s => s.rows || []);
-    }
-  } else if (isMultiSheetCsvProject(proj)) {
-    // JGGL/Qlosophy: спенд аккаунта на основном листе, не суммируем Waitlist/Web
-    const primary = sources.find(s => sourceLabelKey(proj, s.label) === 'main')
-      || sources.find(s => /^app$/i.test(String(s.label || '').trim()))
-      || sources[0];
-    rows = primary?.rows || [];
-  } else {
-    rows = getAllRowsFromCache(pack) || [];
-  }
   // Агрегация по дню — иначе breakdown кампаний удваивает spend
-  return aggregateRowsByDate(rows);
+  return aggregateRowsByDate(selectProjectRows(proj, pack));
 }
 
 function getRowsSpend(allData, proj) {
@@ -5817,14 +5830,15 @@ function fmtDelta(cur, prev, lowerIsBetter = false) {
 }
 
 function computePeriodComparison(proj, allData, monthKey) {
-  const allRows = getAllRowsFromCache(allData) || [];
+  const pack = normalizeCacheData(allData);
+  const allRows = pack ? selectProjectRows(proj, pack) : [];
   if (!monthKey || !allRows.length) return null;
   const prevKey = getPrevMonthKey(monthKey);
   const months = getMonths(allData, proj);
   if (!months.includes(prevKey)) return null;
-  const p = withEffectiveType(proj, rowsForMonth(allData, monthKey));
-  const curRows = rowsForMonth(allData, monthKey);
-  const prevRows = rowsForMonth(allData, prevKey);
+  const curRows = rowsForMonthOnRows(allRows, monthKey);
+  const prevRows = rowsForMonthOnRows(allRows, prevKey);
+  const p = withEffectiveType(proj, curRows);
   if (!curRows.length || !prevRows.length) return null;
 
   const curSpend = sum(curRows, 'spend');
@@ -6681,9 +6695,9 @@ document.addEventListener('keydown', e => {
 });
 
 function getPrimaryResult(type, rows) {
-  if (type === 'campaign' || type === 'streamfi') return sum(rows, 'qregs');
-  if (type === 'quadcode') return sum(rows, 'regs');
-  if (type === 'planto') return sum(rows, 'installs');
+  if (type === 'campaign' || type === 'streamfi') return regLikeCount(rows);
+  if (type === 'quadcode') return regLikeCount(rows) || sum(rows, 'regs');
+  if (type === 'planto') return installLikeCount(rows);
   if (type === 'hupp') return sum(rows, 'purchase');
   return 0;
 }
@@ -7391,7 +7405,10 @@ function renderProjectDetail(projId) {
     syncSourceIndexToMonth(projId, pack, currentMonth);
   }
   const isMulti = isMultiSourceCache(data);
-  const allRows = currentMonth ? rowsForMonth(data, currentMonth) : (getAllRowsFromCache(data) || []);
+  const packRows = (pack && pack !== 'loading' && pack !== null)
+    ? selectProjectRows(p, pack)
+    : [];
+  const allRows = currentMonth ? rowsForMonthOnRows(packRows, currentMonth) : packRows;
 
   document.getElementById('tabs-row').innerHTML = '';
 
@@ -7415,7 +7432,7 @@ function renderProjectDetail(projId) {
   if (isMulti) {
     dfSrc = pack.sources[getSourceIdx(projId, pack)];
     dfMonthPartitioned = sourcesAreMonthPartitioned(pack);
-    universeRows = dfMonthPartitioned ? pack.sources.flatMap(s => s.rows || []) : (dfSrc.rows || []);
+    universeRows = dfMonthPartitioned ? packRows : (dfSrc.rows || []);
   } else {
     universeRows = pack.sources[0]?.rows || allRows;
   }
@@ -7438,7 +7455,11 @@ function renderProjectDetail(projId) {
     const suffix = (src.label && !monthPartitioned && !dateFilter) ? ' · ' + escHtml(src.label) : periodSuffix;
     html += renderCsvUploadCard(p);
     if (!monthPartitioned) html += renderSheetSwitcher(pack, projId, currentMonth);
-    html += renderWorkspaceBody(p, srcProj, viewRows, currentMonth, suffix, { allData: { sources: [src] }, analyticsMonth });
+    // Бюджет/аналитика — тот же universe, что таблица (не один лист).
+    html += renderWorkspaceBody(p, srcProj, viewRows, currentMonth, suffix, {
+      allData: monthPartitioned ? pack : { sources: [src] },
+      analyticsMonth,
+    });
     content.innerHTML = html;
     flushWorkspaceChart();
     return;
@@ -8731,7 +8752,7 @@ function answerChatQuestion(q) {
       if (!data || data === 'loading') continue;
       const pack = normalizeCacheData(data);
       const rows = chatFilterRows(
-        aggregateRowsByDate(dedupeSourcesByUrlKey(pack?.sources || []).flatMap(s => s.rows || [])),
+        aggregateRowsByDate(selectProjectRows(p, pack)),
         range
       );
       if (!rows.length && metric !== 'revenue') continue;
@@ -8771,16 +8792,14 @@ function answerChatQuestion(q) {
   const source = chatFindSource(q, pack);
   let rows = source
     ? (source.rows || [])
-    : (isQlosophyProject(proj) && sourcesAreMonthPartitioned(pack)
-      ? mergeMonthAndGapRows(dedupeSourcesByUrlKey(pack.sources || []))
-      : dedupeSourcesByUrlKey(pack.sources || []).flatMap(s => s.rows || []));
+    : selectProjectRows(proj, pack);
   rows = aggregateRowsByDate(rows);
   const filtered = chatFilterRows(rows, range);
 
   if (!filtered.length && metric !== 'revenue') {
     const period = range ? range.label : 'весь период';
     // Если спросили месяц, а данные в другом месяце — подсказка
-    const all = aggregateRowsByDate(dedupeSourcesByUrlKey(pack.sources || []).flatMap(s => s.rows || []));
+    const all = aggregateRowsByDate(selectProjectRows(proj, pack));
     const isos = all.map(r => rowIsoStr(r)).filter(Boolean).sort();
     const hint = isos.length
       ? `\nДанные есть с ${isoToLabel(isos[0])} по ${isoToLabel(isos[isos.length - 1])}.`

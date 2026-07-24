@@ -253,6 +253,36 @@ for (const [key, aliases] of Object.entries(projNames)) {
   cases.push(expect('qlosophy cpr july matches table', has(a, 'cost/reg', 'июль') && /\$5[.,]4/.test(a), a.slice(0, 120)));
   const a2 = ans('сколько регистраций Qlosophy за июль');
   cases.push(expect('qlosophy regs july 400', has(a2, 'регистрац') && /400/.test(a2), a2.slice(0, 120)));
+  // Gap-fill: projectRows must include upload days, not only month sheet (7 days)
+  cases.push(expect('qlosophy july days >= 20', rows.length >= 20, String(rows.length)));
+  // No double-count: spend must be month+gaps (~2169), not 2× month
+  cases.push(expect('qlosophy july spend ~2169', sp > 2000 && sp < 2400, sp.toFixed(2)));
+}
+{
+  // JGGL bare spend must use iOS+Android only (not Waitlist/Redirect)
+  const p = state.projects.find(x => /jggl/i.test(x.id));
+  const pack = state.packs[p.id];
+  const pr = projectRows(p, pack);
+  const all = (pack.sources || []).flatMap(s => s.rows || []);
+  const spPr = sum(pr, 'spend');
+  const spAll = sum(all, 'spend');
+  cases.push(expect('jggl projectRows <= all sources', spPr > 0 && spPr <= spAll + 0.01, `${spPr} vs ${spAll}`));
+  const a = ans('спенд джигл');
+  cases.push(expect('jggl bare spend no waitlist label', has(a, 'спенд', 'jggl') && !has(a, 'waitlist'), a.slice(0, 100)));
+}
+{
+  // Consistency: regs answer and CPR answer use same denominator for July Qlosophy
+  const aRegs = ans('регистрации Qlosophy за июль');
+  const aCpr = ans('цена регистрации Qlosophy за июль');
+  const aSpend = ans('спенд Qlosophy за июль');
+  const regsM = aRegs.match(/→\s*([0-9 ]+)/);
+  const cprM = aCpr.match(/→\s*\$([0-9.]+)/);
+  const spendM = aSpend.match(/→\s*\$([0-9. ]+)/);
+  const regs = regsM ? Number(String(regsM[1]).replace(/\s/g, '')) : 0;
+  const cpr = cprM ? Number(cprM[1]) : 0;
+  const spend = spendM ? Number(String(spendM[1]).replace(/\s/g, '')) : 0;
+  const implied = regs ? spend / regs : 0;
+  cases.push(expect('qlosophy spend/regs ≈ cpr', Math.abs(implied - cpr) < 0.05, `${spend}/${regs}=${implied.toFixed(2)} vs ${cpr}`));
 }
 
 // ── Extra natural phrasings ───────────────────────────────────────

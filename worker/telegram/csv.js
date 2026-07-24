@@ -117,10 +117,14 @@ export function parseSheetRows(text) {
     const parts = parseDateParts(row[di]);
     if (!parts) continue;
     const installsRaw = ini >= 0 ? num(row[ini]) : 0;
-    const qregsRaw = qri >= 0 ? num(row[qri]) : 0;
-    const regsRaw = regi >= 0 ? num(row[regi]) : 0;
-    // Sheet «Reg» without Results → treat as qregs too (dashboard streamfi)
-    const qregs = qregsRaw || regsRaw;
+    let qregsRaw = qri >= 0 ? num(row[qri]) : 0;
+    let regsRaw = regi >= 0 ? num(row[regi]) : 0;
+    // Mirror dashboard: lone «Reg» column → qregs (campaign Cost/Reg)
+    if (!qregsRaw && regsRaw) {
+      qregsRaw = regsRaw;
+      regsRaw = 0;
+    }
+    const qregs = qregsRaw;
     const installs = installsRaw || (resi >= 0 ? qregsRaw : 0);
     out.push({
       date: parts.date,
