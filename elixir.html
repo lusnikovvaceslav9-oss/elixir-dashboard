@@ -4737,7 +4737,9 @@ function getLatestDayInfo(rows) {
 function pickOverviewSourceRows(pack, proj) {
   const sources = pack?.sources || [];
   if (!sources.length) return [];
-  if (sources.length === 1 || sourcesAreMonthPartitioned(pack)) {
+  if (sources.length === 1) return sources[0].rows || [];
+  if (sourcesAreMonthPartitioned(pack)) {
+    if (isQlosophyProject(proj)) return mergeMonthAndGapRows(sources);
     return sources.flatMap(s => s.rows || []);
   }
   if (isMultiSheetCsvProject(proj)) {
@@ -5212,7 +5214,10 @@ function computeMetricValue(key, type, rows, cur) {
     case 'trials': return fmtInt(tr);
     case 'sold': return fmtInt(sold);
     case 'fb': return fmtInt(fb);
-    case 'regs': return fmtInt(sum(rows, 'regs') || sum(rows, 'qregs'));
+    case 'regs': {
+      const q = sum(rows, 'qregs') || 0, r = sum(rows, 'regs') || 0;
+      return fmtInt(q > r ? q : (r || q));
+    }
     case 'qregs': return fmtInt(sum(rows, 'qregs') || sum(rows, 'regs'));
     case 'purchases': return fmtInt(sum(rows, 'purchases'));
     case 'purchase': return fmtInt(sum(rows, 'purchase'));
@@ -5223,7 +5228,11 @@ function computeMetricValue(key, type, rows, cur) {
     case 'clicks': return fmtInt(sum(rows, 'clicks'));
     case 'cost_install': return ins ? fmtMoney(sp / ins, cur) : '—';
     case 'cost_trial': return tr ? fmtMoney(sp / tr, cur) : '—';
-    case 'cost_reg': { const v = sum(rows, 'regs') || sum(rows, 'qregs'); return v ? fmtMoney(sp / v, cur) : '—'; }
+    case 'cost_reg': {
+      const q = sum(rows, 'qregs') || 0, r = sum(rows, 'regs') || 0;
+      const v = q > r ? q : (r || q);
+      return v ? fmtMoney(sp / v, cur) : '—';
+    }
     case 'cost_purchase': {
       const v = type === 'hupp' ? sum(rows, 'purchase') : sum(rows, 'purchases');
       return v ? fmtMoney(sp / v, cur) : '—';
@@ -5650,6 +5659,21 @@ function parseBudgetRemainder(val) {
   return n;
 }
 
+/** Month sheets win on overlap; upload/«Лист 1» only fills missing dates. */
+function mergeMonthAndGapRows(sources) {
+  const list = sources || [];
+  const months = list.filter(s => sourceMonthKey(s) || /20\d{2}/.test(String(s.label || '')));
+  const others = list.filter(s => !(sourceMonthKey(s) || /20\d{2}/.test(String(s.label || ''))));
+  if (!months.length) return list.flatMap(s => s.rows || []);
+  const primary = months.flatMap(s => s.rows || []);
+  const covered = new Set(primary.map(r => rowIsoStr(r)).filter(Boolean));
+  const gaps = others.flatMap(s => s.rows || []).filter(r => {
+    const iso = rowIsoStr(r);
+    return iso && !covered.has(iso);
+  });
+  return primary.concat(gaps);
+}
+
 function getBudgetRows(proj, allData) {
   const pack = normalizeCacheData(allData);
   if (!pack || pack === 'loading' || pack === null) return [];
@@ -5659,11 +5683,14 @@ function getBudgetRows(proj, allData) {
   if (sources.length === 1) {
     rows = sources[0].rows || [];
   } else if (sourcesAreMonthPartitioned(pack)) {
-    // Quadcode / Qlosophy: суммируем месячные листы.
-    // Не добавляем upload-источники «Лист 1»/Main отдельно — иначе спенд удваивается.
+    // Qlosophy: месячные листы + дыры из upload (без двойного счёта по дате).
+    // Остальные month-partitioned: все источники как раньше.
     const months = sources.filter(s => sourceMonthKey(s) || /20\d{2}/.test(String(s.label || '')));
-    const use = (isQlosophyProject(proj) && months.length) ? months : sources;
-    rows = use.flatMap(s => s.rows || []);
+    if (isQlosophyProject(proj) && months.length) {
+      rows = mergeMonthAndGapRows(sources);
+    } else {
+      rows = sources.flatMap(s => s.rows || []);
+    }
   } else if (isMultiSheetCsvProject(proj)) {
     // JGGL/Qlosophy: спенд аккаунта на основном листе, не суммируем Waitlist/Web
     const primary = sources.find(s => sourceLabelKey(proj, s.label) === 'main')
@@ -8744,7 +8771,9 @@ function answerChatQuestion(q) {
   const source = chatFindSource(q, pack);
   let rows = source
     ? (source.rows || [])
-    : dedupeSourcesByUrlKey(pack.sources || []).flatMap(s => s.rows || []);
+    : (isQlosophyProject(proj) && sourcesAreMonthPartitioned(pack)
+      ? mergeMonthAndGapRows(dedupeSourcesByUrlKey(pack.sources || []))
+      : dedupeSourcesByUrlKey(pack.sources || []).flatMap(s => s.rows || []));
   rows = aggregateRowsByDate(rows);
   const filtered = chatFilterRows(rows, range);
 

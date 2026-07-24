@@ -336,10 +336,38 @@ export function allRows(pack) {
   return flat.sort((a, b) => (a.iso || '').localeCompare(b.iso || ''));
 }
 
+function isMonthSource(s) {
+  return String(s?.id || '').startsWith('month_')
+    || /\b20\d{2}\b/.test(String(s?.label || ''));
+}
+
+function hydrateSourceRows(sources) {
+  return (sources || []).flatMap(s => (s.rows || []).map(r => hydrateStoredRow(r) || r));
+}
+
+/**
+ * Month sheets are authoritative for dates they cover.
+ * Upload / «Лист 1» fills calendar gaps only — no double-count on overlap.
+ */
+export function mergeMonthAndGapRows(sources) {
+  const list = dedupeSources(sources || []);
+  if (!list.length) return [];
+  const months = list.filter(isMonthSource);
+  const others = list.filter(s => !isMonthSource(s));
+  if (!months.length) return hydrateSourceRows(list);
+  const primary = hydrateSourceRows(months);
+  const covered = new Set(primary.map(r => r.iso || rowIso(r)).filter(Boolean));
+  const gaps = hydrateSourceRows(others).filter(r => {
+    const iso = r.iso || rowIso(r);
+    return iso && !covered.has(iso);
+  });
+  return [...primary, ...gaps].sort((a, b) => (a.iso || '').localeCompare(b.iso || ''));
+}
+
 /**
  * Default rows for a project (matches dashboard overview):
  * - JGGL: sum iOS + Android only (not Waitlist/Redirect)
- * - Qlosophy: primary «main» sheet
+ * - Qlosophy: month sheets + upload gaps by date
  * - otherwise: all sources
  */
 export function projectRows(proj, pack) {
@@ -356,14 +384,8 @@ export function projectRows(proj, pack) {
     }
   }
   if (isQlosophy(proj)) {
-    const months = sources.filter(s =>
-      String(s.id || '').startsWith('month_')
-      || /\b20\d{2}\b/.test(String(s.label || ''))
-    );
-    if (months.length) {
-      return months.flatMap(s => (s.rows || []).map(r => hydrateStoredRow(r) || r))
-        .sort((a, b) => (a.iso || '').localeCompare(b.iso || ''));
-    }
+    const months = sources.filter(isMonthSource);
+    if (months.length) return mergeMonthAndGapRows(sources);
     const primary = sources.find(s => {
       const k = labelKey(s.label);
       return k === 'main' || k === 'лист1' || k === 'sheet1';

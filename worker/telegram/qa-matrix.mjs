@@ -235,10 +235,24 @@ for (const [key, aliases] of Object.entries(projNames)) {
 }
 {
   const p = state.projects.find(x => x.id === 'hupp');
-  const pack = state.packs.hupp;
+  const pack = state.packs[p.id];
   const rows = projectRows(p, pack);
   const sp = sum(rows, 'spend');
   cases.push(expect('data: hupp ~3.5k not 14k', sp > 1000 && sp < 8000, sp.toFixed(0)));
+}
+{
+  const p = state.projects.find(x => /qlosoph/i.test(x.id));
+  const pack = state.packs[p.id];
+  const rows = projectRows(p, pack).filter(r => (rowIso(r) || '').startsWith('2026-07'));
+  const sp = sum(rows, 'spend');
+  const regs = sum(rows, 'qregs') || sum(rows, 'regs');
+  const cpr = regs ? sp / regs : 0;
+  cases.push(expect('data: qlosophy july regs ~400', regs >= 390 && regs <= 420, String(regs)));
+  cases.push(expect('data: qlosophy july cpr ~5.42', cpr > 5 && cpr < 6, cpr.toFixed(2)));
+  const a = ans('цена регистрации Qlosophy за июль');
+  cases.push(expect('qlosophy cpr july matches table', has(a, 'cost/reg', 'июль') && /\$5[.,]4/.test(a), a.slice(0, 120)));
+  const a2 = ans('сколько регистраций Qlosophy за июль');
+  cases.push(expect('qlosophy regs july 400', has(a2, 'регистрац') && /400/.test(a2), a2.slice(0, 120)));
 }
 
 // ── Extra natural phrasings ───────────────────────────────────────

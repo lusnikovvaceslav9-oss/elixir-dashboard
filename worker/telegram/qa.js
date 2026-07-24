@@ -170,10 +170,12 @@ function installCount(rows) {
   return sum(rows, 'qregs') || sum(rows, 'regs') || 0;
 }
 
+/** REG in campaign sheets is often qregs; uploads may omit regs. Prefer the fuller signal. */
 function regCount(rows) {
-  const r = sum(rows, 'regs');
-  if (r) return r;
-  return sum(rows, 'qregs') || 0;
+  const q = sum(rows, 'qregs') || 0;
+  const r = sum(rows, 'regs') || 0;
+  if (q > r) return q;
+  return r || q;
 }
 
 function isReportIntent(q) {
