@@ -8557,6 +8557,8 @@ function chatFindProject(q) {
 
 function chatFindMetric(q) {
   const nq = chatNorm(q);
+  if (/(цена|стоимость|cost).{0,16}(рег|регистр)/.test(nq) || /cost\s*\/?\s*reg/.test(nq)) return 'cost_reg';
+  if (/регистрац|regs?\b|registration/.test(nq)) return 'regs';
   let best = null;
   for (const m of CHAT_METRIC_ALIASES) {
     for (const label of m.labels) {
