@@ -1876,6 +1876,41 @@ function ensureJgglPlatformSources(proj, sources) {
   });
 }
 
+/**
+ * JGGL: сиротские листы вроде «Июл 2026» / App / CSV → разрезать в iOS/Android по кампании.
+ * Иначе month-partitioned логика прячет переключатель платформ.
+ */
+function normalizeJgglSources(proj, sources) {
+  if (!isJgglProject(proj)) return sources || [];
+  const list = pruneJgglAppSource(proj, sources || []);
+  const stable = [];
+  const orphans = [];
+  list.forEach(s => {
+    const label = String(s.label || '').trim();
+    if (isJgglPlatformLabel(label) || /^(waitlist|redirect|web)$/i.test(label)) {
+      stable.push(s);
+    } else {
+      orphans.push(s);
+    }
+  });
+  if (!orphans.length) return ensureJgglPlatformSources(proj, stable);
+
+  const expanded = expandJgglUploadedByPlatform(orphans);
+  const by = new Map(stable.map(s => [String(s.label || '').trim().toLowerCase(), { ...s }]));
+  expanded.forEach(e => {
+    const k = String(e.label || '').trim().toLowerCase();
+    if (!k) return;
+    if (by.has(k)) {
+      const prev = by.get(k);
+      prev.rows = mergeRowsByDate(prev.rows || [], e.rows || []);
+      prev.uploaded = prev.uploaded || e.uploaded;
+    } else {
+      by.set(k, { ...e });
+    }
+  });
+  return ensureJgglPlatformSources(proj, [...by.values()]);
+}
+
 /** Суммирует строки с одной датой (нужно для Meta Ads: много кампаний → один день). */
 function aggregateRowsByDate(rows) {
   const map = new Map();
@@ -2246,6 +2281,8 @@ function sourceMonthKey(source) {
 
 function sourcesAreMonthPartitioned(pack) {
   const sources = pack?.sources || [];
+  // JGGL: листы — iOS/Android/Waitlist, даже если среди uploads есть «Июл 2026».
+  if (sources.some(s => isJgglPlatformLabel(s.label))) return false;
   if (sources.length < 2) return sources.length === 1 && !!sourceMonthKey(sources[0]);
   const keyed = sources.filter(s => sourceMonthKey(s));
   return keyed.length >= Math.ceil(sources.length * 0.5);
@@ -3874,8 +3911,7 @@ async function fetchProject(proj) {
     // Схлопываем дубликаты одного и того же URL (StreamFi: Лист 1 = Лист 3).
     sources = dedupeSourcesByUrlKey(sources);
     if (isQlosophyProject(proj)) sources = collapseEquivalentSources(proj, sources);
-    sources = pruneJgglAppSource(proj, sources);
-    sources = ensureJgglPlatformSources(proj, sources);
+    sources = normalizeJgglSources(proj, sources);
     if (!sources.length) throw new Error('No sheet sources loaded');
     return { sources };
   };
@@ -7431,7 +7467,8 @@ function renderProjectDetail(projId) {
   let dfSrc = null, dfMonthPartitioned = false, universeRows;
   if (isMulti) {
     dfSrc = pack.sources[getSourceIdx(projId, pack)];
-    dfMonthPartitioned = sourcesAreMonthPartitioned(pack);
+    // JGGL всегда листы платформ — не скрываем iOS/Android switcher.
+    dfMonthPartitioned = !isJgglProject(p) && sourcesAreMonthPartitioned(pack);
     universeRows = dfMonthPartitioned ? packRows : (dfSrc.rows || []);
   } else {
     universeRows = pack.sources[0]?.rows || allRows;

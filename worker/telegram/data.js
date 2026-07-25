@@ -134,6 +134,69 @@ function isPlatformLabel(label) {
   return /^(ios|android)$/i.test(String(label || '').trim());
 }
 
+function jgglPlatformFromName(name) {
+  return /android/i.test(String(name || '')) ? 'Android' : 'iOS';
+}
+
+/** Redistribute JGGL orphan sheets («Июл 2026», App, raw CSV) into iOS/Android. */
+function normalizeJgglSources(proj, sources) {
+  if (!isJggl(proj)) return sources || [];
+  const list = (sources || []).filter(s => !/^app$/i.test(String(s.label || '').trim()));
+  const stable = [];
+  const orphans = [];
+  for (const s of list) {
+    const label = String(s.label || '').trim();
+    if (isPlatformLabel(label) || /^(waitlist|redirect|web)$/i.test(label)) stable.push(s);
+    else orphans.push(s);
+  }
+  if (!orphans.length) return list;
+
+  const by = new Map(stable.map(s => [labelKey(s.label), { ...s, rows: [...(s.rows || [])] }]));
+  for (const src of orphans) {
+    const label = String(src.label || '').trim();
+    if (/^(waitlist|redirect|web)$/i.test(label)) {
+      const k = labelKey(label);
+      const prev = by.get(k);
+      by.set(k, prev
+        ? { ...prev, rows: aggregateByDate([...(prev.rows || []), ...(src.rows || [])]) }
+        : { ...src, id: `upload_${k}`, label });
+      continue;
+    }
+    if (isPlatformLabel(label)) {
+      const plat = /^android$/i.test(label) ? 'Android' : 'iOS';
+      const k = labelKey(plat);
+      const prev = by.get(k);
+      by.set(k, prev
+        ? { ...prev, rows: aggregateByDate([...(prev.rows || []), ...(src.rows || [])]) }
+        : { ...src, id: `upload_${k}`, label: plat });
+      continue;
+    }
+    const buckets = { iOS: [], Android: [] };
+    for (const r of src.rows || []) {
+      const plat = jgglPlatformFromName(r.campaign || '');
+      buckets[plat].push(r);
+    }
+    for (const plat of ['iOS', 'Android']) {
+      if (!buckets[plat].length) continue;
+      const k = labelKey(plat);
+      const prev = by.get(k);
+      const rows = aggregateByDate([...(prev?.rows || []), ...buckets[plat]]);
+      by.set(k, prev
+        ? { ...prev, rows }
+        : { id: `upload_${k}`, label: plat, url: `upload://${proj.id}/${k}`, rows, uploaded: true });
+    }
+  }
+
+  const order = ['ios', 'android', 'waitlist', 'redirect', 'web'];
+  return [...by.values()].sort((a, b) => {
+    const ka = labelKey(a.label);
+    const kb = labelKey(b.label);
+    const ia = order.indexOf(ka);
+    const ib = order.indexOf(kb);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || ka.localeCompare(kb);
+  });
+}
+
 /** Group JSONBin uploads by platform/label and merge (later file wins). */
 function sourcesFromUploads(proj, uploads) {
   const bag = uploads?.[proj.id] || {};
@@ -250,6 +313,7 @@ async function loadProjectPack(proj, env, uploads) {
 
   let sources = mergeSourceLists(sheetSources, uploadSources);
   if (!sources.length && uploadSources.length) sources = uploadSources;
+  sources = normalizeJgglSources(p, sources);
 
   let meta = null;
   if (p.id === 'planto' || p.type === 'planto') {
