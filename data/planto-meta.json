@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-07-26T20:05:51+00:00",
+  "generated_at": "2026-07-26T21:50:33+00:00",
   "anchor": "2026-06-05",
-  "until": "2026-07-26",
-  "window_start": "2026-07-17",
+  "until": "2026-07-27",
+  "window_start": "2026-07-18",
   "trial_attribution": "appmetrica_trial_started",
   "sources": {
     "spend": "direct_api",
@@ -17,7 +17,7 @@
     "product": "appmetrica_reporting"
   },
   "errors": [],
-  "days": 52,
+  "days": 53,
   "reconcile_diff": {
     "trials_total_old_csv": 164,
     "trials_total_new": 164,
@@ -25,8 +25,8 @@
   },
   "unit_economics": {
     "revenue_total": 68331,
-    "spend_total": 210918.38,
-    "active_users": 11297,
+    "spend_total": 210951.45,
+    "active_users": 11299,
     "active_payers": 35,
     "plus_active_users": 101,
     "trial_cancellations": 11,
@@ -60,12 +60,12 @@
     "garden_activation_pct": 29.81,
     "garden_avg_plants": 1.77,
     "garden_depth_icp_pct": null,
-    "paywall_cta_pct": 36.63,
-    "care_engagement_pct": 3.84,
+    "paywall_cta_pct": 36.62,
+    "care_engagement_pct": 3.85,
     "feature_activation": {
-      "scan_pct": 32.15,
+      "scan_pct": 32.14,
       "watering_pct": 2.31,
-      "ai_pct": 22.07
+      "ai_pct": 22.06
     },
     "retention": {
       "d1": null,
@@ -184,10 +184,10 @@
     "2026-07-26": 7
   },
   "trials_crosscheck_yesterday": {
-    "day": "2026-07-25",
-    "appmetrica": 12,
-    "supabase": 12,
-    "dashboard": 12,
+    "day": "2026-07-26",
+    "appmetrica": 7,
+    "supabase": 7,
+    "dashboard": 7,
     "note": "В дашборде trials = AppMetrica trial_started (уники). RuStore — сверка оплат."
   }
 }
