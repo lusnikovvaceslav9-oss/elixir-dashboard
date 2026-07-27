@@ -465,10 +465,19 @@ td:first-child{text-align:left;color:#0a0a0a;font-weight:500}
 .budget-progress-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--accent),#1a1a1a);transition:width 0.3s ease}
 .budget-progress-fill.warn{background:linear-gradient(90deg,#F59E0B,#EF4444)}
 .budget-progress-meta{display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted)}
-.budget-input-row{display:flex;gap:8px;margin-top:12px;align-items:center}
-.budget-input-row input{flex:1;padding:10px 12px;border:1px solid var(--border-strong);border-radius:8px;background:var(--surface);color:var(--text);font-size:14px;font-family:Inter,sans-serif;outline:none}
+.budget-input-row{display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap}
+.budget-input-row input{flex:1;min-width:120px;padding:10px 12px;border:1px solid var(--border-strong);border-radius:8px;background:var(--surface);color:var(--text);font-size:14px;font-family:Inter,sans-serif;outline:none}
 .budget-input-row input:focus{border-color:rgba(0,0,0,0.5)}
 .budget-hint{font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.45}
+.budget-meta-badge{display:inline-flex;align-items:center;gap:6px;font-size:10px;font-weight:500;color:var(--text-muted);margin:-4px 0 10px;flex-wrap:wrap}
+.budget-meta-badge .ok{color:#15803d}
+.budget-meta-badge .warn{color:#b45309}
+.budget-manual-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px}
+.budget-manual-grid label{display:flex;flex-direction:column;gap:4px;font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em}
+.budget-manual-grid input{padding:8px 10px;border:1px solid var(--border-strong);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px}
+.meta-stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.meta-stats-row .budget-stat{padding:10px 12px}
+.meta-stats-row .budget-stat-value{font-size:15px}
 .btn-budget-save{padding:9px 14px;border-radius:8px;border:1px solid rgba(0,0,0,0.4);background:var(--accent-soft);color:#f7f7f7;font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;white-space:nowrap}
 .btn-budget-save:hover{background:rgba(0,0,0,0.25)}
 .compare-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
@@ -1960,7 +1969,7 @@ function aggregateRowsByDate(rows) {
     }
     const ex = map.get(key);
     Object.keys(r).forEach(k => {
-      if (k === 'date' || k === 'dateStr' || k === 'campaign') return;
+      if (k === 'date' || k === 'dateStr' || k === 'campaign' || k === 'campaignId') return;
       if (typeof r[k] === 'number') ex[k] = (ex[k] || 0) + r[k];
     });
   });
@@ -2114,7 +2123,11 @@ function parseDirectSpendRows(matrix) {
   const spendCol = si >= 0 ? si : siCost;
   const ii = findDirectMetricCol(headers, 'impressions');
   const ci = findDirectMetricCol(headers, 'clicks');
+  const campCol = find(['№ кампании', 'номер кампании', 'id кампании', 'campaign_id', 'campaign id', 'campaign number'], []);
+  const campNameCol = find(['название кампании', 'campaign name', 'campaign'], ['№', 'номер', 'id', 'status', 'статус']);
+  // Суммируем внутри файла по дате; запоминаем id кампаний для дедупа при нескольких CSV.
   const byDay = new Map();
+  const campaignIds = new Set();
   matrix.slice(headerIdx + 1).forEach(r => {
     const dateStr = String((di >= 0 ? r[di] : r[0]) || '').trim();
     if (!dateStr || /итого|total|отчет|period|период/i.test(dateStr)) return;
@@ -2125,13 +2138,33 @@ function parseDirectSpendRows(matrix) {
       if (idx < 0 || idx >= r.length) return 0;
       return parseNum(r[idx]);
     };
-    const prev = byDay.get(key) || { date: dt, dateStr: key, spend: 0, clicks: 0, impressions: 0 };
+    const campId = campCol >= 0 ? String(r[campCol] || '').trim() : '';
+    if (campId) campaignIds.add(campId);
+    const prev = byDay.get(key) || { date: dt, dateStr: key, spend: 0, clicks: 0, impressions: 0, campaignId: '' };
     prev.spend += num(spendCol);
     prev.clicks += Math.round(num(ci));
     prev.impressions += Math.round(num(ii));
+    if (campId && !prev.campaignId) prev.campaignId = campId;
     byDay.set(key, prev);
   });
-  return [...byDay.values()].sort((a, b) => a.date - b.date);
+  const rows = [...byDay.values()].sort((a, b) => a.date - b.date);
+  // Одна кампания в файле → проставляем id на все дни (удобно для «последний файл на кампанию»).
+  if (campaignIds.size === 1) {
+    const only = [...campaignIds][0];
+    rows.forEach(r => { r.campaignId = only; });
+  } else if (campaignIds.size > 1) {
+    // Несколько кампаний в одном файле уже просуммированы по дню.
+    rows.forEach(r => { r.campaignId = `multi:${[...campaignIds].sort().join('+')}`; });
+  } else if (campNameCol >= 0 && rows.length) {
+    // Fallback: имя кампании из первой строки данных.
+    const firstData = matrix.slice(headerIdx + 1).find(r => {
+      const dateStr = String((di >= 0 ? r[di] : r[0]) || '').trim();
+      return dateStr && !/итого|total/i.test(dateStr);
+    });
+    const name = firstData ? String(firstData[campNameCol] || '').trim() : '';
+    if (name) rows.forEach(r => { if (!r.campaignId) r.campaignId = `name:${name}`; });
+  }
+  return rows;
 }
 
 function directSpendRowsFromUploadText(text) {
@@ -2163,27 +2196,35 @@ function directSpendRowsFromUploadText(text) {
 }
 
 function directSpendRowsToCsvText(rows) {
-  const lines = ['date,spend,clicks,impressions'];
+  const hasCamp = (rows || []).some(r => r.campaignId);
+  const lines = [hasCamp ? 'date,spend,clicks,impressions,campaign_id' : 'date,spend,clicks,impressions'];
   (rows || []).forEach(r => {
-    lines.push([
+    const cols = [
       r.dateStr || fmtDateStr(r.date),
       Number(r.spend || 0),
       Math.round(r.clicks || 0),
       Math.round(r.impressions || 0),
-    ].join(','));
+    ];
+    if (hasCamp) cols.push(r.campaignId || '');
+    lines.push(cols.join(','));
   });
   return lines.join('\n');
 }
 
-/** Все Direct CSV Hupp: по каждой дате побеждает более свежий экспорт (не суммируем реаплоады). */
+/**
+ * Direct CSV Hupp: несколько кампаний суммируем по дате.
+ * Повторная выгрузка той же кампании (тот же №) — берём только самый свежий файл.
+ * Файлы без campaign_id суммируются как отдельные слоты (по id загрузки).
+ */
 function collectHuppDirectRows(proj) {
   const uploads = getProjectCsvUploads(proj?.id || 'hupp');
   const entries = Object.entries(uploads || {})
     .filter(([, u]) => u && !isHuppSeedUpload(u))
     .sort((a, b) => String(a[1]?.uploadedAt || '').localeCompare(String(b[1]?.uploadedAt || '')));
   const useEntries = entries.length ? entries : Object.entries(uploads || {}).filter(([, u]) => u);
-  let merged = [];
-  useEntries.forEach(([, u]) => {
+
+  const byCamp = new Map(); // campKey -> { uploadedAt, rows }
+  useEntries.forEach(([id, u]) => {
     const chunk = [];
     if (u.text) {
       directSpendRowsFromUploadText(u.text).forEach(r => chunk.push(r));
@@ -2195,11 +2236,23 @@ function collectHuppDirectRows(proj) {
           spend: r.spend || 0,
           clicks: r.clicks || 0,
           impressions: r.impressions || 0,
+          campaignId: r.campaignId || r.campaign_id || '',
         });
       });
     }
-    merged = mergeRowsByDate(merged, chunk);
+    if (!chunk.length) return;
+    const ids = [...new Set(chunk.map(r => r.campaignId).filter(Boolean))];
+    const campKey = ids.length === 1 ? ids[0] : (ids.length > 1 ? `multi:${ids.sort().join('+')}` : `file:${id}`);
+    const prev = byCamp.get(campKey);
+    if (!prev || String(u.uploadedAt || '') >= String(prev.uploadedAt || '')) {
+      byCamp.set(campKey, { uploadedAt: u.uploadedAt || '', rows: chunk });
+    }
   });
+
+  let merged = [];
+  for (const { rows } of byCamp.values()) {
+    merged = mergeRowsSumByDate(merged, rows);
+  }
   return merged;
 }
 
@@ -5968,7 +6021,72 @@ function applyBudgetRemainderUpdate(proj, remRaw, allData, { force = false } = {
   return { ...proj, ...buildBudgetSnapshot(remRaw, allData, todayIsoLocal(), proj) };
 }
 
+function hasMetaBudget(proj) {
+  const mb = proj?.metaBudget;
+  return !!(mb && mb.remainder != null && Number.isFinite(Number(mb.remainder))
+    && mb.cap != null && Number.isFinite(Number(mb.cap)) && Number(mb.cap) > 0);
+}
+
+function getManualBudgetDelta(proj) {
+  const n = Number(proj?.manualBudget?.remainderDelta);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function getDisplayMetaStats(proj) {
+  const ms = proj?.metaStats;
+  if (!ms || ms.spend == null) return null;
+  const man = proj.manualStats || {};
+  const spend = Number(ms.spend) + (Number(man.spend) || 0);
+  const impressions = Number(ms.impressions || 0) + (Number(man.impressions) || 0);
+  const clicks = Number(ms.clicks || 0) + (Number(man.clicks) || 0);
+  const installs = Number(ms.installs || 0) + (Number(man.installs) || 0);
+  return {
+    spend,
+    impressions,
+    clicks,
+    installs,
+    cpi: installs > 0 ? spend / installs : null,
+    metaSpend: Number(ms.spend) || 0,
+    manualSpend: Number(man.spend) || 0,
+    period: ms.period || null,
+    syncedAt: ms.syncedAt || null,
+    accountsOk: ms.accountsOk?.length || 0,
+    accountsTotal: ms.accountsTotal || 0,
+  };
+}
+
 function computeBudgetAnalytics(proj, allData) {
+  // Meta Account spending limit remaining (+ manual delta) — preferred when synced.
+  if (hasMetaBudget(proj)) {
+    const mb = proj.metaBudget;
+    const delta = getManualBudgetDelta(proj);
+    const capDelta = Number(proj.manualBudget?.capDelta) || 0;
+    const total = Number(mb.cap) + capDelta;
+    const spent = Number(mb.spentInCap) || 0;
+    const remainder = Number(mb.remainder) + delta;
+    if (!Number.isFinite(total) || total <= 0) return null;
+    const usedPct = Math.min(100, Math.max(0, (spent / total) * 100));
+    const leftPct = Math.min(100, Math.max(0, 100 - usedPct));
+    return {
+      source: 'meta',
+      remainder,
+      remainderEntered: remainder,
+      metaRemainder: Number(mb.remainder),
+      manualDelta: delta,
+      asOf: (mb.syncedAt || '').slice(0, 10) || null,
+      syncedAt: mb.syncedAt || null,
+      spentAt: spent,
+      spent,
+      total,
+      usedPct,
+      leftPct,
+      overspent: remainder < 0,
+      accountsOk: mb.accountsOk?.length || 0,
+      accountsTotal: mb.accountsTotal || 0,
+      accountsFailed: mb.accountsFailed || [],
+    };
+  }
+
   const budgetData = cache[proj.id] || allData;
   let p = migrateBudgetSnapshot(proj, budgetData);
   p = reconcileBudgetSnapshot(p, budgetData);
@@ -5986,6 +6104,7 @@ function computeBudgetAnalytics(proj, allData) {
   const usedPct = Math.min(100, Math.max(0, (spent / total) * 100));
   const leftPct = Math.min(100, Math.max(0, 100 - usedPct));
   return {
+    source: 'manual',
     remainder,
     remainderEntered: remEntered,
     asOf: p.budgetRemainderAsOf || null,
@@ -6106,48 +6225,116 @@ function computeDayInsights(proj, rows) {
 }
 
 function renderBudgetCard(proj, allData, compact) {
+  if (proj?.id === 'planto') return '';
   const cur = proj.currency;
   const budgetData = cache[proj.id] || allData;
   const budget = computeBudgetAnalytics(proj, budgetData);
   const remEntered = getBudgetRemainder(proj);
+  const metaMode = budget?.source === 'meta';
+  const metaStats = getDisplayMetaStats(proj);
 
   if (compact) {
     if (!budget) return '';
     const remLabel = budget.overspent
       ? `перерасход ${fmtMoney(Math.abs(budget.remainder), cur)}`
       : `${fmtMoney(budget.remainder, cur)} остаток`;
+    const src = metaMode ? ' · Meta' : '';
     return `<div class="tile-budget">
-      <div class="tile-budget-top"><span>Бюджет: ${budget.usedPct.toFixed(0)}% использовано</span><span>${remLabel}</span></div>
+      <div class="tile-budget-top"><span>Бюджет: ${budget.usedPct.toFixed(0)}% использовано${src}</span><span>${remLabel}</span></div>
       <div class="tile-budget-bar"><div class="tile-budget-fill" style="width:${budget.usedPct}%"></div></div>
     </div>`;
+  }
+
+  let badge = '';
+  if (metaMode) {
+    const ok = budget.accountsOk || 0;
+    const tot = budget.accountsTotal || 0;
+    const cls = ok < tot ? 'warn' : 'ok';
+    const when = budget.syncedAt ? new Date(budget.syncedAt).toLocaleString('ru-RU') : '';
+    badge = `<div class="budget-meta-badge">
+      <span class="${cls}">Meta ${ok}/${tot} каб.</span>
+      ${when ? `<span>· ${escHtml(when)}</span>` : ''}
+      ${budget.manualDelta ? `<span>· вручную ${budget.manualDelta > 0 ? '+' : ''}${fmtMoney(budget.manualDelta, cur)}</span>` : ''}
+    </div>`;
+  } else if (proj.metaBudget?.syncedAt && !hasMetaBudget(proj)) {
+    const fails = proj.metaBudget.accountsFailed || [];
+    const acts = fails.map(f => f.actId || f).filter(Boolean).join(', ');
+    const err0 = fails[0]?.error || '';
+    const shortErr = /application has been deleted/i.test(err0)
+      ? 'приложение Facebook удалено — нужен новый токен'
+      : (err0 ? err0.slice(0, 80) : 'нет доступа');
+    badge = `<div class="budget-meta-badge"><span class="warn">Meta: ${escHtml(shortErr)}${acts ? ' · ' + escHtml(acts) : ''}</span></div>`;
   }
 
   let inner = '';
   if (budget) {
     const warn = budget.usedPct >= 85 || budget.overspent;
     const remBoxCls = 'budget-stat remainder' + (budget.overspent ? ' overspent' : '');
+    const spentLabel = metaMode ? 'В лимите Meta' : 'Потрачено';
+    const totalLabel = metaMode ? 'Лимит аккаунта' : 'Бюджет всего';
     inner = `<div class="budget-stats">
-      <div class="budget-stat"><div class="budget-stat-label">Потрачено</div><div class="budget-stat-value">${fmtMoney(budget.spent, cur)}</div></div>
+      <div class="budget-stat"><div class="budget-stat-label">${spentLabel}</div><div class="budget-stat-value">${fmtMoney(budget.spent, cur)}</div></div>
       <div class="${remBoxCls}"><div class="budget-stat-label">${budget.overspent ? 'Перерасход' : 'Остаток сейчас'}</div><div class="budget-stat-value">${fmtMoney(Math.abs(budget.remainder), cur)}</div></div>
-      <div class="budget-stat"><div class="budget-stat-label">Бюджет всего</div><div class="budget-stat-value">${fmtMoney(budget.total, cur)}</div></div>
+      <div class="budget-stat"><div class="budget-stat-label">${totalLabel}</div><div class="budget-stat-value">${fmtMoney(budget.total, cur)}</div></div>
     </div>
     <div class="budget-progress"><div class="budget-progress-fill${warn ? ' warn' : ''}" style="width:${Math.min(100, budget.usedPct).toFixed(1)}%"></div></div>
     <div class="budget-progress-meta"><span>Использовано ${budget.usedPct.toFixed(1)}%</span><span>${budget.overspent ? 'Сверх бюджета' : 'Осталось ' + budget.leftPct.toFixed(1) + '%'}</span></div>`;
+    if (metaMode && budget.metaRemainder != null) {
+      inner += `<div class="budget-hint">Meta Remaining: ${fmtMoney(budget.metaRemainder, cur)}${budget.manualDelta ? ` + ручное ${budget.manualDelta > 0 ? '+' : ''}${fmtMoney(budget.manualDelta, cur)}` : ''}</div>`;
+    }
   } else {
-    inner = `<div class="budget-hint">Введите остаток на сегодня — дашборд зафиксирует бюджет и будет уменьшать остаток по мере роста spend в таблице.</div>`;
+    inner = `<div class="budget-hint">${metaMode
+      ? 'Нет данных Meta по лимиту — дополните остаток вручную ниже.'
+      : 'Введите остаток на сегодня — дашборд зафиксирует бюджет и будет уменьшать остаток по мере роста spend в таблице.'}</div>`;
   }
 
-  const inputVal = remEntered != null ? remEntered : '';
-  const adminInput = isAdmin()
-    ? `<div class="budget-input-row">
+  let statsHtml = '';
+  if (metaStats) {
+    const per = metaStats.period ? `${metaStats.period.since}…${metaStats.period.until}` : 'месяц';
+    statsHtml = `<div class="budget-hint" style="margin-top:14px">Meta статистика (${escHtml(per)})</div>
+      <div class="meta-stats-row">
+        <div class="budget-stat"><div class="budget-stat-label">Spend</div><div class="budget-stat-value">${fmtMoney(metaStats.spend, cur)}</div></div>
+        <div class="budget-stat"><div class="budget-stat-label">Installs</div><div class="budget-stat-value">${fmtInt(metaStats.installs)}</div></div>
+        <div class="budget-stat"><div class="budget-stat-label">CPI</div><div class="budget-stat-value">${metaStats.cpi != null ? fmtMoney(metaStats.cpi, cur) : '—'}</div></div>
+      </div>
+      <div class="budget-hint">Показы ${fmtInt(metaStats.impressions)} · клики ${fmtInt(metaStats.clicks)}${metaStats.manualSpend ? ` · ручной spend +${fmtMoney(metaStats.manualSpend, cur)}` : ''}</div>`;
+  }
+
+  let adminInput = '';
+  if (isAdmin()) {
+    const parts = [];
+    if (!metaMode) {
+      const inputVal = remEntered != null ? remEntered : '';
+      parts.push(`<div class="budget-input-row">
         <input type="text" id="budget-remainder-input" placeholder="Остаток на сегодня (${cur})" value="${inputVal}" inputmode="decimal" onkeydown="if(event.key==='Enter')saveBudgetRemainder('${proj.id}')">
         <button type="button" class="btn-budget-save" onclick="saveBudgetRemainder('${proj.id}')">Сохранить</button>
-      </div>`
-    : (remEntered != null ? '' : '<div class="budget-hint">Остаток не задан — попросите админа указать в настройках проекта.</div>');
+      </div>`);
+    }
+    if (metaMode || proj.metaBudget || isJgglProject(proj) || isQlosophyProject(proj) || isQuadcodeProject(proj)) {
+      const d = getManualBudgetDelta(proj);
+      const ms = proj.manualStats || {};
+      parts.push(`<div class="budget-hint" style="margin-top:12px">Ручное дополнение к Meta (не затирается синком)</div>
+        <div class="budget-manual-grid">
+          <label>К остатку (+/−)<input type="text" id="budget-manual-delta" value="${d || ''}" inputmode="decimal" placeholder="0"></label>
+          <label>К лимиту (+/−)<input type="text" id="budget-manual-cap" value="${proj.manualBudget?.capDelta || ''}" inputmode="decimal" placeholder="0"></label>
+          <label>+ Spend<input type="text" id="budget-manual-spend" value="${ms.spend || ''}" inputmode="decimal" placeholder="0"></label>
+          <label>+ Installs<input type="text" id="budget-manual-installs" value="${ms.installs || ''}" inputmode="decimal" placeholder="0"></label>
+        </div>
+        <div class="budget-input-row">
+          <input type="text" id="budget-manual-note" placeholder="Заметка (напр. второй кабинет JGGL)" value="${escHtml(proj.manualBudget?.note || proj.manualStats?.note || '')}">
+          <button type="button" class="btn-budget-save" onclick="saveManualBudgetSupplement('${proj.id}')">Сохранить дополнение</button>
+        </div>`);
+    }
+    adminInput = parts.join('');
+  } else if (!budget) {
+    adminInput = '<div class="budget-hint">Остаток не задан — попросите админа указать в настройках проекта.</div>';
+  }
 
   return `<div class="analytics-card">
     <div class="analytics-card-title">Бюджет</div>
+    ${badge}
     ${inner}
+    ${statsHtml}
     ${adminInput}
   </div>`;
 }
@@ -6269,6 +6456,58 @@ async function saveBudgetRemainder(projId) {
     console.warn('Budget save failed:', e);
     if (btn) { btn.textContent = 'Ошибка'; btn.disabled = false; }
     alert('Не удалось сохранить остаток: ' + (e.message || e));
+  }
+  renderContent();
+}
+
+function parseOptionalNumber(raw) {
+  if (raw == null || String(raw).trim() === '') return 0;
+  const n = parseBudgetRemainder(String(raw).trim());
+  return n == null ? 0 : n;
+}
+
+async function saveManualBudgetSupplement(projId) {
+  const idx = projects.findIndex(p => p.id === projId);
+  if (idx < 0) return;
+  const deltaEl = document.getElementById('budget-manual-delta');
+  const capEl = document.getElementById('budget-manual-cap');
+  const spendEl = document.getElementById('budget-manual-spend');
+  const instEl = document.getElementById('budget-manual-installs');
+  const noteEl = document.getElementById('budget-manual-note');
+  const remainderDelta = parseOptionalNumber(deltaEl?.value);
+  const capDelta = parseOptionalNumber(capEl?.value);
+  const spend = parseOptionalNumber(spendEl?.value);
+  const installs = parseOptionalNumber(instEl?.value);
+  const note = (noteEl?.value || '').trim();
+  const prev = projects[idx];
+  projects[idx] = {
+    ...prev,
+    manualBudget: {
+      ...(prev.manualBudget || {}),
+      remainderDelta,
+      capDelta,
+      note: note || prev.manualBudget?.note || '',
+      updatedAt: new Date().toISOString(),
+    },
+    manualStats: {
+      ...(prev.manualStats || {}),
+      spend,
+      installs,
+      note: note || prev.manualStats?.note || '',
+      updatedAt: new Date().toISOString(),
+    },
+  };
+  const btn = document.querySelector('.btn-budget-save');
+  const prevLabel = btn?.textContent;
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  try {
+    await saveProjects();
+    if (btn) btn.textContent = 'Сохранено';
+    setTimeout(() => { if (btn) { btn.textContent = prevLabel || 'Сохранить дополнение'; btn.disabled = false; } }, 1200);
+  } catch (e) {
+    console.warn('Manual budget save failed:', e);
+    if (btn) { btn.textContent = 'Ошибка'; btn.disabled = false; }
+    alert('Не удалось сохранить: ' + (e.message || e));
   }
   renderContent();
 }
