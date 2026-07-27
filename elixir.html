@@ -4830,6 +4830,25 @@ function pickOverviewSourceRows(pack, proj) {
   return selectProjectRows(proj, pack);
 }
 
+/** Приоритет unit-economics на плитках overview (spend → результат → цены → трафик). */
+const OVERVIEW_METRIC_PRIORITY = [
+  'spend',
+  'installs', 'regs', 'qregs', 'trials', 'purchase', 'purchases', 'sold', 'fb',
+  'cost_install', 'cost_trial', 'cost_reg', 'cost_qreg', 'cost_purchase', 'cost_sold',
+  'cpc', 'cpm', 'ctr',
+  'impressions', 'clicks',
+  'roas', 'cac', 'cr_install_trial', 'conv_rate',
+];
+
+function sortMetricsForOverview(metrics) {
+  const rank = (key) => {
+    const k = String(key || '').replace(/^today_/, '');
+    const i = OVERVIEW_METRIC_PRIORITY.indexOf(k);
+    return i >= 0 ? i : 100 + String(k).length;
+  };
+  return [...(metrics || [])].sort((a, b) => rank(a.key) - rank(b.key) || String(a.key).localeCompare(String(b.key)));
+}
+
 /** Сводка за последний день для карточки на главной (как у Planto). */
 function getOverviewDailyMetrics(proj, data) {
   if (proj?.id === 'planto' || isPlantoAutoFeed(proj)) {
@@ -4851,23 +4870,32 @@ function getOverviewDailyMetrics(proj, data) {
     const spend = r.spend || 0;
     const impressions = r.impressions || 0;
     const clicks = r.clicks || 0;
+    const visits = r.installs || 0;
+    const trials = r.trials || 0;
+    const purchase = r.purchase || 0;
     const cpc = clicks ? spend / clicks : null;
     const cpm = impressions ? spend / impressions * 1000 : null;
+    const costVisit = visits ? spend / visits : null;
+    const costTrial = trials ? spend / trials : null;
+    const costPurchase = purchase ? spend / purchase : null;
     return {
       note: info.isToday ? `Сегодня · ${dateLabel} · Direct + Метрика` : `Последний день · ${dateLabel}`,
       metrics: [
         { key: 'today_spend', label: 'Spend', value: fmtMoney(spend, proj.currency || '₽'), live: true, accent: true, sub: 'Direct' },
-        { key: 'today_impressions', label: 'Показы', value: fmtInt(impressions), live: true, sub: cpm != null ? `CPM ${fmtMoney(cpm, proj.currency || '₽')}` : 'Direct' },
+        { key: 'today_installs', label: 'Visits', value: fmtInt(visits), live: true, sub: 'визиты' },
+        { key: 'today_cost_install', label: 'Cost / Visit', value: costVisit != null ? fmtMoney(costVisit, proj.currency || '₽') : '—', live: true, accent: true },
+        { key: 'today_trials', label: 'Reach pay', value: fmtInt(trials), live: true, sub: 'клик к оплате' },
+        { key: 'today_cost_trial', label: 'Cost / Reach', value: costTrial != null ? fmtMoney(costTrial, proj.currency || '₽') : '—', live: true, accent: true },
+        { key: 'today_purchase', label: 'Purchase', value: fmtInt(purchase), live: true, sub: 'успешная оплата' },
+        { key: 'today_cost_purchase', label: 'Cost / Purchase', value: costPurchase != null ? fmtMoney(costPurchase, proj.currency || '₽') : '—', live: true, accent: true },
         { key: 'today_clicks', label: 'Клики', value: fmtInt(clicks), live: true, sub: cpc != null ? `CPC ${fmtMoney(cpc, proj.currency || '₽')}` : 'Direct' },
-        { key: 'today_installs', label: 'Visits', value: fmtInt(r.installs), live: true, sub: 'визиты' },
-        { key: 'today_trials', label: 'Reach pay', value: fmtInt(r.trials), live: true, sub: 'клик к оплате' },
-        { key: 'today_purchase', label: 'Purchase', value: fmtInt(r.purchase), live: true, sub: 'успешная оплата' },
+        { key: 'today_impressions', label: 'Показы', value: fmtInt(impressions), live: true, sub: cpm != null ? `CPM ${fmtMoney(cpm, proj.currency || '₽')}` : 'Direct' },
       ],
     };
   }
   const srcProj = withEffectiveType(proj, dayRows);
-  const metrics = getMetrics(srcProj, dayRows)
-    .slice(0, 8)
+  const metrics = sortMetricsForOverview(getMetrics(srcProj, dayRows))
+    .slice(0, 10)
     .map(m => ({
       ...m,
       key: `today_${m.key}`,
@@ -7201,6 +7229,7 @@ function isMoneyKey(k) { return WS_MONEY_KEYS.has(k) || k.startsWith('cost'); }
 // Аккуратные линейные иконки разделов (без эмодзи — чище и профессиональнее).
 const WS_ICO = (paths) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
 const WS_SECTION_ICONS = {
+  summary: WS_ICO('<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>'),
   analytics: WS_ICO('<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>'),
   ads: WS_ICO('<line x1="6" y1="20" x2="6" y2="14"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="18" y1="20" x2="18" y2="9"/>'),
   users: WS_ICO('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>'),
@@ -7212,24 +7241,44 @@ const WS_SECTION_ICONS = {
   cohorts: WS_ICO('<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>'),
 };
 function wsSectionIcon(id) {
-  return WS_SECTION_ICONS[id === 'funnel' ? 'funnel' : id] || WS_SECTION_ICONS.ads;
+  return WS_SECTION_ICONS[id] || WS_SECTION_ICONS.summary;
 }
 
 function getProjectTier(proj) {
   return (isPlantoAutoFeed(proj) || getRevenueSource(proj) === 'actual') ? 'full' : 'lite';
 }
 
-/** Секции проекта: пересечение групп метрик с реально доступными в данных. */
-function getProjectSections(proj, rows) {
+/** Все доступные KPI периода (ads + users + funnel + revenue), unit-economics первыми. */
+function getSummaryMetricKeys(proj, rows) {
   const p = withEffectiveType(proj, rows || []);
   const available = new Set(getMetricsCatalogForProj(p, rows).map(m => m.key));
-  const sections = [{ id: 'analytics', label: 'Аналитика', icon: 'analytics', keys: [] }];
+  const keys = [];
+  const seen = new Set();
   WORKSPACE_GROUPS.forEach(g => {
-    const keys = g.keys.filter(k => available.has(k));
-    if (!keys.length) return;
-    const isHuppFunnel = g.id === 'funnel' && p.type === 'hupp';
-    sections.push({ id: g.id, label: isHuppFunnel ? 'События' : g.label, icon: isHuppFunnel ? 'events' : g.id, keys });
+    g.keys.forEach(k => {
+      if (!available.has(k) || seen.has(k)) return;
+      seen.add(k);
+      keys.push(k);
+    });
   });
+  const rank = (k) => {
+    const i = OVERVIEW_METRIC_PRIORITY.indexOf(k);
+    return i >= 0 ? i : 100 + String(k).length;
+  };
+  return keys.sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
+}
+
+const LEGACY_SECTION_IDS = new Set(['ads', 'users', 'funnel', 'revenue', 'analytics', 'events']);
+
+/** Секции: одна «Сводка» + спец. вкладки Planto (продукт / прогноз / когорты). */
+function getProjectSections(proj, rows) {
+  const p = withEffectiveType(proj, rows || []);
+  const sections = [{
+    id: 'summary',
+    label: 'Сводка',
+    icon: 'summary',
+    keys: getSummaryMetricKeys(p, rows),
+  }];
   if (isPlantoAutoFeed(proj)) sections.push({ id: 'product', label: 'Продукт', icon: 'product', keys: [] });
   if (getRevenueSource(p)) sections.push({ id: 'forecast', label: 'Прогноз ROAS', icon: 'forecast', keys: [] });
   if (isPlantoAutoFeed(proj) && plantoCohortCache?.rows?.length) {
@@ -7239,7 +7288,11 @@ function getProjectSections(proj, rows) {
 }
 
 function getActiveSection(projId, sections) {
-  const saved = sectionByProject[projId];
+  let saved = sectionByProject[projId];
+  if (saved && LEGACY_SECTION_IDS.has(saved)) {
+    saved = 'summary';
+    sectionByProject[projId] = 'summary';
+  }
   if (saved && sections.some(s => s.id === saved)) return saved;
   return sections[0]?.id || null;
 }
@@ -7404,9 +7457,30 @@ function renderWorkspaceBody(p, srcProj, rows, monthKey, titleSuffix = '', opts 
   }
   const active = getActiveSection(p.id, sections);
   const section = sections.find(s => s.id === active) || sections[0];
-  let html = renderSectionNav(p.id, sections, section.id);
+  let html = '';
+  if (sections.length > 1) html += renderSectionNav(p.id, sections, section.id);
   html += `<div class="ws-section">`;
-  if (section.id === 'analytics') {
+  if (section.id === 'summary') {
+    const keys = section.keys.length ? section.keys : getSummaryMetricKeys(srcProj, rows);
+    if (getProjectTier(srcProj) === 'full') html += renderRevenueExtras(srcProj);
+    if (keys.length) html += renderWorkspaceKpis(srcProj, rows, keys);
+    const CHART_PREF = ['spend', 'installs', 'trials', 'regs', 'qregs', 'purchase', 'purchases', 'clicks', 'impressions'];
+    const chartKeys = CHART_PREF.filter(k => keys.includes(k) && wsChartableKey(k));
+    if (rows.length && chartKeys.length) {
+      html += `<div class="chart-card">
+        <div class="chart-card-header">
+          <div class="card-title">Динамика${titleSuffix}</div>
+          ${renderChartTypePicker('detail')}
+        </div>
+        <div class="chart-wrap"><canvas id="mainChart"></canvas></div>
+      </div>`;
+      pendingWorkspaceChart = { proj: srcProj, rows, keys: chartKeys };
+    }
+    const tbl = getTableConfig(srcProj, rows);
+    html += `<div class="table-card">
+      <div class="table-header"><span class="card-title">По дням — ${rows.length} строк${titleSuffix}</span></div>
+      ${renderDailyTableHtml(p, rows, tbl)}
+    </div>`;
     html += renderAnalyticsSection(p, allData != null ? allData : { sources: [{ rows }] }, rows, analyticsMonth, { bare: true });
   } else if (section.id === 'forecast') {
     html += renderProductRoasDetail(srcProj);
@@ -7414,38 +7488,6 @@ function renderWorkspaceBody(p, srcProj, rows, monthKey, titleSuffix = '', opts 
     html += renderPlantoCohortSection(monthKey);
   } else if (section.id === 'product') {
     html += renderPlantoMetricBlocks(p, rows, monthKey);
-  } else {
-    if (section.id === 'revenue') html += renderRevenueExtras(srcProj);
-    html += renderWorkspaceKpis(srcProj, rows, section.keys);
-    const chartKeys = section.keys.filter(wsChartableKey);
-    if (rows.length && chartKeys.length) {
-      html += `<div class="chart-card">
-        <div class="chart-card-header">
-          <div class="card-title">${escHtml(section.label)} — динамика${titleSuffix}</div>
-          ${renderChartTypePicker('detail')}
-        </div>
-        <div class="chart-wrap"><canvas id="mainChart"></canvas></div>
-      </div>`;
-      pendingWorkspaceChart = { proj: srcProj, rows, keys: chartKeys };
-    }
-    const fullTbl = getTableConfig(srcProj, rows);
-    let tbl;
-    if (section.id === 'revenue') {
-      // Доход — только деньги по результату: spend + стоимости результата.
-      // Без счётчиков, без установок (cost_install) и без CPC/CPM.
-      const cols = fullTbl.columnKeys || fullTbl.colKeys || [];
-      const exclude = new Set(['cpc', 'cpm', 'cost_install']);
-      const moneyKeys = cols.filter(k => k !== 'date' && isMoneyKey(k) && !exclude.has(k));
-      tbl = filterTblByKeys(fullTbl, moneyKeys);
-    } else {
-      tbl = filterTblByKeys(fullTbl, section.keys);
-      // Если у раздела нет колонок для дневной таблицы — показываем полную.
-      if ((tbl.columnKeys || []).length <= 1) tbl = fullTbl;
-    }
-    html += `<div class="table-card">
-      <div class="table-header"><span class="card-title">По дням — ${rows.length} строк${titleSuffix}</span></div>
-      ${renderDailyTableHtml(p, rows, tbl)}
-    </div>`;
   }
   html += `</div>`;
   return html;
