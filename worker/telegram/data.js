@@ -5,6 +5,33 @@ import {
   mergeUploadEntries, hydrateStoredRow,
 } from './csv.js';
 
+function parseMoneyLoose(raw) {
+  let s = String(raw || '').replace(/[^\d,.\-]/g, '');
+  if (!s) return null;
+  if (/\.\d{3},\d{2}$/.test(s)) s = s.replace(/\./g, '').replace(',', '.');
+  else if (/,\d{2}$/.test(s)) s = s.replace(/\s/g, '').replace(',', '.');
+  else s = s.replace(/,/g, '');
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Single-cell / budget tabs: «остаток», "$3 800,00". */
+function extractRemainderFromCsvText(text) {
+  const raw = String(text || '');
+  if (!/остат/i.test(raw)) return null;
+  const near = raw.match(/остат\w*[\s,;"$]*([\$]?[\d\s\u00a0.,]+)/i);
+  if (near) {
+    const n = parseMoneyLoose(near[1]);
+    if (n != null && n > 0) return n;
+  }
+  const any = raw.match(/\$[\s\u00a0]*([\d\s\u00a0]+[.,]\d{2})/);
+  if (any) {
+    const n = parseMoneyLoose(any[1]);
+    if (n != null && n > 0) return n;
+  }
+  return null;
+}
+
 const JSONBIN_API = 'https://api.jsonbin.io/v3';
 
 async function fetchText(url, timeoutMs = 15000) {
@@ -15,6 +42,7 @@ async function fetchText(url, timeoutMs = 15000) {
       signal: ctrl.signal,
       headers: { 'User-Agent': 'ElixirTelegramBot/1.0' },
       redirect: 'follow',
+      cache: 'no-store',
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const text = await res.text();
@@ -34,10 +62,26 @@ function sheetExportUrl(url) {
   return u;
 }
 
-function rawFeed(env, path) {
+function rawFeed(env, path, ref = null) {
+  const repo = env.GITHUB_REPO || 'lusnikovvaceslav9-oss/elixir-dashboard';
+  const branch = ref || env.GITHUB_BRANCH || 'main';
+  return `https://raw.githubusercontent.com/${repo}/${branch}/${path}?_=${Date.now()}`;
+}
+
+async function resolveGithubPathSha(env, path) {
   const repo = env.GITHUB_REPO || 'lusnikovvaceslav9-oss/elixir-dashboard';
   const branch = env.GITHUB_BRANCH || 'main';
-  return `https://raw.githubusercontent.com/${repo}/${branch}/${path}`;
+  try {
+    const url = `https://api.github.com/repos/${repo}/commits?path=${encodeURIComponent(path)}&sha=${branch}&per_page=1`;
+    const res = await fetch(url, {
+      headers: { Accept: 'application/vnd.github+json' },
+    });
+    if (!res.ok) return branch;
+    const commits = await res.json();
+    return commits[0]?.sha || branch;
+  } catch {
+    return branch;
+  }
 }
 
 async function loadProjects(env) {
@@ -90,12 +134,18 @@ function normalizeProj(p) {
 async function loadSourceCsv(url, env) {
   const u = String(url || '');
   if (u.includes('planto-daily') || u === 'data/planto-daily.csv') {
-    return fetchText(rawFeed(env, 'data/planto-daily.csv'));
+    const sha = await resolveGithubPathSha(env, 'data/planto-daily.csv');
+    return fetchText(rawFeed(env, 'data/planto-daily.csv', sha));
   }
   if (u.includes('hupp-daily') || u === 'data/hupp-daily.csv') {
-    return fetchText(rawFeed(env, 'data/hupp-daily.csv'));
+    const sha = await resolveGithubPathSha(env, 'data/hupp-daily.csv');
+    return fetchText(rawFeed(env, 'data/hupp-daily.csv', sha));
   }
-  if (u.startsWith('data/')) return fetchText(rawFeed(env, u));
+  if (u.startsWith('data/')) {
+    const path = u.replace(/^\//, '');
+    const sha = await resolveGithubPathSha(env, path);
+    return fetchText(rawFeed(env, path, sha));
+  }
   if (u.includes('docs.google.com')) {
     const variants = [sheetExportUrl(u), u];
     let last;
@@ -296,19 +346,29 @@ async function loadProjectPack(proj, env, uploads) {
     : (defs.length ? defs : [{ id: 'main', label: p.name, url: (p.urls || [])[0] }]).filter(s => s.url && !String(s.url).startsWith('upload://'));
 
   const sheetSources = [];
+  let sheetRemainder = null;
   const results = await Promise.allSettled(jobs.map(async (j) => {
     const text = await loadSourceCsv(j.url, env);
+    const rem = extractRemainderFromCsvText(text);
+    const rows = aggregateByDate(parseSheetRows(text));
     return {
       id: j.id,
       label: j.label,
       url: j.url,
-      rows: aggregateByDate(parseSheetRows(text)),
+      rows,
+      sheetRemainder: rem,
     };
   }));
 
   results.forEach((r, i) => {
-    if (r.status === 'fulfilled' && r.value.rows?.length) sheetSources.push(r.value);
-    else if (r.status === 'rejected') console.log('source fail', jobs[i]?.label, r.reason?.message || r.reason);
+    if (r.status !== 'fulfilled') {
+      console.log('source fail', jobs[i]?.label, r.reason?.message || r.reason);
+      return;
+    }
+    const val = r.value;
+    // Remainder-only tabs (no daily rows) still count
+    if (val.sheetRemainder != null) sheetRemainder = val.sheetRemainder;
+    if (val.rows?.length) sheetSources.push(val);
   });
 
   let sources = mergeSourceLists(sheetSources, uploadSources);
@@ -318,11 +378,12 @@ async function loadProjectPack(proj, env, uploads) {
   let meta = null;
   if (p.id === 'planto' || p.type === 'planto') {
     try {
-      meta = JSON.parse(await fetchText(rawFeed(env, 'data/planto-meta.json')));
+      const sha = await resolveGithubPathSha(env, 'data/planto-meta.json');
+      meta = JSON.parse(await fetchText(rawFeed(env, 'data/planto-meta.json', sha)));
     } catch { /* optional */ }
   }
 
-  return { sources: dedupeSources(sources), meta };
+  return { sources: dedupeSources(sources), meta, sheetRemainder };
 }
 
 let cache = { at: 0, projects: null, packs: {}, uploads: null };
@@ -366,7 +427,7 @@ export async function getDashboardState(env, { force = false, onlyIds = null } =
 /** Load projects list + only packs needed for the question (avoids CF subrequest limits). */
 export async function getStateForQuestion(env, q) {
   const nq = String(q || '').toLowerCase().replace(/ё/g, 'е');
-  if (/по всем|всех проект|общий спенд|сводк|\/digest|\/report\s*$/.test(nq)) {
+  if (/по всем|всех проект|общий спенд|сводк|\/digest|\/report\s*$|остатк|бюджет/.test(nq)) {
     return getDashboardState(env);
   }
 

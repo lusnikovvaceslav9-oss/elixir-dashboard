@@ -1225,6 +1225,7 @@ const HUPP_START_CSV_URL = 'data/hupp-start.csv';
 const HUPP_START_SEED_FLAG = 'hupp_csv_start_seeded_v1';
 const HUPP_DIRECT_KEYS = ['spend', 'clicks', 'impressions'];
 const HUPP_FEED_WORKFLOW = 'hupp-feed.yml';
+const PLANTO_FEED_WORKFLOW = 'planto-feed.yml';
 const PLANTO_GH_REPO = 'lusnikovvaceslav9-oss/elixir-dashboard';
 const PLANTO_GH_BRANCH = 'main';
 let lastPlantoFeedRefresh = null; // { ok, fresh, message, at }
@@ -4298,6 +4299,30 @@ async function dispatchHuppFeedWorkflow() {
   }
 }
 
+async function dispatchPlantoFeedWorkflow() {
+  if (isLocalDashboard()) return { ok: false, skipped: true, reason: 'local' };
+  const token = await getGithubDispatchToken();
+  if (!token) return { ok: false, skipped: true, reason: 'no_token' };
+  try {
+    const url = `https://api.github.com/repos/${PLANTO_GH_REPO}/actions/workflows/${PLANTO_FEED_WORKFLOW}/dispatches`;
+    const resp = await fetchWithTimeout(fetch(url, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${token}`,
+        'X-GitHub-Api-Version': '2022-11-28',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ref: PLANTO_GH_BRANCH }),
+    }), 15000);
+    if (resp.status === 204) return { ok: true };
+    const body = await resp.text();
+    return { ok: false, reason: `GitHub ${resp.status}: ${body.slice(0, 180)}` };
+  } catch (e) {
+    return { ok: false, reason: e.message || String(e) };
+  }
+}
+
 async function triggerHuppFeedAndWait({ dispatch = false } = {}) {
   if (!projects.some(p => isHuppProject(p))) return null;
   const prevUntil = huppMetaCache?.until || '';
@@ -4371,21 +4396,43 @@ async function triggerHuppFeedAndWait({ dispatch = false } = {}) {
   return lastHuppFeedRefresh;
 }
 
-async function triggerPlantoFeedAndWait() {
-  // Git-only deploy: «Обновить» тянет свежий commit с data/planto-* из GitHub.
-  // Сам feed крутится в Actions (cron / workflow_dispatch), браузер его не диспатчит.
-  if (!projects.some(p => isPlantoAutoFeed(p))) return;
+async function triggerPlantoFeedAndWait({ dispatch = false } = {}) {
+  // «Обновить» на Planto: опционально диспатчит Actions (как Hupp), затем тянет свежий SHA/commit.
+  if (!projects.some(p => isPlantoAutoFeed(p))) return null;
   const prevUntil = plantoMetaCache?.until || '';
   const prevGen = plantoMetaCache?.generated_at || '';
   const prevRef = plantoFeedRef;
   const local = isLocalDashboard();
 
+  if (dispatch && !local) {
+    const dispatched = await dispatchPlantoFeedWorkflow();
+    if (dispatched.skipped && dispatched.reason === 'no_token') {
+      lastPlantoFeedRefresh = {
+        ok: false,
+        fresh: false,
+        message: 'Нет githubDispatchToken в JSONBin _worker — Planto обновится по cron или вручную в Actions',
+        at: Date.now(),
+      };
+      // всё равно перечитаем текущий commit ниже
+    } else if (!dispatched.ok && !dispatched.skipped) {
+      lastPlantoFeedRefresh = {
+        ok: false,
+        fresh: false,
+        message: dispatched.reason || 'Не удалось запустить planto-feed',
+        at: Date.now(),
+      };
+      return lastPlantoFeedRefresh;
+    } else if (dispatched.ok) {
+      await sleep(8000);
+    }
+  }
+
   await refreshPlantoFeedRef();
 
   let fresh = false;
   let meta = null;
-  const deadline = Date.now() + (local ? 4000 : 20000);
-  const pollMs = local ? 500 : 2000;
+  const deadline = Date.now() + (local || !dispatch ? 4000 : 90000);
+  const pollMs = local ? 500 : 3000;
   while (Date.now() < deadline) {
     if (!local) await refreshPlantoFeedRef();
     meta = await fetchPlantoMeta();
@@ -4394,7 +4441,7 @@ async function triggerPlantoFeedAndWait() {
       fresh = (meta.generated_at && meta.generated_at !== prevGen)
         || (meta.until && meta.until !== prevUntil)
         || (!local && plantoFeedRef !== prevRef);
-      if (fresh || local) break;
+      if (fresh || local || !dispatch) break;
     }
     if (Date.now() + pollMs >= deadline) break;
     await sleep(pollMs);
@@ -4409,17 +4456,18 @@ async function triggerPlantoFeedAndWait() {
         : 'Не удалось прочитать planto-meta.json из GitHub',
       at: Date.now(),
     };
-    return;
+    return lastPlantoFeedRefresh;
   }
 
   lastPlantoFeedRefresh = {
     ok: true,
     fresh,
     message: fresh
-      ? `Подтянул новый срез · until ${meta.until || '—'}`
-      : `Актуальный срез из git · until ${meta.until || '—'} (feed обновляется по cron в Actions)`,
+      ? `Planto обновлён · until ${meta.until || '—'}`
+      : `Срез Planto · until ${meta.until || '—'}${dispatch ? ' (ожидание commit…)' : ''}`,
     at: Date.now(),
   };
+  return lastPlantoFeedRefresh;
 }
 
 function fmtRub(n) {
@@ -4616,8 +4664,13 @@ async function refreshData() {
   try {
     if (view === 'hupp') {
       await triggerHuppFeedAndWait({ dispatch: false });
+    } else if (view === 'planto') {
+      // На вкладке Planto — перезапуск buyer-feed в Actions, затем pull свежего commit.
+      const feed = await triggerPlantoFeedAndWait({ dispatch: true });
+      if (feed?.message) console.info('Planto feed:', feed.message);
     } else {
-      await triggerPlantoFeedAndWait();
+      // Overview / другие проекты: только pull уже закоммиченного среза (без долгого wait).
+      await triggerPlantoFeedAndWait({ dispatch: false });
     }
     await loadAll();
   } finally {
@@ -4628,10 +4681,8 @@ async function refreshData() {
 
 // ═══════════════════════════════════════════════════════════════
 // AUTO-REFRESH — периодический поллинг + перечитывание при возврате на вкладку.
-// Лёгкий (без GitHub dispatch): просто перечитывает уже закоммиченные
-// data/planto-meta.json (+cohort/product), которые cron в Actions обновляет сам.
-// Держит plantoMetaCache свежим → доход в плашке Planto и общая стата обновляются
-// сами, без ручного клика на «Обновить».
+// Лёгкий (без GitHub dispatch): перерезолвит SHA feed-файлов и тянет
+// meta/cohort/product + daily CSV, которые cron в Actions обновляет сам.
 // ═══════════════════════════════════════════════════════════════
 const AUTO_REFRESH_MS = 5 * 60 * 1000; // 5 мин — с запасом относительно часового cron фида
 let autoRefreshTimer = null;
@@ -4642,6 +4693,11 @@ async function refreshPlantoMetaLight() {
   if (autoRefreshInFlight) return;
   autoRefreshInFlight = true;
   try {
+    // Без re-resolve SHA авто-поллинг залипает на старом immutable commit.
+    await Promise.allSettled([
+      refreshPlantoFeedRef(),
+      refreshHuppFeedRef(),
+    ]);
     const [meta, cohort, product] = await Promise.all([
       fetchPlantoMeta(),
       fetchPlantoCohort(),
@@ -4653,6 +4709,20 @@ async function refreshPlantoMetaLight() {
     else if (!plantoProductCache && plantoMetaCache?.product) {
       plantoProductCache = { product: plantoMetaCache.product, unit_economics: plantoMetaCache.unit_economics };
     }
+
+    // Перечитываем дневной CSV Planto — иначе таблица/KPI остаются со старым срезом.
+    const planto = projects.find(p => p.id === 'planto');
+    if (planto && isPlantoAutoFeed(planto)) {
+      try {
+        cache.planto = await Promise.race([
+          fetchProject(planto),
+          sleep(15000).then(() => { throw new Error('planto light fetch timeout'); }),
+        ]);
+      } catch (e) {
+        console.warn('Auto-refresh (Planto daily) failed:', e.message || e);
+      }
+    }
+
     renderTopbar();
     renderContent();
   } catch (e) {
@@ -4824,8 +4894,13 @@ function renderPlantoBreakdownCard(proj, rows) {
     const meta = plantoMetaCache;
     const health = plantoFeedHealth();
     const warnHtml = (health && (!health.ok || health.staleVsToday))
-      ? `<div class="budget-hint feed-warn">⚠ данные могли устареть — перезапусти feed или обнови страницу</div>`
+      ? `<div class="budget-hint feed-warn">⚠ данные могли устареть — нажми «Обновить» на вкладке Planto (запустит feed)</div>`
       : '';
+    const refreshHint = lastPlantoFeedRefresh?.message
+      ? `<div class="budget-hint">${escHtml(lastPlantoFeedRefresh.message)}</div>`
+      : (meta?.generated_at
+        ? `<div class="budget-hint">срез · ${escHtml(String(meta.generated_at).replace('T', ' ').replace(/\+\d{2}:\d{2}$/, ' UTC').slice(0, 19))}</div>`
+        : '');
     const pay = meta?.payments_by_plan;
     const payHtml = pay && pay.total?.count
       ? `<div class="income-chips-row">` +
@@ -4836,7 +4911,7 @@ function renderPlantoBreakdownCard(proj, rows) {
       : '';
     return `<div class="analytics-card planto-breakdown-card">
       <div class="analytics-card-title">Auto feed <span class="feed-badge">live</span></div>
-      ${payHtml}${warnHtml}
+      ${payHtml}${refreshHint}${warnHtml}
     </div>`;
   }
   const sel = getPlantoView(proj.id);
