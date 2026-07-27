@@ -2,10 +2,16 @@
 
 import { getDashboardState, getStateForQuestion } from './data.js';
 import { answerQuestion } from './qa.js';
-import { buildDigest, buildReport } from './reports.js';
+import {
+  buildDigest,
+  buildReport,
+  collectBudgetExhaustedAlerts,
+  formatBudgetExhaustedMessage,
+} from './reports.js';
 
 const TG = 'https://api.telegram.org';
 const BOT_USERNAME = 'elexir_dashbot';
+const JSONBIN_API = 'https://api.jsonbin.io/v3';
 
 /** Last non-General forum topic per chat (so answers stay in «! Бот», not General). */
 const topicByChat = new Map();
@@ -228,7 +234,8 @@ export async function handleTelegramUpdate(env, update) {
       return { ok: true };
     }
     if (cmd === '/digest') {
-      await reply(env, msg, buildDigest(await getDashboardState(env)), { parse_mode: 'Markdown' });
+      const digest = buildDigest(await getDashboardState(env));
+      await reply(env, msg, digest, { parse_mode: 'Markdown' });
       return { ok: true };
     }
     if (cmd === '/report') {
@@ -252,26 +259,172 @@ export async function handleTelegramUpdate(env, update) {
   }
 }
 
+function forumTopicForChat(env, chatId) {
+  const cached = topicByChat.get(String(chatId));
+  if (cached) return cached;
+  const raw = String(env.TELEGRAM_FORUM_TOPICS || '').trim();
+  if (!raw) return null;
+  for (const part of raw.split(/[\s,]+/)) {
+    const [c, t] = part.split(':');
+    if (String(c) === String(chatId) && t) return Number(t);
+  }
+  return null;
+}
+
+function adminNotifyChatIds(env) {
+  const raw = String(env.ADMIN_NOTIFY_CHAT_IDS || '').trim();
+  if (raw) return raw.split(/[\s,]+/).map(s => s.trim()).filter(Boolean);
+  // Fallback: private user ids from allowlist
+  const allow = allowedChatIds(env);
+  if (!allow) return [];
+  return [...allow].filter(id => !String(id).startsWith('-'));
+}
+
+async function jbGetRaw(env) {
+  const res = await fetch(`${JSONBIN_API}/b/${env.JSONBIN_BIN_ID}/latest`, {
+    headers: { 'X-Master-Key': env.JSONBIN_MASTER_KEY },
+  });
+  if (!res.ok) throw new Error(`JSONBin GET ${res.status}`);
+  const data = await res.json();
+  return Array.isArray(data.record) ? data.record : [];
+}
+
+async function jbPutRaw(env, record) {
+  const res = await fetch(`${JSONBIN_API}/b/${env.JSONBIN_BIN_ID}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'X-Master-Key': env.JSONBIN_MASTER_KEY },
+    body: JSON.stringify(record),
+  });
+  if (!res.ok) throw new Error(`JSONBin PUT ${res.status}`);
+  return true;
+}
+
+/** Persist budgetAlert flags so we don't spam the same exhaustion. */
+async function persistBudgetAlertFlags(env, { markExhausted = [], clearIds = [] } = {}) {
+  if (!markExhausted.length && !clearIds.length) return;
+  const raw = await jbGetRaw(env);
+  const clearSet = new Set(clearIds);
+  const markById = new Map(markExhausted.map(a => [a.projectId, a]));
+  const now = new Date().toISOString();
+  let changed = false;
+  const next = raw.map(p => {
+    if (!p || p.id === '_worker' || p.id === '_csv_uploads') return p;
+    if (clearSet.has(p.id) && p.budgetAlert) {
+      changed = true;
+      const { budgetAlert, ...rest } = p;
+      return rest;
+    }
+    const alert = markById.get(p.id);
+    if (alert) {
+      changed = true;
+      return {
+        ...p,
+        budgetAlert: {
+          exhausted: true,
+          sentAt: now,
+          remainder: alert.remainder,
+        },
+      };
+    }
+    return p;
+  });
+  if (changed) await jbPutRaw(env, next);
+}
+
+/**
+ * When live remainder ≤ 0 — DM admin once until budget is topped up again.
+ */
+export async function notifyBudgetAlerts(env) {
+  const state = await getDashboardState(env, { force: true });
+  const { alerts, clears } = collectBudgetExhaustedAlerts(state);
+  const admins = adminNotifyChatIds(env);
+  const results = [];
+
+  if (clears.length) {
+    try {
+      await persistBudgetAlertFlags(env, { clearIds: clears });
+    } catch (e) {
+      console.log('budget alert clear fail', e.message || e);
+    }
+  }
+
+  if (!alerts.length) {
+    return { ok: true, sent: 0, cleared: clears.length, results };
+  }
+  if (!admins.length) {
+    console.log('budget alert skipped: no ADMIN_NOTIFY_CHAT_IDS');
+    return { ok: false, reason: 'no_admin', alerts: alerts.length };
+  }
+
+  for (const alert of alerts) {
+    const text = formatBudgetExhaustedMessage(alert);
+    for (const chatId of admins) {
+      try {
+        await sendMessage(env, chatId, text, { parse_mode: 'Markdown' });
+        results.push({ chatId, projectId: alert.projectId, ok: true });
+      } catch (e) {
+        results.push({ chatId, projectId: alert.projectId, ok: false, error: e.message });
+      }
+    }
+  }
+
+  const sentOk = alerts.filter(a => results.some(r => r.projectId === a.projectId && r.ok));
+  try {
+    await persistBudgetAlertFlags(env, { markExhausted: sentOk });
+  } catch (e) {
+    console.log('budget alert persist fail', e.message || e);
+  }
+
+  return { ok: true, sent: sentOk.length, cleared: clears.length, results };
+}
+
 export async function sendDigestToAllowed(env) {
   const state = await getDashboardState(env, { force: true });
   const text = buildDigest(state);
+
+  // Explicit digest targets (secret or vars), else full allowlist (groups + DMs).
+  const digestRaw = String(env.TELEGRAM_DIGEST_CHAT_IDS || env.DIGEST_CHAT_IDS || '').trim();
   const allow = allowedChatIds(env);
-  if (!allow || !allow.size) {
-    console.log('digest skipped: no TELEGRAM_ALLOWED_CHAT_IDS');
+  let targets = [];
+  if (digestRaw) {
+    targets = digestRaw.split(/[\s,]+/).map(s => s.trim()).filter(Boolean);
+  } else if (allow) {
+    targets = [...allow];
+  }
+
+  if (!targets.length) {
+    console.log('digest skipped: no chat targets');
     return { ok: false, reason: 'no_chats' };
   }
+
+  // Forum topics: secret TELEGRAM_FORUM_TOPICS or var DIGEST_FORUM_TOPICS
+  const forumEnv = {
+    ...env,
+    TELEGRAM_FORUM_TOPICS: env.TELEGRAM_FORUM_TOPICS || env.DIGEST_FORUM_TOPICS || '',
+  };
+
   const results = [];
-  for (const chatId of allow) {
+  for (const chatId of targets) {
     try {
-      const topicId = topicByChat.get(String(chatId));
-      const opts = topicId ? { parse_mode: 'Markdown', message_thread_id: topicId } : { parse_mode: 'Markdown' };
+      const topicId = forumTopicForChat(forumEnv, chatId);
+      const opts = { parse_mode: 'Markdown' };
+      if (topicId) opts.message_thread_id = topicId;
       await sendMessage(env, chatId, text, opts);
-      results.push({ chatId, ok: true });
+      results.push({ chatId, ok: true, topicId: topicId || null });
     } catch (e) {
       results.push({ chatId, ok: false, error: e.message });
     }
   }
-  return { ok: true, results };
+
+  let budgetAlerts = null;
+  try {
+    budgetAlerts = await notifyBudgetAlerts(env);
+  } catch (e) {
+    console.log('budget alerts err', e.message || e);
+    budgetAlerts = { ok: false, error: e.message || String(e) };
+  }
+
+  return { ok: true, results, budgetAlerts };
 }
 
 export async function setupWebhook(env, workerUrl) {

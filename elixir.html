@@ -6014,11 +6014,18 @@ function reconcileBudgetSnapshot(proj, allData) {
 
 /** Обновить снимок остатка. С карточки — всегда на сегодня; из формы — только если число изменилось. */
 function applyBudgetRemainderUpdate(proj, remRaw, allData, { force = false } = {}) {
-  if (remRaw == null) return { ...proj, ...buildBudgetSnapshot(null, null, null, proj) };
+  if (remRaw == null) {
+    const cleared = { ...proj, ...buildBudgetSnapshot(null, null, null, proj) };
+    delete cleared.budgetAlert;
+    return cleared;
+  }
   const prev = getBudgetRemainder(proj);
   const hasSnap = proj.budgetTotal != null && proj.budgetRemainderSpentAt != null;
   if (!force && prev === remRaw && hasSnap) return proj;
-  return { ...proj, ...buildBudgetSnapshot(remRaw, allData, todayIsoLocal(), proj) };
+  const next = { ...proj, ...buildBudgetSnapshot(remRaw, allData, todayIsoLocal(), proj) };
+  // Новый снимок с положительным остатком — можно снова слать алерт при исчерпании.
+  delete next.budgetAlert;
+  return next;
 }
 
 function hasMetaBudget(proj) {
@@ -6225,7 +6232,6 @@ function computeDayInsights(proj, rows) {
 }
 
 function renderBudgetCard(proj, allData, compact) {
-  if (proj?.id === 'planto') return '';
   const cur = proj.currency;
   const budgetData = cache[proj.id] || allData;
   const budget = computeBudgetAnalytics(proj, budgetData);
