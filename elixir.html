@@ -348,6 +348,18 @@ body{
 .plat-wrap{display:inline-flex;align-items:center;gap:5px;line-height:1}
 .month-btn-name .plat-ic{width:1.3em;height:1.3em;vertical-align:-0.25em}
 .csv-upload-card{background:rgba(18,18,26,0.8);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin:0 0 18px}
+.csv-upload-card.collapsed{padding-bottom:12px}
+.csv-upload-toggle{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;width:100%;padding:0;margin:0;border:0;background:transparent;color:inherit;cursor:pointer;text-align:left;font:inherit}
+.csv-upload-toggle:hover .csv-upload-title{opacity:0.85}
+.csv-upload-head-main{min-width:0;flex:1}
+.csv-upload-head-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.csv-upload-chevron{width:28px;height:28px;border-radius:8px;border:1px solid var(--border);background:rgba(0,0,0,0.025);display:inline-flex;align-items:center;justify-content:center;color:rgba(0,0,0,0.5);flex-shrink:0;transition:transform 0.18s ease,background 0.15s ease}
+.csv-upload-toggle:hover .csv-upload-chevron{background:rgba(0,0,0,0.08)}
+.csv-upload-card.collapsed .csv-upload-chevron{transform:rotate(-90deg)}
+.csv-upload-body{margin-top:10px}
+.csv-upload-card.collapsed .csv-upload-body{display:none}
+.csv-upload-card.collapsed .csv-upload-hint{display:none}
+.csv-upload-count{font-size:11px;color:var(--text-muted);font-weight:500;white-space:nowrap}
 .csv-drop-zone{transition:border-color 0.15s ease,background 0.15s ease}
 .csv-drop-zone.csv-drop-active{border-color:rgba(0,0,0,0.45);background:rgba(0,0,0,0.04)}
 .csv-drop-zone.csv-upload-busy{opacity:0.65;pointer-events:none}
@@ -3028,10 +3040,13 @@ async function removeUploadedCsv(projId, id) {
 
 function renderCsvUploadCard(proj) {
   if (!supportsCsvUpload(proj)) return '';
+  // Обычным пользователям блок загрузки не показываем — только админу.
   if (!isAdmin()) return '';
   const uploads = getProjectCsvUploads(proj.id);
-  const items = Object.entries(uploads)
-    .filter(([, u]) => !(isHuppCsvOnly(proj) && isHuppSeedUpload(u)))
+  const fileEntries = Object.entries(uploads)
+    .filter(([, u]) => !(isHuppCsvOnly(proj) && isHuppSeedUpload(u)));
+  const fileCount = fileEntries.length;
+  const items = fileEntries
     .sort((a, b) => String(b[1].uploadedAt || '').localeCompare(String(a[1].uploadedAt || '')))
     .map(([id, u]) => {
       const when = u.uploadedAt ? new Date(u.uploadedAt).toLocaleString('ru-RU') : '';
@@ -3047,7 +3062,7 @@ function renderCsvUploadCard(proj) {
           <strong>${sourceLabelHtml(u.label || id, { withText: true })}</strong>
           <div class="csv-upload-meta">${escHtml(u.fileName || 'file')} · ${days} дн.${when ? ` · ${escHtml(when)}` : ''} · #${escHtml(hashShort)}</div>
         </div>
-        <button type="button" class="btn-csv-del" onclick="removeUploadedCsv('${proj.id}','${escHtml(id)}')">Удалить</button>
+        <button type="button" class="btn-csv-del" onclick="event.stopPropagation();removeUploadedCsv('${proj.id}','${escHtml(id)}')">Удалить</button>
       </div>`;
     }).join('');
 
@@ -3063,31 +3078,73 @@ function renderCsvUploadCard(proj) {
     ? 'Два рекламных кабинета: загрузите оба CSV (можно сразу два файла). Данные суммируются по датам, ничего не перезаписывается. «Авто iOS / Android» режет строки по названию кампании. Чтобы заменить отчёт кабинета — сначала удалите старый файл.'
     : 'Можно грузить несколько файлов подряд (CSV/XLSX). Статистика сохраняется в облако и видна всем на дашборде.';
   const multiAttr = (isHuppCsvOnly(proj) || isJgglProject(proj)) ? ' multiple' : '';
+  const collapsed = isCsvUploadCollapsed(proj.id);
+  const chevron = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
+  const countLabel = fileCount ? `${fileCount} файл${fileCount === 1 ? '' : (fileCount < 5 ? 'а' : 'ов')}` : 'нет файлов';
 
-  return `<div class="csv-upload-card csv-drop-zone"
+  return `<div class="csv-upload-card csv-drop-zone${collapsed ? ' collapsed' : ''}" id="csv-upload-card-${proj.id}"
     ondragenter="onCsvDropOver(event)"
     ondragover="onCsvDropOver(event)"
     ondragleave="onCsvDropLeave(event)"
     ondrop="onCsvDropFile('${proj.id}', event)">
     <div class="csv-upload-head">
-      <div>
-        <div class="csv-upload-title">Загрузить CSV / Excel</div>
-        <div class="csv-upload-hint">${hint} Можно перетащить файл сюда.</div>
-      </div>
-      <button type="button" class="btn-csv-sync" onclick="forceSyncCsvToCloud(this)"
+      <button type="button" class="csv-upload-toggle" onclick="toggleCsvUploadCard('${proj.id}')" aria-expanded="${collapsed ? 'false' : 'true'}">
+        <div class="csv-upload-head-main">
+          <div class="csv-upload-title">Загрузить CSV / Excel</div>
+          <div class="csv-upload-hint">${hint} Можно перетащить файл сюда.</div>
+        </div>
+        <div class="csv-upload-head-actions">
+          <span class="csv-upload-count">${escHtml(countLabel)}</span>
+          <span class="csv-upload-chevron">${chevron}</span>
+        </div>
+      </button>
+      <button type="button" class="btn-csv-sync" onclick="event.stopPropagation();forceSyncCsvToCloud(this)"
         title="Залить локальные данные этого браузера в облако, чтобы их увидели другие устройства"
         style="white-space:nowrap;padding:8px 12px;border-radius:8px;border:1px solid var(--border,#d0d0d0);background:#111;color:#fff;font-size:12px;font-weight:600;cursor:pointer">☁ Синхронизировать в облако</button>
     </div>
-    <div class="csv-upload-row">
-      <select id="csv-upload-label-${proj.id}" onchange="onCsvUploadLabelChange('${proj.id}')">
-        ${presetOpts}
-        <option value="__custom__">Своё имя…</option>
-      </select>
-      <input id="csv-upload-custom-${proj.id}" type="text" placeholder="Название листа" style="display:none;min-width:120px">
-      <input type="file"${multiAttr} accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onchange="onCsvUploadFile('${proj.id}', this)">
+    <div class="csv-upload-body">
+      <div class="csv-upload-row">
+        <select id="csv-upload-label-${proj.id}" onchange="onCsvUploadLabelChange('${proj.id}')">
+          ${presetOpts}
+          <option value="__custom__">Своё имя…</option>
+        </select>
+        <input id="csv-upload-custom-${proj.id}" type="text" placeholder="Название листа" style="display:none;min-width:120px">
+        <input type="file"${multiAttr} accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onchange="onCsvUploadFile('${proj.id}', this)">
+      </div>
+      ${items ? `<div class="csv-upload-list">${items}</div>` : '<div class="csv-upload-hint" style="margin-top:8px">Пока нет загруженных файлов</div>'}
     </div>
-    ${items ? `<div class="csv-upload-list">${items}</div>` : '<div class="csv-upload-hint" style="margin-top:8px">Пока нет загруженных файлов</div>'}
   </div>`;
+}
+
+const CSV_UPLOAD_COLLAPSE_KEY = 'elixir_csv_upload_collapsed_v1';
+
+function loadCsvUploadCollapseState() {
+  try { return JSON.parse(localStorage.getItem(CSV_UPLOAD_COLLAPSE_KEY) || '{}') || {}; }
+  catch (_) { return {}; }
+}
+
+function isCsvUploadCollapsed(projId) {
+  const state = loadCsvUploadCollapseState();
+  if (Object.prototype.hasOwnProperty.call(state, projId)) return !!state[projId];
+  // По умолчанию сворачиваем, если уже много файлов — иначе экран забит списком.
+  try {
+    return Object.keys(getProjectCsvUploads(projId) || {}).length >= 4;
+  } catch (_) {
+    return false;
+  }
+}
+
+function toggleCsvUploadCard(projId) {
+  const state = loadCsvUploadCollapseState();
+  const next = !isCsvUploadCollapsed(projId);
+  state[projId] = next;
+  try { localStorage.setItem(CSV_UPLOAD_COLLAPSE_KEY, JSON.stringify(state)); } catch (_) {}
+  const el = document.getElementById(`csv-upload-card-${projId}`);
+  if (el) {
+    el.classList.toggle('collapsed', next);
+    const btn = el.querySelector('.csv-upload-toggle');
+    if (btn) btn.setAttribute('aria-expanded', next ? 'false' : 'true');
+  }
 }
 
 /** Опционально: CSV из data/<dir>/ (репо). Основной путь — загрузка в дашборде. */
