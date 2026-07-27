@@ -7268,17 +7268,29 @@ function getSummaryMetricKeys(proj, rows) {
   return keys.sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
 }
 
-const LEGACY_SECTION_IDS = new Set(['ads', 'users', 'funnel', 'revenue', 'analytics', 'events']);
+const LEGACY_SECTION_IDS = new Set(['analytics']);
 
-/** Секции: одна «Сводка» + спец. вкладки Planto (продукт / прогноз / когорты). */
+/** Секции: Сводка (все KPI) + Реклама/Пользователи/Воронка/Доход + спец. Planto. */
 function getProjectSections(proj, rows) {
   const p = withEffectiveType(proj, rows || []);
+  const available = new Set(getMetricsCatalogForProj(p, rows).map(m => m.key));
   const sections = [{
     id: 'summary',
     label: 'Сводка',
     icon: 'summary',
     keys: getSummaryMetricKeys(p, rows),
   }];
+  WORKSPACE_GROUPS.forEach(g => {
+    const keys = g.keys.filter(k => available.has(k));
+    if (!keys.length) return;
+    const isHuppFunnel = g.id === 'funnel' && p.type === 'hupp';
+    sections.push({
+      id: g.id,
+      label: isHuppFunnel ? 'События' : g.label,
+      icon: isHuppFunnel ? 'events' : g.id,
+      keys,
+    });
+  });
   if (isPlantoAutoFeed(proj)) sections.push({ id: 'product', label: 'Продукт', icon: 'product', keys: [] });
   if (getRevenueSource(p)) sections.push({ id: 'forecast', label: 'Прогноз ROAS', icon: 'forecast', keys: [] });
   if (isPlantoAutoFeed(proj) && plantoCohortCache?.rows?.length) {
@@ -7488,6 +7500,36 @@ function renderWorkspaceBody(p, srcProj, rows, monthKey, titleSuffix = '', opts 
     html += renderPlantoCohortSection(monthKey);
   } else if (section.id === 'product') {
     html += renderPlantoMetricBlocks(p, rows, monthKey);
+  } else {
+    // Реклама / Пользователи / Воронка / Доход — узкий срез колонок как раньше
+    if (section.id === 'revenue') html += renderRevenueExtras(srcProj);
+    html += renderWorkspaceKpis(srcProj, rows, section.keys);
+    const chartKeys = section.keys.filter(wsChartableKey);
+    if (rows.length && chartKeys.length) {
+      html += `<div class="chart-card">
+        <div class="chart-card-header">
+          <div class="card-title">${escHtml(section.label)} — динамика${titleSuffix}</div>
+          ${renderChartTypePicker('detail')}
+        </div>
+        <div class="chart-wrap"><canvas id="mainChart"></canvas></div>
+      </div>`;
+      pendingWorkspaceChart = { proj: srcProj, rows, keys: chartKeys };
+    }
+    const fullTbl = getTableConfig(srcProj, rows);
+    let tbl;
+    if (section.id === 'revenue') {
+      const cols = fullTbl.columnKeys || fullTbl.colKeys || [];
+      const exclude = new Set(['cpc', 'cpm', 'cost_install']);
+      const moneyKeys = cols.filter(k => k !== 'date' && isMoneyKey(k) && !exclude.has(k));
+      tbl = filterTblByKeys(fullTbl, moneyKeys);
+    } else {
+      tbl = filterTblByKeys(fullTbl, section.keys);
+      if ((tbl.columnKeys || []).length <= 1) tbl = fullTbl;
+    }
+    html += `<div class="table-card">
+      <div class="table-header"><span class="card-title">По дням — ${rows.length} строк${titleSuffix}</span></div>
+      ${renderDailyTableHtml(p, rows, tbl)}
+    </div>`;
   }
   html += `</div>`;
   return html;
