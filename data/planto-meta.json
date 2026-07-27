@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-27T17:30:35+00:00",
+  "generated_at": "2026-07-27T19:12:28+00:00",
   "anchor": "2026-06-05",
   "until": "2026-07-27",
   "window_start": "2026-07-18",
@@ -25,26 +25,26 @@
   },
   "unit_economics": {
     "revenue_total": 68331,
-    "spend_total": 214236.84,
-    "active_users": 11428,
+    "spend_total": 214631.14,
+    "active_users": 11443,
     "active_payers": 35,
-    "plus_active_users": 103,
-    "trial_cancellations": 13,
+    "plus_active_users": 104,
+    "trial_cancellations": 15,
     "trial_cancellations_by_day": {
       "2026-07-21": 1,
       "2026-07-23": 3,
       "2026-07-24": 1,
       "2026-07-25": 4,
       "2026-07-26": 1,
-      "2026-07-27": 3
+      "2026-07-27": 5
     },
-    "renewals": 20,
-    "arpu": 5.98,
+    "renewals": 19,
+    "arpu": 5.97,
     "arppu": 1952.31,
-    "ltv": 3067.92,
+    "ltv": 3012.14,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
-    "roas_d7": 33.8,
-    "roas_d14": 36.5,
+    "roas_d7": 32.3,
+    "roas_d14": 34.7,
     "roas_d30": 47.7
   },
   "roas_config": {
@@ -57,15 +57,15 @@
     "predict_horizon_days": 180
   },
   "product": {
-    "garden_activation_pct": 29.78,
-    "garden_avg_plants": 1.77,
+    "garden_activation_pct": 29.76,
+    "garden_avg_plants": 1.78,
     "garden_depth_icp_pct": null,
-    "paywall_cta_pct": 36.91,
+    "paywall_cta_pct": 36.94,
     "care_engagement_pct": 3.85,
     "feature_activation": {
       "scan_pct": 32.04,
-      "watering_pct": 2.3,
-      "ai_pct": 22.07
+      "watering_pct": 2.29,
+      "ai_pct": 22.09
     },
     "retention": {
       "d1": null,
@@ -88,7 +88,7 @@
       "rub": 68331
     }
   },
-  "trials_sb_crosscheck_total": 151,
+  "trials_sb_crosscheck_total": 152,
   "trials_sb_crosscheck_by_day": {
     "2026-06-07": 1,
     "2026-06-08": 1,
@@ -134,7 +134,7 @@
     "2026-07-24": 7,
     "2026-07-25": 12,
     "2026-07-26": 7,
-    "2026-07-27": 3
+    "2026-07-27": 4
   },
   "trials_am_crosscheck_total": 180,
   "trials_am_crosscheck_by_day": {
