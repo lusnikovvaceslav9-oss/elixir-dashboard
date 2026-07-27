@@ -230,20 +230,17 @@ export function dedupeSources(sources) {
   return out;
 }
 
-/** Later uploads win for the same date(+campaign). Then aggregate by day. */
+/** All upload files accumulate: sum metrics by date (two JGGL ad accounts, etc.). */
 export function mergeUploadEntries(entries) {
   const sorted = [...(entries || [])].sort((a, b) =>
     String(a.uploadedAt || '').localeCompare(String(b.uploadedAt || ''))
   );
-  const byKey = new Map();
+  const all = [];
   for (const e of sorted) {
     let rows = [];
     if (e.text) rows = parseSheetRows(e.text);
     else if (Array.isArray(e.rows)) rows = e.rows.map(hydrateStoredRow).filter(Boolean);
-    for (const r of rows) {
-      const key = `${r.iso || r.dateStr}\t${r.campaign || ''}`;
-      byKey.set(key, r);
-    }
+    all.push(...rows);
   }
-  return aggregateByDate([...byKey.values()]);
+  return aggregateByDate(all);
 }

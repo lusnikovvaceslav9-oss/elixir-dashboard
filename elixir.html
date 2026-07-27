@@ -1902,7 +1902,7 @@ function normalizeJgglSources(proj, sources) {
     if (!k) return;
     if (by.has(k)) {
       const prev = by.get(k);
-      prev.rows = mergeRowsByDate(prev.rows || [], e.rows || []);
+      prev.rows = mergeRowsSumByDate(prev.rows || [], e.rows || []);
       prev.uploaded = prev.uploaded || e.uploaded;
     } else {
       by.set(k, { ...e });
@@ -1942,6 +1942,11 @@ function mergeRowsByDate(baseRows, uploadRows) {
     map.set(fmtDateStr(r.date), r);
   });
   return [...map.values()].sort((a, b) => a.date - b.date);
+}
+
+/** Суммирует метрики по дате (два кабинета JGGL / несколько CSV). */
+function mergeRowsSumByDate(baseRows, uploadRows) {
+  return aggregateRowsByDate([...(baseRows || []), ...(uploadRows || [])]);
 }
 
 /** Primary wins on overlap; gap rows only fill missing dates (no double-count). */
@@ -2322,7 +2327,7 @@ function expandJgglUploadedByPlatform(uploaded) {
   const mergePiece = (key, piece) => {
     if (byKey.has(key)) {
       const prev = byKey.get(key);
-      prev.rows = mergeRowsByDate(prev.rows || [], piece.rows || []);
+      prev.rows = mergeRowsSumByDate(prev.rows || [], piece.rows || []);
       prev.fileNames = [...new Set([...(prev.fileNames || []), ...(piece.fileNames || [])])];
       prev.uploadIds = [...new Set([...(prev.uploadIds || []), ...(piece.uploadIds || [])])];
       prev.hashes = [...new Set([...(prev.hashes || []), ...(piece.hashes || [])].filter(Boolean))];
@@ -2587,7 +2592,9 @@ function getUploadedCsvSources(proj) {
     const key = sourceLabelKey(proj, src.label || id);
     if (byLabel.has(key)) {
       const prev = byLabel.get(key);
-      prev.rows = mergeRowsByDate(prev.rows || [], src.rows || []);
+      prev.rows = isJgglProject(proj)
+        ? mergeRowsSumByDate(prev.rows || [], src.rows || [])
+        : mergeRowsByDate(prev.rows || [], src.rows || []);
       if (src.sheetColumns?.length) prev.sheetColumns = src.sheetColumns;
       prev.uploadedAt = [prev.uploadedAt, src.uploadedAt].filter(Boolean).sort().slice(-1)[0] || prev.uploadedAt;
       prev.fileNames = [...new Set([...(prev.fileNames || []), src.fileName].filter(Boolean))];
@@ -2624,9 +2631,11 @@ function mergeUploadedSources(sources, uploaded, proj) {
       out[idx] = {
         ...base,
         label: canonicalSourceLabel(proj, base.label || up.label),
-        // В месячный лист: лист — источник правды, upload только заполняет дыры.
-        // В тот же label (повторный CSV): свежий upload перекрывает день.
-        rows: intoMonth
+        // JGGL (2 кабинета): суммируем по дате. Месячный лист: upload только дыры.
+        // Остальное: свежий upload перекрывает день.
+        rows: isJgglProject(proj)
+          ? mergeRowsSumByDate(base.rows || [], up.rows || [])
+          : intoMonth
           ? mergeRowsFillGaps(base.rows || [], up.rows || [])
           : mergeRowsByDate(base.rows || [], up.rows || []),
         sheetColumns: up.sheetColumns?.length ? up.sheetColumns : base.sheetColumns,
@@ -2861,12 +2870,32 @@ async function processHuppCsvUploadFiles(projId, files) {
   }
 }
 
-async function processCsvUploadFile(projId, file) {
+async function processJgglCsvUploadFiles(projId, files) {
   const p = projects.find(x => x.id === projId);
-  if (!p || !file) return;
+  if (!p || !isJgglProject(p) || !files?.length) return;
+  const card = document.querySelector(`.csv-drop-zone[ondrop*="'${projId}'"]`);
+  card?.classList.add('csv-upload-busy');
+  try {
+    let anyDup = false;
+    for (const file of files) {
+      const saved = await processCsvUploadFile(projId, file, { skipApply: true });
+      if (saved?.duplicate) anyDup = true;
+    }
+    await saveCsvUploads(loadCsvUploads(), { awaitCloud: true, timeoutMs: 20000 });
+    await applyUploadedCsvToCache(projId);
+    if (anyDup) console.info('JGGL: часть файлов уже была загружена (тот же hash) — обновлено без дубля');
+    else if (files.length > 1) console.info(`JGGL: загружено ${files.length} CSV, метрики по совпадающим датам суммированы`);
+  } finally {
+    card?.classList.remove('csv-upload-busy');
+  }
+}
+
+async function processCsvUploadFile(projId, file, opts = {}) {
+  const p = projects.find(x => x.id === projId);
+  if (!p || !file) return null;
   if (isHuppCsvOnly(p)) {
     await processHuppCsvUploadFiles(projId, [file]);
-    return;
+    return null;
   }
   const presets = csvUploadPresets(p);
   const fallbackLabel = presets[0]?.value || 'CSV';
@@ -2884,6 +2913,7 @@ async function processCsvUploadFile(projId, file) {
     const split = splitJgglRowsByPlatform(rows);
     const savedLabels = [];
     let anyDup = false;
+    let lastSaved = null;
     for (const plat of ['iOS', 'Android']) {
       const platRows = split[plat] || [];
       if (!platRows.length) continue;
@@ -2891,20 +2921,22 @@ async function processCsvUploadFile(projId, file) {
       if (!platText.trim()) continue;
       const saved = await saveUploadedCsv(projId, plat, `${file.name} · ${plat}`, platText);
       savedLabels.push(plat);
+      lastSaved = saved;
       if (saved.duplicate) anyDup = true;
     }
     if (!savedLabels.length) throw new Error('После разделения iOS/Android строк не осталось — проверь колонку Campaign name');
-    await applyUploadedCsvToCache(projId, savedLabels[0]);
+    if (!opts.skipApply) await applyUploadedCsvToCache(projId, savedLabels[0]);
     if (anyDup) console.info('Часть файлов уже была загружена — обновлено без дубля');
-    return;
+    return lastSaved;
   }
 
   const label = canonicalSourceLabel(p, resolveUploadLabel(p, selected, rows));
   const saved = await saveUploadedCsv(projId, label, file.name, text);
-  await applyUploadedCsvToCache(projId, label);
+  if (!opts.skipApply) await applyUploadedCsvToCache(projId, label);
   if (saved.duplicate) {
     console.info(`Файл уже был загружен (hash ${shortHash(saved.hash)}) — данные сохранены без дубля`);
   }
+  return saved;
 }
 
 /** CSV только строк выбранной платформы (android в названии → Android, иначе iOS). */
@@ -2934,6 +2966,8 @@ async function onCsvUploadFile(projId, inputEl) {
     const p = projects.find(x => x.id === projId);
     if (isHuppCsvOnly(p) && files.length > 1) {
       await processHuppCsvUploadFiles(projId, files);
+    } else if (isJgglProject(p)) {
+      await processJgglCsvUploadFiles(projId, files);
     } else {
       for (const file of files) await processCsvUploadFile(projId, file);
     }
@@ -2969,6 +3003,8 @@ async function onCsvDropFile(projId, e) {
     const p = projects.find(x => x.id === projId);
     if (isHuppCsvOnly(p)) {
       await processHuppCsvUploadFiles(projId, files);
+    } else if (isJgglProject(p)) {
+      await processJgglCsvUploadFiles(projId, files);
     } else {
       for (const file of files) await processCsvUploadFile(projId, file);
     }
@@ -3024,9 +3060,9 @@ function renderCsvUploadCard(proj) {
     : isQuadcodeProject(proj)
     ? 'Можно грузить несколько CSV/XLSX подряд — каждый файл сохраняется по хешу, данные сливаются по датам в лист месяца.'
     : isJgglProject(proj)
-    ? '«Авто iOS / Android»: строки с android в названии кампании → Android, остальные → iOS. Месяц выбирается отдельно.'
+    ? 'Два рекламных кабинета: загрузите оба CSV (можно сразу два файла). Данные суммируются по датам, ничего не перезаписывается. «Авто iOS / Android» режет строки по названию кампании. Чтобы заменить отчёт кабинета — сначала удалите старый файл.'
     : 'Можно грузить несколько файлов подряд (CSV/XLSX). Статистика сохраняется в облако и видна всем на дашборде.';
-  const multiAttr = isHuppCsvOnly(proj) ? ' multiple' : '';
+  const multiAttr = (isHuppCsvOnly(proj) || isJgglProject(proj)) ? ' multiple' : '';
 
   return `<div class="csv-upload-card csv-drop-zone"
     ondragenter="onCsvDropOver(event)"
