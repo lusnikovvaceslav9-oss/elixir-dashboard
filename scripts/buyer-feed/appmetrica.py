@@ -103,21 +103,27 @@ def fetch_event_by_day(
     date_since: date,
     date_until: date,
 ) -> dict[str, int]:
-    """Unique users with event per day (falls back to event count)."""
-    # Prefer table + users: matches AppMetrica UI and is more stable than bytime.
-    params_users = {
+    """Event count per day (matches AppMetrica Events UI «События»).
+
+    Earlier we used ym:ce:users (unique users). That undercounts vs the default
+    AppMetrica Events report when the same user fires the event more than once
+    in a day (e.g. today: 4 users / 5 events for trial_started).
+    """
+    # Prefer table + allEvents: same number as AppMetrica UI Events column.
+    params_events = {
         "ids": app_id,
         "id": app_id,
         "date1": date_since.isoformat(),
         "date2": date_until.isoformat(),
-        "metrics": "ym:ce:users",
+        "metrics": "ym:ce:allEvents",
         "dimensions": "ym:ce:date",
         "filters": f"ym:ce:eventLabel=='{event_name}'",
         "limit": "10000",
         "sort": "ym:ce:date",
+        "accuracy": "full",
     }
     try:
-        payload = _get_json(_build_url(STAT_TABLE, params_users), token)
+        payload = _get_json(_build_url(STAT_TABLE, params_events), token)
         raw = _parse_table_by_date(payload)
         if raw:
             return {d: int(round(v)) for d, v in sorted(raw.items())}
@@ -129,11 +135,12 @@ def fetch_event_by_day(
         "id": app_id,
         "date1": date_since.isoformat(),
         "date2": date_until.isoformat(),
-        "metrics": "ym:ce:users",
+        "metrics": "ym:ce:allEvents",
         "dimensions": "ym:ce:date",
         "filters": f"ym:ce:eventLabel=='{event_name}'",
         "date_dimension": "day",
         "limit": "10000",
+        "accuracy": "full",
     }
     try:
         payload = _get_json(_build_url(STAT_BYTIME, params_bytime), token)
@@ -143,17 +150,20 @@ def fetch_event_by_day(
     except RuntimeError:
         pass
 
-    params_events = {
+    # Fallback: unique users (older behaviour)
+    params_users = {
         "ids": app_id,
         "id": app_id,
         "date1": date_since.isoformat(),
         "date2": date_until.isoformat(),
-        "metrics": "ym:ce:allEvents",
+        "metrics": "ym:ce:users",
         "dimensions": "ym:ce:date",
         "filters": f"ym:ce:eventLabel=='{event_name}'",
         "limit": "10000",
+        "sort": "ym:ce:date",
+        "accuracy": "full",
     }
-    payload = _get_json(_build_url(STAT_TABLE, params_events), token)
+    payload = _get_json(_build_url(STAT_TABLE, params_users), token)
     raw = _parse_table_by_date(payload)
     return {d: int(round(v)) for d, v in sorted(raw.items())}
 

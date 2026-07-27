@@ -128,7 +128,7 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
             installs.update(inst_win)
             sources["installs"] = "appmetrica_reporting"
             try:
-                # Daily trials = AppMetrica unique users (совпадает с UI / Директ).
+                # Daily trials = AppMetrica event count (колонка «События» в UI).
                 trials_am = fetch_event_by_day(
                     am_token, str(app_id), "trial_started", anchor, until
                 )
@@ -136,12 +136,12 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
                     trials = trials_am
                     trials_am_crosscheck = trials_am
                     sources["trials"] = "appmetrica_trial_started"
-                    sources["trials_am_crosscheck"] = "appmetrica_reporting_users"
+                    sources["trials_am_crosscheck"] = "appmetrica_reporting_events"
             except Exception as exc:
                 errors.append(f"appmetrica_trials: {exc}")
             print(
                 f"  AppMetrica: {len(installs)} install-days · "
-                f"{sum(trials.values())} trial users"
+                f"{sum(trials.values())} trial events"
             )
         except Exception as exc:
             errors.append(f"appmetrica: {exc}")
@@ -442,7 +442,7 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
         "appmetrica": int((trials_am_crosscheck or full_trials).get(yday) or 0),
         "supabase": int(trials_sb_crosscheck.get(yday) or 0),
         "dashboard": int((merged.get(yday) or {}).get("trials") or 0),
-        "note": "В дашборде trials = AppMetrica trial_started (уники). RuStore — сверка оплат.",
+        "note": "В дашборде trials = AppMetrica trial_started (события ym:ce:allEvents, как колонка «События» в UI). RuStore — сверка оплат.",
     }
     if spend_today_estimated:
         meta["spend_today_estimated"] = True
