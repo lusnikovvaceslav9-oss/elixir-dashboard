@@ -1720,6 +1720,24 @@ function isJgglPlatformLabel(label) {
   return /^(ios|android)$/i.test(String(label || '').trim());
 }
 
+function isJgglTotalLabel(label) {
+  return /^(общее|total|all|все)$/i.test(String(label || '').trim());
+}
+
+/** Сводный лист пролива: iOS + Android (без Waitlist/Redirect/Web). */
+function buildJgglTotalSource(sources) {
+  const plats = (sources || []).filter(s => isJgglPlatformLabel(s.label));
+  if (!plats.length) return null;
+  const rows = aggregateRowsByDate(plats.flatMap(s => s.rows || []));
+  return {
+    id: 'jggl_total',
+    label: 'Общее',
+    url: 'virtual://jggl/total',
+    rows,
+    virtual: true,
+  };
+}
+
 /** Фирменные значки платформ вместо текста iOS / Android. */
 const PLATFORM_SVG = {
   ios: '<svg class="plat-ic" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></svg>',
@@ -1853,7 +1871,10 @@ function pruneJgglAppSource(proj, sources) {
 
 function ensureJgglPlatformSources(proj, sources) {
   if (!isJgglProject(proj)) return sources || [];
-  const list = [...(sources || [])];
+  // Убираем старый виртуальный «Общее» — пересоберём из актуальных iOS/Android.
+  let list = (sources || []).filter(s =>
+    s?.id !== 'jggl_total' && !isJgglTotalLabel(s.label) && !String(s.url || '').startsWith('virtual://jggl/')
+  );
   const hasIos = list.some(s => /^ios$/i.test(String(s.label || '').trim()));
   const hasAndroid = list.some(s => /^android$/i.test(String(s.label || '').trim()));
   // Если есть хотя бы одна платформа — дорисовываем вторую (даже с 0 дн.)
@@ -1878,7 +1899,10 @@ function ensureJgglPlatformSources(proj, sources) {
     });
   }
 
-  const order = ['ios', 'android', 'waitlist', 'redirect', 'web'];
+  const total = buildJgglTotalSource(list);
+  if (total) list = [total, ...list];
+
+  const order = ['общее', 'ios', 'android', 'waitlist', 'redirect', 'web'];
   return list.sort((a, b) => {
     const ka = String(a.label || '').trim().toLowerCase();
     const kb = String(b.label || '').trim().toLowerCase();
@@ -1894,7 +1918,8 @@ function ensureJgglPlatformSources(proj, sources) {
  */
 function normalizeJgglSources(proj, sources) {
   if (!isJgglProject(proj)) return sources || [];
-  const list = pruneJgglAppSource(proj, sources || []);
+  const list = pruneJgglAppSource(proj, sources || [])
+    .filter(s => s?.id !== 'jggl_total' && !isJgglTotalLabel(s.label) && !String(s?.url || '').startsWith('virtual://jggl/'));
   const stable = [];
   const orphans = [];
   list.forEach(s => {
@@ -1911,7 +1936,7 @@ function normalizeJgglSources(proj, sources) {
   const by = new Map(stable.map(s => [String(s.label || '').trim().toLowerCase(), { ...s }]));
   expanded.forEach(e => {
     const k = String(e.label || '').trim().toLowerCase();
-    if (!k) return;
+    if (!k || isJgglTotalLabel(k)) return;
     if (by.has(k)) {
       const prev = by.get(k);
       prev.rows = mergeRowsSumByDate(prev.rows || [], e.rows || []);
@@ -2627,9 +2652,11 @@ function getUploadedCsvSources(proj) {
 function mergeUploadedSources(sources, uploaded, proj) {
   const out = [...(sources || [])];
   uploaded.forEach(up => {
+    if (isJgglTotalLabel(up.label) || up.id === 'jggl_total') return;
     const upLabel = String(up.label || '').toLowerCase();
     const upMonth = monthKeyFromSourceLabel(up.label);
     const idx = out.findIndex(s => {
+      if (s.virtual || s.id === 'jggl_total' || isJgglTotalLabel(s.label)) return false;
       const sLabel = String(s.label || '').toLowerCase();
       if (upLabel && sLabel === upLabel) return true;
       if (sourceLabelsMatch(proj, s.label, up.label)) return true;
@@ -5837,8 +5864,10 @@ function selectProjectRows(proj, pack) {
   if (sources.length === 1) return sources[0].rows || [];
 
   if (isJgglProject(proj)) {
+    const total = sources.find(s => s.id === 'jggl_total' || isJgglTotalLabel(s.label));
+    if (total) return aggregateRowsByDate(total.rows || []);
     const plats = sources.filter(s => isJgglPlatformLabel(s.label));
-    if (plats.length) return plats.flatMap(s => s.rows || []);
+    if (plats.length) return aggregateRowsByDate(plats.flatMap(s => s.rows || []));
   }
 
   const months = sources.filter(isMonthLikeSource);
@@ -6875,11 +6904,13 @@ function tileSwitchSource(projId, idx, e) {
 }
 
 function getSourceIdx(projId, pack) {
-  const max = Math.max(0, (pack?.sources?.length || 1) - 1);
+  const sources = pack?.sources || [];
+  const max = Math.max(0, sources.length - 1);
   let idx = sourceIndexByProject[projId];
   if (idx == null || idx < 0 || idx > max) {
-    idx = 0;
-    sourceIndexByProject[projId] = 0;
+    const totalIdx = sources.findIndex(s => s.id === 'jggl_total' || isJgglTotalLabel(s.label));
+    idx = totalIdx >= 0 ? totalIdx : 0;
+    sourceIndexByProject[projId] = idx;
   }
   return idx;
 }
@@ -8840,6 +8871,10 @@ function chatFindMetric(q) {
 function chatFindSource(q, pack) {
   if (!pack?.sources?.length) return null;
   const nq = chatNorm(q);
+  if (/(^|\s)(общее|общий|всего|total|all)(\s|$)/.test(nq)) {
+    const total = pack.sources.find(s => s.id === 'jggl_total' || isJgglTotalLabel(s.label));
+    if (total) return total;
+  }
   for (const s of pack.sources) {
     const label = chatNorm(s.label || s.id || '');
     if (label && (nq.includes(label) || chatTokenHit(nq, chatStem(label)))) return s;
