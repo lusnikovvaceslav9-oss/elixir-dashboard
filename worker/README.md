@@ -21,8 +21,7 @@ npx wrangler deploy
 curl -X POST "https://<worker-url>/telegram/setup" -H "X-Setup-Key: <SESSION_SECRET>"
 ```
 
-Команды бота: свободный текст («спенд планта за июль»), `/report`, `/digest`, `/refresh`, `/help`.  
-Утренний дайджест: cron `0 7 * * *` UTC (10:00 МСК).
+Команды бота: свободный текст («спенд планта за июль»), `/report`, `/digest`, `/refresh`, `/help`.
 
 ## Auth proxy
 

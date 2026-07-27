@@ -9,10 +9,6 @@ GITHUB_REPO = "lusnikovvaceslav9-oss/elixir-dashboard"
 GITHUB_BRANCH = "main"
 HUPP_FEED_WORKFLOW = "hupp-feed.yml"
 
-# Morning digest 10:00 Europe/Moscow = 07:00 UTC
-[triggers]
-crons = ["0 7 * * *"]
-
 # Secrets via `npx wrangler secret put <NAME>`:
 #   JSONBIN_MASTER_KEY, SESSION_SECRET,
 #   TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_CHAT_IDS,

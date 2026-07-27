@@ -1,6 +1,6 @@
 # Elixir Telegram Bot (Cloudflare Worker)
 
-Бесплатный бот 24/7 на Cloudflare Workers: вопросы как в веб-чате + `/report` / `/digest` + утренний дайджест.
+Бесплатный бот 24/7 на Cloudflare Workers: вопросы как в веб-чате + `/report` / `/digest` по запросу.
 
 ## Секреты
 
@@ -47,8 +47,6 @@ curl -X POST "https://elixir-dashboard-proxy.<subdomain>.workers.dev/telegram/se
    - `/report@elexir_dashbot Planto`
 
 Доступ: достаточно твоего `user_id` в whitelist — в любой группе, куда тебя пустили, бот ответит. Либо отдельно добавь `chat_id` группы.
-
-Утренний дайджест: cron `0 7 * * *` UTC (= 10:00 МСК) → всем id из allowlist (лички и группы).
 
 ## Безопасность
 

@@ -192,9 +192,4 @@ export default {
       return json({ ok: false, error: e.message || String(e) }, 500, env);
     }
   },
-
-  /** Morning digest — cron in wrangler.toml (07:00 UTC = 10:00 MSK) */
-  async scheduled(event, env, ctx) {
-    ctx.waitUntil(sendDigestToAllowed(env).catch(e => console.log('digest err', e.message)));
-  },
 };
