@@ -168,7 +168,8 @@ export function inspectDigest(state) {
     const yRows = filterIso(rows, yesterday, yesterday);
     const spend = sum(yRows, 'spend');
     let skip = null;
-    if (status === 'stop') skip = 'status=stop';
+    if (p.hiddenFromUsers) skip = 'hiddenFromUsers';
+    else if (status === 'stop') skip = 'status=stop';
     else if (!kind) skip = 'not in digest kinds';
     else if (!pack) skip = 'no pack';
     else if (pack.error) skip = `pack error: ${pack.error}`;
@@ -200,6 +201,7 @@ export function buildDigest(state) {
 
   for (const p of state.projects || []) {
     try {
+      if (p.hiddenFromUsers) continue;
       if (getStatus(p) === 'stop') continue;
       if (!digestKind(p)) continue;
       const pack = state.packs[p.id];

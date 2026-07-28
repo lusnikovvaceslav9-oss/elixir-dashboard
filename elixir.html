@@ -634,6 +634,18 @@ td:first-child{text-align:left;color:#0a0a0a;font-weight:500}
 .btn-logout:hover{border-color:rgba(239,68,68,0.4);color:#EF4444;background:rgba(239,68,68,0.05)}
 .btn-add-proj{border:1px solid rgba(0,0,0,0.4);background:rgba(0,0,0,0.12);color:#0a0a0a}
 .btn-add-proj:hover{background:rgba(0,0,0,0.22)}
+.admin-vis{margin-top:16px;padding-top:14px;border-top:1px solid rgba(0,0,0,0.08)}
+.admin-vis-title{font-size:11px;font-weight:600;color:rgba(0,0,0,0.45);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px}
+.admin-vis-hint{font-size:11px;color:rgba(0,0,0,0.35);margin-bottom:10px;line-height:1.4}
+.admin-vis-list{display:flex;flex-direction:column;gap:6px}
+.admin-vis-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;background:rgba(0,0,0,0.025);border:1px solid rgba(0,0,0,0.06);border-radius:8px}
+.admin-vis-name{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:#0a0a0a;min-width:0}
+.admin-vis-name span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.admin-vis-toggle{flex-shrink:0;padding:5px 10px;border-radius:999px;font-size:11px;font-weight:600;font-family:var(--font);cursor:pointer;border:1px solid rgba(0,0,0,0.12);background:#fff;color:rgba(0,0,0,0.55);transition:all 0.12s ease}
+.admin-vis-toggle.on{background:rgba(22,101,52,0.1);border-color:rgba(22,101,52,0.3);color:#166534}
+.admin-vis-toggle.off{background:rgba(153,27,27,0.08);border-color:rgba(153,27,27,0.25);color:#991b1b}
+.tile-hidden-badge{font-size:9px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;padding:3px 7px;border-radius:999px;background:rgba(0,0,0,0.08);color:rgba(0,0,0,0.45);border:1px solid rgba(0,0,0,0.08)}
+.proj-tile.is-hidden-users{opacity:0.72;border-style:dashed}
 
 /* ── OVERLAY & MODALS ── */
 .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:1000;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
@@ -1308,6 +1320,38 @@ async function setProjectStatus(projId, status, e) {
   renderContent();
 }
 
+function isProjectHiddenFromUsers(proj) {
+  return !!(proj && proj.hiddenFromUsers);
+}
+
+/** Проекты, которые видит текущий пользователь (админ — все). */
+function listProjectsForUi() {
+  if (isAdmin()) return projects;
+  return projects.filter(p => !isProjectHiddenFromUsers(p));
+}
+
+async function toggleProjectUserVisibility(projId, e) {
+  if (e) e.stopPropagation();
+  if (!isAdmin()) return;
+  const idx = projects.findIndex(p => p.id === projId);
+  if (idx < 0) return;
+  const next = !isProjectHiddenFromUsers(projects[idx]);
+  projects[idx] = { ...projects[idx], hiddenFromUsers: next };
+  try {
+    await saveProjects();
+  } catch (err) {
+    console.warn('Visibility save failed:', err);
+    alert('Не удалось сохранить видимость: ' + (err.message || err));
+    projects[idx] = { ...projects[idx], hiddenFromUsers: !next };
+  }
+  // Если обычный юзер сейчас на скрытом — уйдёт после logout; админ остаётся.
+  if (!isAdmin() && next && view === projId) switchView('overview');
+  else {
+    renderTopbar();
+    renderContent();
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════════════════
@@ -1440,6 +1484,7 @@ function normalizeProject(p) {
     monthlySheets,
     type: p.type || 'auto',
     status: normalizeProjectStatus(p.status),
+    hiddenFromUsers: !!p.hiddenFromUsers,
   };
 }
 
@@ -3339,7 +3384,9 @@ projects = loadProjectsLocal();
     try { saved = JSON.parse(localStorage.getItem(VIEW_KEY) || 'null'); } catch (_) {}
     const candidate = fromHash || saved?.view || '';
     if (!candidate || candidate === 'overview') return;
-    if (!projects.some(p => p.id === candidate)) return;
+    const p = projects.find(x => x.id === candidate);
+    if (!p) return;
+    if (!isAdmin() && isProjectHiddenFromUsers(p)) return;
     view = candidate;
     if (saved?.view === candidate && saved.month) {
       currentMonth = saved.month;
@@ -7162,10 +7209,14 @@ function updateProjPickerTrigger() {
 
 function projPickerItemHtml(id, icon, name, subId, status) {
   const active = view === id ? ' active' : '';
+  const p = id !== 'overview' ? projects.find(x => x.id === id) : null;
+  const hiddenHtml = (p && isAdmin() && isProjectHiddenFromUsers(p))
+    ? ` <span class="tile-hidden-badge">Скрыт</span>`
+    : '';
   const statusHtml = subId !== 'overview' && status
-    ? `<span class="proj-picker-item-id">${renderStatusBadge(status)}</span>`
+    ? `<span class="proj-picker-item-id">${renderStatusBadge(status)}${hiddenHtml}</span>`
     : (subId !== 'overview'
-      ? `<span class="proj-picker-item-id">${escHtml(subId)}</span>`
+      ? `<span class="proj-picker-item-id">${escHtml(subId)}${hiddenHtml}</span>`
       : '<span class="proj-picker-item-id">overview</span>');
   return `<button type="button" class="proj-picker-item${active}" data-proj-id="${escHtml(id)}">
     <span class="proj-picker-item-icon">${icon}</span>
@@ -7182,7 +7233,7 @@ function renderProjPickerList() {
   if (!list) return;
   const q = projPickerFilter.toLowerCase().trim();
   const showOverview = !q || 'все проекты'.includes(q) || 'overview'.includes(q) || 'обзор'.includes(q);
-  const filtered = projects.filter(p => !q || p.name.toLowerCase().includes(q) || p.id.toLowerCase().includes(q));
+  const filtered = listProjectsForUi().filter(p => !q || p.name.toLowerCase().includes(q) || p.id.toLowerCase().includes(q));
 
   let html = '';
   if (showOverview) {
@@ -7657,7 +7708,7 @@ function roasProxyCardHtml(proj, r) {
 
 /** Секция обзора: actual и proxy_events разнесены, без общего рейтинга вперемешку. */
 function renderRoasForecastSection() {
-  const results = projects
+  const results = listProjectsForUi()
     .map(p => ({ p, r: (cache[p.id] && cache[p.id] !== 'loading' && cache[p.id] !== null) ? computeProductRoas(p) : null }))
     .filter(x => x.r);
   if (!results.length) return '';
@@ -7686,20 +7737,25 @@ function renderOverview() {
 
   html += '<div class="overview-grid">';
 
-  projects.forEach(p => {
+  listProjectsForUi().forEach(p => {
     const data = cache[p.id];
     const isLoading = data === 'loading';
     const isError = data === null;
     const status = getProjectStatus(p);
     const statusCtrl = isAdmin() ? renderStatusSelect(p.id, status) : renderStatusBadge(status);
+    const hiddenCls = isProjectHiddenFromUsers(p) ? ' is-hidden-users' : '';
+    const hiddenBadge = (isAdmin() && isProjectHiddenFromUsers(p))
+      ? `<span class="tile-hidden-badge" title="Скрыт для обычных пользователей">Скрыт</span>`
+      : '';
 
     if (isLoading) {
-      html += `<div class="proj-tile status-${status}" ${projTileAttrs(p.id)} onclick="tileOpenProject('${p.id}', event)">
+      html += `<div class="proj-tile status-${status}${hiddenCls}" ${projTileAttrs(p.id)} onclick="tileOpenProject('${p.id}', event)">
         <div class="tile-drag-hint">⋮⋮</div>
         <div class="tile-body">
           <div class="tile-header">
             <div class="tile-name"><span class="tile-icon-wrap">${p.icon}</span>${p.name}</div>
             <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+              ${hiddenBadge}
               ${statusCtrl}
               <span class="tile-badge">${p.currency}</span>
             </div>
@@ -7711,12 +7767,13 @@ function renderOverview() {
     }
 
     if (isError) {
-      html += `<div class="proj-tile status-${status}" ${projTileAttrs(p.id)} onclick="tileOpenProject('${p.id}', event)">
+      html += `<div class="proj-tile status-${status}${hiddenCls}" ${projTileAttrs(p.id)} onclick="tileOpenProject('${p.id}', event)">
         <div class="tile-drag-hint">⋮⋮</div>
         <div class="tile-body">
           <div class="tile-header">
             <div class="tile-name"><span class="tile-icon-wrap">${p.icon}</span>${p.name}</div>
             <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+              ${hiddenBadge}
               ${statusCtrl}
               <span class="tile-badge">${p.currency}</span>
             </div>
@@ -7740,12 +7797,13 @@ function renderOverview() {
     const budgetTile = isPlantoTile ? '' : renderBudgetCard(p, data, true);
     const incomeTile = isPlantoTile ? renderTileIncome() : '';
 
-    html += `<div class="proj-tile status-${status}" ${projTileAttrs(p.id)} onclick="tileOpenProject('${p.id}', event)">
+    html += `<div class="proj-tile status-${status}${hiddenCls}" ${projTileAttrs(p.id)} onclick="tileOpenProject('${p.id}', event)">
       <div class="tile-drag-hint">⋮⋮</div>
       <div class="tile-body">
         <div class="tile-header">
           <div class="tile-name"><span class="tile-icon-wrap">${p.icon}</span>${p.name}${isMulti ? `<span style="font-size:10px;color:var(--text-dim);margin-left:6px">${pack.sources.length} листа</span>` : ''}</div>
           <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+            ${hiddenBadge}
             ${statusCtrl}
             <span class="tile-badge">${p.currency}</span>
           </div>
@@ -8278,6 +8336,25 @@ function registerChart(canvasId, inst) {
 // ADMIN PANEL HTML
 // ═══════════════════════════════════════════════════════════════
 function renderAdminPanel(proj) {
+  const visibilityBlock = (() => {
+    const list = proj ? [proj] : projects;
+    if (!list.length) return '';
+    const rows = list.map(p => {
+      const hidden = isProjectHiddenFromUsers(p);
+      return `<div class="admin-vis-row">
+        <div class="admin-vis-name"><span>${p.icon || '📊'}</span><span>${escHtml(p.name)}</span></div>
+        <button type="button" class="admin-vis-toggle ${hidden ? 'off' : 'on'}" onclick="toggleProjectUserVisibility('${escHtml(p.id)}', event)">
+          ${hidden ? 'Скрыт' : 'Показан'}
+        </button>
+      </div>`;
+    }).join('');
+    return `<div class="admin-vis">
+      <div class="admin-vis-title">Видимость для пользователей</div>
+      <div class="admin-vis-hint">Скрытые проекты видит только админ. Обычным пользователям они не показываются в обзоре и в списке.</div>
+      <div class="admin-vis-list">${rows}</div>
+    </div>`;
+  })();
+
   let links = '';
   if (proj) {
     const srcs = proj.sheetSources?.length ? proj.sheetSources : getProjectSheetSources(proj);
@@ -8287,6 +8364,7 @@ function renderAdminPanel(proj) {
         <span class="admin-link-ext">↗ Google Sheets</span>
       </a>`).join('')}
     </div>
+    ${visibilityBlock}
     <div class="admin-actions">
       <button class="btn-sm btn-add-proj" onclick="openEditProject('${proj.id}')">✏️ Редактировать проект</button>
       <button class="btn-sm btn-logout" onclick="adminLogout()">Выйти из Admin</button>
@@ -8303,6 +8381,7 @@ function renderAdminPanel(proj) {
         </a>`);
     }).join('')}
     </div>
+    ${visibilityBlock}
     <div class="admin-actions">
       <button class="btn-sm btn-add-proj" onclick="openAddProject()">+ Добавить проект</button>
       <button class="btn-sm btn-logout" onclick="adminLogout()">Выйти из Admin</button>
@@ -8324,7 +8403,10 @@ function renderAdminPanel(proj) {
 function getValidViewId(id) {
   const v = String(id || '').trim();
   if (!v || v === 'overview') return 'overview';
-  return projects.some(p => p.id === v) ? v : 'overview';
+  const p = projects.find(x => x.id === v);
+  if (!p) return 'overview';
+  if (!isAdmin() && isProjectHiddenFromUsers(p)) return 'overview';
+  return v;
 }
 
 function readViewHash() {
@@ -8447,6 +8529,13 @@ async function doLogin() {
 function adminLogout() {
   sessionStorage.removeItem(ADMIN_KEY);
   updateAdminBtn();
+  const next = getValidViewId(view);
+  if (next !== view) {
+    view = next;
+    currentMonth = null;
+    dateFilter = null;
+    persistViewState();
+  }
   renderTopbar();
   renderContent();
 }
