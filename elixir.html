@@ -389,6 +389,16 @@ body{
 .tile-metric-value{font-size:17px;font-weight:600;color:var(--text);line-height:1}
 .tile-metric-sub{font-size:10px;color:var(--text-muted);margin-top:5px;line-height:1.3}
 .tile-live-note{font-size:10px;color:rgba(134,239,172,0.85);padding:0 20px 2px;line-height:1.35}
+.tile-period{display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding:0 16px 8px}
+.tile-period-chip{padding:3px 9px;border-radius:20px;font-size:10px;font-weight:600;border:1px solid rgba(0,0,0,0.1);background:transparent;cursor:pointer;color:rgba(0,0,0,0.4);font-family:var(--font);transition:all 0.12s ease;line-height:1.3}
+.tile-period-chip:hover:not(:disabled){border-color:rgba(0,0,0,0.4);color:rgba(0,0,0,0.7)}
+.tile-period-chip.active{background:var(--matter);color:#fff;border-color:var(--matter)}
+.tile-period-chip:disabled{opacity:0.35;cursor:not-allowed}
+.tile-period-range{display:flex;flex-wrap:wrap;align-items:center;gap:4px;width:100%;margin-top:2px}
+.tile-period-range .date-input{font-size:11px;padding:4px 6px;border-radius:7px;min-width:0;flex:1 1 90px}
+.tile-period-apply{font-family:var(--font);font-size:10px;font-weight:600;padding:5px 10px;border-radius:7px;border:1px solid transparent;background:#0a0a0a;color:#fff;cursor:pointer}
+.tile-period-note{font-size:10px;color:var(--text-dim);padding:0 16px 4px;line-height:1.35;width:100%}
+
 .tile-footer{display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding:12px 22px;border-top:1px solid var(--border);cursor:pointer}
 .tile-cta{font-size:12px;color:var(--accent);font-weight:600}
 .tile-arrow{color:rgba(0,0,0,0.5);font-size:14px}
@@ -1187,6 +1197,7 @@ async function sha256Hex(text) {
 const ADMIN_KEY = 'elixir_admin';
 const PROJ_KEY  = 'elixir_projects';
 const VIEW_KEY  = 'elixir_last_view';
+const TILE_PERIODS_KEY = 'elixir_tile_periods_v1';
 const CHART_PREF_KEY = 'elixir_chart_prefs';
 
 const CHART_TYPE_OPTIONS = {
@@ -1303,6 +1314,7 @@ async function setProjectStatus(projId, status, e) {
 let projects = []; // заполняется после определения loadProjectsLocal()
 let cache      = {};
 let tileMonths = {};
+let tilePeriods = {}; // projId → { mode:'today'|'yesterday'|'last'|'all'|'range', start?, end? }
 let tileSourceIndex = {};
 let sourceIndexByProject = {};
 let plantoViewByProject = {};
@@ -4645,6 +4657,7 @@ async function loadAll() {
     if (view === 'overview') renderContent();
     else if (view === p.id) renderContent();
   }));
+  loadTilePeriods();
   restoreViewState();
   persistViewState();
   renderContent();
@@ -4785,69 +4798,6 @@ function getPlantoMetricKeys(view, rows) {
     });
   }
   return keys;
-}
-
-function getPlantoOverviewDailyMetrics(proj) {
-  const info = getPlantoTodayRow(getPlantoDailyRows());
-  if (!info?.row) {
-    return {
-      note: 'Нет дневных данных — дождитесь обновления feed',
-      metrics: [{ key: 'today_empty', label: 'Дневная стата', value: '—', live: true, sub: 'обновление ~каждые 2 часа' }],
-    };
-  }
-  const r = info.row;
-  const cur = proj.currency;
-  const spend = r.spend || 0;
-  const installs = r.installs || 0;
-  const trials = r.trials || 0;
-  const bills = r.fb || 0;
-  const sold = r.sold || 0;
-  const clicks = r.clicks || 0;
-  const impressions = r.impressions || 0;
-  const cpi = installs ? spend / installs : null;
-  const cpt = trials ? spend / trials : null;
-  const cpb = bills ? spend / bills : null;
-  const ctr = impressions ? (clicks / impressions * 100) : null;
-  const cpc = clicks ? spend / clicks : null;
-  const estimated = !!plantoMetaCache?.spend_today_estimated && info.isToday;
-  const dateLabel = r.dateStr || fmtDateStr(r.date);
-  const note = info.isToday
-    ? `Сегодня · обновление ~каждые 2 часа${estimated ? ' · спенд ≈' : ''}`
-    : `Последний день · ${dateLabel}`;
-
-  const metrics = [
-    { key: 'today_spend', label: 'Расход', value: fmtMoney(spend, cur), live: true, sub: estimated ? 'оценочный' : dateLabel },
-    { key: 'today_installs', label: 'Установки', value: fmtInt(installs), live: true, sub: 'за день' },
-    { key: 'today_cpi', label: 'CPI', value: cpi != null ? fmtMoney(cpi, cur) : '—', accent: true, live: true, sub: 'цена установки' },
-    { key: 'today_trials', label: 'Триалы', value: fmtInt(trials), live: true, sub: 'старты за день' },
-    { key: 'today_cpt', label: 'CPT', value: cpt != null ? fmtMoney(cpt, cur) : '—', accent: true, live: true, sub: 'цена триала' },
-    { key: 'today_bills', label: 'Оплаты', value: fmtInt(bills), live: true, sub: sold ? `yearly→день триала (−7д): ${fmtInt(sold)}` : (cpb != null ? `Cost/Bill ${fmtMoney(cpb, cur)}` : 'к дню триала (−7д)') },
-  ];
-  if (clicks || impressions) {
-    metrics.push({
-      key: 'today_impressions',
-      label: 'Показы',
-      value: fmtInt(impressions),
-      live: true,
-      sub: 'Direct',
-    });
-    metrics.push({
-      key: 'today_ctr',
-      label: 'CTR',
-      value: ctr != null ? fmtPct(ctr) : '—',
-      live: true,
-      sub: `${fmtInt(clicks)} кликов`,
-    });
-    metrics.push({
-      key: 'today_cpc',
-      label: 'CPC',
-      value: cpc != null ? fmtMoney(cpc, cur) : '—',
-      accent: true,
-      live: true,
-      sub: 'за клик',
-    });
-  }
-  return { note, metrics };
 }
 
 function switchPlantoView(mode) {
@@ -5029,6 +4979,254 @@ function getLatestDayInfo(rows) {
   return latest ? { row: latest, isToday: false } : null;
 }
 
+function todayIsoLocal() {
+  const t = new Date();
+  return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+}
+
+function yesterdayIsoLocal() {
+  const t = new Date();
+  t.setDate(t.getDate() - 1);
+  return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+}
+
+function loadTilePeriods() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(TILE_PERIODS_KEY) || '{}');
+    if (raw && typeof raw === 'object') tilePeriods = raw;
+  } catch (_) { tilePeriods = {}; }
+}
+
+function saveTilePeriods() {
+  try { localStorage.setItem(TILE_PERIODS_KEY, JSON.stringify(tilePeriods)); } catch (_) {}
+}
+
+function overviewBaseRows(proj, data) {
+  if (proj?.id === 'planto' || isPlantoAutoFeed(proj)) return getPlantoDailyRows();
+  const pack = normalizeCacheData(data != null ? data : cache[proj.id]);
+  return pickOverviewSourceRows(pack, proj);
+}
+
+function defaultTilePeriodMode(proj, data) {
+  const daily = aggregateRowsByDate(overviewBaseRows(proj, data));
+  const isos = new Set(daily.map(rowIsoStr).filter(Boolean));
+  if (isos.has(todayIsoLocal())) return 'today';
+  if (isos.has(yesterdayIsoLocal())) return 'yesterday';
+  return 'last';
+}
+
+function getTilePeriod(projId) {
+  const p = tilePeriods[projId];
+  if (p && p.mode) return p;
+  const proj = projects.find(x => x.id === projId);
+  const mode = proj ? defaultTilePeriodMode(proj, cache[projId]) : 'last';
+  return { mode };
+}
+
+function setTilePeriod(projId, patch) {
+  tilePeriods[projId] = { ...getTilePeriod(projId), ...patch };
+  saveTilePeriods();
+}
+
+function setTilePeriodMode(projId, mode, ev) {
+  if (ev) { ev.stopPropagation(); ev.preventDefault(); }
+  const proj = projects.find(p => p.id === projId);
+  if (!proj) return;
+  if (mode === 'today' && !tilePeriodHasIso(proj, cache[projId], todayIsoLocal())) return;
+  if (mode === 'yesterday' && !tilePeriodHasIso(proj, cache[projId], yesterdayIsoLocal())) return;
+  if (mode === 'range') {
+    const cur = getTilePeriod(projId);
+    const bounds = getDateBounds(aggregateRowsByDate(overviewBaseRows(proj, cache[projId])));
+    setTilePeriod(projId, {
+      mode: 'range',
+      start: cur.start || bounds?.min || '',
+      end: cur.end || bounds?.max || '',
+    });
+  } else {
+    setTilePeriod(projId, { mode });
+  }
+  if (view === 'overview') renderContent();
+}
+
+function applyTilePeriodRange(projId, ev) {
+  if (ev) { ev.stopPropagation(); ev.preventDefault(); }
+  const fromEl = document.getElementById(`tile-period-from-${projId}`);
+  const toEl = document.getElementById(`tile-period-to-${projId}`);
+  const start = fromEl?.value || '';
+  const end = toEl?.value || '';
+  if (!start || !end) return;
+  setTilePeriod(projId, { mode: 'range', start, end });
+  if (view === 'overview') renderContent();
+}
+
+function renderTilePeriodControls(proj, data, note) {
+  const pid = proj.id;
+  const period = getTilePeriod(pid);
+  const mode = period.mode || 'last';
+  const hasToday = tilePeriodHasIso(proj, data, todayIsoLocal());
+  const hasYesterday = tilePeriodHasIso(proj, data, yesterdayIsoLocal());
+  const chip = (m, label, disabled) => {
+    const active = mode === m;
+    return `<button type="button" class="tile-period-chip${active ? ' active' : ''}"${disabled ? ' disabled' : ''} onclick="setTilePeriodMode('${escHtml(pid)}','${m}',event)">${label}</button>`;
+  };
+  let rangeHtml = '';
+  if (mode === 'range') {
+    const bounds = getDateBounds(aggregateRowsByDate(overviewBaseRows(proj, data)));
+    const start = period.start || bounds?.min || '';
+    const end = period.end || bounds?.max || '';
+    rangeHtml = `<div class="tile-period-range">
+      <input type="date" class="date-input" id="tile-period-from-${escHtml(pid)}" value="${escHtml(start)}" onclick="event.stopPropagation()">
+      <input type="date" class="date-input" id="tile-period-to-${escHtml(pid)}" value="${escHtml(end)}" onclick="event.stopPropagation()">
+      <button type="button" class="tile-period-apply" onclick="applyTilePeriodRange('${escHtml(pid)}',event)">ОК</button>
+    </div>`;
+  }
+  return `<div class="tile-period" onclick="event.stopPropagation()">
+    ${chip('today', 'Сегодня', !hasToday)}
+    ${chip('yesterday', 'Вчера', !hasYesterday)}
+    ${chip('all', 'Всё время', false)}
+    ${chip('range', 'Период', false)}
+    ${rangeHtml}
+    <div class="tile-period-note tile-live-note">${escHtml(note || '')}</div>
+  </div>`;
+}
+
+function rowsForTilePeriod(proj, data, period) {
+  const base = overviewBaseRows(proj, data);
+  const daily = aggregateRowsByDate(base);
+  if (!daily.length) return { rows: [], label: 'Нет данных', mode: period?.mode || 'last' };
+
+  const mode = period?.mode || 'last';
+  const todayIso = todayIsoLocal();
+  const yIso = yesterdayIsoLocal();
+
+  if (mode === 'all') {
+    const bounds = getDateBounds(daily);
+    const label = bounds ? `Всё время · ${isoToLabel(bounds.min)} — ${isoToLabel(bounds.max)}` : 'Всё время';
+    return { rows: daily, label, mode };
+  }
+
+  if (mode === 'range') {
+    let start = period.start;
+    let end = period.end;
+    if (!start || !end) {
+      const b = getDateBounds(daily);
+      start = start || b?.min;
+      end = end || b?.max;
+    }
+    if (start && end && start > end) { const t = start; start = end; end = t; }
+    const rows = daily.filter(r => {
+      const iso = rowIsoStr(r);
+      return iso && iso >= start && iso <= end;
+    });
+    const label = start === end
+      ? `Период · ${isoToLabel(start)}`
+      : `Период · ${isoToLabel(start)} — ${isoToLabel(end)}`;
+    return { rows, label, mode, start, end };
+  }
+
+  let targetIso = null;
+  if (mode === 'today') targetIso = todayIso;
+  else if (mode === 'yesterday') targetIso = yIso;
+  else {
+    // last
+    const sorted = [...daily].map(rowIsoStr).filter(Boolean).sort();
+    targetIso = sorted[sorted.length - 1] || null;
+  }
+
+  const row = daily.find(r => rowIsoStr(r) === targetIso);
+  if (!row) {
+    const fallback = getLatestDayInfo(daily);
+    if (!fallback?.row) return { rows: [], label: 'Нет дневных данных', mode };
+    const dateLabel = fallback.row.dateStr || fmtDateStr(fallback.row.date);
+    return {
+      rows: [fallback.row],
+      label: fallback.isToday ? `Сегодня · ${dateLabel}` : `Последний день · ${dateLabel}`,
+      mode: fallback.isToday ? 'today' : 'last',
+    };
+  }
+
+  const dateLabel = row.dateStr || fmtDateStr(row.date);
+  let label = `Последний день · ${dateLabel}`;
+  if (mode === 'today') label = `Сегодня · ${dateLabel}`;
+  else if (mode === 'yesterday') label = `Вчера · ${dateLabel}`;
+  return { rows: [row], label, mode };
+}
+
+function tilePeriodHasIso(proj, data, iso) {
+  const daily = aggregateRowsByDate(overviewBaseRows(proj, data));
+  return daily.some(r => rowIsoStr(r) === iso);
+}
+
+function metricsFromTileRows(proj, rows, subHint) {
+  if (isHuppProject(proj) && rows.length === 1) {
+    const r = rows[0];
+    const cur = proj.currency || '₽';
+    const spend = r.spend || 0;
+    const impressions = r.impressions || 0;
+    const clicks = r.clicks || 0;
+    const visits = r.installs || 0;
+    const trials = r.trials || 0;
+    const purchase = r.purchase || 0;
+    const cpc = clicks ? spend / clicks : null;
+    const cpm = impressions ? spend / impressions * 1000 : null;
+    const costVisit = visits ? spend / visits : null;
+    const costTrial = trials ? spend / trials : null;
+    const costPurchase = purchase ? spend / purchase : null;
+    return [
+      { key: 'today_spend', label: 'Spend', value: fmtMoney(spend, cur), live: true, accent: true, sub: 'Direct' },
+      { key: 'today_installs', label: 'Visits', value: fmtInt(visits), live: true, sub: 'визиты' },
+      { key: 'today_cost_install', label: 'Cost / Visit', value: costVisit != null ? fmtMoney(costVisit, cur) : '—', live: true, accent: true },
+      { key: 'today_trials', label: 'Reach pay', value: fmtInt(trials), live: true, sub: 'клик к оплате' },
+      { key: 'today_cost_trial', label: 'Cost / Reach', value: costTrial != null ? fmtMoney(costTrial, cur) : '—', live: true, accent: true },
+      { key: 'today_purchase', label: 'Purchase', value: fmtInt(purchase), live: true, sub: 'успешная оплата' },
+      { key: 'today_cost_purchase', label: 'Cost / Purchase', value: costPurchase != null ? fmtMoney(costPurchase, cur) : '—', live: true, accent: true },
+      { key: 'today_clicks', label: 'Клики', value: fmtInt(clicks), live: true, sub: cpc != null ? `CPC ${fmtMoney(cpc, cur)}` : 'Direct' },
+      { key: 'today_impressions', label: 'Показы', value: fmtInt(impressions), live: true, sub: cpm != null ? `CPM ${fmtMoney(cpm, cur)}` : 'Direct' },
+    ];
+  }
+  if ((proj?.id === 'planto' || isPlantoAutoFeed(proj)) && rows.length === 1) {
+    const r = rows[0];
+    const cur = proj.currency;
+    const spend = r.spend || 0;
+    const installs = r.installs || 0;
+    const trials = r.trials || 0;
+    const bills = r.fb || 0;
+    const sold = r.sold || 0;
+    const clicks = r.clicks || 0;
+    const impressions = r.impressions || 0;
+    const cpi = installs ? spend / installs : null;
+    const cpt = trials ? spend / trials : null;
+    const cpb = bills ? spend / bills : null;
+    const ctr = impressions ? (clicks / impressions * 100) : null;
+    const cpc = clicks ? spend / clicks : null;
+    const dateLabel = r.dateStr || fmtDateStr(r.date);
+    const metrics = [
+      { key: 'today_spend', label: 'Расход', value: fmtMoney(spend, cur), live: true, sub: dateLabel },
+      { key: 'today_installs', label: 'Установки', value: fmtInt(installs), live: true, sub: subHint || 'за день' },
+      { key: 'today_cpi', label: 'CPI', value: cpi != null ? fmtMoney(cpi, cur) : '—', accent: true, live: true, sub: 'цена установки' },
+      { key: 'today_trials', label: 'Триалы', value: fmtInt(trials), live: true, sub: 'старты' },
+      { key: 'today_cpt', label: 'CPT', value: cpt != null ? fmtMoney(cpt, cur) : '—', accent: true, live: true, sub: 'цена триала' },
+      { key: 'today_bills', label: 'Оплаты', value: fmtInt(bills), live: true, sub: sold ? `yearly: ${fmtInt(sold)}` : (cpb != null ? `Cost/Bill ${fmtMoney(cpb, cur)}` : 'оплаты') },
+    ];
+    if (clicks || impressions) {
+      metrics.push({ key: 'today_impressions', label: 'Показы', value: fmtInt(impressions), live: true, sub: 'Direct' });
+      metrics.push({ key: 'today_ctr', label: 'CTR', value: ctr != null ? fmtPct(ctr) : '—', live: true, sub: `${fmtInt(clicks)} кликов` });
+      metrics.push({ key: 'today_cpc', label: 'CPC', value: cpc != null ? fmtMoney(cpc, cur) : '—', accent: true, live: true, sub: 'за клик' });
+    }
+    return metrics;
+  }
+
+  const srcProj = withEffectiveType(proj, rows);
+  return sortMetricsForOverview(getMetrics(srcProj, rows))
+    .slice(0, 10)
+    .map(m => ({
+      ...m,
+      key: `tile_${m.key}`,
+      live: true,
+      sub: m.sub || subHint || (m.accent ? undefined : 'за период'),
+    }));
+}
+
 /** Строки для сводки на главной: не смешивать листы JGGL (App/Waitlist/…). */
 function pickOverviewSourceRows(pack, proj) {
   return selectProjectRows(proj, pack);
@@ -5046,71 +5244,43 @@ const OVERVIEW_METRIC_PRIORITY = [
 
 function sortMetricsForOverview(metrics) {
   const rank = (key) => {
-    const k = String(key || '').replace(/^today_/, '');
+    const k = String(key || '').replace(/^(today_|tile_)/, '');
     const i = OVERVIEW_METRIC_PRIORITY.indexOf(k);
     return i >= 0 ? i : 100 + String(k).length;
   };
   return [...(metrics || [])].sort((a, b) => rank(a.key) - rank(b.key) || String(a.key).localeCompare(String(b.key)));
 }
 
-/** Сводка за последний день для карточки на главной (как у Planto). */
+/** Сводка на плитке overview с учётом выбранного периода. */
 function getOverviewDailyMetrics(proj, data) {
-  if (proj?.id === 'planto' || isPlantoAutoFeed(proj)) {
-    return getPlantoOverviewDailyMetrics(proj);
-  }
-  const pack = normalizeCacheData(data);
-  const allRows = pickOverviewSourceRows(pack, proj);
-  const info = getLatestDayInfo(allRows);
-  if (!info?.row) {
+  const period = getTilePeriod(proj.id);
+  const { rows, label } = rowsForTilePeriod(proj, data, period);
+  if (!rows.length) {
     return {
-      note: 'Нет дневных данных',
-      metrics: [{ key: 'today_empty', label: 'Дневная стата', value: '—', live: true, sub: 'откройте проект для деталей' }],
+      note: label || 'Нет дневных данных',
+      metrics: [{ key: 'today_empty', label: 'Стата', value: '—', live: true, sub: 'нет строк за период' }],
+      period,
     };
   }
-  const dayRows = [info.row];
-  if (isHuppProject(proj)) {
-    const r = info.row;
-    const dateLabel = r.dateStr || fmtDateStr(r.date);
-    const spend = r.spend || 0;
-    const impressions = r.impressions || 0;
-    const clicks = r.clicks || 0;
-    const visits = r.installs || 0;
-    const trials = r.trials || 0;
-    const purchase = r.purchase || 0;
-    const cpc = clicks ? spend / clicks : null;
-    const cpm = impressions ? spend / impressions * 1000 : null;
-    const costVisit = visits ? spend / visits : null;
-    const costTrial = trials ? spend / trials : null;
-    const costPurchase = purchase ? spend / purchase : null;
-    return {
-      note: info.isToday ? `Сегодня · ${dateLabel} · Direct + Метрика` : `Последний день · ${dateLabel}`,
-      metrics: [
-        { key: 'today_spend', label: 'Spend', value: fmtMoney(spend, proj.currency || '₽'), live: true, accent: true, sub: 'Direct' },
-        { key: 'today_installs', label: 'Visits', value: fmtInt(visits), live: true, sub: 'визиты' },
-        { key: 'today_cost_install', label: 'Cost / Visit', value: costVisit != null ? fmtMoney(costVisit, proj.currency || '₽') : '—', live: true, accent: true },
-        { key: 'today_trials', label: 'Reach pay', value: fmtInt(trials), live: true, sub: 'клик к оплате' },
-        { key: 'today_cost_trial', label: 'Cost / Reach', value: costTrial != null ? fmtMoney(costTrial, proj.currency || '₽') : '—', live: true, accent: true },
-        { key: 'today_purchase', label: 'Purchase', value: fmtInt(purchase), live: true, sub: 'успешная оплата' },
-        { key: 'today_cost_purchase', label: 'Cost / Purchase', value: costPurchase != null ? fmtMoney(costPurchase, proj.currency || '₽') : '—', live: true, accent: true },
-        { key: 'today_clicks', label: 'Клики', value: fmtInt(clicks), live: true, sub: cpc != null ? `CPC ${fmtMoney(cpc, proj.currency || '₽')}` : 'Direct' },
-        { key: 'today_impressions', label: 'Показы', value: fmtInt(impressions), live: true, sub: cpm != null ? `CPM ${fmtMoney(cpm, proj.currency || '₽')}` : 'Direct' },
-      ],
-    };
+  const multi = rows.length > 1;
+  const subHint = multi ? 'за период' : 'за день';
+  let note = label;
+  if (isHuppProject(proj) && !multi) {
+    note = `${label} · Direct + Метрика`;
   }
-  const srcProj = withEffectiveType(proj, dayRows);
-  const metrics = sortMetricsForOverview(getMetrics(srcProj, dayRows))
-    .slice(0, 10)
-    .map(m => ({
-      ...m,
-      key: `today_${m.key}`,
-      live: true,
-      sub: m.sub || (m.accent ? undefined : 'за день'),
-    }));
-  const dateLabel = info.row.dateStr || fmtDateStr(info.row.date);
-  const note = info.isToday
-    ? `Сегодня · ${dateLabel}`
-    : `Последний день · ${dateLabel}`;
-  return { note, metrics };
+  if ((proj?.id === 'planto' || isPlantoAutoFeed(proj)) && period.mode === 'today') {
+    const estimated = !!plantoMetaCache?.spend_today_estimated;
+    note = `Сегодня · обновление ~каждые 2 часа${estimated ? ' · спенд ≈' : ''}`;
+  }
+  return {
+    note,
+    metrics: metricsFromTileRows(proj, rows, subHint),
+    period,
+  };
+}
+
+function getPlantoOverviewDailyMetrics(proj) {
+  return getOverviewDailyMetrics(proj, cache.planto);
 }
 
 function plantoBlock(id, num, title, desc, hint, gridHtml, { cols = 3, footer = '', live = false } = {}) {
@@ -7561,10 +7731,10 @@ function renderOverview() {
     const isMulti = isMultiSourceCache(data);
     const isPlantoTile = p.id === 'planto' || isPlantoAutoFeed(p);
 
-    // На главной — только последний день (как Planto); полные данные внутри проекта.
+    // На главной — метрики за выбранный период плитки; полные данные внутри проекта.
     const daily = getOverviewDailyMetrics(p, data);
     const metricsHtml =
-      `<div class="tile-live-note">${escHtml(daily.note)}</div>` +
+      renderTilePeriodControls(p, data, daily.note) +
       `<div class="tile-metrics" style="padding-bottom:14px">${daily.metrics.map(m => renderTileMetricCard(p.id, m)).join('')}</div>`;
 
     const budgetTile = isPlantoTile ? '' : renderBudgetCard(p, data, true);
@@ -9404,6 +9574,7 @@ document.getElementById('content').innerHTML = `<div class="spinner-wrap"><div c
 renderTopbar();
 
 (async () => {
+  loadTilePeriods();
   try {
     await loadProjects();
     // После remote-списка ещё раз валидируем сохранённый view.
