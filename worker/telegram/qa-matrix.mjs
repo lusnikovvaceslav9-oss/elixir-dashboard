@@ -205,7 +205,9 @@ for (const [key, aliases] of Object.entries(projNames)) {
 // ── Commands: report / digest builders ────────────────────────────
 {
   const d = buildDigest(state);
-  cases.push(expect('digest builds', has(d, 'дайджест') && has(d, 'planto')));
+  cases.push(expect('digest builds', has(d, 'Elixir') && /вчера/i.test(d)));
+  cases.push(expect('digest skips zero-spend wording or has projects', /спенда не было|Spend|Итого/i.test(d)));
+  cases.push(expect('digest omits quadcode for now', !/quadcode/i.test(d)));
 }
 {
   const r = buildReport(state, 'планто');

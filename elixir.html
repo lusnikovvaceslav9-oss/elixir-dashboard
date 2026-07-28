@@ -3228,16 +3228,8 @@ function toggleCsvUploadCard(projId) {
   }
 }
 
-/** Опционально: CSV из data/<dir>/ (репо). Основной путь — загрузка в дашборде. */
-const LOCAL_CSV_DIRS = {
-  qlosophy: {
-    match: isQlosophyProject,
-    dir: 'data/qlosophy',
-    defaults: [
-      { id: 'main', label: 'Лист 1', file: 'main.csv' },
-    ],
-  },
-};
+/** Локальные CSV из data/<dir>/ отключены — источник правды: Sheets + uploads в JSONBin. */
+const LOCAL_CSV_DIRS = {};
 
 function localCsvDirFor(proj) {
   return Object.values(LOCAL_CSV_DIRS).find(c => c.match(proj)) || null;

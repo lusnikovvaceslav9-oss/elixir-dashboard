@@ -27,8 +27,9 @@ jobs:
         run: |
           mkdir -p _site
           rsync -a --exclude '.git' --exclude '_site' --exclude 'secrets.env' \
-            --exclude '_buyer-extract' --exclude 'planto-transfer' --exclude '.venv' \
-            --exclude 'venv' --exclude '__pycache__' ./ _site/
+            --exclude '_buyer-extract' --exclude '.venv' \
+            --exclude 'venv' --exclude '__pycache__' --exclude 'worker' \
+            --exclude '.quadcodeai' --exclude '.temp' ./ _site/
 
       - uses: actions/upload-pages-artifact@v3
         with:

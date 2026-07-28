@@ -1,8 +1,14 @@
 /** Rule-based Q&A over dashboard data (ported from elixir.html chat bot). */
 
 import { sum, rowIso, allRows, projectRows } from './data.js';
+import { computeLiveBudgetRemainder } from './budget.js';
 
 const METRIC_ALIASES = [
+  { key: 'budget', labels: [
+    'остаток бюджета', 'остатки бюджета', 'остатки по бюджету', 'бюджетный остаток',
+    'сколько осталось бюджета', 'осталось бюджета', 'остаток', 'остатки',
+    'budget remainder', 'budget left', 'remaining budget',
+  ] },
   { key: 'spend', labels: ['спенд', 'spend', 'расход', 'расхода', 'потратили', 'потрачено', 'потратил', 'затраты', 'затрат', 'сколько ушло', 'сколько слили'] },
   { key: 'impressions', labels: ['показы', 'impressions', 'imp', 'показов', 'показ'] },
   { key: 'clicks', labels: ['клики', 'clicks', 'кликов', 'клик', 'клика'] },
@@ -123,7 +129,9 @@ function tokenHit(nq, alias) {
 
 function findProject(q, projects) {
   const nq = norm(q);
-  if (/по всем|всех проект|все проект|общий спенд|всего потрат|по кажд|сводк/.test(nq)) return { all: true };
+  if (/по всем|всех проект|все проект|общий спенд|всего потрат|по кажд|сводк|по проектам|про проектам/.test(nq)) {
+    return { all: true };
+  }
   let best = null, bestScore = 0;
   for (const p of projects || []) {
     let score = 0;
@@ -134,14 +142,26 @@ function findProject(q, projects) {
     if (score > bestScore) { bestScore = score; best = p; }
   }
   if (best) return { project: best };
-  if (/\b(по|у|для|про|на|в)\s+[a-zа-я]{3,}/i.test(nq) || /[a-z]{4,}/i.test(nq)) {
+  // Ignore generic words so «остаток бюджета про проектам» is not «unknown project»
+  const stripped = nq
+    .replace(/\b(остатк\w*|бюджет\w*|спенд|spend|клик\w*|показ\w*|инстал\w*|триал\w*|доход\w*|проект\w*|период\w*|сегодня|вчера|недел\w*|месяц\w*|июл\w*|июн\w*|по|у|для|про|на|в|за|из|от|с|и|или|все|всем|всех)\b/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (stripped.length >= 4 && /[a-zа-я]{4,}/i.test(stripped)) {
     return { unknownMention: true };
   }
   return null;
 }
 
+function isBudgetIntent(q) {
+  const nq = norm(q);
+  return /остатк|осталось бюджета|budget\s*(remainder|left|remaining)|бюджетн\w*\s*остат/.test(nq)
+    || (/бюджет/.test(nq) && /остат|сколько\s+остал|остал/.test(nq));
+}
+
 function findMetric(q) {
   const nq = norm(q);
+  if (isBudgetIntent(nq)) return 'budget';
   if (/\b(cpi|cost\s*per\s*install|cost\s*\/\s*install)\b/.test(nq)
     || /(сколько\s+стоит|цена|стоимость|почем|почём).{0,20}(инстал|установ)/.test(nq)
     || /(инстал|установ).{0,12}(стоит|цена|стоимость)/.test(nq)) {
@@ -161,6 +181,34 @@ function findMetric(q) {
     }
   }
   return best ? best.key : 'spend';
+}
+
+function formatBudgetLine(proj, pack) {
+  const cur = proj.currency || '₽';
+  const budget = computeLiveBudgetRemainder(proj, pack);
+  if (!budget || !Number.isFinite(budget.remainder)) {
+    return `• ${proj.name}: не задан`;
+  }
+  const rem = budget.remainder;
+  if (rem < 0) return `• ${proj.name}: −${fmtMoney(Math.abs(rem), cur)} (перерасход)`;
+  if (rem === 0) return `• ${proj.name}: ${fmtMoney(0, cur)} (закончился)`;
+  return `• ${proj.name}: ${fmtMoney(rem, cur)}`;
+}
+
+function formatBudgetAnswer(projects, state, focus = null) {
+  const list = focus ? [focus] : (projects || []);
+  const lines = [];
+  for (const p of list) {
+    if (String(p.status || 'run').toLowerCase() === 'stop') continue;
+    const pack = state.packs[p.id];
+    if (!pack && !focus) continue;
+    lines.push(formatBudgetLine(p, pack || state.packs[p.id]));
+  }
+  if (!lines.length) return 'Нет проектов с данными по бюджету.';
+  if (focus) {
+    return `остаток бюджета · ${focus.name}\n${lines[0].replace(/^•\s*/, '→ ')}`;
+  }
+  return `остаток бюджета · сейчас\n${lines.join('\n')}`;
 }
 
 /** REG in campaign sheets is often qregs; uploads may omit regs. Prefer the fuller signal. */
@@ -321,6 +369,12 @@ function metricValue(key, proj, rows, pack) {
     const r = pack?.meta?.unit_economics?.roas_d7;
     return r != null ? r + '%' : '—';
   }
+  if (key === 'budget') {
+    const budget = computeLiveBudgetRemainder(proj, pack);
+    if (!budget || !Number.isFinite(budget.remainder)) return 'не задан';
+    if (budget.remainder < 0) return `−${fmtMoney(Math.abs(budget.remainder), cur)} (перерасход)`;
+    return fmtMoney(budget.remainder, cur);
+  }
   return '—';
 }
 
@@ -329,6 +383,7 @@ function metricLabel(key) {
   if (key === 'cpr') return 'cost/reg';
   if (key === 'regs') return 'регистрации';
   if (key === 'qregs') return 'целевые';
+  if (key === 'budget') return 'остаток бюджета';
   return (METRIC_ALIASES.find(m => m.key === key)?.labels[0]) || key;
 }
 
@@ -376,7 +431,7 @@ function emptyHint(proj, pack, source, range, baseRows) {
 export function answerQuestion(q, state) {
   const nq = norm(q);
   if (/помощ|что умеешь|команд|пример|как спрос|\/help/.test(nq)) {
-    return 'Спрашивай своими словами.\n\nМетрики: спенд, клики, показы, инсталлы, CPI/CPC/CPM, доход, ROAS.\nПериоды: сегодня, вчера, за день, 7 дней, июль, 01.07–22.07.\nОтчёты: «отчёт за день планта», «сводка джигл за июль».\n\nПримеры:\n• сколько потратили на планта в июле\n• сколько стоит инстал у джигла\n• отчёт за день планто\n• клики по джиглу android за неделю\n\nКоманды: /report, /digest, /refresh, /help';
+    return 'Спрашивай своими словами.\n\nМетрики: спенд, остаток бюджета, клики, показы, инсталлы, CPI/CPC/CPM, доход, ROAS.\nПериоды: сегодня, вчера, за день, 7 дней, июль, 01.07–22.07.\nОтчёты: «отчёт за день планта», «сводка джигл за июль».\n\nПримеры:\n• остаток бюджета по проектам\n• сколько осталось у планто\n• сколько потратили на планта в июле\n• сколько стоит инстал у джигла\n\nКоманды: /report, /digest, /refresh, /help';
   }
 
   const projects = state.projects || [];
@@ -385,8 +440,14 @@ export function answerQuestion(q, state) {
   const metric = report ? 'spend' : findMetric(q);
   let range = parseRange(q);
 
-  if (target?.unknownMention) {
+  if (target?.unknownMention && metric !== 'budget') {
     return `Не распознал проект.\nДоступны: ${projects.map(p => p.name).join(', ')}`;
+  }
+
+  // Остатки бюджета — без привязки к периоду CSV
+  if (metric === 'budget') {
+    if (target?.project) return formatBudgetAnswer(projects, state, target.project);
+    return formatBudgetAnswer(projects, state, null);
   }
 
   if (target?.all || (!target?.project && /по всем|всех|итого|всего|сводк/.test(nq))) {
@@ -425,7 +486,7 @@ export function answerQuestion(q, state) {
   }
 
   if (!target?.project) {
-    return `Укажи проект: ${projects.map(p => p.name).slice(0, 6).join(', ')}.\nИли: спенд по всем проектам`;
+    return `Укажи проект: ${projects.map(p => p.name).slice(0, 6).join(', ')}.\nИли: спенд по всем проектам / остаток бюджета по проектам`;
   }
 
   const proj = target.project;
@@ -437,7 +498,7 @@ export function answerQuestion(q, state) {
   const { rows: filtered, range: usedRange } = resolveRows(baseRows, range);
   range = usedRange || range;
 
-  if (!filtered.length && metric !== 'revenue') {
+  if (!filtered.length && metric !== 'revenue' && metric !== 'budget') {
     return emptyHint(proj, pack, source, range, baseRows);
   }
 
@@ -471,5 +532,5 @@ export function findProjectByName(name, projects) {
 
 /** Exported for tests */
 export const __test = {
-  norm, findMetric, findProject, parseRange, isReportIntent, installCount, filterRows, resolveRows,
+  norm, findMetric, findProject, parseRange, isReportIntent, isBudgetIntent, installCount, filterRows, resolveRows,
 };

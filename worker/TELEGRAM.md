@@ -48,6 +48,8 @@ curl -X POST "https://elixir-dashboard-proxy.<subdomain>.workers.dev/telegram/se
 
 Доступ: достаточно твоего `user_id` в whitelist — в любой группе, куда тебя пустили, бот ответит. Либо отдельно добавь `chat_id` группы.
 
+Автодайджест и `/digest` → **в личку** (`TELEGRAM_DIGEST_CHAT_IDS` / `DIGEST_CHAT_IDS`), не в группу.
+
 ## Безопасность
 
 - Токен бота **никогда** не коммитить в git.

@@ -5,15 +5,15 @@
 //   JSONBIN_MASTER_KEY, ADMIN_PASSWORD, SESSION_SECRET,
 //   GITHUB_DISPATCH_TOKEN (optional),
 //   TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_CHAT_IDS,
-//   TELEGRAM_WEBHOOK_SECRET (optional),
-//   META_ACCESS_TOKEN (Meta Marketing API long-lived token)
+//   TELEGRAM_WEBHOOK_SECRET (optional)
 //
 // Vars in wrangler.toml:
 //   JSONBIN_BIN_ID, ALLOWED_ORIGIN, GITHUB_REPO, GITHUB_BRANCH, HUPP_FEED_WORKFLOW
 // ═══════════════════════════════════════════════════════════════
 
 import { handleTelegramUpdate, sendDigestToAllowed, setupWebhook, notifyBudgetAlerts } from './telegram/bot.js';
-import { syncMetaBudgetsAndStats } from './meta/sync.js';
+import { getDashboardState } from './telegram/data.js';
+import { inspectDigest } from './telegram/reports.js';
 
 const JSONBIN_API = 'https://api.jsonbin.io/v3';
 const SESSION_TTL_SEC = 60 * 60 * 8;
@@ -120,6 +120,10 @@ export default {
         const setupKey = env.TELEGRAM_SETUP_KEY || env.SESSION_SECRET;
         const provided = req.headers.get('X-Setup-Key') || '';
         if (!setupKey || provided !== setupKey) return json({ ok: false, error: 'unauthorized' }, 401, env);
+        if (url.searchParams.get('preview') === '1') {
+          const state = await getDashboardState(env, { force: true });
+          return json({ ok: true, ...inspectDigest(state) }, 200, env);
+        }
         const result = await sendDigestToAllowed(env);
         return json(result, 200, env);
       }
@@ -193,23 +197,11 @@ export default {
         return json({ ok: false, reason: `GitHub ${resp.status}: ${t.slice(0, 180)}` }, 200, env);
       }
 
-      // ── Meta Ads: budget + stats sync (setup key or admin session) ──
-      if (url.pathname === '/api/meta/sync' && req.method === 'POST') {
-        const setupKey = env.TELEGRAM_SETUP_KEY || env.SESSION_SECRET;
-        const provided = req.headers.get('X-Setup-Key') || '';
-        const authed = (setupKey && provided === setupKey) || (await requireAuth(req, env));
-        if (!authed) return json({ ok: false, error: 'unauthorized' }, 401, env);
-        if (!env.META_ACCESS_TOKEN) return json({ ok: false, error: 'no_meta_token' }, 500, env);
-        const result = await syncMetaBudgetsAndStats(env, { jbGetRaw, jbPutRaw });
-        return json(result, result.ok ? 200 : 500, env);
-      }
-
       if (url.pathname === '/' || url.pathname === '/health') {
         return json({
           ok: true,
           service: 'elixir-dashboard-proxy',
           telegram: !!env.TELEGRAM_BOT_TOKEN,
-          meta: !!env.META_ACCESS_TOKEN,
         }, 200, env);
       }
 
@@ -220,7 +212,7 @@ export default {
   },
 
   async scheduled(event, env, ctx) {
-    // Morning digest → group/DM allowlist (+ budget alerts)
+    // Morning digest 10:00 MSK → admin DM (+ budget alerts after)
     if (event.cron === '0 7 * * *') {
       ctx.waitUntil(
         sendDigestToAllowed(env)
@@ -229,20 +221,11 @@ export default {
       );
       return;
     }
-    // Every 6h: budget exhaustion alerts + optional Meta sync
+    // Every 6h: budget exhaustion alerts only
     ctx.waitUntil(
       notifyBudgetAlerts(env)
         .then(r => console.log('budget alerts', JSON.stringify(r)))
         .catch(e => console.log('budget alerts err', e.message || e))
-    );
-    if (!env.META_ACCESS_TOKEN) {
-      console.log('meta sync skip: no META_ACCESS_TOKEN');
-      return;
-    }
-    ctx.waitUntil(
-      syncMetaBudgetsAndStats(env, { jbGetRaw, jbPutRaw })
-        .then(r => console.log('meta sync', JSON.stringify(r)))
-        .catch(e => console.log('meta sync err', e.message || e))
     );
   },
 };

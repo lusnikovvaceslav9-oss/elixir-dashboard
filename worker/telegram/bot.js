@@ -234,8 +234,18 @@ export async function handleTelegramUpdate(env, update) {
       return { ok: true };
     }
     if (cmd === '/digest') {
-      const digest = buildDigest(await getDashboardState(env));
-      await reply(env, msg, digest, { parse_mode: 'Markdown' });
+      // Всегда в личку админу — в группе только короткий ack, чтобы не засорять чат.
+      const digest = buildDigest(await getDashboardState(env, { force: true }));
+      const dmTargets = adminNotifyChatIds(env);
+      const isPrivate = chatType === 'private';
+      if (isPrivate || !dmTargets.length) {
+        await reply(env, msg, digest, { parse_mode: 'Markdown' });
+      } else {
+        for (const chatId of dmTargets) {
+          await sendMessage(env, chatId, digest, { parse_mode: 'Markdown' });
+        }
+        await reply(env, msg, 'Отправил дайджест в личку.');
+      }
       return { ok: true };
     }
     if (cmd === '/report') {
@@ -382,14 +392,19 @@ export async function sendDigestToAllowed(env) {
   const state = await getDashboardState(env, { force: true });
   const text = buildDigest(state);
 
-  // Explicit digest targets (secret or vars), else full allowlist (groups + DMs).
+  // Digest → личка: DIGEST_CHAT_IDS / TELEGRAM_DIGEST_CHAT_IDS, иначе ADMIN_NOTIFY.
+  // Группы (-100…) больше не используем по умолчанию.
   const digestRaw = String(env.TELEGRAM_DIGEST_CHAT_IDS || env.DIGEST_CHAT_IDS || '').trim();
-  const allow = allowedChatIds(env);
   let targets = [];
   if (digestRaw) {
     targets = digestRaw.split(/[\s,]+/).map(s => s.trim()).filter(Boolean);
-  } else if (allow) {
-    targets = [...allow];
+  } else {
+    targets = adminNotifyChatIds(env);
+  }
+  // На всякий случай отфильтруем супергруппы, если кто-то снова пропишет -100…
+  // (явный TELEGRAM_DIGEST_CHAT_IDS с группой всё ещё можно форсировать через secret).
+  if (!String(env.TELEGRAM_DIGEST_CHAT_IDS || '').trim()) {
+    targets = targets.filter(id => !String(id).startsWith('-100'));
   }
 
   if (!targets.length) {

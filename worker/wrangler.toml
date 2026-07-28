@@ -8,22 +8,15 @@ ALLOWED_ORIGIN = "*"
 GITHUB_REPO = "lusnikovvaceslav9-oss/elixir-dashboard"
 GITHUB_BRANCH = "main"
 HUPP_FEED_WORKFLOW = "hupp-feed.yml"
-# Daily digest → forum group «! Бот»
-DIGEST_CHAT_IDS = "-1003831428588"
-DIGEST_FORUM_TOPICS = "-1003831428588:3286"
-# Budget-exhausted alerts → admin DM
+# Daily digest → admin DM only
+DIGEST_CHAT_IDS = "547303409"
+DIGEST_FORUM_TOPICS = ""
 ADMIN_NOTIFY_CHAT_IDS = "547303409"
 
-# Morning digest 10:00 MSK = 07:00 UTC; Meta sync every 6h (paused if no token)
+# 10:00 MSK digest; every 6h budget alerts
 [triggers]
 crons = ["0 7 * * *", "0 */6 * * *"]
 
-# Secrets via `npx wrangler secret put <NAME>`:
-#   JSONBIN_MASTER_KEY, SESSION_SECRET,
-#   TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_CHAT_IDS,
-#   TELEGRAM_FORUM_TOPICS (optional: "-100…:topicId" so replies stay in «! Бот»),
-#   TELEGRAM_WEBHOOK_SECRET (optional), ADMIN_PASSWORD (optional)
-#   TELEGRAM_SETUP_KEY (optional; falls back to SESSION_SECRET)
-#   META_ACCESS_TOKEN (optional; Meta sync paused)
-#   TELEGRAM_DIGEST_CHAT_IDS (optional: chat ids for digest; default = ALLOWED)
-
+# Secrets: JSONBIN_MASTER_KEY, SESSION_SECRET, TELEGRAM_BOT_TOKEN,
+# TELEGRAM_ALLOWED_CHAT_IDS, TELEGRAM_DIGEST_CHAT_IDS (optional override),
+# GITHUB_DISPATCH_TOKEN, ADMIN_PASSWORD, TELEGRAM_WEBHOOK_SECRET

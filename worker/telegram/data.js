@@ -34,23 +34,34 @@ function extractRemainderFromCsvText(text) {
 
 const JSONBIN_API = 'https://api.jsonbin.io/v3';
 
-async function fetchText(url, timeoutMs = 15000) {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+async function fetchText(url, timeoutMs = 20000) {
   try {
     const res = await fetch(url, {
-      signal: ctrl.signal,
       headers: { 'User-Agent': 'ElixirTelegramBot/1.0' },
       redirect: 'follow',
-      cache: 'no-store',
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const text = await res.text();
     if (text.trim().startsWith('<!')) throw new Error('HTML instead of CSV');
+    if (text.trim().length < 10) throw new Error('Empty response');
     return text;
-  } finally {
-    clearTimeout(t);
+  } catch (e) {
+    throw e;
   }
+}
+
+function repoMirrorUrls(env, path, ref = null) {
+  const repo = env.GITHUB_REPO || 'lusnikovvaceslav9-oss/elixir-dashboard';
+  const branch = env.GITHUB_BRANCH || 'main';
+  const shaOrBranch = ref || branch;
+  const rel = String(path || '').replace(/^\//, '');
+  // Do NOT use GitHub Pages here — Pages deploy lags behind feed commits.
+  return [
+    `https://raw.githubusercontent.com/${repo}/${branch}/${rel}`,
+    `https://cdn.jsdelivr.net/gh/${repo}@${branch}/${rel}`,
+    `https://raw.githubusercontent.com/${repo}/${shaOrBranch}/${rel}`,
+    `https://cdn.jsdelivr.net/gh/${repo}@${shaOrBranch}/${rel}`,
+  ];
 }
 
 function sheetExportUrl(url) {
@@ -62,19 +73,16 @@ function sheetExportUrl(url) {
   return u;
 }
 
-function rawFeed(env, path, ref = null) {
-  const repo = env.GITHUB_REPO || 'lusnikovvaceslav9-oss/elixir-dashboard';
-  const branch = ref || env.GITHUB_BRANCH || 'main';
-  return `https://raw.githubusercontent.com/${repo}/${branch}/${path}?_=${Date.now()}`;
-}
-
 async function resolveGithubPathSha(env, path) {
   const repo = env.GITHUB_REPO || 'lusnikovvaceslav9-oss/elixir-dashboard';
   const branch = env.GITHUB_BRANCH || 'main';
   try {
     const url = `https://api.github.com/repos/${repo}/commits?path=${encodeURIComponent(path)}&sha=${branch}&per_page=1`;
     const res = await fetch(url, {
-      headers: { Accept: 'application/vnd.github+json' },
+      headers: {
+        Accept: 'application/vnd.github+json',
+        'User-Agent': 'ElixirTelegramBot/1.0',
+      },
     });
     if (!res.ok) return branch;
     const commits = await res.json();
@@ -82,6 +90,37 @@ async function resolveGithubPathSha(env, path) {
   } catch {
     return branch;
   }
+}
+
+/** Fetch repo data file with CDN mirrors — raw.githubusercontent often flaky from CF Workers. */
+async function fetchRepoFile(env, path) {
+  // Skip SHA resolve first — saves a subrequest and avoids rate-limit stalls.
+  // Try branch tip mirrors; SHA pin only as last resort.
+  const branch = env.GITHUB_BRANCH || 'main';
+  const urls = repoMirrorUrls(env, path, branch);
+  let last;
+  for (const url of urls) {
+    try {
+      return await fetchText(url);
+    } catch (e) {
+      last = e;
+    }
+  }
+  try {
+    const sha = await resolveGithubPathSha(env, path);
+    if (sha && sha !== branch) {
+      for (const url of repoMirrorUrls(env, path, sha)) {
+        try {
+          return await fetchText(url);
+        } catch (e) {
+          last = e;
+        }
+      }
+    }
+  } catch (e) {
+    last = e;
+  }
+  throw last || new Error(`repo fetch failed: ${path}`);
 }
 
 async function loadProjects(env) {
@@ -134,17 +173,13 @@ function normalizeProj(p) {
 async function loadSourceCsv(url, env) {
   const u = String(url || '');
   if (u.includes('planto-daily') || u === 'data/planto-daily.csv') {
-    const sha = await resolveGithubPathSha(env, 'data/planto-daily.csv');
-    return fetchText(rawFeed(env, 'data/planto-daily.csv', sha));
+    return fetchRepoFile(env, 'data/planto-daily.csv');
   }
   if (u.includes('hupp-daily') || u === 'data/hupp-daily.csv') {
-    const sha = await resolveGithubPathSha(env, 'data/hupp-daily.csv');
-    return fetchText(rawFeed(env, 'data/hupp-daily.csv', sha));
+    return fetchRepoFile(env, 'data/hupp-daily.csv');
   }
   if (u.startsWith('data/')) {
-    const path = u.replace(/^\//, '');
-    const sha = await resolveGithubPathSha(env, path);
-    return fetchText(rawFeed(env, path, sha));
+    return fetchRepoFile(env, u.replace(/^\//, ''));
   }
   if (u.includes('docs.google.com')) {
     const variants = [sheetExportUrl(u), u];
@@ -303,6 +338,34 @@ async function loadProjectPack(proj, env, uploads) {
   const p = normalizeProj(proj);
   const uploadSources = sourcesFromUploads(p, uploads);
 
+  // Planto: dedicated path — always auto feed CSV (+ optional meta). Don't depend on sheetSources/monthly.
+  if (p.id === 'planto' || p.type === 'planto') {
+    const sourceErrors = [];
+    let rows = [];
+    try {
+      const text = await fetchRepoFile(env, 'data/planto-daily.csv');
+      rows = aggregateByDate(parseSheetRows(text));
+      if (!rows.length) sourceErrors.push('planto-daily parsed 0 rows');
+    } catch (e) {
+      sourceErrors.push(`planto-daily: ${e.message || e}`);
+    }
+    let meta = null;
+    try {
+      meta = JSON.parse(await fetchRepoFile(env, 'data/planto-meta.json'));
+    } catch (e) {
+      sourceErrors.push(`planto-meta: ${e.message || e}`);
+    }
+    return {
+      sources: rows.length
+        ? [{ id: 'auto', label: 'Auto feed', url: 'data/planto-daily.csv', rows }]
+        : [],
+      meta,
+      sheetRemainder: null,
+      error: rows.length ? null : (sourceErrors.join('; ') || 'planto empty'),
+      sourceErrors,
+    };
+  }
+
   if (p.id === 'hupp' || p.type === 'hupp') {
     let rows = uploadSources[0]?.rows || [];
     try {
@@ -378,8 +441,7 @@ async function loadProjectPack(proj, env, uploads) {
   let meta = null;
   if (p.id === 'planto' || p.type === 'planto') {
     try {
-      const sha = await resolveGithubPathSha(env, 'data/planto-meta.json');
-      meta = JSON.parse(await fetchText(rawFeed(env, 'data/planto-meta.json', sha)));
+      meta = JSON.parse(await fetchRepoFile(env, 'data/planto-meta.json'));
     } catch { /* optional */ }
   }
 
@@ -407,9 +469,20 @@ export async function getDashboardState(env, { force = false, onlyIds = null } =
     : await loadCsvUploads(env);
 
   const packs = { ...(cache.packs || {}) };
-  const toLoad = want
+  let toLoad = want
     ? projects.filter(p => want.has(p.id) && (force || !packs[p.id]))
     : projects;
+
+  // Digest-critical projects first (Planto Git feed often starved by subrequest limits).
+  const priority = ['planto', 'hupp'];
+  toLoad = [...toLoad].sort((a, b) => {
+    const pa = priority.includes(a.id) ? 0 : 1;
+    const pb = priority.includes(b.id) ? 0 : 1;
+    if (pa !== pb) return pa - pb;
+    if (/jggl/i.test(a.id) || /jggl/i.test(a.name || '')) return -1;
+    if (/jggl/i.test(b.id) || /jggl/i.test(b.name || '')) return 1;
+    return 0;
+  });
 
   // Sequential to stay under Cloudflare subrequest limits
   for (const p of toLoad) {

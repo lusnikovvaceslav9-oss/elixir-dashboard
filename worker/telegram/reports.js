@@ -2,6 +2,9 @@
 
 import { sum, rowIso, projectRows } from './data.js';
 import { findProjectByName } from './qa.js';
+import { computeLiveBudgetRemainder } from './budget.js';
+
+export { computeLiveBudgetRemainder };
 
 const DIGEST_TZ = 'Asia/Bangkok';
 
@@ -95,49 +98,23 @@ function purchaseCount(rows) {
 }
 
 /**
- * Live budget remainder from snapshot:
- * budgetTotal = spentAtInput + remainderEntered → remainderNow = total − currentSpend.
- * Falls back to metaBudget + manual delta when present.
+ * Live budget remainder — see budget.js (re-exported above).
  */
-export function computeLiveBudgetRemainder(proj, pack) {
-  if (!proj) return null;
-  const cur = proj.currency || '₽';
 
-  const mb = proj.metaBudget;
-  if (mb && mb.remainder != null && Number.isFinite(Number(mb.remainder))
-    && mb.cap != null && Number.isFinite(Number(mb.cap)) && Number(mb.cap) > 0) {
-    const delta = Number(proj.manualBudget?.remainderDelta) || 0;
-    return {
-      remainder: Number(mb.remainder) + delta,
-      total: Number(mb.cap) + (Number(proj.manualBudget?.capDelta) || 0),
-      spent: Number(mb.spentInCap) || 0,
-      currency: cur,
-      source: 'meta',
-    };
-  }
-
-  const remEntered = Number(proj.budgetRemainder);
-  if (!Number.isFinite(remEntered)) return null;
-  const spentAt = Number(proj.budgetRemainderSpentAt);
-  const total = Number(proj.budgetTotal);
-  const rows = pack ? projectRows(proj, pack) : [];
-  const spent = sum(rows, 'spend');
-  if (Number.isFinite(total) && Number.isFinite(spentAt) && total > 0) {
-    return { remainder: total - spent, total, spent, currency: cur, source: 'manual' };
-  }
-  return { remainder: remEntered, total: null, spent, currency: cur, source: 'manual_raw' };
+function isRumble(proj) {
+  return /rumble/i.test(proj.id || '') || /rumble/i.test(proj.name || '');
 }
 
 /**
- * Digest project kinds. Quadcode intentionally omitted for now.
- * Returns null → skip project in daily digest.
+ * Digest project kinds. Returns null → skip project in daily digest.
  */
 function digestKind(proj) {
-  if (isQuadcode(proj)) return null;
   if (isJggl(proj)) return 'jggl';
   if (isQlosophy(proj)) return 'qlosophy';
   if (isHupp(proj)) return 'hupp';
   if (isPlanto(proj)) return 'planto';
+  if (isQuadcode(proj)) return 'quadcode';
+  if (isRumble(proj)) return 'rumble';
   return null;
 }
 
@@ -156,7 +133,7 @@ function formatProjectDay(proj, yRows, pack) {
     const installs = installCount(yRows);
     const cpi = installs > 0 ? spend / installs : null;
     line2 = `Spend ${fmtMoney(spend, cur)} · installs ${fmtInt(installs)} · CPI ${cpi != null ? fmtMoney(cpi, cur) : '—'}`;
-  } else if (kind === 'qlosophy') {
+  } else if (kind === 'qlosophy' || kind === 'quadcode') {
     const regs = regCount(yRows);
     const cpr = regs > 0 ? spend / regs : null;
     line2 = `Spend ${fmtMoney(spend, cur)} · REG ${fmtInt(regs)} · CPR ${cpr != null ? fmtMoney(cpr, cur) : '—'}`;
@@ -168,13 +145,8 @@ function formatProjectDay(proj, yRows, pack) {
     const trials = sum(yRows, 'trials') || 0;
     const cpt = trials > 0 ? spend / trials : null;
     line2 = `Spend ${fmtMoney(spend, cur)} · trials ${fmtInt(trials)} · CPT ${cpt != null ? fmtMoney(cpt, cur) : '—'}`;
-    const budget = computeLiveBudgetRemainder(proj, pack);
-    if (budget && Number.isFinite(budget.remainder)) {
-      const rem = budget.remainder;
-      line2 += rem < 0
-        ? ` · остаток −${fmtMoney(Math.abs(rem), cur)} (перерасход)`
-        : ` · остаток ${fmtMoney(rem, cur)}`;
-    }
+  } else if (kind === 'rumble') {
+    line2 = `Spend ${fmtMoney(spend, cur)}`;
   }
 
   return {
@@ -184,6 +156,42 @@ function formatProjectDay(proj, yRows, pack) {
   };
 }
 
+/** Per-project skip reasons for digest debugging / preview. */
+export function inspectDigest(state) {
+  const yesterday = addDaysIso(todayIso(), -1);
+  const items = [];
+  for (const p of state.projects || []) {
+    const status = getStatus(p);
+    const kind = digestKind(p);
+    const pack = state.packs[p.id];
+    const rows = pack ? projectRows(p, pack) : [];
+    const yRows = filterIso(rows, yesterday, yesterday);
+    const spend = sum(yRows, 'spend');
+    let skip = null;
+    if (status === 'stop') skip = 'status=stop';
+    else if (!kind) skip = 'not in digest kinds';
+    else if (!pack) skip = 'no pack';
+    else if (pack.error) skip = `pack error: ${pack.error}`;
+    else if (!(pack.sources || []).length) {
+      const errs = (pack.sourceErrors || []).join('; ');
+      skip = errs ? `empty sources: ${errs}` : 'empty sources (feed fetch failed?)';
+    }
+    else if (!(spend > 0)) skip = `spend=0 for ${yesterday}`;
+    items.push({
+      id: p.id,
+      name: p.name,
+      status,
+      kind,
+      sources: (pack?.sources || []).length,
+      rows: rows.length,
+      yesterdaySpend: spend,
+      included: !skip,
+      skip,
+    });
+  }
+  return { yesterday, items, text: buildDigest(state) };
+}
+
 export function buildDigest(state) {
   const yesterday = addDaysIso(todayIso(), -1);
   const blocks = [];
@@ -191,17 +199,28 @@ export function buildDigest(state) {
   let totalUsd = 0;
 
   for (const p of state.projects || []) {
-    if (getStatus(p) === 'stop') continue;
-    if (!digestKind(p)) continue;
-    const pack = state.packs[p.id];
-    if (!pack) continue;
-    const rows = projectRows(p, pack);
-    const yRows = filterIso(rows, yesterday, yesterday);
-    const block = formatProjectDay(p, yRows, pack);
-    if (!block) continue;
-    blocks.push(block.text);
-    if (block.currency === '$') totalUsd += block.spend;
-    else totalRub += block.spend;
+    try {
+      if (getStatus(p) === 'stop') continue;
+      if (!digestKind(p)) continue;
+      const pack = state.packs[p.id];
+      if (!pack) {
+        console.log('digest skip no pack', p.id);
+        continue;
+      }
+      if (pack.error) console.log('digest pack error', p.id, pack.error);
+      const rows = projectRows(p, pack);
+      const yRows = filterIso(rows, yesterday, yesterday);
+      const block = formatProjectDay(p, yRows, pack);
+      if (!block) {
+        console.log('digest skip zero/empty', p.id, 'rows', rows.length, 'y', yRows.length);
+        continue;
+      }
+      blocks.push(block.text);
+      if (block.currency === '$') totalUsd += block.spend;
+      else totalRub += block.spend;
+    } catch (e) {
+      console.log('digest project fail', p.id, e.message || e);
+    }
   }
 
   const head = `Elixir · вчера · ${formatDayRu(yesterday)}`;
@@ -216,14 +235,12 @@ export function buildDigest(state) {
   return [head, '', ...blocks.flatMap((b, i) => (i ? ['', b] : [b])), '', `Итого: ${totals.join(' + ')}`].join('\n');
 }
 
-/** Projects whose live remainder just hit ≤ 0 and need an admin alert.
- *  Сейчас следим за Planto (ручной снимок бюджета в дашборде). */
+/** Projects whose live remainder just hit ≤ 0 and need an admin alert. */
 export function collectBudgetExhaustedAlerts(state) {
   const alerts = [];
   const clears = [];
   for (const p of state.projects || []) {
     if (getStatus(p) === 'stop') continue;
-    if (!isPlanto(p)) continue;
     const pack = state.packs[p.id];
     if (!pack) continue;
     const budget = computeLiveBudgetRemainder(p, pack);
