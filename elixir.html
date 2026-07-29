@@ -71,6 +71,9 @@ body{
 .btn-refresh.spinning svg{animation:spin 0.9s linear infinite}
 .btn-admin{border:1px solid var(--border-strong);background:var(--surface);color:var(--text)}
 .btn-admin:hover{background:var(--surface-hover)}
+.btn-library{border:1px solid var(--border-strong);background:var(--surface);color:var(--text);flex-shrink:0}
+.btn-library:hover{background:var(--surface-hover)}
+.btn-library.active{background:var(--matter);color:#fff;border-color:var(--matter)}
 .btn-admin.is-admin{background:var(--matter);color:#fff;border-color:var(--matter);box-shadow:0 4px 16px var(--accent-glow)}
 .btn-add-top{border:1px solid var(--border-strong);background:var(--surface);color:var(--text)}
 .btn-add-top:hover{background:var(--matter);border-color:var(--matter);color:#fff}
@@ -132,6 +135,8 @@ body{
   .proj-picker-label{display:none}
   .page-title-wrap,.topbar-divider{display:none}
   .topbar-right .btn-refresh .btn-label{display:none}
+  .btn-library{padding:7px 9px}
+  .btn-library .btn-label{display:none}
   #content{padding:14px 14px 32px;gap:14px}
   .overview-grid{grid-template-columns:1fr}
   .metrics-grid{grid-template-columns:1fr 1fr}
@@ -979,6 +984,9 @@ thead th{color:rgba(0,0,0,0.58)!important;font-weight:700!important}
           </div>
         </div>
       </div>
+      <button type="button" class="btn-icon btn-library" id="btn-library" onclick="switchView('library')" title="Библиотека">
+        <span>📚</span><span class="btn-label">Библиотека</span>
+      </button>
       <div class="topbar-divider"></div>
       <div class="page-title-wrap">
         <h1 class="page-title" id="page-title">Обзор UA</h1>
@@ -7261,6 +7269,8 @@ function renderTopbar() {
   renderProjPickerList();
   const addBtn = document.getElementById('btn-add-proj');
   if (addBtn) addBtn.style.display = isAdmin() ? '' : 'none';
+  const libBtn = document.getElementById('btn-library');
+  if (libBtn) libBtn.classList.toggle('active', view === 'library');
 }
 
 function updateProjPickerTrigger() {
@@ -7309,17 +7319,12 @@ function renderProjPickerList() {
   if (!list) return;
   const q = projPickerFilter.toLowerCase().trim();
   const showOverview = !q || 'все проекты'.includes(q) || 'overview'.includes(q) || 'обзор'.includes(q);
-  const showLibrary = !q || 'библиотека'.includes(q) || 'library'.includes(q);
   const filtered = listProjectsForUi().filter(p => !q || p.name.toLowerCase().includes(q) || p.id.toLowerCase().includes(q));
 
   let html = '';
   if (showOverview) {
     html += `<div class="proj-picker-section">Обзор</div>`;
     html += projPickerItemHtml('overview', '⚡', 'Все проекты', 'overview');
-  }
-  if (showLibrary) {
-    html += `<div class="proj-picker-section">Инструменты</div>`;
-    html += projPickerItemHtml('library', '📚', 'Библиотека', 'library');
   }
   html += `<div class="proj-picker-section">Проекты${filtered.length ? ' · ' + filtered.length : ''}</div>`;
   if (filtered.length) {
