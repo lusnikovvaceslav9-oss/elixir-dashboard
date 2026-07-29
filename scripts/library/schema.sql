@@ -85,6 +85,25 @@ drop trigger if exists set_updated_at on insights;
 create trigger set_updated_at before update on insights
   for each row execute function set_updated_at();
 
+-- Contractors: people/teams agency ad accounts are bought from. Not tied to
+-- a single dashboard project (a supplier can serve several). custom_fields
+-- lets the UI add arbitrary extra key/value pairs beyond the fixed columns.
+create table if not exists contractors (
+  id uuid primary key default gen_random_uuid(),
+  name text,
+  contact text,
+  rate text,
+  payment_requisites text,
+  terms text,
+  status text not null default 'active' check (status in ('active', 'paused', 'inactive')),
+  custom_fields jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+drop trigger if exists set_updated_at on contractors;
+create trigger set_updated_at before update on contractors
+  for each row execute function set_updated_at();
+
 -- RLS stays disabled: these tables are only ever reached through the
 -- Cloudflare Worker's service-role key (worker/library.js), never
 -- directly from the browser. If that changes, enable RLS + policies.

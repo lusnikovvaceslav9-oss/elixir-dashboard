@@ -5,7 +5,7 @@
  * key. The key never leaves the Worker — the browser only ever sees the Worker's own bearer token.
  */
 
-export const LIBRARY_ENTITIES = ['fb_accounts', 'pixels', 'creatives', 'insights'];
+export const LIBRARY_ENTITIES = ['fb_accounts', 'pixels', 'creatives', 'insights', 'contractors'];
 
 export function isLibraryEntity(entity) {
   return LIBRARY_ENTITIES.includes(entity);

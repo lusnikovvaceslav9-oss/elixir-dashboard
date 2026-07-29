@@ -673,6 +673,12 @@ td:first-child{text-align:left;color:#0a0a0a;font-weight:500}
 .library-row-actions button:hover{border-color:rgba(0,0,0,0.3);color:#0a0a0a}
 .library-row-actions button.lib-delete:hover{border-color:rgba(239,68,68,0.4);color:#EF4444}
 .library-empty{padding:40px 20px;text-align:center;color:var(--text-dim);font-size:13px}
+.lib-cf-wrap{display:flex;flex-direction:column;gap:6px}
+.lib-cf-row{display:flex;gap:6px;align-items:center}
+.lib-cf-row input{flex:1;padding:8px 10px;border:1px solid rgba(0,0,0,0.08);border-radius:8px;font-size:12px;font-family:var(--font);background:rgba(0,0,0,0.04);color:#0a0a0a;outline:none}
+.lib-cf-row input:focus{border-color:#0a0a0a;background:rgba(0,0,0,0.07)}
+.lib-cf-remove{flex-shrink:0;width:28px;height:28px;border-radius:6px;border:1px solid rgba(0,0,0,0.08);background:transparent;cursor:pointer;color:rgba(0,0,0,0.4);font-family:var(--font)}
+.lib-cf-remove:hover{border-color:rgba(239,68,68,0.4);color:#EF4444}
 
 /* ── OVERLAY & MODALS ── */
 .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:1000;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
@@ -8636,7 +8642,7 @@ function updateAdminBtn() {
 // ═══════════════════════════════════════════════════════════════
 const LIBRARY_API_BASE = 'https://elixir-ua-bot.lusnikovvaceslav9.workers.dev';
 const LIBRARY_TOKEN_KEY = 'elixir_library_token';
-const LIBRARY_TAB_ORDER = ['fb_accounts', 'pixels', 'creatives', 'insights'];
+const LIBRARY_TAB_ORDER = ['fb_accounts', 'contractors', 'pixels', 'creatives', 'insights'];
 const LIBRARY_FORMAT_LABELS = { image: 'Картинка', video: 'Видео', carousel: 'Карусель', other: 'Другое' };
 
 let libraryCache = { fb_accounts: null, pixels: null, creatives: null, insights: null };
@@ -8673,6 +8679,33 @@ const LIBRARY_ENTITY_META = {
     ],
     statusBuckets: { active: 'run', warming: 'pause', restricted: 'pause', banned: 'stop', other: 'pause' },
     statusLabels: { active: 'Активен', warming: 'Прогрев', restricted: 'Ограничен', banned: 'Забанен', other: 'Другое' },
+  },
+  contractors: {
+    label: 'Контрагенты',
+    icon: '🤝',
+    projectScoped: false,
+    columns: [
+      { key: 'name', label: 'Имя / компания' },
+      { key: 'contact', label: 'Контакты' },
+      { key: 'rate', label: 'Ставка / %' },
+      { key: 'payment_requisites', label: 'Реквизиты' },
+      { key: 'terms', label: 'Условия работы', render: v => v ? `<span class="lib-notes">${escHtml(v.length > 160 ? v.slice(0, 160) + '…' : v)}</span>` : '—' },
+      { key: 'custom_fields', label: 'Доп. поля', render: v => libraryCustomFieldsHtml(v) },
+      { key: 'status', label: 'Статус', render: v => libraryStatusBadge('contractors', v) },
+    ],
+    fields: [
+      { key: 'name', label: 'Имя / компания', type: 'text', required: true },
+      { key: 'contact', label: 'Контакты (телеграм / телефон / почта)', type: 'text' },
+      { key: 'rate', label: 'Ставка / %', type: 'text', placeholder: 'например: 15% или 3000 ₽/акк' },
+      { key: 'payment_requisites', label: 'Реквизиты для оплаты', type: 'text' },
+      { key: 'terms', label: 'Условия работы', type: 'textarea' },
+      { key: 'status', label: 'Статус', type: 'select', options: [
+        ['active', 'Работаем'], ['paused', 'Пауза'], ['inactive', 'Не работаем'],
+      ] },
+      { key: 'custom_fields', label: 'Дополнительные поля', type: 'custom-fields' },
+    ],
+    statusBuckets: { active: 'run', paused: 'pause', inactive: 'stop' },
+    statusLabels: { active: 'Работаем', paused: 'Пауза', inactive: 'Не работаем' },
   },
   pixels: {
     label: 'Пиксели',
@@ -8844,6 +8877,12 @@ function libraryTagsHtml(tags) {
   return `<span class="library-tags">${tags.map(t => `<span class="library-tag">${escHtml(t)}</span>`).join('')}</span>`;
 }
 
+function libraryCustomFieldsHtml(fields) {
+  const entries = fields && typeof fields === 'object' ? Object.entries(fields) : [];
+  if (!entries.length) return '—';
+  return `<span class="library-tags">${entries.map(([k, v]) => `<span class="library-tag">${escHtml(k)}: ${escHtml(String(v))}</span>`).join('')}</span>`;
+}
+
 function libraryStatusBadge(entity, status) {
   const meta = LIBRARY_ENTITY_META[entity];
   if (!status) return '—';
@@ -8860,9 +8899,10 @@ function libraryAllTags(entity) {
 
 function libraryFilteredRows(entity) {
   const rows = libraryCache[entity] || [];
+  const meta = LIBRARY_ENTITY_META[entity];
   const q = libraryFilterQuery.trim().toLowerCase();
   return rows.filter(r => {
-    if (libraryFilterProject && r.project_id !== libraryFilterProject) return false;
+    if (meta.projectScoped !== false && libraryFilterProject && r.project_id !== libraryFilterProject) return false;
     if (libraryFilterTag && !(r.tags || []).includes(libraryFilterTag)) return false;
     if (q) {
       const hay = Object.values(r)
@@ -8921,17 +8961,18 @@ function libraryTabButtonsHtml() {
 function libraryToolbarHtml() {
   const entity = libraryTab;
   const meta = LIBRARY_ENTITY_META[entity];
-  const projectOptions = projects.map(p =>
+  const showProjectFilter = meta.projectScoped !== false;
+  const projectOptions = showProjectFilter ? projects.map(p =>
     `<option value="${escHtml(p.id)}"${libraryFilterProject === p.id ? ' selected' : ''}>${escHtml(p.icon || '')} ${escHtml(p.name)}</option>`
-  ).join('');
+  ).join('') : '';
   const showTags = entity === 'creatives' || entity === 'insights';
   const tagOptions = showTags
     ? libraryAllTags(entity).map(t => `<option value="${escHtml(t)}"${libraryFilterTag === t ? ' selected' : ''}>${escHtml(t)}</option>`).join('')
     : '';
   return `
-    <select onchange="onLibraryProjectFilter(this.value)">
+    ${showProjectFilter ? `<select onchange="onLibraryProjectFilter(this.value)">
       <option value="">Все проекты</option>${projectOptions}
-    </select>
+    </select>` : ''}
     ${showTags ? `<select onchange="onLibraryTagFilter(this.value)"><option value="">Все теги</option>${tagOptions}</select>` : ''}
     <input type="text" placeholder="Поиск…" value="${escHtml(libraryFilterQuery)}" oninput="onLibrarySearchInput(this.value)">
     <button type="button" class="btn-sm btn-add-proj" onclick="openLibraryItemModal('${entity}')">+ Добавить · ${escHtml(meta.label)}</button>
@@ -9011,7 +9052,28 @@ function libraryFieldInputHtml(field, value) {
   if (field.type === 'number') {
     return `<input type="number" id="${id}" value="${escHtml(v === '' ? '' : String(v))}" placeholder="${escHtml(field.placeholder || '')}">`;
   }
+  if (field.type === 'custom-fields') {
+    const entries = v && typeof v === 'object' ? Object.entries(v) : [];
+    return `<div class="lib-cf-wrap">
+      <div id="${id}-rows">${entries.map(([k, val]) => libraryCustomFieldRowHtml(k, val)).join('')}</div>
+      <button type="button" class="btn-sm" onclick="addLibraryCustomFieldRow('${id}')">+ поле</button>
+    </div>`;
+  }
   return `<input type="text" id="${id}" value="${escHtml(Array.isArray(v) ? v.join(', ') : v)}" placeholder="${escHtml(field.placeholder || '')}">`;
+}
+
+function libraryCustomFieldRowHtml(k, v) {
+  return `<div class="lib-cf-row">
+    <input type="text" class="lib-cf-key" placeholder="Название поля" value="${escHtml(k || '')}">
+    <input type="text" class="lib-cf-value" placeholder="Значение" value="${escHtml(v == null ? '' : String(v))}">
+    <button type="button" class="lib-cf-remove" onclick="this.closest('.lib-cf-row').remove()">✕</button>
+  </div>`;
+}
+
+function addLibraryCustomFieldRow(containerId) {
+  const wrap = document.getElementById(`${containerId}-rows`);
+  if (!wrap) return;
+  wrap.insertAdjacentHTML('beforeend', libraryCustomFieldRowHtml('', ''));
 }
 
 function openLibraryItemModal(entity, id) {
@@ -9039,6 +9101,17 @@ async function submitLibraryItemForm() {
   const errEl = document.getElementById('lib-modal-error');
   const body = {};
   for (const f of meta.fields) {
+    if (f.type === 'custom-fields') {
+      const rows = document.querySelectorAll(`#lib-f-${f.key}-rows .lib-cf-row`);
+      const obj = {};
+      rows.forEach(row => {
+        const k = row.querySelector('.lib-cf-key')?.value.trim();
+        const val = row.querySelector('.lib-cf-value')?.value.trim() || '';
+        if (k) obj[k] = val;
+      });
+      body[f.key] = obj;
+      continue;
+    }
     const el = document.getElementById(`lib-f-${f.key}`);
     let v = el ? el.value : '';
     if (f.key === 'tags') {
