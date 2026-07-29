@@ -120,7 +120,7 @@ python scripts/buyer-feed/__main__.py --work-dir /path/to/package
 
 ### Триггер Metrika при загрузке CSV
 
-В JSONBin (запись `_worker`) добавьте PAT с правом `actions:write` на репозиторий:
+В Supabase (таблица `dashboard_records`, строка `id='_worker'` — см. `scripts/dashboard-db/schema.sql`) добавьте PAT с правом `actions:write` на репозиторий, обновив `data`:
 
 ```json
 { "id": "_worker", "githubDispatchToken": "ghp_..." }

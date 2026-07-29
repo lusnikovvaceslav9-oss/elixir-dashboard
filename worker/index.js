@@ -2,29 +2,34 @@
 // ELIXIR DASHBOARD — auth proxy + Telegram bot (Cloudflare Worker)
 //
 // Secrets (wrangler secret put):
-//   JSONBIN_MASTER_KEY, ADMIN_PASSWORD, SESSION_SECRET,
+//   ADMIN_PASSWORD, SESSION_SECRET,
 //   GITHUB_DISPATCH_TOKEN (optional),
 //   TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_CHAT_IDS,
 //   TELEGRAM_WEBHOOK_SECRET (required — see worker/TELEGRAM.md),
-//   LIBRARY_PASSWORD, LIBRARY_SUPABASE_URL, LIBRARY_SUPABASE_SERVICE_KEY
+//   LIBRARY_PASSWORD, LIBRARY_SUPABASE_URL, LIBRARY_SUPABASE_SERVICE_KEY,
+//   DASHBOARD_WRITE_KEY (gates PUT /api/projects/raw and POST /api/csv-uploads)
 //
 // Vars in wrangler.toml:
-//   JSONBIN_BIN_ID, ALLOWED_ORIGIN, GITHUB_REPO, GITHUB_BRANCH, HUPP_FEED_WORKFLOW
+//   ALLOWED_ORIGIN, GITHUB_REPO, GITHUB_BRANCH, HUPP_FEED_WORKFLOW
+//
+// projects[] / _csv_uploads / _worker live in Supabase (worker/dashboard.js) —
+// JSONBIN_MASTER_KEY / JSONBIN_BIN_ID are no longer read by this file; the old
+// JSONBin bin is left in place untouched as a read-only backup.
 // ═══════════════════════════════════════════════════════════════
 
 import { handleTelegramUpdate, sendDigestToAllowed, setupWebhook, notifyBudgetAlerts } from './telegram/bot.js';
 import { getDashboardState } from './telegram/data.js';
 import { inspectDigest } from './telegram/reports.js';
 import { isLibraryEntity, listLibrary, createLibraryItem, updateLibraryItem, deleteLibraryItem } from './library.js';
+import { listAllRecords, replaceAllRecords } from './dashboard.js';
 
-const JSONBIN_API = 'https://api.jsonbin.io/v3';
 const SESSION_TTL_SEC = 60 * 60 * 8;
 
 function cors(env) {
   return {
     'Access-Control-Allow-Origin': env.ALLOWED_ORIGIN || '*',
-    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Telegram-Bot-Api-Secret-Token',
+    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Telegram-Bot-Api-Secret-Token, X-Dashboard-Key',
   };
 }
 
@@ -66,23 +71,9 @@ async function requireAuth(req, env) {
   return verifyToken(env, bearer(req));
 }
 
-async function jbGetRaw(env) {
-  const res = await fetch(`${JSONBIN_API}/b/${env.JSONBIN_BIN_ID}/latest`, {
-    headers: { 'X-Master-Key': env.JSONBIN_MASTER_KEY },
-  });
-  if (!res.ok) throw new Error(`JSONBin GET ${res.status}`);
-  const data = await res.json();
-  return Array.isArray(data.record) ? data.record : [];
-}
-
-async function jbPutRaw(env, record) {
-  const res = await fetch(`${JSONBIN_API}/b/${env.JSONBIN_BIN_ID}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', 'X-Master-Key': env.JSONBIN_MASTER_KEY },
-    body: JSON.stringify(record),
-  });
-  if (!res.ok) throw new Error(`JSONBin PUT ${res.status}`);
-  return true;
+function requireDashboardWriteKey(req, env) {
+  const key = req.headers.get('X-Dashboard-Key') || '';
+  return !!env.DASHBOARD_WRITE_KEY && key === env.DASHBOARD_WRITE_KEY;
 }
 
 export default {
@@ -138,14 +129,35 @@ export default {
         return json(result, 200, env);
       }
 
+      // ── Dashboard storage: projects[] / _csv_uploads / _worker (Supabase-backed) ──
       if (url.pathname === '/api/projects' && req.method === 'GET') {
-        const raw = await jbGetRaw(env);
+        const raw = await listAllRecords(env);
         const projects = raw.filter(p => p && p.id !== '_worker' && p.id !== '_csv_uploads');
         return json(projects, 200, env);
       }
 
+      // Full raw list incl. _worker/_csv_uploads — mirrors elixir.html's jbLoadRaw().
+      if (url.pathname === '/api/projects/raw' && req.method === 'GET') {
+        const raw = await listAllRecords(env);
+        return json(raw, 200, env);
+      }
+
+      // Whole-array replace — mirrors elixir.html's jbSaveRecord(). Not a real
+      // password: same "key baked into shipped JS" posture the old JSONBin
+      // master key had, not a downgrade or an upgrade.
+      if (url.pathname === '/api/projects/raw' && req.method === 'PUT') {
+        if (!requireDashboardWriteKey(req, env)) return json({ ok: false, error: 'unauthorized' }, 401, env);
+        const records = await req.json().catch(() => null);
+        if (!Array.isArray(records)) return json({ ok: false, error: 'bad_body' }, 400, env);
+        // A legitimate save always carries the _worker/_csv_uploads records through —
+        // an empty array can only mean a bug upstream, never real intent to wipe everything.
+        if (!records.length) return json({ ok: false, error: 'refusing_empty_replace' }, 400, env);
+        await replaceAllRecords(env, records);
+        return json({ ok: true }, 200, env);
+      }
+
       if (url.pathname === '/api/csv-uploads' && req.method === 'GET') {
-        const raw = await jbGetRaw(env);
+        const raw = await listAllRecords(env);
         const rec = raw.find(p => p?.id === '_csv_uploads') || {};
         return json(rec, 200, env);
       }
@@ -160,23 +172,13 @@ export default {
         return json({ ok: true, token, expiresAt: exp * 1000 }, 200, env);
       }
 
-      if (url.pathname === '/api/projects' && req.method === 'POST') {
-        if (!(await requireAuth(req, env))) return json({ ok: false, error: 'unauthorized' }, 401, env);
-        const projects = await req.json().catch(() => null);
-        if (!Array.isArray(projects)) return json({ ok: false, error: 'bad_body' }, 400, env);
-        const raw = await jbGetRaw(env);
-        const special = raw.filter(p => p && (p.id === '_worker' || p.id === '_csv_uploads'));
-        await jbPutRaw(env, [...projects, ...special]);
-        return json({ ok: true }, 200, env);
-      }
-
       if (url.pathname === '/api/csv-uploads' && req.method === 'POST') {
-        if (!(await requireAuth(req, env))) return json({ ok: false, error: 'unauthorized' }, 401, env);
+        if (!requireDashboardWriteKey(req, env)) return json({ ok: false, error: 'unauthorized' }, 401, env);
         const payload = await req.json().catch(() => null);
         if (!payload || typeof payload !== 'object') return json({ ok: false, error: 'bad_body' }, 400, env);
-        const raw = await jbGetRaw(env);
+        const raw = await listAllRecords(env);
         const others = raw.filter(p => p && p.id !== '_csv_uploads');
-        await jbPutRaw(env, [...others, { id: '_csv_uploads', ...payload }]);
+        await replaceAllRecords(env, [...others, { id: '_csv_uploads', ...payload }]);
         return json({ ok: true }, 200, env);
       }
 

@@ -1271,19 +1271,18 @@ const CHART_TYPE_OPTIONS = {
 };
 
 // ═══════════════════════════════════════════════════════════════
-// JSONBIN SYNC
+// DASHBOARD STORAGE (Supabase via Cloudflare Worker — see worker/dashboard.js)
 // ═══════════════════════════════════════════════════════════════
-const JB_KEY = '$2a$10$DTMqDZjDfAIYhD74cno3MOxfk.FqSX0r89AzJWgalJtDWxxsxdHWO';
-const JB_BIN = '6a2d1063f5f4af5e29eaccbd';
-const JB_API = 'https://api.jsonbin.io/v3';
+const DASHBOARD_API_BASE = 'https://elixir-ua-bot.lusnikovvaceslav9.workers.dev';
+// Not a real secret — same "baked into shipped JS" posture as the JSONBin
+// master key this replaced. Real access control was never the point here.
+const DASHBOARD_WRITE_KEY = '7a4bca97c10ccb1ffcd04c03b43dc9f3abbc57d7';
 
 async function jbLoad() {
-  const res = await fetch(`${JB_API}/b/${JB_BIN}/latest`, {
-    headers: { 'X-Master-Key': JB_KEY }
-  });
-  if (!res.ok) throw new Error(`JSONBin ${res.status}`);
-  const data = await res.json();
-  return (data.record || []).filter(p => p && p.id !== '_worker' && p.id !== '_csv_uploads').map(p => normalizeProject(p));
+  const res = await fetch(`${DASHBOARD_API_BASE}/api/projects`);
+  if (!res.ok) throw new Error(`Dashboard API ${res.status}`);
+  const list = await res.json();
+  return (Array.isArray(list) ? list : []).map(p => normalizeProject(p));
 }
 
 const PLANTO_DATA_URL = 'data/planto-daily.csv';
@@ -1537,12 +1536,10 @@ function normalizeProject(p) {
 }
 
 async function jbLoadRaw() {
-  const res = await fetch(`${JB_API}/b/${JB_BIN}/latest`, {
-    headers: { 'X-Master-Key': JB_KEY }
-  });
-  if (!res.ok) throw new Error(`JSONBin ${res.status}`);
+  const res = await fetch(`${DASHBOARD_API_BASE}/api/projects/raw`);
+  if (!res.ok) throw new Error(`Dashboard API ${res.status}`);
   const data = await res.json();
-  return data.record || [];
+  return Array.isArray(data) ? data : [];
 }
 
 function sanitizeProjectsForSave(list) {
@@ -1559,12 +1556,12 @@ async function jbSaveRecord(mutator) {
   const raw = await jbLoadRaw();
   const base = Array.isArray(raw) ? raw : [];
   const next = mutator(base);
-  const res = await fetch(`${JB_API}/b/${JB_BIN}`, {
+  const res = await fetch(`${DASHBOARD_API_BASE}/api/projects/raw`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json', 'X-Master-Key': JB_KEY },
+    headers: { 'Content-Type': 'application/json', 'X-Dashboard-Key': DASHBOARD_WRITE_KEY },
     body: JSON.stringify(next),
   });
-  if (!res.ok) throw new Error(`JSONBin ${res.status}`);
+  if (!res.ok) throw new Error(`Dashboard API ${res.status}`);
 }
 
 async function jbLoadCsvUploads() {

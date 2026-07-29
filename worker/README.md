@@ -11,7 +11,6 @@ npx wrangler login
 npx wrangler secret put TELEGRAM_BOT_TOKEN
 npx wrangler secret put TELEGRAM_ALLOWED_CHAT_IDS
 npx wrangler secret put TELEGRAM_DIGEST_CHAT_IDS   # admin user id, e.g. 547303409
-npx wrangler secret put JSONBIN_MASTER_KEY
 npx wrangler secret put SESSION_SECRET
 npx wrangler deploy
 curl -X POST "https://<worker-url>/telegram/setup" -H "X-Setup-Key: <SESSION_SECRET>"
@@ -25,4 +24,8 @@ curl -X POST "https://<worker-url>/telegram/setup" -H "X-Setup-Key: <SESSION_SEC
 
 ## Auth proxy
 
-Секреты: `JSONBIN_MASTER_KEY`, `ADMIN_PASSWORD`, `SESSION_SECRET`, опционально `GITHUB_DISPATCH_TOKEN` (Hupp/Planto feed dispatch).
+Секреты: `ADMIN_PASSWORD`, `SESSION_SECRET`, опционально `GITHUB_DISPATCH_TOKEN` (Hupp/Planto feed dispatch).
+
+## Хранилище (projects[] / CSV-загрузки / Библиотека)
+
+`projects[]`, `_csv_uploads`, `_worker` и раздел «Библиотека» — в Supabase через `worker/dashboard.js`/`worker/library.js` (не в JSONBin, который был раньше). Подробности и секреты — `worker/TELEGRAM.md`.

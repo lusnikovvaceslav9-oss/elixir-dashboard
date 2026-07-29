@@ -3,7 +3,6 @@ main = "index.js"
 compatibility_date = "2024-01-01"
 
 [vars]
-JSONBIN_BIN_ID = "6a2d1063f5f4af5e29eaccbd"
 ALLOWED_ORIGIN = "*"
 GITHUB_REPO = "lusnikovvaceslav9-oss/elixir-dashboard"
 GITHUB_BRANCH = "main"
@@ -17,8 +16,13 @@ ADMIN_NOTIFY_CHAT_IDS = "547303409"
 [triggers]
 crons = ["0 7 * * *", "0 */6 * * *"]
 
-# Secrets: JSONBIN_MASTER_KEY, SESSION_SECRET, TELEGRAM_BOT_TOKEN,
+# Secrets: SESSION_SECRET, TELEGRAM_BOT_TOKEN,
 # TELEGRAM_ALLOWED_CHAT_IDS, TELEGRAM_DIGEST_CHAT_IDS (optional override),
 # GITHUB_DISPATCH_TOKEN, ADMIN_PASSWORD,
 # TELEGRAM_WEBHOOK_SECRET (required — /telegram/webhook rejects all requests without it)
-# LIBRARY_PASSWORD, LIBRARY_SUPABASE_URL, LIBRARY_SUPABASE_SERVICE_KEY (see worker/TELEGRAM.md)
+# LIBRARY_PASSWORD, LIBRARY_SUPABASE_URL, LIBRARY_SUPABASE_SERVICE_KEY,
+# DASHBOARD_WRITE_KEY (all four — see worker/TELEGRAM.md)
+#
+# projects[] / _csv_uploads / _worker / Library now live in Supabase
+# (worker/dashboard.js, worker/library.js) — the old JSONBIN_MASTER_KEY /
+# JSONBIN_BIN_ID secret+var are no longer read by this Worker.

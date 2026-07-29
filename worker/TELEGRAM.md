@@ -9,7 +9,6 @@ cd worker
 npx wrangler login
 npx wrangler secret put TELEGRAM_BOT_TOKEN          # токен от @BotFather
 npx wrangler secret put TELEGRAM_ALLOWED_CHAT_IDS   # например: 123456789
-npx wrangler secret put JSONBIN_MASTER_KEY          # тот же, что для дашборда
 npx wrangler secret put SESSION_SECRET              # openssl rand -hex 32
 npx wrangler secret put TELEGRAM_WEBHOOK_SECRET     # openssl rand -hex 24 — обязателен, иначе /telegram/webhook отклоняет все запросы
 # опционально:
@@ -67,4 +66,12 @@ npx wrangler secret put LIBRARY_SUPABASE_SERVICE_KEY   # service_role key из S
 npx wrangler deploy
 ```
 
-`service_role` key даёт полный доступ в обход RLS — держим его только в секретах воркера, в браузер он никогда не попадает. Таблицы (`fb_accounts`, `pixels`, `creatives`, `insights`) сознательно не хранят логины/пароли/токены доступа к рекламным кабинетам — только ID/статус/лимиты/заметки.
+`service_role` key даёт полный доступ в обход RLS — держим его только в секретах воркера, в браузер он никогда не попадает. Таблицы (`fb_accounts`, `pixels`, `creatives`, `insights`, `contractors`) сознательно не хранят логины/пароли/токены доступа к рекламным кабинетам — только ID/статус/лимиты/заметки.
+
+## Основное хранилище (projects[] / _csv_uploads / _worker)
+
+Список проектов и загруженные CSV раньше жили в JSONBin, куда `elixir.html` ходил напрямую своим мастер-ключом из браузера. Теперь это `worker/dashboard.js` поверх той же Supabase-базы, что и Библиотека (`LIBRARY_SUPABASE_URL`/`LIBRARY_SUPABASE_SERVICE_KEY` — второй проект не нужен), схема — `scripts/dashboard-db/schema.sql`.
+
+`DASHBOARD_WRITE_KEY` — служебный ключ, гейтит `PUT /api/projects/raw` и `POST /api/csv-uploads`. Уже сгенерирован и задан секретом, отдельно настраивать не нужно; тот же уровень защиты, что раньше был у JSONBin-ключа (зашит в отдаваемый браузеру JS, не полноценный контроль доступа).
+
+Старый JSONBin-бин **не удалён** — код его больше не читает, но он остаётся read-only бэкапом на случай отката.

@@ -4,6 +4,7 @@ import {
   parseSheetRows, aggregateByDate, dedupeSources, sourceUrlKey, sum, rowIso,
   mergeUploadEntries, hydrateStoredRow,
 } from './csv.js';
+import { listAllRecords } from '../dashboard.js';
 
 function parseMoneyLoose(raw) {
   let s = String(raw || '').replace(/[^\d,.\-]/g, '');
@@ -31,8 +32,6 @@ function extractRemainderFromCsvText(text) {
   }
   return null;
 }
-
-const JSONBIN_API = 'https://api.jsonbin.io/v3';
 
 async function fetchText(url, timeoutMs = 20000) {
   try {
@@ -124,23 +123,13 @@ async function fetchRepoFile(env, path) {
 }
 
 async function loadProjects(env) {
-  const res = await fetch(`${JSONBIN_API}/b/${env.JSONBIN_BIN_ID}/latest`, {
-    headers: { 'X-Master-Key': env.JSONBIN_MASTER_KEY },
-  });
-  if (!res.ok) throw new Error(`JSONBin ${res.status}`);
-  const data = await res.json();
-  const raw = Array.isArray(data.record) ? data.record : [];
+  const raw = await listAllRecords(env);
   return raw.filter(p => p && p.id && p.id !== '_worker' && p.id !== '_csv_uploads');
 }
 
 async function loadCsvUploads(env) {
   try {
-    const res = await fetch(`${JSONBIN_API}/b/${env.JSONBIN_BIN_ID}/latest`, {
-      headers: { 'X-Master-Key': env.JSONBIN_MASTER_KEY },
-    });
-    if (!res.ok) return {};
-    const data = await res.json();
-    const raw = Array.isArray(data.record) ? data.record : [];
+    const raw = await listAllRecords(env);
     const rec = raw.find(p => p?.id === '_csv_uploads');
     return rec?.uploads || {};
   } catch {

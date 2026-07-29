@@ -8,10 +8,10 @@ import {
   collectBudgetExhaustedAlerts,
   formatBudgetExhaustedMessage,
 } from './reports.js';
+import { listAllRecords, replaceAllRecords } from '../dashboard.js';
 
 const TG = 'https://api.telegram.org';
 const BOT_USERNAME = 'elexir_dashbot';
-const JSONBIN_API = 'https://api.jsonbin.io/v3';
 
 /** Last non-General forum topic per chat (so answers stay in «! Бот», not General). */
 const topicByChat = new Map();
@@ -290,29 +290,10 @@ function adminNotifyChatIds(env) {
   return [...allow].filter(id => !String(id).startsWith('-'));
 }
 
-async function jbGetRaw(env) {
-  const res = await fetch(`${JSONBIN_API}/b/${env.JSONBIN_BIN_ID}/latest`, {
-    headers: { 'X-Master-Key': env.JSONBIN_MASTER_KEY },
-  });
-  if (!res.ok) throw new Error(`JSONBin GET ${res.status}`);
-  const data = await res.json();
-  return Array.isArray(data.record) ? data.record : [];
-}
-
-async function jbPutRaw(env, record) {
-  const res = await fetch(`${JSONBIN_API}/b/${env.JSONBIN_BIN_ID}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', 'X-Master-Key': env.JSONBIN_MASTER_KEY },
-    body: JSON.stringify(record),
-  });
-  if (!res.ok) throw new Error(`JSONBin PUT ${res.status}`);
-  return true;
-}
-
 /** Persist budgetAlert flags so we don't spam the same exhaustion. */
 async function persistBudgetAlertFlags(env, { markExhausted = [], clearIds = [] } = {}) {
   if (!markExhausted.length && !clearIds.length) return;
-  const raw = await jbGetRaw(env);
+  const raw = await listAllRecords(env);
   const clearSet = new Set(clearIds);
   const markById = new Map(markExhausted.map(a => [a.projectId, a]));
   const now = new Date().toISOString();
@@ -338,7 +319,7 @@ async function persistBudgetAlertFlags(env, { markExhausted = [], clearIds = [] 
     }
     return p;
   });
-  if (changed) await jbPutRaw(env, next);
+  if (changed) await replaceAllRecords(env, next);
 }
 
 /**
