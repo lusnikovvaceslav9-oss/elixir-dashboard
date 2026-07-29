@@ -92,27 +92,41 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
             im[day] = int(vals.get("impressions") or 0)
         return sp, cl, im
 
-    def _fetch_direct_range(date_since: date, date_until: date, *, chunk_days: int = 10) -> dict[str, dict]:
-        """Direct sometimes returns empty for wide ranges — fetch in chunks."""
+    def _fetch_direct_range(date_since: date, date_until: date, *, chunk_days: int = 10) -> tuple[dict[str, dict], list[str]]:
+        """Direct sometimes returns empty for wide ranges — fetch in chunks.
+
+        A chunk that raises is skipped, not fatal for the whole range — otherwise
+        one transient failure blanks out every previously-fetched chunk too.
+        """
         out: dict[str, dict] = {}
+        chunk_errors: list[str] = []
         d = date_since
         while d <= date_until:
             e = min(d + timedelta(days=chunk_days - 1), date_until)
-            part = fetch_direct_by_day(direct_token, client_login, d, e)
-            out.update(part)
+            try:
+                part = fetch_direct_by_day(direct_token, client_login, d, e)
+                out.update(part)
+            except Exception as exc:
+                chunk_errors.append(f"{d.isoformat()}..{e.isoformat()}: {exc}")
             d = e + timedelta(days=1)
-        return out
+        return out, chunk_errors
 
     direct_token = secrets.get("DIRECT_OAUTH_TOKEN")
     client_login = secrets.get("DIRECT_CLIENT_LOGIN") or cfg.get("direct_client_login") or ""
     if direct_token:
         try:
-            direct_win = _fetch_direct_range(window_start, until)
+            direct_win, chunk_errors = _fetch_direct_range(window_start, until)
             spend, clicks, impressions = _split_direct(direct_win)
-            sources["spend"] = "direct_api"
-            sources["clicks"] = "direct_api"
-            sources["impressions"] = "direct_api"
-            print(f"  Direct: {len(spend)} days (spend+clicks+impressions)")
+            if direct_win:
+                sources["spend"] = "direct_api"
+                sources["clicks"] = "direct_api"
+                sources["impressions"] = "direct_api"
+            if chunk_errors:
+                errors.append(f"direct: {len(chunk_errors)} chunk(s) failed: " + "; ".join(chunk_errors))
+            print(
+                f"  Direct: {len(spend)} days (spend+clicks+impressions)"
+                + (f" · {len(chunk_errors)} chunk(s) failed" if chunk_errors else "")
+            )
         except Exception as exc:
             errors.append(f"direct: {exc}")
             print(f"  Direct failed: {exc}")
@@ -122,6 +136,9 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
     am_token = secrets.get("APPMETRICA_OAUTH_TOKEN")
     app_id = secrets.get("APPMETRICA_APPLICATION_ID") or cfg.get("appmetrica_application_id") or "6305902"
     trials_sb_crosscheck: dict[str, int] = {}
+    # Отдельный флаг успеха запроса — пустой словарь (0 трайлов за окно) не должен
+    # выглядеть как сбой AppMetrica и триггерить fallback на Supabase.
+    trials_am_fetch_ok = False
     if am_token:
         try:
             inst_win, _ = fetch_window(am_token, str(app_id), anchor, until, refresh_days, lag)
@@ -132,11 +149,11 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
                 trials_am = fetch_event_by_day(
                     am_token, str(app_id), "trial_started", anchor, until
                 )
-                if trials_am:
-                    trials = trials_am
-                    trials_am_crosscheck = trials_am
-                    sources["trials"] = "appmetrica_trial_started"
-                    sources["trials_am_crosscheck"] = "appmetrica_reporting_events"
+                trials_am_fetch_ok = True
+                trials = trials_am
+                trials_am_crosscheck = trials_am
+                sources["trials"] = "appmetrica_trial_started"
+                sources["trials_am_crosscheck"] = "appmetrica_reporting_events"
             except Exception as exc:
                 errors.append(f"appmetrica_trials: {exc}")
             print(
@@ -155,7 +172,7 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
             # RuStore — сверка и fallback, если AM недоступна.
             trial_starts = fetch_trial_starts(db_url, anchor, until)
             trials_sb_crosscheck = trials_by_day_from_starts(trial_starts)
-            if not trials and trials_sb_crosscheck:
+            if not trials_am_fetch_ok and trials_sb_crosscheck:
                 trials = trials_sb_crosscheck
                 sources["trials"] = "supabase_trial_start"
             print(
@@ -227,16 +244,24 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
 
     if anchor < window_start and direct_token:
         try:
-            direct_full = _fetch_direct_range(anchor, until)
-            full_spend, full_clicks, full_impressions = _split_direct(direct_full)
-            # Window fetch is fresher for recent days.
-            ws = window_start.isoformat()
-            for day_key, value in spend.items():
-                if day_key >= ws:
-                    full_spend[day_key] = value
-                    full_clicks[day_key] = clicks.get(day_key, 0)
-                    full_impressions[day_key] = impressions.get(day_key, 0)
-            print(f"  Direct full range: {len(full_spend)} days")
+            direct_full, chunk_errors = _fetch_direct_range(anchor, until)
+            if direct_full:
+                full_spend, full_clicks, full_impressions = _split_direct(direct_full)
+                # Window fetch is fresher for recent days.
+                ws = window_start.isoformat()
+                for day_key, value in spend.items():
+                    if day_key >= ws:
+                        full_spend[day_key] = value
+                        full_clicks[day_key] = clicks.get(day_key, 0)
+                        full_impressions[day_key] = impressions.get(day_key, 0)
+                print(
+                    f"  Direct full range: {len(full_spend)} days"
+                    + (f" · {len(chunk_errors)} chunk(s) failed" if chunk_errors else "")
+                )
+            else:
+                print("  Direct full range: no data, keeping window-only spend")
+            if chunk_errors:
+                errors.append(f"direct_full: {len(chunk_errors)} chunk(s) failed: " + "; ".join(chunk_errors))
         except Exception as exc:
             errors.append(f"direct_full: {exc}")
             full_spend = spend

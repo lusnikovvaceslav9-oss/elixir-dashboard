@@ -3,6 +3,9 @@
 import { sum, rowIso, allRows, projectRows } from './data.js';
 import { computeLiveBudgetRemainder } from './budget.js';
 
+// Совпадает с DIGEST_TZ в reports.js — «сегодня/вчера» должны согласовываться с /digest.
+const QA_TZ = 'Asia/Bangkok';
+
 const METRIC_ALIASES = [
   { key: 'budget', labels: [
     'остаток бюджета', 'остатки бюджета', 'остатки по бюджету', 'бюджетный остаток',
@@ -91,13 +94,14 @@ function isoLabel(iso) {
 }
 
 function todayParts() {
-  const d = new Date();
-  return {
-    y: d.getFullYear(),
-    m: d.getMonth() + 1,
-    d: d.getDate(),
-    iso: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
-  };
+  const iso = new Intl.DateTimeFormat('en-CA', {
+    timeZone: QA_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+  const [y, m, d] = iso.split('-').map(Number);
+  return { y, m, d, iso };
 }
 
 function addDaysIso(iso, n) {
@@ -434,7 +438,8 @@ export function answerQuestion(q, state) {
     return 'Спрашивай своими словами.\n\nМетрики: спенд, остаток бюджета, клики, показы, инсталлы, CPI/CPC/CPM, доход, ROAS.\nПериоды: сегодня, вчера, за день, 7 дней, июль, 01.07–22.07.\nОтчёты: «отчёт за день планта», «сводка джигл за июль».\n\nПримеры:\n• остаток бюджета по проектам\n• сколько осталось у планто\n• сколько потратили на планта в июле\n• сколько стоит инстал у джигла\n\nКоманды: /report, /digest, /refresh, /help';
   }
 
-  const projects = state.projects || [];
+  // Скрытые от обычных пользователей проекты недоступны и через Q&A — в боте нет отдельной admin-роли.
+  const projects = (state.projects || []).filter(p => !p.hiddenFromUsers);
   const target = findProject(q, projects);
   const report = isReportIntent(q);
   const metric = report ? 'spend' : findMetric(q);

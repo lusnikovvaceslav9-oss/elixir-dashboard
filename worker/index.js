@@ -93,10 +93,10 @@ export default {
       if (url.pathname === '/telegram/webhook' && req.method === 'POST') {
         if (!env.TELEGRAM_BOT_TOKEN) return json({ ok: false, error: 'no_token' }, 500, env);
         const secret = env.TELEGRAM_WEBHOOK_SECRET;
-        if (secret) {
-          const got = req.headers.get('X-Telegram-Bot-Api-Secret-Token') || '';
-          if (got !== secret) return json({ ok: false, error: 'bad_secret' }, 401, env);
-        }
+        // Fail closed: without a configured secret we cannot verify the request actually came from Telegram.
+        if (!secret) return json({ ok: false, error: 'webhook_secret_not_configured' }, 500, env);
+        const got = req.headers.get('X-Telegram-Bot-Api-Secret-Token') || '';
+        if (got !== secret) return json({ ok: false, error: 'bad_secret' }, 401, env);
         const update = await req.json().catch(() => null);
         if (!update) return json({ ok: false }, 400, env);
         // Process in background so Telegram doesn't drop updates on slow data loads

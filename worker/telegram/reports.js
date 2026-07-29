@@ -303,9 +303,11 @@ export function buildReport(state, arg = '') {
   const q = String(arg || '').trim();
   if (!q || /всех|все|all/i.test(q)) return buildDigest(state);
 
-  const proj = findProjectByName(q, state.projects);
+  // Скрытые от обычных пользователей проекты недоступны и через /report.
+  const visibleProjects = (state.projects || []).filter(p => !p.hiddenFromUsers);
+  const proj = findProjectByName(q, visibleProjects);
   if (!proj) {
-    return `Проект не найден: ${q}\nДоступны: ${(state.projects || []).map(p => p.name).join(', ')}`;
+    return `Проект не найден: ${q}\nДоступны: ${visibleProjects.map(p => p.name).join(', ')}`;
   }
   const pack = state.packs[proj.id];
   if (!pack) return `Нет данных по ${proj.name}`;

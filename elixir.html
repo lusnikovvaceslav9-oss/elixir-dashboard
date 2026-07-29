@@ -3412,6 +3412,25 @@ async function loadProjects() {
 
 async function saveProjects() {
   projects = applyProjectDefaults(projects);
+  // budgetAlert выставляет/снимает крон воркера параллельно с админ-сейвом.
+  // Перед записью подтягиваем свежую копию и берём budgetAlert оттуда — иначе
+  // сейв с давно открытой страницы затирает флаг, который крон уже поменял.
+  // Явный delete budgetAlert (сброс при обновлении остатка) всё равно уважается.
+  try {
+    const fresh = await jbLoad();
+    if (fresh && fresh.length) {
+      const freshById = new Map(fresh.map(p => [p.id, p]));
+      projects = projects.map(p => {
+        const f = freshById.get(p.id);
+        if (!f) return p;
+        if ('budgetAlert' in p) return { ...p, budgetAlert: f.budgetAlert };
+        const { budgetAlert, ...rest } = p;
+        return rest;
+      });
+    }
+  } catch (e) {
+    console.warn('Pre-save refresh failed, saving local snapshot:', e.message || e);
+  }
   localStorage.setItem(PROJ_KEY, JSON.stringify(projects));
   await jbSave(projects);
 }
@@ -4663,7 +4682,7 @@ function renderPlantoCohortSection(monthKey) {
 }
 
 async function loadAll() {
-  projects.forEach(p => { cache[p.id] = 'loading'; });
+  listProjectsForUi().forEach(p => { cache[p.id] = 'loading'; });
   renderTopbar();
   renderContent();
   await Promise.allSettled([
@@ -4691,7 +4710,7 @@ async function loadAll() {
       unit_economics: plantoMetaCache.unit_economics,
     };
   }
-  await Promise.allSettled(projects.map(async p => {
+  await Promise.allSettled(listProjectsForUi().map(async p => {
     try {
       cache[p.id] = await Promise.race([
         fetchProject(p),
@@ -7201,7 +7220,7 @@ function updateProjPickerTrigger() {
   } else {
     const p = projects.find(x => x.id === view);
     if (p) {
-      el.innerHTML = `<span class="proj-picker-icon">${p.icon}</span><span>${escHtml(p.name)}</span> ${renderStatusBadge(p)}`;
+      el.innerHTML = `<span class="proj-picker-icon">${escHtml(p.icon)}</span><span>${escHtml(p.name)}</span> ${renderStatusBadge(p)}`;
       if (pageTitle) pageTitle.innerHTML = `${escHtml(p.name)} <span class="page-status">${renderStatusBadge(p)}</span>`;
     }
   }
@@ -7663,7 +7682,7 @@ function roasActualCardHtml(proj, r) {
   const horizon = r.predict_horizon_days;
   return `<div class="roas-card roas-actual">
     <div class="roas-card-head">
-      <span class="roas-card-name"><span class="tile-icon-wrap">${proj.icon}</span>${escHtml(proj.name)}</span>
+      <span class="roas-card-name"><span class="tile-icon-wrap">${escHtml(proj.icon)}</span>${escHtml(proj.name)}</span>
       ${roasConfBadge(r.confidence, false)}
     </div>
     <div class="roas-card-body">
@@ -7687,7 +7706,7 @@ function roasProxyCardHtml(proj, r) {
   const predStr = r.predicted_roas == null ? 'нет данных о расходе' : fmtRoasPct(r.predicted_roas);
   return `<div class="roas-card roas-proxy">
     <div class="roas-card-head">
-      <span class="roas-card-name"><span class="tile-icon-wrap">${proj.icon}</span>${escHtml(proj.name)}</span>
+      <span class="roas-card-name"><span class="tile-icon-wrap">${escHtml(proj.icon)}</span>${escHtml(proj.name)}</span>
       ${roasConfBadge(r.confidence, true)}
     </div>
     <div class="roas-card-body">
@@ -7753,7 +7772,7 @@ function renderOverview() {
         <div class="tile-drag-hint">⋮⋮</div>
         <div class="tile-body">
           <div class="tile-header">
-            <div class="tile-name"><span class="tile-icon-wrap">${p.icon}</span>${p.name}</div>
+            <div class="tile-name"><span class="tile-icon-wrap">${escHtml(p.icon)}</span>${escHtml(p.name)}</div>
             <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
               ${hiddenBadge}
               ${statusCtrl}
@@ -7771,7 +7790,7 @@ function renderOverview() {
         <div class="tile-drag-hint">⋮⋮</div>
         <div class="tile-body">
           <div class="tile-header">
-            <div class="tile-name"><span class="tile-icon-wrap">${p.icon}</span>${p.name}</div>
+            <div class="tile-name"><span class="tile-icon-wrap">${escHtml(p.icon)}</span>${escHtml(p.name)}</div>
             <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
               ${hiddenBadge}
               ${statusCtrl}
@@ -7801,7 +7820,7 @@ function renderOverview() {
       <div class="tile-drag-hint">⋮⋮</div>
       <div class="tile-body">
         <div class="tile-header">
-          <div class="tile-name"><span class="tile-icon-wrap">${p.icon}</span>${p.name}${isMulti ? `<span style="font-size:10px;color:var(--text-dim);margin-left:6px">${pack.sources.length} листа</span>` : ''}</div>
+          <div class="tile-name"><span class="tile-icon-wrap">${escHtml(p.icon)}</span>${escHtml(p.name)}${isMulti ? `<span style="font-size:10px;color:var(--text-dim);margin-left:6px">${pack.sources.length} листа</span>` : ''}</div>
           <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
             ${hiddenBadge}
             ${statusCtrl}
@@ -8360,7 +8379,7 @@ function renderAdminPanel(proj) {
     const srcs = proj.sheetSources?.length ? proj.sheetSources : getProjectSheetSources(proj);
     links = `<div class="admin-links">${srcs.map((s, i) => `
       <a class="admin-link" href="${s.url}" target="_blank" rel="noopener">
-        <div class="admin-link-left"><span>${proj.icon}</span><span>${proj.name} — ${escHtml(s.label)}</span></div>
+        <div class="admin-link-left"><span>${escHtml(proj.icon)}</span><span>${escHtml(proj.name)} — ${escHtml(s.label)}</span></div>
         <span class="admin-link-ext">↗ Google Sheets</span>
       </a>`).join('')}
     </div>
@@ -8376,7 +8395,7 @@ function renderAdminPanel(proj) {
       const srcs = p.sheetSources?.length ? p.sheetSources : getProjectSheetSources(p);
       return srcs.map(s => `
         <a class="admin-link" href="${s.url}" target="_blank" rel="noopener">
-          <div class="admin-link-left"><span>${p.icon}</span><span>${p.name} — ${escHtml(s.label)}</span></div>
+          <div class="admin-link-left"><span>${escHtml(p.icon)}</span><span>${escHtml(p.name)} — ${escHtml(s.label)}</span></div>
           <span class="admin-link-ext">↗ Google Sheets</span>
         </a>`);
     }).join('')}
@@ -8451,7 +8470,7 @@ function restoreViewState() {
   // Не затираем уже восстановленный view, если кандидат внезапно invalid.
   if (next !== 'overview' || candidate === 'overview' || !fromHash && !saved?.view && !fromSession) {
     view = next;
-  } else if (!projects.some(p => p.id === view)) {
+  } else if (getValidViewId(view) !== view) {
     view = 'overview';
   }
   if (view !== 'overview' && saved?.view === view) {
@@ -8518,6 +8537,10 @@ async function doLogin() {
       closeAllModals();
       renderTopbar();
       renderContent();
+      // Проекты, скрытые от обычных юзеров, не грузились до логина — подтянуть для админа.
+      if (projects.some(p => !(p.id in cache))) {
+        try { await loadAll(); } catch (e) { console.warn('Admin reload failed:', e.message || e); }
+      }
     } else {
       document.getElementById('login-error').style.display = 'block';
     }
@@ -9390,7 +9413,7 @@ function chatFindProject(q) {
   }
   let best = null;
   let bestScore = 0;
-  for (const p of projects || []) {
+  for (const p of listProjectsForUi()) {
     const aliases = chatProjectAliases(p);
     let score = 0;
     for (const a of aliases) {
@@ -9413,7 +9436,7 @@ function chatFindProject(q) {
 
   // текущий открытый проект — только если имя явно не пытались назвать
   if (view && view !== 'overview') {
-    const cur = (projects || []).find(p => p.id === view);
+    const cur = listProjectsForUi().find(p => p.id === view);
     if (cur) return { project: cur, inferred: true };
   }
   return null;
@@ -9559,7 +9582,7 @@ function answerChatQuestion(q) {
   const range = chatParseRange(q);
 
   if (target?.unknownMention) {
-    const names = (projects || []).map(p => p.name).slice(0, 8).join(', ');
+    const names = listProjectsForUi().map(p => p.name).slice(0, 8).join(', ');
     return `Не распознал проект в запросе.\nДоступны: ${names || '—'}.\nМожно склонять: «планта», «хаппа», «джиглу».`;
   }
 
@@ -9567,7 +9590,7 @@ function answerChatQuestion(q) {
   if (target?.all || (!target?.project && /по всем|всех|итого|всего|сводк/.test(nq))) {
     const lines = [];
     let totalRub = 0, totalUsd = 0;
-    for (const p of projects || []) {
+    for (const p of listProjectsForUi()) {
       const data = cache[p.id];
       if (!data || data === 'loading') continue;
       const pack = normalizeCacheData(data);
@@ -9597,7 +9620,7 @@ function answerChatQuestion(q) {
   }
 
   if (!target?.project) {
-    const names = (projects || []).map(p => p.name).slice(0, 6).join(', ');
+    const names = listProjectsForUi().map(p => p.name).slice(0, 6).join(', ');
     return `Не понял проект. Укажи имя — например: ${names || 'Planto, Hupp'}.\nИли спроси: **спенд по всем проектам**`;
   }
 

@@ -11,8 +11,8 @@ npx wrangler secret put TELEGRAM_BOT_TOKEN          # токен от @BotFather
 npx wrangler secret put TELEGRAM_ALLOWED_CHAT_IDS   # например: 123456789
 npx wrangler secret put JSONBIN_MASTER_KEY          # тот же, что для дашборда
 npx wrangler secret put SESSION_SECRET              # openssl rand -hex 32
+npx wrangler secret put TELEGRAM_WEBHOOK_SECRET     # openssl rand -hex 24 — обязателен, иначе /telegram/webhook отклоняет все запросы
 # опционально:
-# npx wrangler secret put TELEGRAM_WEBHOOK_SECRET
 # npx wrangler secret put ADMIN_PASSWORD
 ```
 
@@ -23,7 +23,7 @@ cd worker
 npx wrangler deploy
 ```
 
-После деплоя зарегистрируй webhook (подставь URL воркера и SESSION_SECRET):
+После деплоя зарегистрируй webhook (подставь URL воркера и SESSION_SECRET). Убедись, что `TELEGRAM_WEBHOOK_SECRET` уже задан секретом до этого шага — `/telegram/setup` подхватит его и пропишет в Telegram, а `/telegram/webhook` без него отклоняет все входящие апдейты:
 
 ```bash
 curl -X POST "https://elixir-dashboard-proxy.<subdomain>.workers.dev/telegram/setup" \
