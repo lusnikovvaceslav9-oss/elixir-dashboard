@@ -22,10 +22,13 @@ create table if not exists fb_accounts (
   project_id text,
   fb_account_id text,
   name text,
+  bm_id text,
+  profile_number text,
   status text not null default 'active' check (status in ('active', 'banned', 'restricted', 'warming', 'other')),
   spend_limit numeric,
   owner text,
   notes text,
+  sort_order integer,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -42,6 +45,7 @@ create table if not exists pixels (
   domain text,
   status text not null default 'active' check (status in ('active', 'issue', 'unverified', 'other')),
   notes text,
+  sort_order integer,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -60,6 +64,7 @@ create table if not exists creatives (
   status text not null default 'testing' check (status in ('live', 'stopped', 'testing', 'archived')),
   tags text[] not null default '{}',
   notes text,
+  sort_order integer,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -76,6 +81,7 @@ create table if not exists insights (
   body text,
   tags text[] not null default '{}',
   author text,
+  sort_order integer,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -93,10 +99,12 @@ create table if not exists contractors (
   name text,
   contact text,
   rate text,
+  ad_network text,
   payment_requisites text,
   terms text,
   status text not null default 'active' check (status in ('active', 'paused', 'inactive')),
   custom_fields jsonb not null default '{}'::jsonb,
+  sort_order integer,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

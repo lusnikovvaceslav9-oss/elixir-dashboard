@@ -661,13 +661,20 @@ td:first-child{text-align:left;color:#0a0a0a;font-weight:500}
 .library-toolbar input[type="text"],.library-toolbar select{padding:8px 12px;border:1px solid rgba(0,0,0,0.1);border-radius:8px;font-size:12px;font-family:var(--font);background:#fff;color:#0a0a0a;outline:none}
 .library-toolbar input[type="text"]{flex:1;min-width:160px}
 .library-toolbar .btn-add-proj{margin-left:auto;border-radius:8px}
-.library-table td,.library-table th{text-align:left;white-space:normal}
+.library-table td,.library-table th{text-align:left;white-space:normal;vertical-align:top}
 .library-table td:first-child{white-space:nowrap}
-.library-table .lib-notes{color:rgba(0,0,0,0.45);font-size:12px;max-width:320px}
+.library-table .lib-notes{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;color:rgba(0,0,0,0.65);font-size:12px;line-height:1.45;max-width:280px}
 .library-table .lib-link{color:var(--accent);text-decoration:none;font-size:12px;word-break:break-all}
 .library-table .lib-link:hover{text-decoration:underline}
-.library-tags{display:flex;gap:4px;flex-wrap:wrap}
-.library-tag{font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;background:rgba(0,0,0,0.05);color:rgba(0,0,0,0.5);white-space:nowrap}
+.library-tags{display:flex;gap:4px;flex-wrap:wrap;max-width:220px;max-height:46px;overflow:hidden}
+.library-tag{font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;background:rgba(0,0,0,0.07);color:rgba(0,0,0,0.65);white-space:nowrap}
+.library-drag-handle{cursor:grab;color:rgba(0,0,0,0.3);font-size:13px;padding:0 4px;user-select:none}
+.library-drag-handle:hover{color:rgba(0,0,0,0.6)}
+.library-table td.lib-drag-cell{width:20px;padding-right:0}
+.library-table tbody tr.lib-row-dragging{opacity:0.4}
+.library-table tbody tr.lib-row-dragover{box-shadow:inset 0 2px 0 var(--matter)}
+.library-table td.lib-actions-cell{position:sticky;right:0;background:#fff;white-space:nowrap}
+.library-table tbody tr:hover td.lib-actions-cell{background:#f7f5f2}
 .library-row-actions{display:flex;gap:6px;justify-content:flex-end}
 .library-row-actions button{padding:4px 9px;border-radius:6px;font-size:11px;border:1px solid rgba(0,0,0,0.08);background:transparent;cursor:pointer;color:rgba(0,0,0,0.5);font-family:var(--font)}
 .library-row-actions button:hover{border-color:rgba(0,0,0,0.3);color:#0a0a0a}
@@ -8658,6 +8665,8 @@ const LIBRARY_ENTITY_META = {
       { key: 'project_id', label: 'Проект', render: v => libraryProjectLabel(v) },
       { key: 'fb_account_id', label: 'ID кабинета' },
       { key: 'name', label: 'Название' },
+      { key: 'profile_number', label: '№ профиля' },
+      { key: 'bm_id', label: 'ID BM' },
       { key: 'status', label: 'Статус', render: v => libraryStatusBadge('fb_accounts', v) },
       { key: 'spend_limit', label: 'Лимит', render: v => v != null && v !== '' ? fmtInt(v) : '—' },
       { key: 'owner', label: 'Владелец' },
@@ -8665,8 +8674,10 @@ const LIBRARY_ENTITY_META = {
     ],
     fields: [
       { key: 'project_id', label: 'Проект', type: 'project-select', required: true },
-      { key: 'fb_account_id', label: 'ID кабинета', type: 'text', required: true, placeholder: 'act_1234567890' },
-      { key: 'name', label: 'Название', type: 'text' },
+      { key: 'fb_account_id', label: 'ID кабинета (ID acts)', type: 'text', required: true, placeholder: 'act_1234567890' },
+      { key: 'name', label: 'Название / имя профиля', type: 'text' },
+      { key: 'profile_number', label: '№ профиля', type: 'text', placeholder: '№9' },
+      { key: 'bm_id', label: 'ID Business Manager', type: 'text' },
       { key: 'status', label: 'Статус', type: 'select', options: [
         ['active', 'Активен'], ['warming', 'Прогрев'], ['restricted', 'Ограничен'], ['banned', 'Забанен'], ['other', 'Другое'],
       ] },
@@ -8683,15 +8694,17 @@ const LIBRARY_ENTITY_META = {
     projectScoped: false,
     columns: [
       { key: 'name', label: 'Имя / компания' },
+      { key: 'ad_network', label: 'Рекламная сеть' },
       { key: 'contact', label: 'Контакты' },
       { key: 'rate', label: 'Ставка / %' },
       { key: 'payment_requisites', label: 'Реквизиты' },
-      { key: 'terms', label: 'Условия работы', render: v => v ? `<span class="lib-notes">${escHtml(v.length > 160 ? v.slice(0, 160) + '…' : v)}</span>` : '—' },
+      { key: 'terms', label: 'Условия работы', render: v => v ? `<span class="lib-notes">${escHtml(v)}</span>` : '—' },
       { key: 'custom_fields', label: 'Доп. поля', render: v => libraryCustomFieldsHtml(v) },
       { key: 'status', label: 'Статус', render: v => libraryStatusBadge('contractors', v) },
     ],
     fields: [
       { key: 'name', label: 'Имя / компания', type: 'text', required: true },
+      { key: 'ad_network', label: 'Рекламная сеть', type: 'text', placeholder: 'Facebook / Google / TikTok…' },
       { key: 'contact', label: 'Контакты (телеграм / телефон / почта)', type: 'text' },
       { key: 'rate', label: 'Ставка / %', type: 'text', placeholder: 'например: 15% или 3000 ₽/акк' },
       { key: 'payment_requisites', label: 'Реквизиты для оплаты', type: 'text' },
@@ -8910,6 +8923,12 @@ function libraryFilteredRows(entity) {
       if (!hay.includes(q)) return false;
     }
     return true;
+  }).sort((a, b) => {
+    const ao = a.sort_order, bo = b.sort_order;
+    if (ao != null && bo != null) return ao - bo;
+    if (ao != null) return -1;
+    if (bo != null) return 1;
+    return String(a.created_at || '').localeCompare(String(b.created_at || ''));
   });
 }
 
@@ -8921,10 +8940,16 @@ function renderLibraryTableRows(entity, rows) {
       const html = col.render ? col.render(raw, row) : escHtml(raw == null || raw === '' ? '—' : String(raw));
       return `<td>${html}</td>`;
     }).join('');
-    return `<tr>${cells}<td class="library-row-actions">
-      <button type="button" onclick="openLibraryItemModal('${entity}','${escHtml(row.id)}')">✏️</button>
-      <button type="button" class="lib-delete" onclick="deleteLibraryItemConfirm('${entity}','${escHtml(row.id)}')">🗑️</button>
-    </td></tr>`;
+    return `<tr draggable="true" data-id="${escHtml(row.id)}"
+      ondragstart="onLibraryRowDragStart(event)" ondragover="onLibraryRowDragOver(event)"
+      ondragleave="onLibraryRowDragLeave(event)" ondrop="onLibraryRowDrop(event)" ondragend="onLibraryRowDragEnd(event)">
+      <td class="lib-drag-cell"><span class="library-drag-handle" title="Перетащить — изменить порядок">⋮⋮</span></td>
+      ${cells}
+      <td class="lib-actions-cell"><div class="library-row-actions">
+        <button type="button" onclick="openLibraryItemModal('${entity}','${escHtml(row.id)}')">✏️</button>
+        <button type="button" class="lib-delete" onclick="deleteLibraryItemConfirm('${entity}','${escHtml(row.id)}')">🗑️</button>
+      </div></td>
+    </tr>`;
   }).join('');
 }
 
@@ -8943,8 +8968,63 @@ function renderLibraryBody() {
   }
   const meta = LIBRARY_ENTITY_META[entity];
   body.innerHTML = `<div class="table-wrap"><table class="library-table"><thead><tr>
-    ${meta.columns.map(c => `<th>${escHtml(c.label)}</th>`).join('')}<th></th>
+    <th></th>${meta.columns.map(c => `<th>${escHtml(c.label)}</th>`).join('')}<th></th>
   </tr></thead><tbody>${renderLibraryTableRows(entity, rows)}</tbody></table></div>`;
+}
+
+let libraryDragId = null;
+
+function onLibraryRowDragStart(e) {
+  libraryDragId = e.currentTarget.dataset.id;
+  e.currentTarget.classList.add('lib-row-dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+function onLibraryRowDragOver(e) {
+  e.preventDefault();
+  e.currentTarget.classList.add('lib-row-dragover');
+}
+
+function onLibraryRowDragLeave(e) {
+  e.currentTarget.classList.remove('lib-row-dragover');
+}
+
+function onLibraryRowDragEnd(e) {
+  e.currentTarget.classList.remove('lib-row-dragging');
+  document.querySelectorAll('.lib-row-dragover').forEach(el => el.classList.remove('lib-row-dragover'));
+}
+
+async function onLibraryRowDrop(e) {
+  e.preventDefault();
+  const targetTr = e.currentTarget;
+  targetTr.classList.remove('lib-row-dragover');
+  const targetId = targetTr.dataset.id;
+  const draggedId = libraryDragId;
+  libraryDragId = null;
+  if (!draggedId || draggedId === targetId) return;
+
+  const entity = libraryTab;
+  const rows = libraryFilteredRows(entity);
+  const fromIdx = rows.findIndex(r => r.id === draggedId);
+  const toIdx = rows.findIndex(r => r.id === targetId);
+  if (fromIdx < 0 || toIdx < 0) return;
+
+  const reordered = [...rows];
+  const [moved] = reordered.splice(fromIdx, 1);
+  reordered.splice(toIdx, 0, moved);
+  reordered.forEach((r, i) => { r.sort_order = i; });
+
+  const orderById = new Map(reordered.map(r => [r.id, r.sort_order]));
+  libraryCache[entity] = (libraryCache[entity] || []).map(r => orderById.has(r.id) ? { ...r, sort_order: orderById.get(r.id) } : r);
+  renderLibraryBody();
+
+  try {
+    await Promise.all(reordered.map(r =>
+      libraryFetch(`/api/library/${entity}/${r.id}`, { method: 'PUT', body: JSON.stringify({ sort_order: r.sort_order }) })
+    ));
+  } catch (err) {
+    console.warn('Library reorder save failed:', err.message || err);
+  }
 }
 
 function libraryTabButtonsHtml() {
@@ -9122,6 +9202,7 @@ async function submitLibraryItemForm() {
     if (f.required && (v == null || (Array.isArray(v) && !v.length) || v === '')) {
       errEl.textContent = `Заполните поле «${f.label}»`;
       errEl.style.display = 'block';
+      errEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       return;
     }
     body[f.key] = v;
@@ -9140,11 +9221,20 @@ async function submitLibraryItemForm() {
     closeAllModals();
     renderLibraryBody();
   } catch (e) {
-    errEl.textContent = 'Не удалось сохранить: ' + (e.message || e);
+    errEl.textContent = 'Не удалось сохранить: ' + libraryFriendlyError(e.message || String(e));
     errEl.style.display = 'block';
+    errEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   } finally {
     if (btn) btn.disabled = false;
   }
+}
+
+/** Library API errors carry a nested Supabase JSON blob — pull out just the human message. */
+function libraryFriendlyError(msg) {
+  const str = String(msg || '');
+  const m = str.match(/"message"\s*:\s*"([^"]+)"/);
+  if (m) return m[1].replace(/\\"/g, '"');
+  return str;
 }
 
 async function deleteLibraryItemConfirm(entity, id) {
