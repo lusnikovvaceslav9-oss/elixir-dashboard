@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-29T10:30:40+00:00",
+  "generated_at": "2026-07-29T12:56:04+00:00",
   "anchor": "2026-06-05",
   "until": "2026-07-29",
   "window_start": "2026-07-20",
@@ -19,17 +19,17 @@
   "errors": [],
   "days": 55,
   "reconcile_diff": {
-    "trials_total_old_csv": 187,
+    "trials_total_old_csv": 188,
     "trials_total_new": 188,
-    "delta": 1
+    "delta": 0
   },
   "unit_economics": {
     "revenue_total": 67932,
-    "spend_total": 220338.43,
-    "active_users": 11709,
+    "spend_total": 220910.13,
+    "active_users": 11734,
     "active_payers": 34,
     "plus_active_users": 103,
-    "trial_cancellations": 18,
+    "trial_cancellations": 19,
     "trial_cancellations_by_day": {
       "2026-07-23": 3,
       "2026-07-24": 1,
@@ -37,10 +37,10 @@
       "2026-07-26": 1,
       "2026-07-27": 4,
       "2026-07-28": 5,
-      "2026-07-29": 2
+      "2026-07-29": 3
     },
     "renewals": 19,
-    "arpu": 5.8,
+    "arpu": 5.79,
     "arppu": 1998.0,
     "ltv": 3114.53,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
@@ -61,12 +61,12 @@
     "garden_activation_pct": 29.58,
     "garden_avg_plants": 1.78,
     "garden_depth_icp_pct": null,
-    "paywall_cta_pct": 37.13,
-    "care_engagement_pct": 3.83,
+    "paywall_cta_pct": 37.12,
+    "care_engagement_pct": 3.82,
     "feature_activation": {
-      "scan_pct": 31.86,
+      "scan_pct": 31.87,
       "watering_pct": 2.28,
-      "ai_pct": 22.23
+      "ai_pct": 22.27
     },
     "retention": {
       "d1": null,
