@@ -668,7 +668,9 @@ td:first-child{text-align:left;color:#0a0a0a;font-weight:500}
 .library-toolbar .btn-add-proj{margin-left:auto;border-radius:8px}
 .library-table td,.library-table th{text-align:left;white-space:normal;vertical-align:top}
 .library-table td:first-child{white-space:nowrap}
-.library-table .lib-notes{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;color:rgba(0,0,0,0.65);font-size:12px;line-height:1.45;max-width:280px}
+.library-table .lib-notes{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;color:rgba(0,0,0,0.65);font-size:12px;line-height:1.45;max-width:280px;cursor:pointer;white-space:pre-wrap}
+.library-table .lib-notes:hover{color:#0a0a0a}
+.library-table .lib-notes.lib-notes-expanded{display:block;-webkit-line-clamp:unset;overflow:visible;max-width:360px}
 .library-table .lib-link{color:var(--accent);text-decoration:none;font-size:12px;word-break:break-all}
 .library-table .lib-link:hover{text-decoration:underline}
 .library-tags{display:flex;gap:4px;flex-wrap:wrap;max-width:220px;max-height:46px;overflow:hidden}
@@ -8675,7 +8677,7 @@ const LIBRARY_ENTITY_META = {
       { key: 'status', label: 'Статус', render: v => libraryStatusBadge('fb_accounts', v) },
       { key: 'spend_limit', label: 'Лимит', render: v => v != null && v !== '' ? fmtInt(v) : '—' },
       { key: 'owner', label: 'Владелец' },
-      { key: 'notes', label: 'Заметки', render: v => v ? `<span class="lib-notes">${escHtml(v)}</span>` : '—' },
+      { key: 'notes', label: 'Заметки', render: v => libraryClampedHtml(v) },
     ],
     fields: [
       { key: 'project_id', label: 'Проект', type: 'project-select', required: true },
@@ -8703,7 +8705,7 @@ const LIBRARY_ENTITY_META = {
       { key: 'contact', label: 'Контакты' },
       { key: 'rate', label: 'Ставка / %' },
       { key: 'payment_requisites', label: 'Реквизиты' },
-      { key: 'terms', label: 'Условия работы', render: v => v ? `<span class="lib-notes">${escHtml(v)}</span>` : '—' },
+      { key: 'terms', label: 'Условия работы', render: v => libraryClampedHtml(v) },
       { key: 'custom_fields', label: 'Доп. поля', render: v => libraryCustomFieldsHtml(v) },
       { key: 'status', label: 'Статус', render: v => libraryStatusBadge('contractors', v) },
     ],
@@ -8731,7 +8733,7 @@ const LIBRARY_ENTITY_META = {
       { key: 'fb_account_id', label: 'Кабинет', render: v => libraryFbAccountLabel(v) },
       { key: 'domain', label: 'Домен' },
       { key: 'status', label: 'Статус', render: v => libraryStatusBadge('pixels', v) },
-      { key: 'notes', label: 'Заметки', render: v => v ? `<span class="lib-notes">${escHtml(v)}</span>` : '—' },
+      { key: 'notes', label: 'Заметки', render: v => libraryClampedHtml(v) },
     ],
     fields: [
       { key: 'project_id', label: 'Проект', type: 'project-select', required: true },
@@ -8779,7 +8781,7 @@ const LIBRARY_ENTITY_META = {
     columns: [
       { key: 'project_id', label: 'Проект', render: v => libraryProjectLabel(v) },
       { key: 'title', label: 'Заголовок' },
-      { key: 'body', label: 'Текст', render: v => v ? `<span class="lib-notes">${escHtml(v.length > 160 ? v.slice(0, 160) + '…' : v)}</span>` : '—' },
+      { key: 'body', label: 'Текст', render: v => libraryClampedHtml(v) },
       { key: 'tags', label: 'Теги', render: v => libraryTagsHtml(v) },
       { key: 'author', label: 'Автор' },
       { key: 'created_at', label: 'Дата', render: v => v ? new Date(v).toLocaleDateString('ru-RU') : '—' },
@@ -8885,6 +8887,11 @@ function libraryFbAccountLabel(id) {
   if (!id) return '—';
   const acc = (libraryCache.fb_accounts || []).find(a => a.id === id);
   return acc ? escHtml(acc.name || acc.fb_account_id || id) : '—';
+}
+
+function libraryClampedHtml(text) {
+  if (!text) return '—';
+  return `<span class="lib-notes" onclick="this.classList.toggle('lib-notes-expanded')" title="Нажмите, чтобы развернуть/свернуть">${escHtml(text)}</span>`;
 }
 
 function libraryTagsHtml(tags) {
