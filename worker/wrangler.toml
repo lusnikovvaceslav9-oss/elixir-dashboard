@@ -21,3 +21,4 @@ crons = ["0 7 * * *", "0 */6 * * *"]
 # TELEGRAM_ALLOWED_CHAT_IDS, TELEGRAM_DIGEST_CHAT_IDS (optional override),
 # GITHUB_DISPATCH_TOKEN, ADMIN_PASSWORD,
 # TELEGRAM_WEBHOOK_SECRET (required — /telegram/webhook rejects all requests without it)
+# LIBRARY_PASSWORD, LIBRARY_SUPABASE_URL, LIBRARY_SUPABASE_SERVICE_KEY (see worker/TELEGRAM.md)

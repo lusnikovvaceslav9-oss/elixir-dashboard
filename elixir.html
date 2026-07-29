@@ -647,6 +647,33 @@ td:first-child{text-align:left;color:#0a0a0a;font-weight:500}
 .tile-hidden-badge{font-size:9px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;padding:3px 7px;border-radius:999px;background:rgba(0,0,0,0.08);color:rgba(0,0,0,0.45);border:1px solid rgba(0,0,0,0.08)}
 .proj-tile.is-hidden-users{opacity:0.72;border-style:dashed}
 
+/* ── LIBRARY ── */
+.library-gate{max-width:360px;margin:64px auto;padding:32px 28px;background:#fff;border:1px solid rgba(0,0,0,0.08);border-radius:16px;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,0.06)}
+.library-gate h3{font-size:16px;font-weight:600;margin-bottom:6px;color:#0a0a0a}
+.library-gate .modal-sub{margin-bottom:18px}
+.library-gate .form-group{text-align:left}
+.library-wrap{padding:20px 24px 40px}
+.library-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.library-tab{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid rgba(0,0,0,0.1);background:transparent;cursor:pointer;color:rgba(0,0,0,0.45);font-family:var(--font);transition:all 0.12s ease}
+.library-tab:hover{border-color:rgba(0,0,0,0.4);color:rgba(0,0,0,0.7)}
+.library-tab.active{background:var(--matter);color:#fff;border-color:var(--matter)}
+.library-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.library-toolbar input[type="text"],.library-toolbar select{padding:8px 12px;border:1px solid rgba(0,0,0,0.1);border-radius:8px;font-size:12px;font-family:var(--font);background:#fff;color:#0a0a0a;outline:none}
+.library-toolbar input[type="text"]{flex:1;min-width:160px}
+.library-toolbar .btn-add-proj{margin-left:auto;border-radius:8px}
+.library-table td,.library-table th{text-align:left;white-space:normal}
+.library-table td:first-child{white-space:nowrap}
+.library-table .lib-notes{color:rgba(0,0,0,0.45);font-size:12px;max-width:320px}
+.library-table .lib-link{color:var(--accent);text-decoration:none;font-size:12px;word-break:break-all}
+.library-table .lib-link:hover{text-decoration:underline}
+.library-tags{display:flex;gap:4px;flex-wrap:wrap}
+.library-tag{font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;background:rgba(0,0,0,0.05);color:rgba(0,0,0,0.5);white-space:nowrap}
+.library-row-actions{display:flex;gap:6px;justify-content:flex-end}
+.library-row-actions button{padding:4px 9px;border-radius:6px;font-size:11px;border:1px solid rgba(0,0,0,0.08);background:transparent;cursor:pointer;color:rgba(0,0,0,0.5);font-family:var(--font)}
+.library-row-actions button:hover{border-color:rgba(0,0,0,0.3);color:#0a0a0a}
+.library-row-actions button.lib-delete:hover{border-color:rgba(239,68,68,0.4);color:#EF4444}
+.library-empty{padding:40px 20px;text-align:center;color:var(--text-dim);font-size:13px}
+
 /* ── OVERLAY & MODALS ── */
 .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:1000;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
 .overlay.show{display:flex}
@@ -656,8 +683,9 @@ td:first-child{text-align:left;color:#0a0a0a;font-weight:500}
 .modal-sub{font-size:13px;color:rgba(0,0,0,0.35);margin-bottom:22px}
 .form-group{margin-bottom:14px}
 .form-group label{display:block;font-size:11px;font-weight:500;color:rgba(0,0,0,0.4);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em}
-.form-group input,.form-group select{width:100%;padding:10px 13px;border:1px solid rgba(0,0,0,0.08);border-radius:8px;font-size:13px;font-family:'Inter',sans-serif;color:#0a0a0a;background:rgba(0,0,0,0.04);transition:all 0.15s ease;outline:none;appearance:none}
-.form-group input:focus,.form-group select:focus{border-color:#0a0a0a;background:rgba(0,0,0,0.07)}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px 13px;border:1px solid rgba(0,0,0,0.08);border-radius:8px;font-size:13px;font-family:'Inter',sans-serif;color:#0a0a0a;background:rgba(0,0,0,0.04);transition:all 0.15s ease;outline:none;appearance:none}
+.form-group textarea{resize:vertical;min-height:64px}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:#0a0a0a;background:rgba(0,0,0,0.07)}
 .form-group select option{background:#ffffff;color:#0a0a0a}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .form-hint{font-size:11px;color:rgba(0,0,0,0.25);margin-top:5px;line-height:1.5}
@@ -835,8 +863,8 @@ body.admin-mode th.th-editable:hover{background:rgba(0,0,0,0.06)}
 .btn-cancel:hover{color:#0a0a0a;border-color:rgba(0,0,0,0.3)}
 .modal{background:#fff;border:1px solid rgba(0,0,0,0.1);box-shadow:0 24px 60px rgba(0,0,0,0.12)}
 .overlay{background:rgba(0,0,0,0.35)}
-.form-group input,.form-group select,.csv-upload-row select,.csv-upload-row input[type="text"],.budget-input-row input{background:#fff;color:#0a0a0a;border-color:rgba(0,0,0,0.14)}
-.form-group input:focus,.form-group select:focus{border-color:#0a0a0a;background:#fff;box-shadow:0 0 0 3px rgba(0,0,0,0.05)}
+.form-group input,.form-group select,.form-group textarea,.csv-upload-row select,.csv-upload-row input[type="text"],.budget-input-row input{background:#fff;color:#0a0a0a;border-color:rgba(0,0,0,0.14)}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:#0a0a0a;background:#fff;box-shadow:0 0 0 3px rgba(0,0,0,0.05)}
 .admin-panel{background:#fff;border:1px solid rgba(0,0,0,0.1)}
 .admin-panel-title{color:#0a0a0a}
 .admin-link{background:#f7f7f7;border-color:rgba(0,0,0,0.08);color:#0a0a0a}
@@ -998,6 +1026,20 @@ thead th{color:rgba(0,0,0,0.58)!important;font-weight:700!important}
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeAllModals()">Отмена</button>
       <button class="btn-primary" onclick="doLogin()">Войти</button>
+    </div>
+  </div>
+</div>
+
+<!-- Library Item Modal (fields filled dynamically per entity) -->
+<div class="overlay" id="overlay-library-item">
+  <div class="modal">
+    <h3 id="lib-modal-title">Новая запись</h3>
+    <div class="modal-sub" id="lib-modal-sub"></div>
+    <div id="lib-modal-fields"></div>
+    <div class="modal-error" id="lib-modal-error">Заполните обязательные поля</div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeAllModals()">Отмена</button>
+      <button class="btn-primary" onclick="submitLibraryItemForm()">Сохранить</button>
     </div>
   </div>
 </div>
@@ -3384,6 +3426,7 @@ projects = loadProjectsLocal();
     try { saved = JSON.parse(localStorage.getItem(VIEW_KEY) || 'null'); } catch (_) {}
     const candidate = fromHash || saved?.view || '';
     if (!candidate || candidate === 'overview') return;
+    if (candidate === 'library') { view = 'library'; return; }
     const p = projects.find(x => x.id === candidate);
     if (!p) return;
     if (!isAdmin() && isProjectHiddenFromUsers(p)) return;
@@ -7217,6 +7260,9 @@ function updateProjPickerTrigger() {
   if (view === 'overview') {
     el.innerHTML = '<span class="proj-picker-icon">⚡</span><span>Все проекты</span>';
     if (pageTitle) pageTitle.textContent = 'Обзор UA';
+  } else if (view === 'library') {
+    el.innerHTML = '<span class="proj-picker-icon">📚</span><span>Библиотека</span>';
+    if (pageTitle) pageTitle.textContent = 'Библиотека';
   } else {
     const p = projects.find(x => x.id === view);
     if (p) {
@@ -7228,15 +7274,16 @@ function updateProjPickerTrigger() {
 
 function projPickerItemHtml(id, icon, name, subId, status) {
   const active = view === id ? ' active' : '';
-  const p = id !== 'overview' ? projects.find(x => x.id === id) : null;
+  const isPseudo = subId === 'overview' || subId === 'library';
+  const p = isPseudo ? null : projects.find(x => x.id === id);
   const hiddenHtml = (p && isAdmin() && isProjectHiddenFromUsers(p))
     ? ` <span class="tile-hidden-badge">Скрыт</span>`
     : '';
-  const statusHtml = subId !== 'overview' && status
+  const statusHtml = !isPseudo && status
     ? `<span class="proj-picker-item-id">${renderStatusBadge(status)}${hiddenHtml}</span>`
-    : (subId !== 'overview'
+    : (!isPseudo
       ? `<span class="proj-picker-item-id">${escHtml(subId)}${hiddenHtml}</span>`
-      : '<span class="proj-picker-item-id">overview</span>');
+      : `<span class="proj-picker-item-id">${escHtml(subId)}</span>`);
   return `<button type="button" class="proj-picker-item${active}" data-proj-id="${escHtml(id)}">
     <span class="proj-picker-item-icon">${icon}</span>
     <span class="proj-picker-item-info">
@@ -7252,12 +7299,17 @@ function renderProjPickerList() {
   if (!list) return;
   const q = projPickerFilter.toLowerCase().trim();
   const showOverview = !q || 'все проекты'.includes(q) || 'overview'.includes(q) || 'обзор'.includes(q);
+  const showLibrary = !q || 'библиотека'.includes(q) || 'library'.includes(q);
   const filtered = listProjectsForUi().filter(p => !q || p.name.toLowerCase().includes(q) || p.id.toLowerCase().includes(q));
 
   let html = '';
   if (showOverview) {
     html += `<div class="proj-picker-section">Обзор</div>`;
     html += projPickerItemHtml('overview', '⚡', 'Все проекты', 'overview');
+  }
+  if (showLibrary) {
+    html += `<div class="proj-picker-section">Инструменты</div>`;
+    html += projPickerItemHtml('library', '📚', 'Библиотека', 'library');
   }
   html += `<div class="proj-picker-section">Проекты${filtered.length ? ' · ' + filtered.length : ''}</div>`;
   if (filtered.length) {
@@ -8422,6 +8474,7 @@ function renderAdminPanel(proj) {
 function getValidViewId(id) {
   const v = String(id || '').trim();
   if (!v || v === 'overview') return 'overview';
+  if (v === 'library') return 'library';
   const p = projects.find(x => x.id === v);
   if (!p) return 'overview';
   if (!isAdmin() && isProjectHiddenFromUsers(p)) return 'overview';
@@ -8441,7 +8494,7 @@ function persistViewState() {
     localStorage.setItem(VIEW_KEY, JSON.stringify({
       view,
       month: currentMonth || null,
-      sourceIndex: view !== 'overview' ? sourceIndexByProject[view] : null,
+      sourceIndex: (view !== 'overview' && view !== 'library') ? sourceIndexByProject[view] : null,
     }));
   } catch (_) {}
   try {
@@ -8486,7 +8539,7 @@ function restoreViewState() {
 
 function switchView(v) {
   view = getValidViewId(v);
-  currentMonth = view === 'overview' ? null : (tileMonths[view] || null);
+  currentMonth = (view === 'overview' || view === 'library') ? null : (tileMonths[view] || null);
   dateFilter = null;
   destroyDetailCharts();
   closeProjPicker();
@@ -8509,6 +8562,7 @@ function switchMonth(m) {
 function renderContent() {
   renderTopbar();
   if (view === 'overview') renderOverview();
+  else if (view === 'library') renderLibrary();
   else renderProjectDetail(view);
 }
 
@@ -8574,6 +8628,464 @@ function updateAdminBtn() {
   } else {
     btn.classList.remove('is-admin');
     btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Admin`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LIBRARY — ФБ-кабинеты / пиксели / креативы / наработки
+// ═══════════════════════════════════════════════════════════════
+const LIBRARY_API_BASE = 'https://elixir-ua-bot.lusnikovvaceslav9.workers.dev';
+const LIBRARY_TOKEN_KEY = 'elixir_library_token';
+const LIBRARY_TAB_ORDER = ['fb_accounts', 'pixels', 'creatives', 'insights'];
+const LIBRARY_FORMAT_LABELS = { image: 'Картинка', video: 'Видео', carousel: 'Карусель', other: 'Другое' };
+
+let libraryCache = { fb_accounts: null, pixels: null, creatives: null, insights: null };
+let libraryTab = 'fb_accounts';
+let libraryFilterProject = '';
+let libraryFilterQuery = '';
+let libraryFilterTag = '';
+let editingLibraryEntity = null;
+let editingLibraryId = null;
+
+const LIBRARY_ENTITY_META = {
+  fb_accounts: {
+    label: 'ФБ-кабинеты',
+    icon: '🏦',
+    columns: [
+      { key: 'project_id', label: 'Проект', render: v => libraryProjectLabel(v) },
+      { key: 'fb_account_id', label: 'ID кабинета' },
+      { key: 'name', label: 'Название' },
+      { key: 'status', label: 'Статус', render: v => libraryStatusBadge('fb_accounts', v) },
+      { key: 'spend_limit', label: 'Лимит', render: v => v != null && v !== '' ? fmtInt(v) : '—' },
+      { key: 'owner', label: 'Владелец' },
+      { key: 'notes', label: 'Заметки', render: v => v ? `<span class="lib-notes">${escHtml(v)}</span>` : '—' },
+    ],
+    fields: [
+      { key: 'project_id', label: 'Проект', type: 'project-select', required: true },
+      { key: 'fb_account_id', label: 'ID кабинета', type: 'text', required: true, placeholder: 'act_1234567890' },
+      { key: 'name', label: 'Название', type: 'text' },
+      { key: 'status', label: 'Статус', type: 'select', options: [
+        ['active', 'Активен'], ['warming', 'Прогрев'], ['restricted', 'Ограничен'], ['banned', 'Забанен'], ['other', 'Другое'],
+      ] },
+      { key: 'spend_limit', label: 'Лимит расхода', type: 'number' },
+      { key: 'owner', label: 'Владелец / профиль', type: 'text' },
+      { key: 'notes', label: 'Заметки', type: 'textarea' },
+    ],
+    statusBuckets: { active: 'run', warming: 'pause', restricted: 'pause', banned: 'stop', other: 'pause' },
+    statusLabels: { active: 'Активен', warming: 'Прогрев', restricted: 'Ограничен', banned: 'Забанен', other: 'Другое' },
+  },
+  pixels: {
+    label: 'Пиксели',
+    icon: '🎯',
+    columns: [
+      { key: 'project_id', label: 'Проект', render: v => libraryProjectLabel(v) },
+      { key: 'pixel_id', label: 'ID пикселя' },
+      { key: 'fb_account_id', label: 'Кабинет', render: v => libraryFbAccountLabel(v) },
+      { key: 'domain', label: 'Домен' },
+      { key: 'status', label: 'Статус', render: v => libraryStatusBadge('pixels', v) },
+      { key: 'notes', label: 'Заметки', render: v => v ? `<span class="lib-notes">${escHtml(v)}</span>` : '—' },
+    ],
+    fields: [
+      { key: 'project_id', label: 'Проект', type: 'project-select', required: true },
+      { key: 'pixel_id', label: 'ID пикселя', type: 'text', required: true },
+      { key: 'fb_account_id', label: 'Кабинет (опционально)', type: 'fb-account-select' },
+      { key: 'domain', label: 'Домен', type: 'text' },
+      { key: 'status', label: 'Статус', type: 'select', options: [
+        ['active', 'Активен'], ['unverified', 'Не подтверждён'], ['issue', 'Проблема'], ['other', 'Другое'],
+      ] },
+      { key: 'notes', label: 'Заметки', type: 'textarea' },
+    ],
+    statusBuckets: { active: 'run', unverified: 'pause', other: 'pause', issue: 'stop' },
+    statusLabels: { active: 'Активен', unverified: 'Не подтверждён', issue: 'Проблема', other: 'Другое' },
+  },
+  creatives: {
+    label: 'Креативы',
+    icon: '🎨',
+    columns: [
+      { key: 'project_id', label: 'Проект', render: v => libraryProjectLabel(v) },
+      { key: 'title', label: 'Название' },
+      { key: 'link', label: 'Ссылка', render: v => v ? `<a class="lib-link" href="${escHtml(v)}" target="_blank" rel="noopener">${escHtml(v)}</a>` : '—' },
+      { key: 'format', label: 'Формат', render: v => escHtml(LIBRARY_FORMAT_LABELS[v] || v || '—') },
+      { key: 'status', label: 'Статус', render: v => libraryStatusBadge('creatives', v) },
+      { key: 'tags', label: 'Теги', render: v => libraryTagsHtml(v) },
+    ],
+    fields: [
+      { key: 'project_id', label: 'Проект', type: 'project-select', required: true },
+      { key: 'title', label: 'Название', type: 'text' },
+      { key: 'link', label: 'Ссылка (Drive / Ads Manager / …)', type: 'text', required: true, placeholder: 'https://…' },
+      { key: 'format', label: 'Формат', type: 'select', options: [
+        ['image', 'Картинка'], ['video', 'Видео'], ['carousel', 'Карусель'], ['other', 'Другое'],
+      ] },
+      { key: 'status', label: 'Статус', type: 'select', options: [
+        ['live', 'Крутится'], ['testing', 'На тесте'], ['stopped', 'Остановлен'], ['archived', 'В архиве'],
+      ] },
+      { key: 'tags', label: 'Теги (через запятую)', type: 'text' },
+      { key: 'notes', label: 'Заметки', type: 'textarea' },
+    ],
+    statusBuckets: { live: 'run', testing: 'pause', archived: 'pause', stopped: 'stop' },
+    statusLabels: { live: 'Крутится', testing: 'На тесте', stopped: 'Остановлен', archived: 'В архиве' },
+  },
+  insights: {
+    label: 'Наработки',
+    icon: '💡',
+    columns: [
+      { key: 'project_id', label: 'Проект', render: v => libraryProjectLabel(v) },
+      { key: 'title', label: 'Заголовок' },
+      { key: 'body', label: 'Текст', render: v => v ? `<span class="lib-notes">${escHtml(v.length > 160 ? v.slice(0, 160) + '…' : v)}</span>` : '—' },
+      { key: 'tags', label: 'Теги', render: v => libraryTagsHtml(v) },
+      { key: 'author', label: 'Автор' },
+      { key: 'created_at', label: 'Дата', render: v => v ? new Date(v).toLocaleDateString('ru-RU') : '—' },
+    ],
+    fields: [
+      { key: 'project_id', label: 'Проект', type: 'project-select', required: true },
+      { key: 'title', label: 'Заголовок', type: 'text', required: true },
+      { key: 'body', label: 'Текст (гипотеза / инсайт / что сработало)', type: 'textarea' },
+      { key: 'tags', label: 'Теги (через запятую)', type: 'text' },
+      { key: 'author', label: 'Автор', type: 'text' },
+    ],
+  },
+};
+
+function libraryToken() {
+  try { return sessionStorage.getItem(LIBRARY_TOKEN_KEY) || ''; } catch (_) { return ''; }
+}
+
+function hasLibraryAccess() {
+  const t = libraryToken();
+  if (!t) return false;
+  const exp = Number(String(t).split('.')[0]);
+  return Number.isFinite(exp) && Date.now() / 1000 < exp;
+}
+
+function clearLibraryToken() {
+  try { sessionStorage.removeItem(LIBRARY_TOKEN_KEY); } catch (_) {}
+}
+
+async function doLibraryLogin() {
+  const input = document.getElementById('lib-pw-input');
+  const btn = document.getElementById('lib-login-btn');
+  const errEl = document.getElementById('lib-login-error');
+  if (errEl) errEl.style.display = 'none';
+  if (btn) btn.disabled = true;
+  try {
+    const resp = await fetch(`${LIBRARY_API_BASE}/api/library/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: input?.value || '' }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || !data.token) {
+      if (errEl) { errEl.textContent = 'Неверный пароль'; errEl.style.display = 'block'; }
+      return;
+    }
+    try { sessionStorage.setItem(LIBRARY_TOKEN_KEY, data.token); } catch (_) {}
+    if (input) input.value = '';
+    renderLibrary();
+  } catch (e) {
+    if (errEl) { errEl.textContent = 'Ошибка сети: ' + (e.message || e); errEl.style.display = 'block'; }
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function libraryLogout() {
+  clearLibraryToken();
+  libraryCache = { fb_accounts: null, pixels: null, creatives: null, insights: null };
+  renderLibrary();
+}
+
+async function libraryFetch(path, opts = {}) {
+  const resp = await fetch(`${LIBRARY_API_BASE}${path}`, {
+    ...opts,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${libraryToken()}`,
+      ...(opts.headers || {}),
+    },
+  });
+  if (resp.status === 401) {
+    clearLibraryToken();
+    renderLibrary();
+    throw new Error('Сессия библиотеки истекла — войдите заново');
+  }
+  if (!resp.ok) {
+    const text = await resp.text().catch(() => '');
+    throw new Error(`Library API ${resp.status}: ${text.slice(0, 200)}`);
+  }
+  if (resp.status === 204) return null;
+  return resp.json();
+}
+
+async function loadLibrary() {
+  await Promise.all(LIBRARY_TAB_ORDER.map(async entity => {
+    try {
+      libraryCache[entity] = await libraryFetch(`/api/library/${entity}`);
+    } catch (e) {
+      console.warn('Library load failed:', entity, e.message || e);
+      libraryCache[entity] = libraryCache[entity] || [];
+    }
+  }));
+}
+
+function libraryProjectLabel(pid) {
+  if (!pid) return '—';
+  const p = projects.find(x => x.id === pid);
+  return p ? `${escHtml(p.icon || '')} ${escHtml(p.name)}` : escHtml(pid);
+}
+
+function libraryFbAccountLabel(id) {
+  if (!id) return '—';
+  const acc = (libraryCache.fb_accounts || []).find(a => a.id === id);
+  return acc ? escHtml(acc.name || acc.fb_account_id || id) : '—';
+}
+
+function libraryTagsHtml(tags) {
+  if (!tags || !tags.length) return '—';
+  return `<span class="library-tags">${tags.map(t => `<span class="library-tag">${escHtml(t)}</span>`).join('')}</span>`;
+}
+
+function libraryStatusBadge(entity, status) {
+  const meta = LIBRARY_ENTITY_META[entity];
+  if (!status) return '—';
+  const bucket = meta.statusBuckets?.[status] || 'pause';
+  const label = meta.statusLabels?.[status] || status;
+  return `<span class="status-badge ${bucket}">${escHtml(label)}</span>`;
+}
+
+function libraryAllTags(entity) {
+  const set = new Set();
+  (libraryCache[entity] || []).forEach(r => (r.tags || []).forEach(t => set.add(t)));
+  return [...set].sort();
+}
+
+function libraryFilteredRows(entity) {
+  const rows = libraryCache[entity] || [];
+  const q = libraryFilterQuery.trim().toLowerCase();
+  return rows.filter(r => {
+    if (libraryFilterProject && r.project_id !== libraryFilterProject) return false;
+    if (libraryFilterTag && !(r.tags || []).includes(libraryFilterTag)) return false;
+    if (q) {
+      const hay = Object.values(r)
+        .filter(v => typeof v === 'string' || Array.isArray(v))
+        .map(v => Array.isArray(v) ? v.join(' ') : v)
+        .join(' ')
+        .toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function renderLibraryTableRows(entity, rows) {
+  const meta = LIBRARY_ENTITY_META[entity];
+  return rows.map(row => {
+    const cells = meta.columns.map(col => {
+      const raw = row[col.key];
+      const html = col.render ? col.render(raw, row) : escHtml(raw == null || raw === '' ? '—' : String(raw));
+      return `<td>${html}</td>`;
+    }).join('');
+    return `<tr>${cells}<td class="library-row-actions">
+      <button type="button" onclick="openLibraryItemModal('${entity}','${escHtml(row.id)}')">✏️</button>
+      <button type="button" class="lib-delete" onclick="deleteLibraryItemConfirm('${entity}','${escHtml(row.id)}')">🗑️</button>
+    </td></tr>`;
+  }).join('');
+}
+
+function renderLibraryBody() {
+  const body = document.getElementById('library-body');
+  if (!body) return;
+  const entity = libraryTab;
+  if (libraryCache[entity] == null) {
+    body.innerHTML = `<div class="library-empty">Загрузка…</div>`;
+    return;
+  }
+  const rows = libraryFilteredRows(entity);
+  if (!rows.length) {
+    body.innerHTML = `<div class="library-empty">${libraryCache[entity].length ? 'Ничего не найдено по фильтру' : 'Пока пусто — добавьте первую запись'}</div>`;
+    return;
+  }
+  const meta = LIBRARY_ENTITY_META[entity];
+  body.innerHTML = `<div class="table-wrap"><table class="library-table"><thead><tr>
+    ${meta.columns.map(c => `<th>${escHtml(c.label)}</th>`).join('')}<th></th>
+  </tr></thead><tbody>${renderLibraryTableRows(entity, rows)}</tbody></table></div>`;
+}
+
+function libraryTabButtonsHtml() {
+  return LIBRARY_TAB_ORDER.map(entity => {
+    const meta = LIBRARY_ENTITY_META[entity];
+    const active = libraryTab === entity ? ' active' : '';
+    return `<button type="button" class="library-tab${active}" onclick="switchLibraryTab('${entity}')">${meta.icon} ${escHtml(meta.label)}</button>`;
+  }).join('');
+}
+
+function libraryToolbarHtml() {
+  const entity = libraryTab;
+  const meta = LIBRARY_ENTITY_META[entity];
+  const projectOptions = projects.map(p =>
+    `<option value="${escHtml(p.id)}"${libraryFilterProject === p.id ? ' selected' : ''}>${escHtml(p.icon || '')} ${escHtml(p.name)}</option>`
+  ).join('');
+  const showTags = entity === 'creatives' || entity === 'insights';
+  const tagOptions = showTags
+    ? libraryAllTags(entity).map(t => `<option value="${escHtml(t)}"${libraryFilterTag === t ? ' selected' : ''}>${escHtml(t)}</option>`).join('')
+    : '';
+  return `
+    <select onchange="onLibraryProjectFilter(this.value)">
+      <option value="">Все проекты</option>${projectOptions}
+    </select>
+    ${showTags ? `<select onchange="onLibraryTagFilter(this.value)"><option value="">Все теги</option>${tagOptions}</select>` : ''}
+    <input type="text" placeholder="Поиск…" value="${escHtml(libraryFilterQuery)}" oninput="onLibrarySearchInput(this.value)">
+    <button type="button" class="btn-sm btn-add-proj" onclick="openLibraryItemModal('${entity}')">+ Добавить · ${escHtml(meta.label)}</button>
+  `;
+}
+
+function onLibrarySearchInput(v) {
+  libraryFilterQuery = v;
+  renderLibraryBody();
+}
+
+function onLibraryProjectFilter(v) {
+  libraryFilterProject = v;
+  renderLibraryBody();
+}
+
+function onLibraryTagFilter(v) {
+  libraryFilterTag = v;
+  renderLibraryBody();
+}
+
+function switchLibraryTab(entity) {
+  libraryTab = entity;
+  libraryFilterTag = '';
+  renderLibrary();
+}
+
+function renderLibrary() {
+  const content = document.getElementById('content');
+  if (!hasLibraryAccess()) {
+    content.innerHTML = `
+      <div class="library-gate">
+        <h3>📚 Библиотека</h3>
+        <div class="modal-sub">ФБ-кабинеты, пиксели, креативы и наработки. Нужен пароль для просмотра.</div>
+        <div class="form-group">
+          <label>Пароль</label>
+          <input type="password" id="lib-pw-input" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLibraryLogin()">
+        </div>
+        <div class="modal-error" id="lib-login-error">Неверный пароль</div>
+        <div class="modal-actions" style="justify-content:center">
+          <button class="btn-primary" id="lib-login-btn" onclick="doLibraryLogin()">Войти</button>
+        </div>
+      </div>`;
+    setTimeout(() => document.getElementById('lib-pw-input')?.focus(), 80);
+    return;
+  }
+  content.innerHTML = `
+    <div class="library-wrap">
+      <div class="library-tabs">${libraryTabButtonsHtml()}</div>
+      <div class="library-toolbar">${libraryToolbarHtml()}</div>
+      <div id="library-body"></div>
+    </div>`;
+  if (Object.values(libraryCache).some(v => v == null)) {
+    loadLibrary().then(renderLibraryBody);
+  }
+  renderLibraryBody();
+}
+
+function libraryFieldInputHtml(field, value) {
+  const id = `lib-f-${field.key}`;
+  const v = value == null ? '' : value;
+  if (field.type === 'project-select') {
+    const opts = projects.map(p => `<option value="${escHtml(p.id)}"${p.id === v ? ' selected' : ''}>${escHtml(p.icon || '')} ${escHtml(p.name)}</option>`).join('');
+    return `<select id="${id}"><option value="">— выберите проект —</option>${opts}</select>`;
+  }
+  if (field.type === 'fb-account-select') {
+    const opts = (libraryCache.fb_accounts || []).map(a => `<option value="${escHtml(a.id)}"${a.id === v ? ' selected' : ''}>${escHtml(a.name || a.fb_account_id || a.id)}</option>`).join('');
+    return `<select id="${id}"><option value="">— без привязки —</option>${opts}</select>`;
+  }
+  if (field.type === 'select') {
+    const opts = field.options.map(([val, label]) => `<option value="${escHtml(val)}"${val === v ? ' selected' : ''}>${escHtml(label)}</option>`).join('');
+    return `<select id="${id}">${opts}</select>`;
+  }
+  if (field.type === 'textarea') {
+    return `<textarea id="${id}" rows="3" placeholder="${escHtml(field.placeholder || '')}">${escHtml(v)}</textarea>`;
+  }
+  if (field.type === 'number') {
+    return `<input type="number" id="${id}" value="${escHtml(v === '' ? '' : String(v))}" placeholder="${escHtml(field.placeholder || '')}">`;
+  }
+  return `<input type="text" id="${id}" value="${escHtml(Array.isArray(v) ? v.join(', ') : v)}" placeholder="${escHtml(field.placeholder || '')}">`;
+}
+
+function openLibraryItemModal(entity, id) {
+  editingLibraryEntity = entity;
+  editingLibraryId = id || null;
+  const meta = LIBRARY_ENTITY_META[entity];
+  const row = id ? (libraryCache[entity] || []).find(r => r.id === id) : null;
+  document.getElementById('lib-modal-title').textContent = id ? `Редактировать · ${meta.label}` : `Новая запись · ${meta.label}`;
+  document.getElementById('lib-modal-sub').textContent = '';
+  const errEl = document.getElementById('lib-modal-error');
+  errEl.style.display = 'none';
+  document.getElementById('lib-modal-fields').innerHTML = meta.fields.map(f => {
+    const def = row ? row[f.key] : (f.type === 'select' ? f.options[0][0] : '');
+    return `<div class="form-group">
+      <label>${escHtml(f.label)}</label>
+      ${libraryFieldInputHtml(f, def)}
+    </div>`;
+  }).join('');
+  document.getElementById('overlay-library-item').classList.add('show');
+}
+
+async function submitLibraryItemForm() {
+  const entity = editingLibraryEntity;
+  const meta = LIBRARY_ENTITY_META[entity];
+  const errEl = document.getElementById('lib-modal-error');
+  const body = {};
+  for (const f of meta.fields) {
+    const el = document.getElementById(`lib-f-${f.key}`);
+    let v = el ? el.value : '';
+    if (f.key === 'tags') {
+      v = v.split(',').map(t => t.trim()).filter(Boolean);
+    } else if (f.type === 'number') {
+      v = v === '' ? null : Number(v);
+    } else {
+      v = typeof v === 'string' ? v.trim() : v;
+      if (v === '') v = null;
+    }
+    if (f.required && (v == null || (Array.isArray(v) && !v.length) || v === '')) {
+      errEl.textContent = `Заполните поле «${f.label}»`;
+      errEl.style.display = 'block';
+      return;
+    }
+    body[f.key] = v;
+  }
+  const btn = document.querySelector('#overlay-library-item .btn-primary');
+  if (btn) btn.disabled = true;
+  try {
+    if (editingLibraryId) {
+      const updated = await libraryFetch(`/api/library/${entity}/${editingLibraryId}`, { method: 'PUT', body: JSON.stringify(body) });
+      const idx = (libraryCache[entity] || []).findIndex(r => r.id === editingLibraryId);
+      if (idx >= 0 && updated) libraryCache[entity][idx] = updated;
+    } else {
+      const created = await libraryFetch(`/api/library/${entity}`, { method: 'POST', body: JSON.stringify(body) });
+      if (created) libraryCache[entity] = [created, ...(libraryCache[entity] || [])];
+    }
+    closeAllModals();
+    renderLibraryBody();
+  } catch (e) {
+    errEl.textContent = 'Не удалось сохранить: ' + (e.message || e);
+    errEl.style.display = 'block';
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function deleteLibraryItemConfirm(entity, id) {
+  const meta = LIBRARY_ENTITY_META[entity];
+  if (!confirm(`Удалить запись (${meta.label})? Это действие необратимо.`)) return;
+  try {
+    await libraryFetch(`/api/library/${entity}/${id}`, { method: 'DELETE' });
+    libraryCache[entity] = (libraryCache[entity] || []).filter(r => r.id !== id);
+    renderLibraryBody();
+  } catch (e) {
+    alert('Не удалось удалить: ' + (e.message || e));
   }
 }
 

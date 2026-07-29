@@ -54,3 +54,17 @@ curl -X POST "https://elixir-dashboard-proxy.<subdomain>.workers.dev/telegram/se
 
 - Токен бота **никогда** не коммитить в git.
 - Если токен светился в чате/тикете — сразу `/revoke` в @BotFather и новый `wrangler secret put TELEGRAM_BOT_TOKEN`.
+
+## Библиотека (ФБ-кабинеты / пиксели / креативы / наработки)
+
+Тот же воркер отдаёт `/api/library/*` для раздела «Библиотека» в `elixir.html` — CRUD поверх отдельного Supabase-проекта (не того, что для Planto-биллинга). Схема — в `scripts/library/schema.sql`, прогнать один раз в SQL editor нового Supabase-проекта.
+
+```bash
+cd worker
+npx wrangler secret put LIBRARY_PASSWORD              # пароль на просмотр библиотеки (не путать с ADMIN_PASSWORD)
+npx wrangler secret put LIBRARY_SUPABASE_URL           # https://<project>.supabase.co
+npx wrangler secret put LIBRARY_SUPABASE_SERVICE_KEY   # service_role key из Settings → API (не anon!)
+npx wrangler deploy
+```
+
+`service_role` key даёт полный доступ в обход RLS — держим его только в секретах воркера, в браузер он никогда не попадает. Таблицы (`fb_accounts`, `pixels`, `creatives`, `insights`) сознательно не хранят логины/пароли/токены доступа к рекламным кабинетам — только ID/статус/лимиты/заметки.

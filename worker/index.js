@@ -5,7 +5,8 @@
 //   JSONBIN_MASTER_KEY, ADMIN_PASSWORD, SESSION_SECRET,
 //   GITHUB_DISPATCH_TOKEN (optional),
 //   TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_CHAT_IDS,
-//   TELEGRAM_WEBHOOK_SECRET (optional)
+//   TELEGRAM_WEBHOOK_SECRET (required — see worker/TELEGRAM.md),
+//   LIBRARY_PASSWORD, LIBRARY_SUPABASE_URL, LIBRARY_SUPABASE_SERVICE_KEY
 //
 // Vars in wrangler.toml:
 //   JSONBIN_BIN_ID, ALLOWED_ORIGIN, GITHUB_REPO, GITHUB_BRANCH, HUPP_FEED_WORKFLOW
@@ -14,6 +15,7 @@
 import { handleTelegramUpdate, sendDigestToAllowed, setupWebhook, notifyBudgetAlerts } from './telegram/bot.js';
 import { getDashboardState } from './telegram/data.js';
 import { inspectDigest } from './telegram/reports.js';
+import { isLibraryEntity, listLibrary, createLibraryItem, updateLibraryItem, deleteLibraryItem } from './library.js';
 
 const JSONBIN_API = 'https://api.jsonbin.io/v3';
 const SESSION_TTL_SEC = 60 * 60 * 8;
@@ -176,6 +178,51 @@ export default {
         const others = raw.filter(p => p && p.id !== '_csv_uploads');
         await jbPutRaw(env, [...others, { id: '_csv_uploads', ...payload }]);
         return json({ ok: true }, 200, env);
+      }
+
+      // ── Library: FB accounts / pixels / creatives / insights (Supabase-backed) ──
+      if (url.pathname === '/api/library/login' && req.method === 'POST') {
+        const body = await req.json().catch(() => ({}));
+        if (!env.LIBRARY_PASSWORD || body.password !== env.LIBRARY_PASSWORD) {
+          return json({ ok: false, error: 'invalid_password' }, 401, env);
+        }
+        const exp = Math.floor(Date.now() / 1000) + SESSION_TTL_SEC;
+        const token = await signToken(env, exp);
+        return json({ ok: true, token, expiresAt: exp * 1000 }, 200, env);
+      }
+
+      const libraryMatch = url.pathname.match(/^\/api\/library\/([a-z_]+)(?:\/([^/]+))?$/);
+      if (libraryMatch) {
+        // Read is gated too — the library isn't public like the rest of the dashboard.
+        if (!(await requireAuth(req, env))) return json({ ok: false, error: 'unauthorized' }, 401, env);
+        const [, entity, id] = libraryMatch;
+        if (!isLibraryEntity(entity)) return json({ ok: false, error: 'unknown_entity' }, 404, env);
+        try {
+          if (req.method === 'GET') {
+            const projectId = url.searchParams.get('project_id') || undefined;
+            const rows = await listLibrary(env, entity, projectId);
+            return json(rows, 200, env);
+          }
+          if (req.method === 'POST' && !id) {
+            const body = await req.json().catch(() => null);
+            if (!body || typeof body !== 'object') return json({ ok: false, error: 'bad_body' }, 400, env);
+            const row = await createLibraryItem(env, entity, body);
+            return json(row, 200, env);
+          }
+          if (req.method === 'PUT' && id) {
+            const body = await req.json().catch(() => null);
+            if (!body || typeof body !== 'object') return json({ ok: false, error: 'bad_body' }, 400, env);
+            const row = await updateLibraryItem(env, entity, id, body);
+            return json(row, 200, env);
+          }
+          if (req.method === 'DELETE' && id) {
+            await deleteLibraryItem(env, entity, id);
+            return json({ ok: true }, 200, env);
+          }
+          return json({ ok: false, error: 'method_not_allowed' }, 405, env);
+        } catch (e) {
+          return json({ ok: false, error: e.message || String(e) }, 502, env);
+        }
       }
 
       if (url.pathname === '/api/hupp-feed/dispatch' && req.method === 'POST') {
