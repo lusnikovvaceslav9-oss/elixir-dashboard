@@ -1,4 +1,4 @@
--- Elixir Library: FB ad accounts / pixels / creatives / insights.
+-- Elixir Library: FB ad accounts / pixels / creatives / insights / contractors / payments.
 -- Run this once in the SQL editor of a dedicated Supabase project
 -- (not the same project used by scripts/buyer-feed/ for Planto billing data).
 --
@@ -17,15 +17,46 @@ begin
 end;
 $$;
 
+-- Contractors: people/teams agency ad accounts are bought from. Not tied to
+-- a single dashboard project (a supplier can serve several). custom_fields
+-- lets the UI add arbitrary extra key/value pairs beyond the fixed columns.
+-- Defined first — fb_accounts and payments both reference it.
+create table if not exists contractors (
+  id uuid primary key default gen_random_uuid(),
+  name text,
+  contact text,
+  rate text,
+  ad_network text,
+  payment_requisites text,
+  terms text,
+  status text not null default 'active' check (status in ('active', 'paused', 'inactive')),
+  custom_fields jsonb not null default '{}'::jsonb,
+  sort_order integer,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+drop trigger if exists set_updated_at on contractors;
+create trigger set_updated_at before update on contractors
+  for each row execute function set_updated_at();
+
 create table if not exists fb_accounts (
   id uuid primary key default gen_random_uuid(),
   project_id text,
+  contractor_id uuid references contractors(id) on delete set null,
   fb_account_id text,
   name text,
   bm_id text,
   profile_number text,
   status text not null default 'active' check (status in ('active', 'banned', 'restricted', 'warming', 'other')),
   spend_limit numeric,
+  -- Money movement, as tracked by the supplying contractor's own sheet:
+  deposit numeric,
+  spend_total numeric,
+  balance numeric,
+  buyer text,
+  farm_profile text,
+  profile_owner text,
+  profile_url text,
   owner text,
   notes text,
   sort_order integer,
@@ -33,6 +64,7 @@ create table if not exists fb_accounts (
   updated_at timestamptz not null default now()
 );
 create index if not exists fb_accounts_project_id_idx on fb_accounts (project_id);
+create index if not exists fb_accounts_contractor_id_idx on fb_accounts (contractor_id);
 drop trigger if exists set_updated_at on fb_accounts;
 create trigger set_updated_at before update on fb_accounts
   for each row execute function set_updated_at();
@@ -91,25 +123,26 @@ drop trigger if exists set_updated_at on insights;
 create trigger set_updated_at before update on insights
   for each row execute function set_updated_at();
 
--- Contractors: people/teams agency ad accounts are bought from. Not tied to
--- a single dashboard project (a supplier can serve several). custom_fields
--- lets the UI add arbitrary extra key/value pairs beyond the fixed columns.
-create table if not exists contractors (
+-- Top-up / funding ledger — money moved to a contractor to fund their pool of
+-- agency ad accounts. Separate from fb_accounts.deposit (per-account funding)
+-- since one payment can fund many accounts.
+create table if not exists payments (
   id uuid primary key default gen_random_uuid(),
-  name text,
-  contact text,
-  rate text,
-  ad_network text,
-  payment_requisites text,
-  terms text,
-  status text not null default 'active' check (status in ('active', 'paused', 'inactive')),
-  custom_fields jsonb not null default '{}'::jsonb,
+  contractor_id uuid references contractors(id) on delete set null,
+  date date,
+  reference text,
+  amount numeric,
+  commission_pct numeric,
+  commission_amount numeric,
+  net_amount numeric,
+  comment text,
   sort_order integer,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-drop trigger if exists set_updated_at on contractors;
-create trigger set_updated_at before update on contractors
+create index if not exists payments_contractor_id_idx on payments (contractor_id);
+drop trigger if exists set_updated_at on payments;
+create trigger set_updated_at before update on payments
   for each row execute function set_updated_at();
 
 -- RLS stays disabled: these tables are only ever reached through the

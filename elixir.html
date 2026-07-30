@@ -8653,7 +8653,7 @@ function updateAdminBtn() {
 // ═══════════════════════════════════════════════════════════════
 const LIBRARY_API_BASE = 'https://elixir-ua-bot.lusnikovvaceslav9.workers.dev';
 const LIBRARY_TOKEN_KEY = 'elixir_library_token';
-const LIBRARY_TAB_ORDER = ['fb_accounts', 'contractors', 'pixels', 'creatives', 'insights'];
+const LIBRARY_TAB_ORDER = ['fb_accounts', 'contractors', 'payments', 'pixels', 'creatives', 'insights'];
 const LIBRARY_FORMAT_LABELS = { image: 'Картинка', video: 'Видео', carousel: 'Карусель', other: 'Другое' };
 
 let libraryCache = { fb_accounts: null, pixels: null, creatives: null, insights: null };
@@ -8672,10 +8672,18 @@ const LIBRARY_ENTITY_META = {
       { key: 'project_id', label: 'Проект', render: v => libraryProjectLabel(v) },
       { key: 'fb_account_id', label: 'ID кабинета' },
       { key: 'name', label: 'Название' },
+      { key: 'contractor_id', label: 'Контрагент', render: v => libraryContractorLabel(v) },
+      { key: 'buyer', label: 'Баер' },
+      { key: 'status', label: 'Статус', render: v => libraryStatusBadge('fb_accounts', v) },
+      { key: 'deposit', label: 'Депозит', render: v => libraryMoney(v) },
+      { key: 'spend_total', label: 'Спенд', render: v => libraryMoney(v) },
+      { key: 'balance', label: 'Остаток', render: v => libraryMoney(v) },
+      { key: 'spend_limit', label: 'Лимит', render: v => v != null && v !== '' ? fmtInt(v) : '—' },
       { key: 'profile_number', label: '№ профиля' },
       { key: 'bm_id', label: 'ID BM' },
-      { key: 'status', label: 'Статус', render: v => libraryStatusBadge('fb_accounts', v) },
-      { key: 'spend_limit', label: 'Лимит', render: v => v != null && v !== '' ? fmtInt(v) : '—' },
+      { key: 'farm_profile', label: 'Фарм-профиль' },
+      { key: 'profile_owner', label: 'ФП' },
+      { key: 'profile_url', label: 'Профиль', render: v => v ? `<a class="lib-link" href="${escHtml(v)}" target="_blank" rel="noopener">↗</a>` : '—' },
       { key: 'owner', label: 'Владелец' },
       { key: 'notes', label: 'Заметки', render: v => libraryClampedHtml(v) },
     ],
@@ -8683,12 +8691,20 @@ const LIBRARY_ENTITY_META = {
       { key: 'project_id', label: 'Проект', type: 'project-select', required: true },
       { key: 'fb_account_id', label: 'ID кабинета (ID acts)', type: 'text', required: true, placeholder: 'act_1234567890' },
       { key: 'name', label: 'Название / имя профиля', type: 'text' },
-      { key: 'profile_number', label: '№ профиля', type: 'text', placeholder: '№9' },
-      { key: 'bm_id', label: 'ID Business Manager', type: 'text' },
+      { key: 'contractor_id', label: 'Контрагент (поставщик кабинета)', type: 'contractor-select' },
+      { key: 'buyer', label: 'Баер', type: 'text', placeholder: '@username' },
       { key: 'status', label: 'Статус', type: 'select', options: [
         ['active', 'Активен'], ['warming', 'Прогрев'], ['restricted', 'Ограничен'], ['banned', 'Забанен'], ['other', 'Другое'],
       ] },
+      { key: 'deposit', label: 'Депозит ($)', type: 'number' },
+      { key: 'spend_total', label: 'Спенд ($)', type: 'number' },
+      { key: 'balance', label: 'Остаток на кабинете ($)', type: 'number' },
       { key: 'spend_limit', label: 'Лимит расхода', type: 'number' },
+      { key: 'profile_number', label: '№ профиля', type: 'text', placeholder: '№9' },
+      { key: 'bm_id', label: 'ID Business Manager', type: 'text' },
+      { key: 'farm_profile', label: 'Фарм-профиль (Соц)', type: 'text' },
+      { key: 'profile_owner', label: 'ФП (владелец профиля)', type: 'text' },
+      { key: 'profile_url', label: 'Ссылка на профиль', type: 'text', placeholder: 'https://facebook.com/profile.php?id=…' },
       { key: 'owner', label: 'Владелец / профиль', type: 'text' },
       { key: 'notes', label: 'Заметки', type: 'textarea' },
     ],
@@ -8723,6 +8739,31 @@ const LIBRARY_ENTITY_META = {
     ],
     statusBuckets: { active: 'run', paused: 'pause', inactive: 'stop' },
     statusLabels: { active: 'Работаем', paused: 'Пауза', inactive: 'Не работаем' },
+  },
+  payments: {
+    label: 'Платежи',
+    icon: '💰',
+    projectScoped: false,
+    columns: [
+      { key: 'date', label: 'Дата' },
+      { key: 'contractor_id', label: 'Контрагент', render: v => libraryContractorLabel(v) },
+      { key: 'amount', label: 'Сумма', render: v => libraryMoney(v) },
+      { key: 'commission_pct', label: '% комиссии', render: v => v != null && v !== '' ? `${v}%` : '—' },
+      { key: 'commission_amount', label: 'Сумма комиссии', render: v => libraryMoney(v) },
+      { key: 'net_amount', label: 'К зачислению', render: v => libraryMoney(v) },
+      { key: 'reference', label: 'Референс', render: v => libraryClampedHtml(v) },
+      { key: 'comment', label: 'Комментарий', render: v => libraryClampedHtml(v) },
+    ],
+    fields: [
+      { key: 'date', label: 'Дата', type: 'text', required: true, placeholder: 'ГГГГ-ММ-ДД' },
+      { key: 'contractor_id', label: 'Контрагент', type: 'contractor-select', required: true },
+      { key: 'amount', label: 'Сумма ($)', type: 'number', required: true },
+      { key: 'commission_pct', label: '% комиссии', type: 'number' },
+      { key: 'commission_amount', label: 'Сумма комиссии ($)', type: 'number' },
+      { key: 'net_amount', label: 'К зачислению ($)', type: 'number' },
+      { key: 'reference', label: 'Референс (hash / ссылка)', type: 'text' },
+      { key: 'comment', label: 'Комментарий', type: 'textarea' },
+    ],
   },
   pixels: {
     label: 'Пиксели',
@@ -8887,6 +8928,19 @@ function libraryFbAccountLabel(id) {
   if (!id) return '—';
   const acc = (libraryCache.fb_accounts || []).find(a => a.id === id);
   return acc ? escHtml(acc.name || acc.fb_account_id || id) : '—';
+}
+
+function libraryContractorLabel(id) {
+  if (!id) return '—';
+  const c = (libraryCache.contractors || []).find(x => x.id === id);
+  return c ? escHtml(c.name || id) : '—';
+}
+
+function libraryMoney(v) {
+  if (v == null || v === '') return '—';
+  const n = Number(v);
+  if (!Number.isFinite(n)) return '—';
+  return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function libraryClampedHtml(text) {
@@ -9129,6 +9183,10 @@ function libraryFieldInputHtml(field, value) {
   }
   if (field.type === 'fb-account-select') {
     const opts = (libraryCache.fb_accounts || []).map(a => `<option value="${escHtml(a.id)}"${a.id === v ? ' selected' : ''}>${escHtml(a.name || a.fb_account_id || a.id)}</option>`).join('');
+    return `<select id="${id}"><option value="">— без привязки —</option>${opts}</select>`;
+  }
+  if (field.type === 'contractor-select') {
+    const opts = (libraryCache.contractors || []).map(c => `<option value="${escHtml(c.id)}"${c.id === v ? ' selected' : ''}>${escHtml(c.name || c.id)}</option>`).join('');
     return `<select id="${id}"><option value="">— без привязки —</option>${opts}</select>`;
   }
   if (field.type === 'select') {
