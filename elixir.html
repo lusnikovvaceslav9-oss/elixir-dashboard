@@ -678,6 +678,9 @@ td:first-child{text-align:left;color:#0a0a0a;font-weight:500}
 .library-drag-handle{cursor:grab;color:rgba(0,0,0,0.3);font-size:13px;padding:0 4px;user-select:none}
 .library-drag-handle:hover{color:rgba(0,0,0,0.6)}
 .library-table td.lib-drag-cell{width:20px;padding-right:0}
+.library-table th.lib-sortable{cursor:pointer;user-select:none;white-space:nowrap}
+.library-table th.lib-sortable:hover{color:rgba(0,0,0,0.6)}
+.library-table th.lib-sortable.active{color:#0a0a0a}
 .library-table tbody tr.lib-row-dragging{opacity:0.4}
 .library-table tbody tr.lib-row-dragover{box-shadow:inset 0 2px 0 var(--matter)}
 .library-table td.lib-actions-cell{position:sticky;right:0;background:#fff;white-space:nowrap}
@@ -8973,6 +8976,17 @@ function libraryAllTags(entity) {
   return [...set].sort();
 }
 
+function libraryCompareValues(a, b) {
+  const aEmpty = a == null || a === '';
+  const bEmpty = b == null || b === '';
+  if (aEmpty && bEmpty) return 0;
+  if (aEmpty) return 1;
+  if (bEmpty) return -1;
+  const an = Number(a), bn = Number(b);
+  if (!Number.isNaN(an) && !Number.isNaN(bn)) return an - bn;
+  return String(a).toLowerCase().localeCompare(String(b).toLowerCase());
+}
+
 function libraryFilteredRows(entity) {
   const rows = libraryCache[entity] || [];
   const meta = LIBRARY_ENTITY_META[entity];
@@ -8990,6 +9004,10 @@ function libraryFilteredRows(entity) {
     }
     return true;
   }).sort((a, b) => {
+    if (librarySortKey) {
+      const cmp = libraryCompareValues(a[librarySortKey], b[librarySortKey]);
+      return librarySortDir === 'asc' ? cmp : -cmp;
+    }
     const ao = a.sort_order, bo = b.sort_order;
     if (ao != null && bo != null) return ao - bo;
     if (ao != null) return -1;
@@ -8998,18 +9016,39 @@ function libraryFilteredRows(entity) {
   });
 }
 
+function libraryHeaderHtml(col) {
+  const active = librarySortKey === col.key;
+  const arrow = active ? (librarySortDir === 'desc' ? ' ▼' : ' ▲') : '';
+  return `<th class="lib-sortable${active ? ' active' : ''}" onclick="onLibraryHeaderSort('${col.key}')" title="Сортировать по «${escHtml(col.label)}»">${escHtml(col.label)}${arrow}</th>`;
+}
+
+function onLibraryHeaderSort(key) {
+  if (librarySortKey !== key) {
+    librarySortKey = key;
+    librarySortDir = 'desc';
+  } else if (librarySortDir === 'desc') {
+    librarySortDir = 'asc';
+  } else {
+    librarySortKey = null;
+  }
+  renderLibraryBody();
+}
+
 function renderLibraryTableRows(entity, rows) {
   const meta = LIBRARY_ENTITY_META[entity];
+  const sorting = !!librarySortKey;
   return rows.map(row => {
     const cells = meta.columns.map(col => {
       const raw = row[col.key];
       const html = col.render ? col.render(raw, row) : escHtml(raw == null || raw === '' ? '—' : String(raw));
       return `<td>${html}</td>`;
     }).join('');
-    return `<tr draggable="true" data-id="${escHtml(row.id)}"
-      ondragstart="onLibraryRowDragStart(event)" ondragover="onLibraryRowDragOver(event)"
-      ondragleave="onLibraryRowDragLeave(event)" ondrop="onLibraryRowDrop(event)" ondragend="onLibraryRowDragEnd(event)">
-      <td class="lib-drag-cell"><span class="library-drag-handle" title="Перетащить — изменить порядок">⋮⋮</span></td>
+    const dragAttrs = sorting ? '' : `draggable="true" ondragstart="onLibraryRowDragStart(event)" ondragover="onLibraryRowDragOver(event)" ondragleave="onLibraryRowDragLeave(event)" ondrop="onLibraryRowDrop(event)" ondragend="onLibraryRowDragEnd(event)"`;
+    const dragCell = sorting
+      ? `<td class="lib-drag-cell"></td>`
+      : `<td class="lib-drag-cell"><span class="library-drag-handle" title="Перетащить — изменить порядок">⋮⋮</span></td>`;
+    return `<tr data-id="${escHtml(row.id)}" ${dragAttrs}>
+      ${dragCell}
       ${cells}
       <td class="lib-actions-cell"><div class="library-row-actions">
         <button type="button" onclick="openLibraryItemModal('${entity}','${escHtml(row.id)}')">✏️</button>
@@ -9034,11 +9073,13 @@ function renderLibraryBody() {
   }
   const meta = LIBRARY_ENTITY_META[entity];
   body.innerHTML = `<div class="table-wrap"><table class="library-table"><thead><tr>
-    <th></th>${meta.columns.map(c => `<th>${escHtml(c.label)}</th>`).join('')}<th></th>
+    <th></th>${meta.columns.map(c => libraryHeaderHtml(c)).join('')}<th></th>
   </tr></thead><tbody>${renderLibraryTableRows(entity, rows)}</tbody></table></div>`;
 }
 
 let libraryDragId = null;
+let librarySortKey = null;
+let librarySortDir = 'desc';
 
 function onLibraryRowDragStart(e) {
   libraryDragId = e.currentTarget.dataset.id;
@@ -9140,6 +9181,7 @@ function onLibraryTagFilter(v) {
 function switchLibraryTab(entity) {
   libraryTab = entity;
   libraryFilterTag = '';
+  librarySortKey = null;
   renderLibrary();
 }
 
