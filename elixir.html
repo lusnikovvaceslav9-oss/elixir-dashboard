@@ -10145,7 +10145,7 @@ function appendChatMsg(role, text) {
   box.scrollTop = box.scrollHeight;
 }
 
-function sendChatBot() {
+async function sendChatBot() {
   const input = document.getElementById('chatbot-input');
   if (!input) return;
   const q = (input.value || '').trim();
@@ -10153,7 +10153,7 @@ function sendChatBot() {
   input.value = '';
   appendChatMsg('user', q);
   try {
-    appendChatMsg('bot', answerChatQuestion(q));
+    appendChatMsg('bot', await answerChatQuestion(q));
   } catch (e) {
     appendChatMsg('bot', 'Не удалось ответить: ' + (e.message || e));
   }
@@ -10357,10 +10357,68 @@ function chatMetricLabel(key) {
   return m ? m.labels[0] : key;
 }
 
-function answerChatQuestion(q) {
+const LIB_STATUS_LABELS = { active: 'активны', banned: 'забанены', restricted: 'ограничены', warming: 'прогрев', other: 'прочее' };
+
+async function answerAccountsIntent(q) {
+  if (!hasLibraryAccess()) {
+    return 'Чтобы считать ФБ-кабинеты, сначала открой раздел **Библиотека** (кнопка в шапке) и войди по паролю — тогда смогу отвечать на такие вопросы.';
+  }
+  if (!libraryCache.fb_accounts) {
+    try {
+      libraryCache.fb_accounts = await libraryFetch('/api/library/fb_accounts');
+    } catch (e) {
+      return 'Не удалось загрузить данные Библиотеки: ' + (e.message || e);
+    }
+  }
+  const rows = libraryCache.fb_accounts || [];
+  const target = chatFindProject(q);
+
+  if (target?.unknownMention) {
+    const names = listProjectsForUi().map(p => p.name).slice(0, 8).join(', ');
+    return `Не распознал проект в запросе.\nДоступны: ${names || '—'}.`;
+  }
+
+  if (target?.all) {
+    const byProj = new Map();
+    rows.forEach(r => byProj.set(r.project_id || '—', (byProj.get(r.project_id || '—') || 0) + 1));
+    const lines = listProjectsForUi()
+      .map(p => [p, byProj.get(p.id) || 0])
+      .filter(([, n]) => n > 0)
+      .map(([p, n]) => `• **${p.name}**: ${n}`);
+    const unassigned = byProj.get('—') || 0;
+    if (unassigned) lines.push(`• без проекта: ${unassigned}`);
+    if (!lines.length) return 'В Библиотеке пока нет ФБ-кабинетов.';
+    return `**Кабинеты (Библиотека)** · всего ${rows.length}\n` + lines.join('\n');
+  }
+
+  if (!target?.project) {
+    const names = listProjectsForUi().map(p => p.name).slice(0, 6).join(', ');
+    return `Не понял проект. Укажи имя — например: ${names || 'Planto, Hupp'}.\nИли спроси: **сколько аккаунтов по всем проектам**`;
+  }
+
+  const proj = target.project;
+  const projRows = rows.filter(r => r.project_id === proj.id);
+  if (!projRows.length) return `По **${proj.name}** в Библиотеке пока нет ФБ-кабинетов.`;
+
+  const counts = {};
+  projRows.forEach(r => { const s = r.status || 'other'; counts[s] = (counts[s] || 0) + 1; });
+  const statusLines = Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([status, n]) => `${LIB_STATUS_LABELS[status] || status}: ${n}`)
+    .join(' · ');
+
+  const inferred = target.inferred ? ' (текущий проект)' : '';
+  return `**Кабинеты (Библиотека)** · **${proj.name}**${inferred}\nВсего: **${projRows.length}**\n${statusLines}`;
+}
+
+async function answerChatQuestion(q) {
   const nq = chatNorm(q);
   if (/помощ|что умеешь|команд|пример|как спрос/.test(nq)) {
-    return 'Спрашивай своими словами — не только готовые кнопки.\n\nПонимаю метрики: спенд, клики, показы, инсталлы, триалы, CPC/CPM/CTR, ROAS, доход.\nПериоды: сегодня, вчера, 7/30 дней, июль, 01.07–22.07.\nПроекты: Planto, Hupp, JGGL… (можно «планта», «хаппа», «джиглу»).\n\nПримеры:\n**сколько потратили на планта в июле**\n**какой расход у хаппа**\n**клики по джиглу android за неделю**\n**спенд по всем проектам**';
+    return 'Спрашивай своими словами — не только готовые кнопки.\n\nПонимаю метрики: спенд, клики, показы, инсталлы, триалы, CPC/CPM/CTR, ROAS, доход.\nПериоды: сегодня, вчера, 7/30 дней, июль, 01.07–22.07.\nПроекты: Planto, Hupp, JGGL… (можно «планта», «хаппа», «джиглу»).\nТакже спрашивай про ФБ-кабинеты из Библиотеки: **сколько аккаунтов по джиглу в работе**.\n\nПримеры:\n**сколько потратили на планта в июле**\n**какой расход у хаппа**\n**клики по джиглу android за неделю**\n**спенд по всем проектам**\n**сколько аккаунтов у qlosophy**';
+  }
+
+  if (/аккаунт|акаунт|кабинет/.test(nq)) {
+    return await answerAccountsIntent(q);
   }
 
   const target = chatFindProject(q);
