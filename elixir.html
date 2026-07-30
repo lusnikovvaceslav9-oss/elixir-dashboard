@@ -9043,10 +9043,10 @@ function renderLibraryTableRows(entity, rows) {
       const html = col.render ? col.render(raw, row) : escHtml(raw == null || raw === '' ? '—' : String(raw));
       return `<td>${html}</td>`;
     }).join('');
-    const dragAttrs = sorting ? '' : `draggable="true" ondragstart="onLibraryRowDragStart(event)" ondragover="onLibraryRowDragOver(event)" ondragleave="onLibraryRowDragLeave(event)" ondrop="onLibraryRowDrop(event)" ondragend="onLibraryRowDragEnd(event)"`;
+    const dragAttrs = sorting ? '' : `ondragover="onLibraryRowDragOver(event)" ondragleave="onLibraryRowDragLeave(event)" ondrop="onLibraryRowDrop(event)"`;
     const dragCell = sorting
       ? `<td class="lib-drag-cell"></td>`
-      : `<td class="lib-drag-cell"><span class="library-drag-handle" title="Перетащить — изменить порядок">⋮⋮</span></td>`;
+      : `<td class="lib-drag-cell"><span class="library-drag-handle" draggable="true" ondragstart="onLibraryRowDragStart(event)" ondragend="onLibraryRowDragEnd(event)" title="Перетащить — изменить порядок">⋮⋮</span></td>`;
     return `<tr data-id="${escHtml(row.id)}" ${dragAttrs}>
       ${dragCell}
       ${cells}
@@ -9082,8 +9082,9 @@ let librarySortKey = null;
 let librarySortDir = 'desc';
 
 function onLibraryRowDragStart(e) {
-  libraryDragId = e.currentTarget.dataset.id;
-  e.currentTarget.classList.add('lib-row-dragging');
+  const tr = e.currentTarget.closest('tr');
+  libraryDragId = tr.dataset.id;
+  tr.classList.add('lib-row-dragging');
   e.dataTransfer.effectAllowed = 'move';
 }
 
@@ -9097,7 +9098,8 @@ function onLibraryRowDragLeave(e) {
 }
 
 function onLibraryRowDragEnd(e) {
-  e.currentTarget.classList.remove('lib-row-dragging');
+  const tr = e.currentTarget.closest('tr');
+  if (tr) tr.classList.remove('lib-row-dragging');
   document.querySelectorAll('.lib-row-dragover').forEach(el => el.classList.remove('lib-row-dragover'));
 }
 
