@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-01T12:58:47+00:00",
+  "generated_at": "2026-08-01T14:25:50+00:00",
   "anchor": "2026-06-05",
   "until": "2026-08-01",
   "window_start": "2026-07-23",
@@ -24,24 +24,23 @@
     "delta": 0
   },
   "unit_economics": {
-    "revenue_total": 80382,
-    "spend_total": 229562.28,
-    "active_users": 12165,
-    "active_payers": 39,
-    "plus_active_users": 93,
-    "trial_cancellations": 14,
+    "revenue_total": 82872,
+    "spend_total": 229745.21,
+    "active_users": 12178,
+    "active_payers": 40,
+    "plus_active_users": 89,
+    "trial_cancellations": 10,
     "trial_cancellations_by_day": {
-      "2026-07-25": 1,
       "2026-07-27": 2,
-      "2026-07-28": 3,
-      "2026-07-29": 2,
-      "2026-07-31": 4,
+      "2026-07-28": 2,
+      "2026-07-29": 1,
+      "2026-07-31": 3,
       "2026-08-01": 2
     },
-    "renewals": 25,
-    "arpu": 6.61,
-    "arppu": 2061.08,
-    "ltv": 3382.29,
+    "renewals": 26,
+    "arpu": 6.81,
+    "arppu": 2071.8,
+    "ltv": 3418.47,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
     "roas_d7": 32.8,
     "roas_d14": 31.6,
@@ -57,15 +56,15 @@
     "predict_horizon_days": 180
   },
   "product": {
-    "garden_activation_pct": 29.42,
+    "garden_activation_pct": 29.4,
     "garden_avg_plants": 1.78,
     "garden_depth_icp_pct": null,
-    "paywall_cta_pct": 37.68,
+    "paywall_cta_pct": 37.66,
     "care_engagement_pct": 3.85,
     "feature_activation": {
-      "scan_pct": 31.74,
+      "scan_pct": 31.71,
       "watering_pct": 2.28,
-      "ai_pct": 22.52
+      "ai_pct": 22.5
     },
     "retention": {
       "d1": null,
@@ -76,16 +75,16 @@
   },
   "payments_by_plan": {
     "yearly": {
-      "count": 31,
-      "rub": 77190
+      "count": 32,
+      "rub": 79680
     },
     "monthly": {
       "count": 8,
       "rub": 3192
     },
     "total": {
-      "count": 39,
-      "rub": 80382
+      "count": 40,
+      "rub": 82872
     }
   },
   "trials_sb_crosscheck_total": 164,
