@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-01T23:48:42+00:00",
+  "generated_at": "2026-08-02T02:09:48+00:00",
   "anchor": "2026-06-05",
   "until": "2026-08-02",
   "window_start": "2026-07-24",
@@ -11,12 +11,14 @@
     "installs": "appmetrica_reporting",
     "trials": "appmetrica_trial_started",
     "trials_am_crosscheck": "appmetrica_reporting_events",
-    "bills": "supabase_main_active_cohort_day",
-    "trial_cancellations": "supabase_trial_cancelled",
-    "unit_economics": "supabase_entitlements",
+    "bills": "rustore_payments_csv_cohort_day",
     "product": "appmetrica_reporting"
   },
-  "errors": [],
+  "errors": [
+    "supabase: connection to server at \"aws-0-eu-west-1.pooler.supabase.com\" (52.209.89.87), port 5432 failed: Connection timed out\n\tIs the server running on that host and accepting TCP/IP connections?\nconnection to server at \"aws-0-eu-west-1.pooler.supabase.com\" (108.128.216.176), port 5432 failed: Connection timed out\n\tIs the server running on that host and accepting TCP/IP connections?\nconnection to server at \"aws-0-eu-west-1.pooler.supabase.com\" (34.241.16.247), port 5432 failed: Connection timed out\n\tIs the server running on that host and accepting TCP/IP connections?\n",
+    "supabase_bills: connection to server at \"aws-0-eu-west-1.pooler.supabase.com\" (108.128.216.176), port 5432 failed: Connection timed out\n\tIs the server running on that host and accepting TCP/IP connections?\nconnection to server at \"aws-0-eu-west-1.pooler.supabase.com\" (34.241.16.247), port 5432 failed: Connection timed out\n\tIs the server running on that host and accepting TCP/IP connections?\nconnection to server at \"aws-0-eu-west-1.pooler.supabase.com\" (52.209.89.87), port 5432 failed: Connection timed out\n\tIs the server running on that host and accepting TCP/IP connections?\n",
+    "supabase_unit: connection to server at \"aws-0-eu-west-1.pooler.supabase.com\" (108.128.216.176), port 5432 failed: Connection timed out\n\tIs the server running on that host and accepting TCP/IP connections?\nconnection to server at \"aws-0-eu-west-1.pooler.supabase.com\" (52.209.89.87), port 5432 failed: Connection timed out\n\tIs the server running on that host and accepting TCP/IP connections?\nconnection to server at \"aws-0-eu-west-1.pooler.supabase.com\" (34.241.16.247), port 5432 failed: Connection timed out\n\tIs the server running on that host and accepting TCP/IP connections?\n"
+  ],
   "days": 59,
   "reconcile_diff": {
     "trials_total_old_csv": 196,
@@ -24,28 +26,21 @@
     "delta": 0
   },
   "unit_economics": {
-    "revenue_total": 82872,
-    "spend_total": 230453.74,
-    "active_users": 12218,
-    "active_payers": 40,
-    "plus_active_users": 89,
-    "trial_cancellations": 12,
-    "trial_cancellations_by_day": {
-      "2026-07-27": 2,
-      "2026-07-28": 2,
-      "2026-07-29": 1,
-      "2026-07-31": 3,
-      "2026-08-01": 3,
-      "2026-08-02": 1
-    },
-    "renewals": 26,
-    "arpu": 6.78,
-    "arppu": 2071.8,
-    "ltv": 3418.47,
+    "revenue_total": 26895,
+    "spend_total": 230502.84,
+    "active_users": 12224,
+    "active_payers": 15,
+    "plus_active_users": 0,
+    "trial_cancellations": 0,
+    "trial_cancellations_by_day": {},
+    "renewals": 0,
+    "arpu": 2.2,
+    "arppu": 1793.0,
+    "ltv": 1793.0,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
-    "roas_d7": 32.8,
-    "roas_d14": 31.6,
-    "roas_d30": 28.8
+    "roas_d7": 14.0,
+    "roas_d14": 16.0,
+    "roas_d30": 25.6
   },
   "roas_config": {
     "revenue_source": "actual",
@@ -57,15 +52,15 @@
     "predict_horizon_days": 180
   },
   "product": {
-    "garden_activation_pct": 29.37,
-    "garden_avg_plants": 1.79,
+    "garden_activation_pct": 29.38,
+    "garden_avg_plants": 1.78,
     "garden_depth_icp_pct": null,
-    "paywall_cta_pct": 37.71,
+    "paywall_cta_pct": 37.73,
     "care_engagement_pct": 3.84,
     "feature_activation": {
-      "scan_pct": 31.69,
+      "scan_pct": 31.7,
       "watering_pct": 2.28,
-      "ai_pct": 22.53
+      "ai_pct": 22.54
     },
     "retention": {
       "d1": null,
@@ -76,70 +71,17 @@
   },
   "payments_by_plan": {
     "yearly": {
-      "count": 32,
-      "rub": 79680
+      "count": 10,
+      "rub": 24900
     },
     "monthly": {
-      "count": 8,
-      "rub": 3192
+      "count": 5,
+      "rub": 1995
     },
     "total": {
-      "count": 40,
-      "rub": 82872
+      "count": 15,
+      "rub": 26895
     }
-  },
-  "trials_sb_crosscheck_total": 164,
-  "trials_sb_crosscheck_by_day": {
-    "2026-06-07": 1,
-    "2026-06-08": 1,
-    "2026-06-09": 2,
-    "2026-06-10": 1,
-    "2026-06-14": 1,
-    "2026-06-15": 1,
-    "2026-06-16": 5,
-    "2026-06-17": 1,
-    "2026-06-18": 2,
-    "2026-06-19": 4,
-    "2026-06-20": 5,
-    "2026-06-21": 4,
-    "2026-06-22": 2,
-    "2026-06-24": 3,
-    "2026-06-25": 2,
-    "2026-06-26": 4,
-    "2026-06-27": 3,
-    "2026-06-28": 2,
-    "2026-06-29": 1,
-    "2026-07-01": 6,
-    "2026-07-02": 1,
-    "2026-07-03": 6,
-    "2026-07-04": 3,
-    "2026-07-05": 8,
-    "2026-07-06": 1,
-    "2026-07-07": 8,
-    "2026-07-08": 5,
-    "2026-07-09": 6,
-    "2026-07-10": 1,
-    "2026-07-11": 1,
-    "2026-07-12": 4,
-    "2026-07-13": 1,
-    "2026-07-15": 1,
-    "2026-07-16": 1,
-    "2026-07-17": 2,
-    "2026-07-18": 1,
-    "2026-07-19": 1,
-    "2026-07-20": 2,
-    "2026-07-21": 4,
-    "2026-07-22": 1,
-    "2026-07-23": 10,
-    "2026-07-24": 7,
-    "2026-07-25": 12,
-    "2026-07-26": 7,
-    "2026-07-27": 4,
-    "2026-07-28": 3,
-    "2026-07-29": 5,
-    "2026-07-30": 2,
-    "2026-07-31": 4,
-    "2026-08-01": 1
   },
   "trials_am_crosscheck_total": 196,
   "trials_am_crosscheck_by_day": {
@@ -198,7 +140,7 @@
   "trials_crosscheck_yesterday": {
     "day": "2026-08-01",
     "appmetrica": 1,
-    "supabase": 1,
+    "supabase": 0,
     "dashboard": 1,
     "note": "В дашборде trials = AppMetrica trial_started (события ym:ce:allEvents, как колонка «События» в UI). RuStore — сверка оплат."
   }
