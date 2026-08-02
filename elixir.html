@@ -1070,6 +1070,24 @@ thead th{color:rgba(0,0,0,0.58)!important;font-weight:700!important}
   </div>
 </div>
 
+<!-- Manual Report Entry Modal (admin — вручную вписать день без CSV) -->
+<div class="overlay" id="overlay-manual-entry">
+  <div class="modal">
+    <h3 id="manual-entry-title">Ручной ввод отчёта</h3>
+    <div class="modal-sub" id="manual-entry-sub"></div>
+    <div class="form-group">
+      <label>Дата</label>
+      <input type="date" id="manual-entry-date">
+    </div>
+    <div id="manual-entry-fields"></div>
+    <div class="modal-error" id="manual-entry-error">Заполните обязательные поля</div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeAllModals()">Отмена</button>
+      <button class="btn-primary" onclick="submitManualEntryForm()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
 <!-- Add/Edit Project Modal -->
 <div class="overlay" id="overlay-proj">
   <div class="modal modal-wizard" id="proj-modal">
@@ -2932,6 +2950,213 @@ async function deleteUploadedCsv(projId, id) {
   } catch (e) {
     console.warn('CSV delete cloud sync failed:', e.message || e);
   }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// РУЧНОЙ ВВОД ОТЧЁТА (admin) — день без CSV/таблицы, хранится как
+// ещё один "upload" в _csv_uploads[projId]['manual_entries'], поэтому
+// проходит через тот же getUploadedCsvSources/mergeUploadedSources
+// пайплайн и просто появляется в таблице как ещё один источник.
+// ═══════════════════════════════════════════════════════════════
+const MANUAL_ENTRY_UPLOAD_ID = 'manual_entries';
+
+/** Набор полей формы зависит от типа проекта — те же поля, что реально хранят CSV-парсеры. */
+function manualEntryFieldsForProject(proj) {
+  let rows = [];
+  try {
+    const data = cache[proj.id];
+    if (data && data !== 'loading') rows = selectProjectRows(proj, normalizeCacheData(data));
+  } catch (_) {}
+  const type = getEffectiveType(proj, rows);
+  const FIELD_SETS = {
+    hupp: [
+      ['spend', 'Расход'], ['impressions', 'Показы'], ['clicks', 'Клики'],
+      ['installs', 'Visits'], ['trials', 'Reach pay'], ['fb', 'View pay'],
+      ['sold', 'Pay submit'], ['purchase', 'Purchase'],
+      ['contact_info', 'Contact info'], ['form_submit', 'Form submit'], ['contact_sent', 'Contact sent'],
+    ],
+    planto: [
+      ['spend', 'Расход'], ['installs', 'Installs'], ['trials', 'Trials'],
+      ['sold', 'Продано'], ['fb', 'Paid'], ['impressions', 'Показы'], ['clicks', 'Клики'],
+    ],
+    quadcode: [
+      ['spend', 'Расход'], ['regs', 'Регистрации'], ['installs', 'Инсталлы'], ['purchases', 'Покупки'],
+    ],
+    campaign: [
+      ['spend', 'Расход'], ['impressions', 'Показы'], ['clicks', 'Клики'], ['qregs', 'Целевые'],
+    ],
+    streamfi: [
+      ['spend', 'Расход'], ['qregs', 'Целевые'], ['regs', 'Регистрации'],
+    ],
+    generic: [
+      ['spend', 'Расход'],
+    ],
+  };
+  const set = FIELD_SETS[type] || FIELD_SETS.generic;
+  return set.map(([key, label]) => ({ key, label }));
+}
+
+function getManualEntryRows(projId) {
+  const all = loadCsvUploads();
+  return all[projId]?.[MANUAL_ENTRY_UPLOAD_ID]?.rows || [];
+}
+
+/** Добавляет/заменяет одну дату в накопительной ручной записи проекта. */
+async function saveManualEntryRow(projId, rowData) {
+  const all = loadCsvUploads();
+  if (!all[projId]) all[projId] = {};
+  const existing = all[projId][MANUAL_ENTRY_UPLOAD_ID] || { label: 'Ручной ввод', fileName: '', hash: 'manual' };
+  const rows = (existing.rows || []).filter(r => r.date !== rowData.date);
+  rows.push(rowData);
+  rows.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  all[projId][MANUAL_ENTRY_UPLOAD_ID] = {
+    ...existing,
+    label: 'Ручной ввод',
+    hash: 'manual',
+    uploadedAt: new Date().toISOString(),
+    rows,
+    sheetColumns: [],
+  };
+  await saveCsvUploads(all);
+  return all[projId][MANUAL_ENTRY_UPLOAD_ID];
+}
+
+/** Убирает одну дату из ручной записи. Прямая запись в облако — как и deleteUploadedCsv,
+ *  в обход union-preserving мерджа, иначе удалённая строка вернётся из устаревшей копии. */
+async function deleteManualEntryRow(projId, dateKey) {
+  const all = loadCsvUploads();
+  const existing = all[projId]?.[MANUAL_ENTRY_UPLOAD_ID];
+  if (!existing) return;
+  const rows = (existing.rows || []).filter(r => r.date !== dateKey);
+  if (rows.length) {
+    all[projId][MANUAL_ENTRY_UPLOAD_ID] = { ...existing, rows, uploadedAt: new Date().toISOString() };
+  } else {
+    delete all[projId][MANUAL_ENTRY_UPLOAD_ID];
+    if (!Object.keys(all[projId]).length) delete all[projId];
+  }
+  localStorage.setItem(CSV_UPLOAD_KEY, JSON.stringify(all));
+  try {
+    await jbSaveRecord(raw => {
+      const rest = raw.filter(p => p && p.id !== '_csv_uploads');
+      const entry = raw.find(p => p?.id === '_csv_uploads');
+      const uploads = entry?.uploads ? JSON.parse(JSON.stringify(entry.uploads)) : {};
+      if (uploads[projId]) {
+        if (rows.length) {
+          uploads[projId][MANUAL_ENTRY_UPLOAD_ID] = { ...(uploads[projId][MANUAL_ENTRY_UPLOAD_ID] || {}), rows, uploadedAt: new Date().toISOString() };
+        } else {
+          delete uploads[projId][MANUAL_ENTRY_UPLOAD_ID];
+          if (!Object.keys(uploads[projId]).length) delete uploads[projId];
+        }
+      }
+      return [...rest, { id: '_csv_uploads', uploads, updatedAt: new Date().toISOString() }];
+    });
+  } catch (e) {
+    console.warn('Manual entry delete cloud sync failed:', e.message || e);
+  }
+}
+
+let editingManualEntryProjId = null;
+
+function openManualEntryModal(projId, dateKey) {
+  if (!isAdmin()) return;
+  const proj = projects.find(p => p.id === projId);
+  if (!proj) return;
+  editingManualEntryProjId = projId;
+  const fields = manualEntryFieldsForProject(proj);
+  const existing = dateKey ? getManualEntryRows(projId).find(r => r.date === dateKey) : null;
+  document.getElementById('manual-entry-title').textContent = existing ? 'Изменить запись' : 'Новая запись вручную';
+  document.getElementById('manual-entry-sub').textContent = proj.name;
+  const dateInput = document.getElementById('manual-entry-date');
+  dateInput.value = existing ? existing.date : '';
+  dateInput.disabled = !!existing;
+  document.getElementById('manual-entry-fields').innerHTML = fields.map(f => `
+    <div class="form-group">
+      <label>${escHtml(f.label)}</label>
+      <input type="number" step="any" id="manual-entry-f-${f.key}" value="${existing && existing[f.key] != null ? escHtml(String(existing[f.key])) : ''}" placeholder="0">
+    </div>
+  `).join('');
+  const errEl = document.getElementById('manual-entry-error');
+  errEl.style.display = 'none';
+  document.getElementById('overlay-manual-entry').classList.add('show');
+}
+
+async function submitManualEntryForm() {
+  const projId = editingManualEntryProjId;
+  const proj = projects.find(p => p.id === projId);
+  const errEl = document.getElementById('manual-entry-error');
+  if (!proj) return;
+  const dateVal = document.getElementById('manual-entry-date').value;
+  const dt = parseDate(dateVal);
+  if (!dateVal || !dt) {
+    errEl.textContent = 'Укажите дату';
+    errEl.style.display = 'block';
+    return;
+  }
+  const fields = manualEntryFieldsForProject(proj);
+  const row = { date: dateVal, dateStr: fmtDateStr(dt) };
+  let hasAny = false;
+  for (const f of fields) {
+    const el = document.getElementById(`manual-entry-f-${f.key}`);
+    const raw = (el?.value || '').trim();
+    if (raw === '') continue;
+    const num = Number(raw);
+    if (!Number.isFinite(num)) continue;
+    row[f.key] = num;
+    if (num) hasAny = true;
+  }
+  if (!hasAny) {
+    errEl.textContent = 'Заполните хотя бы одно поле с ненулевым значением';
+    errEl.style.display = 'block';
+    return;
+  }
+  const btn = document.querySelector('#overlay-manual-entry .btn-primary');
+  if (btn) btn.disabled = true;
+  try {
+    await saveManualEntryRow(projId, row);
+    closeAllModals();
+    await applyUploadedCsvToCache(projId);
+  } catch (e) {
+    errEl.textContent = 'Не удалось сохранить: ' + (e.message || e);
+    errEl.style.display = 'block';
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function removeManualEntryRow(projId, dateKey) {
+  if (!isAdmin()) return;
+  if (!confirm(`Удалить ручную запись за ${dateKey}?`)) return;
+  await deleteManualEntryRow(projId, dateKey);
+  await applyUploadedCsvToCache(projId);
+}
+
+function renderManualEntryCard(proj) {
+  if (!isAdmin()) return '';
+  const fields = manualEntryFieldsForProject(proj);
+  const rows = getManualEntryRows(proj.id).slice().sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  const items = rows.map(r => {
+    const parts = fields.map(f => (r[f.key] != null && r[f.key] !== '' ? `${f.label}: ${r[f.key]}` : null)).filter(Boolean).join(' · ');
+    return `<div class="csv-upload-item">
+      <div>
+        <strong>${escHtml(r.dateStr || r.date)}</strong>
+        <div class="csv-upload-meta">${escHtml(parts || '—')}</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button type="button" class="btn-sm" onclick="openManualEntryModal('${proj.id}','${escHtml(r.date)}')">Изменить</button>
+        <button type="button" class="btn-csv-del" onclick="removeManualEntryRow('${proj.id}','${escHtml(r.date)}')">Удалить</button>
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="csv-upload-card" style="margin-top:12px">
+    <div class="csv-upload-head" style="cursor:default">
+      <div class="csv-upload-head-main">
+        <div class="csv-upload-title">Ручной ввод отчёта</div>
+        <div class="csv-upload-hint">Впишите день вручную, если нет CSV/таблицы — данные встают в общий отчёт как ещё один источник.</div>
+      </div>
+      <button type="button" class="btn-sm" onclick="openManualEntryModal('${proj.id}')" style="white-space:nowrap">+ Добавить запись</button>
+    </div>
+    ${items ? `<div class="csv-upload-list" style="margin-top:8px">${items}</div>` : ''}
+  </div>`;
 }
 
 async function applyUploadedCsvToCache(projId, preferLabel) {
@@ -8330,6 +8555,7 @@ function renderProjectDetail(projId) {
     const srcProj = projForSource(p, src);
     const suffix = (src.label && !monthPartitioned && !dateFilter) ? ' · ' + escHtml(src.label) : periodSuffix;
     html += renderCsvUploadCard(p);
+    html += renderManualEntryCard(p);
     if (!monthPartitioned) html += renderSheetSwitcher(pack, projId, currentMonth);
     // Бюджет/аналитика — тот же universe, что таблица (не один лист).
     html += renderWorkspaceBody(p, srcProj, viewRows, currentMonth, suffix, {
@@ -8347,6 +8573,7 @@ function renderProjectDetail(projId) {
   const suffix = periodSuffix;
 
   html += renderCsvUploadCard(p);
+  html += renderManualEntryCard(p);
   html += renderWorkspaceBody(p, srcProj, rows, currentMonth, suffix, { allData: data, analyticsMonth });
 
   content.innerHTML = html;
