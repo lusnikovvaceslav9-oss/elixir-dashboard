@@ -2925,6 +2925,43 @@ async function saveUploadedCsv(projId, label, fileName, text) {
   return { id, hash, duplicate: false };
 }
 
+/** Восстанавливает CSV-текст из сохранённого upload. Сырой text есть только в браузере,
+ *  где грузили файл (в облако он не уходит, см. uploadsForRemote) — на других устройствах
+ *  или после очистки localStorage строим CSV заново из распарсенных rows. */
+function csvTextFromUpload(upload) {
+  if (upload?.text && upload.text.trim()) return upload.text;
+  const rows = deserializeUploadRows(upload?.rows || []);
+  const cols = new Set();
+  rows.forEach(r => Object.keys(r).forEach(k => { if (k !== 'dateStr' && k !== 'date') cols.add(k); }));
+  const ordered = ['date', ...(cols.has('campaign') ? ['campaign'] : []), ...[...cols].filter(c => c !== 'campaign').sort()];
+  const escCsv = v => {
+    const s = v == null ? '' : String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const lines = [ordered.join(',')];
+  rows.forEach(r => {
+    lines.push(ordered.map(c => escCsv(c === 'date' ? r.dateStr : r[c])).join(','));
+  });
+  return lines.join('\n');
+}
+
+function downloadUploadedCsv(projId, id) {
+  if (!isAdmin()) return;
+  const uploads = getProjectCsvUploads(projId);
+  const u = uploads[id];
+  if (!u) return;
+  const text = csvTextFromUpload(u);
+  const blob = new Blob([text], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = (u.fileName && /\.csv$/i.test(u.fileName)) ? u.fileName : `${slugifyCsvLabel(u.label || id)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
 async function deleteUploadedCsv(projId, id) {
   const all = loadCsvUploads();
   if (all[projId]) {
@@ -3490,7 +3527,10 @@ function renderCsvUploadCard(proj) {
           <strong>${sourceLabelHtml(u.label || id, { withText: true })}</strong>
           <div class="csv-upload-meta">${escHtml(u.fileName || 'file')} · ${days} дн.${when ? ` · ${escHtml(when)}` : ''} · #${escHtml(hashShort)}</div>
         </div>
-        <button type="button" class="btn-csv-del" onclick="event.stopPropagation();removeUploadedCsv('${proj.id}','${escHtml(id)}')">Удалить</button>
+        <div style="display:flex;gap:6px">
+          <button type="button" class="btn-sm" onclick="event.stopPropagation();downloadUploadedCsv('${proj.id}','${escHtml(id)}')">⬇ Скачать</button>
+          <button type="button" class="btn-csv-del" onclick="event.stopPropagation();removeUploadedCsv('${proj.id}','${escHtml(id)}')">Удалить</button>
+        </div>
       </div>`;
     }).join('');
 
