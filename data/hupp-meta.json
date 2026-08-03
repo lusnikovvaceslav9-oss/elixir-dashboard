@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-03T07:49:19+00:00",
+  "generated_at": "2026-08-03T11:46:42+00:00",
   "project": "hupp",
   "anchor": "2026-07-01",
   "until": "2026-08-03",
@@ -60,10 +60,10 @@
       "csv": "contact_sent"
     }
   ],
-  "sources": {
-    "metrika": "counter_110726695"
-  },
-  "errors": [],
+  "sources": {},
+  "errors": [
+    "metrika: HTTP 400: {\"errors\":[{\"error_type\":\"query_error\",\"message\":\"Query is too complicated. Please reduce the date interval or sampling.\"}],\"code\":400,\"message\":\"Query is too complicated. Please reduce the date interval or sampling.\"}"
+  ],
   "days": 34,
   "totals": {
     "spend": 0.0,
