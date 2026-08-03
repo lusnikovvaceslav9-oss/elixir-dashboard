@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-03T11:46:42+00:00",
+  "generated_at": "2026-08-03T12:20:12+00:00",
   "project": "hupp",
   "anchor": "2026-07-01",
   "until": "2026-08-03",
@@ -60,21 +60,21 @@
       "csv": "contact_sent"
     }
   ],
-  "sources": {},
-  "errors": [
-    "metrika: HTTP 400: {\"errors\":[{\"error_type\":\"query_error\",\"message\":\"Query is too complicated. Please reduce the date interval or sampling.\"}],\"code\":400,\"message\":\"Query is too complicated. Please reduce the date interval or sampling.\"}"
-  ],
+  "sources": {
+    "metrika": "counter_110726695"
+  },
+  "errors": [],
   "days": 34,
   "totals": {
     "spend": 0.0,
-    "installs": 4405.0,
-    "trials": 321.0,
-    "sold": 95.0,
-    "fb": 791.0,
-    "purchase": 50.0,
-    "contact_info": 94.0,
-    "form_submit": 171.0,
-    "contact_sent": 91.0,
+    "installs": 4439.0,
+    "trials": 326.0,
+    "sold": 97.0,
+    "fb": 800.0,
+    "purchase": 52.0,
+    "contact_info": 96.0,
+    "form_submit": 174.0,
+    "contact_sent": 93.0,
     "clicks": 0.0,
     "impressions": 0.0
   },
