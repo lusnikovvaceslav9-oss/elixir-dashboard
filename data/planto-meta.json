@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-04T11:56:14+00:00",
+  "generated_at": "2026-08-04T13:49:20+00:00",
   "anchor": "2026-06-05",
   "until": "2026-08-04",
   "window_start": "2026-07-26",
@@ -25,13 +25,12 @@
   },
   "unit_economics": {
     "revenue_total": 90342,
-    "spend_total": 242511.11,
-    "active_users": 12666,
+    "spend_total": 242973.12,
+    "active_users": 12680,
     "active_payers": 43,
-    "plus_active_users": 88,
-    "trial_cancellations": 9,
+    "plus_active_users": 86,
+    "trial_cancellations": 8,
     "trial_cancellations_by_day": {
-      "2026-07-28": 1,
       "2026-07-29": 1,
       "2026-07-31": 2,
       "2026-08-01": 2,
@@ -40,7 +39,7 @@
       "2026-08-04": 1
     },
     "renewals": 27,
-    "arpu": 7.13,
+    "arpu": 7.12,
     "arppu": 2100.98,
     "ltv": 3420.2,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
@@ -58,15 +57,15 @@
     "predict_horizon_days": 180
   },
   "product": {
-    "garden_activation_pct": 29.2,
+    "garden_activation_pct": 29.19,
     "garden_avg_plants": 1.79,
     "garden_depth_icp_pct": null,
-    "paywall_cta_pct": 38.08,
-    "care_engagement_pct": 3.92,
+    "paywall_cta_pct": 38.1,
+    "care_engagement_pct": 3.93,
     "feature_activation": {
-      "scan_pct": 31.6,
+      "scan_pct": 31.59,
       "watering_pct": 2.29,
-      "ai_pct": 22.79
+      "ai_pct": 22.8
     },
     "retention": {
       "d1": null,
