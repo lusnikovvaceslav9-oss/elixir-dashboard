@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-04T06:24:59+00:00",
+  "generated_at": "2026-08-04T09:34:12+00:00",
   "anchor": "2026-06-05",
   "until": "2026-08-04",
   "window_start": "2026-07-26",
@@ -16,19 +16,21 @@
     "unit_economics": "supabase_entitlements",
     "product": "appmetrica_reporting"
   },
-  "errors": [],
+  "errors": [
+    "direct_full: 1 chunk(s) failed: 2026-08-04..2026-08-04: Direct HTTP 400: b'{\"error\":{\"error_code\":\"1000\",\"error_string\":\"\\xd0\\xa1\\xd0\\xb5\\xd1\\x80\\xd0\\xb2\\xd0\\xb5\\xd1\\x80 \\xd0\\xb2\\xd1\\x80\\xd0\\xb5\\xd0\\xbc\\xd0\\xb5\\xd0\\xbd\\xd0\\xbd\\xd0\\xbe \\xd0\\xbd\\xd0\\xb5\\xd0\\xb4\\xd0\\xbe\\xd1\\x81\\xd1\\x82\\xd1\\x83\\xd0\\xbf\\xd0\\xb5\\xd0\\xbd\",\"request_id\":\"660519580392950565\",\"error_detail\":\"\"}}'"
+  ],
   "days": 61,
   "reconcile_diff": {
-    "trials_total_old_csv": 204,
+    "trials_total_old_csv": 205,
     "trials_total_new": 205,
-    "delta": 1
+    "delta": 0
   },
   "unit_economics": {
     "revenue_total": 87852,
-    "spend_total": 241185.82,
-    "active_users": 12618,
+    "spend_total": 241995.25,
+    "active_users": 12649,
     "active_payers": 42,
-    "plus_active_users": 89,
+    "plus_active_users": 88,
     "trial_cancellations": 8,
     "trial_cancellations_by_day": {
       "2026-07-28": 1,
@@ -39,7 +41,7 @@
       "2026-08-03": 1
     },
     "renewals": 26,
-    "arpu": 6.96,
+    "arpu": 6.95,
     "arppu": 2091.71,
     "ltv": 3386.58,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
@@ -57,15 +59,15 @@
     "predict_horizon_days": 180
   },
   "product": {
-    "garden_activation_pct": 29.17,
+    "garden_activation_pct": 29.19,
     "garden_avg_plants": 1.79,
     "garden_depth_icp_pct": null,
-    "paywall_cta_pct": 38.05,
-    "care_engagement_pct": 3.88,
+    "paywall_cta_pct": 38.09,
+    "care_engagement_pct": 3.9,
     "feature_activation": {
       "scan_pct": 31.62,
       "watering_pct": 2.27,
-      "ai_pct": 22.78
+      "ai_pct": 22.79
     },
     "retention": {
       "d1": null,
