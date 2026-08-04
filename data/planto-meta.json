@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-04T09:34:12+00:00",
+  "generated_at": "2026-08-04T11:56:14+00:00",
   "anchor": "2026-06-05",
   "until": "2026-08-04",
   "window_start": "2026-07-26",
@@ -16,9 +16,7 @@
     "unit_economics": "supabase_entitlements",
     "product": "appmetrica_reporting"
   },
-  "errors": [
-    "direct_full: 1 chunk(s) failed: 2026-08-04..2026-08-04: Direct HTTP 400: b'{\"error\":{\"error_code\":\"1000\",\"error_string\":\"\\xd0\\xa1\\xd0\\xb5\\xd1\\x80\\xd0\\xb2\\xd0\\xb5\\xd1\\x80 \\xd0\\xb2\\xd1\\x80\\xd0\\xb5\\xd0\\xbc\\xd0\\xb5\\xd0\\xbd\\xd0\\xbd\\xd0\\xbe \\xd0\\xbd\\xd0\\xb5\\xd0\\xb4\\xd0\\xbe\\xd1\\x81\\xd1\\x82\\xd1\\x83\\xd0\\xbf\\xd0\\xb5\\xd0\\xbd\",\"request_id\":\"660519580392950565\",\"error_detail\":\"\"}}'"
-  ],
+  "errors": [],
   "days": 61,
   "reconcile_diff": {
     "trials_total_old_csv": 205,
@@ -26,26 +24,27 @@
     "delta": 0
   },
   "unit_economics": {
-    "revenue_total": 87852,
-    "spend_total": 241995.25,
-    "active_users": 12649,
-    "active_payers": 42,
+    "revenue_total": 90342,
+    "spend_total": 242511.11,
+    "active_users": 12666,
+    "active_payers": 43,
     "plus_active_users": 88,
-    "trial_cancellations": 8,
+    "trial_cancellations": 9,
     "trial_cancellations_by_day": {
       "2026-07-28": 1,
       "2026-07-29": 1,
       "2026-07-31": 2,
       "2026-08-01": 2,
       "2026-08-02": 1,
-      "2026-08-03": 1
+      "2026-08-03": 1,
+      "2026-08-04": 1
     },
-    "renewals": 26,
-    "arpu": 6.95,
-    "arppu": 2091.71,
-    "ltv": 3386.58,
+    "renewals": 27,
+    "arpu": 7.13,
+    "arppu": 2100.98,
+    "ltv": 3420.2,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
-    "roas_d7": 38.5,
+    "roas_d7": 39.7,
     "roas_d14": 32.6,
     "roas_d30": 28.8
   },
@@ -59,14 +58,14 @@
     "predict_horizon_days": 180
   },
   "product": {
-    "garden_activation_pct": 29.19,
+    "garden_activation_pct": 29.2,
     "garden_avg_plants": 1.79,
     "garden_depth_icp_pct": null,
-    "paywall_cta_pct": 38.09,
-    "care_engagement_pct": 3.9,
+    "paywall_cta_pct": 38.08,
+    "care_engagement_pct": 3.92,
     "feature_activation": {
-      "scan_pct": 31.62,
-      "watering_pct": 2.27,
+      "scan_pct": 31.6,
+      "watering_pct": 2.29,
       "ai_pct": 22.79
     },
     "retention": {
@@ -78,16 +77,16 @@
   },
   "payments_by_plan": {
     "yearly": {
-      "count": 34,
-      "rub": 84660
+      "count": 35,
+      "rub": 87150
     },
     "monthly": {
       "count": 8,
       "rub": 3192
     },
     "total": {
-      "count": 42,
-      "rub": 87852
+      "count": 43,
+      "rub": 90342
     }
   },
   "trials_sb_crosscheck_total": 175,
