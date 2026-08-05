@@ -2050,7 +2050,13 @@ function ensureJgglPlatformSources(proj, sources) {
   }
 
   const total = buildJgglTotalSource(list);
-  if (total) list = [total, ...list];
+  if (total) {
+    // Свод из таблицы контрагентов перекрывает spend на общих датах и
+    // добавляет новые дни — встраиваем в «Общее», чтобы это видела и
+    // сама дневная таблица (она рисуется из строк источника), не только бюджет.
+    total.rows = applyJgglContractorOverride(proj.id, total.rows || []);
+    list = [total, ...list];
+  }
 
   const order = ['общее', 'ios', 'android', 'waitlist', 'redirect', 'web'];
   return list.sort((a, b) => {
