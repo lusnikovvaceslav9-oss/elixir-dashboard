@@ -2049,14 +2049,18 @@ function ensureJgglPlatformSources(proj, sources) {
     });
   }
 
+  // Свод контрагентов перекрывает spend по каждой платформе отдельно (и добавляет
+  // новые дни), затем «Общее» пересобирается из уже поправленных iOS/Android —
+  // так override виден и в дневных таблицах платформ, и в «Общее», и в бюджете.
+  list = list.map(s => {
+    const lab = String(s.label || '').trim().toLowerCase();
+    if (lab === 'ios' || lab === 'android') {
+      return { ...s, rows: applyJgglContractorOverrideOS(proj.id, lab, s.rows || []) };
+    }
+    return s;
+  });
   const total = buildJgglTotalSource(list);
-  if (total) {
-    // Свод из таблицы контрагентов перекрывает spend на общих датах и
-    // добавляет новые дни — встраиваем в «Общее», чтобы это видела и
-    // сама дневная таблица (она рисуется из строк источника), не только бюджет.
-    total.rows = applyJgglContractorOverride(proj.id, total.rows || []);
-    list = [total, ...list];
-  }
+  if (total) list = [total, ...list];
 
   const order = ['общее', 'ios', 'android', 'waitlist', 'redirect', 'web'];
   return list.sort((a, b) => {
@@ -2911,7 +2915,7 @@ function mergeUploadedSources(sources, uploaded, proj) {
 // (не тихим кроном) — админ жмёт «Подтянуть из таблицы контрагентов».
 const JGGL_CONTRACTOR_OVERRIDE_KEY = 'contractor_sheet';
 const JGGL_CONTRACTOR_SHEET = {
-  id: '1pZfqAAzzWD_bvg-vg1eB7RgOLsLfpX92ebkF7aoAdUg',
+  id: '1k71RG52Ijj3K2ZDVoKMzPlcyXx91SypvkGN_PLiJOSo',
   // Вся таблица — по JGGL. Берём слив всех контрагентов (по листу на каждого).
   tabs: ['ФБМ', 'Рентакк', 'Блюглов', 'Адскилл'],
   // Кабинеты, которые НЕ тянуть в JGGL (по факту другие проекты). Пусто = берём всё.
@@ -2927,28 +2931,39 @@ function contractorMoneyToNum(s) {
   return Number.isFinite(n) ? n : null;
 }
 
-/** Разбирает один лист контрагента в подневной свод JGGL: Map(iso → {spend, cnt}).
- *  Строка слива = колонка «Источник» (col4) ∈ {CSV, дашборд}. Этим одинаково во
- *  всех листах отсекаются пополнения, инфраструктура и строки ИТОГО. */
+function normalizeContractorOs(s) {
+  const t = String(s || '').trim().toLowerCase();
+  if (t === 'ios') return 'ios';
+  if (t === 'android' || t === 'андроид') return 'android';
+  return null;
+}
+
+/** Разбирает лист контрагента в свод JGGL с разбивкой по ОС: Map("iso|os" → {iso, os, spend, cnt}).
+ *  Колонки: Дата(0) · Кабинет(1) · ОС(2) · Спенд$(3) · кол-во(4) · Источник(5).
+ *  Строка слива = «Источник» ∈ {CSV, дашборд}. Строки без ОС (свод «все кабинеты»
+ *  за 25–29.07) пропускаем — за эти дни в CSV уже есть корректное деление платформ. */
 function parseJgglContractorTab(csvText) {
   const rows = parseCSV(csvText);
   const daily = new Map();
   for (const row of rows) {
-    if (!row || row.length < 5) continue;
-    const src = String(row[4] || '').trim().toLowerCase();
+    if (!row || row.length < 6) continue;
+    const src = String(row[5] || '').trim().toLowerCase();
     if (src !== 'csv' && src !== 'дашборд') continue;
+    const os = normalizeContractorOs(row[2]);
+    if (!os) continue; // свод без ОС — пропускаем
     const dt = parseDate((row[0] || '').trim());
     if (!dt) continue;
-    const spend = contractorMoneyToNum(row[2]);
+    const spend = contractorMoneyToNum(row[3]);
     if (spend == null) continue;
     const cabMatch = String(row[1] || '').match(/#(\d+)/);
     if (cabMatch && JGGL_CONTRACTOR_SHEET.excludeCabinets.has(cabMatch[1])) continue;
     const iso = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
-    const cnt = parseInt((row[3] || '').replace(/[^\d-]/g, ''), 10) || 0;
-    const d = daily.get(iso) || { spend: 0, cnt: 0 };
+    const cnt = parseInt((row[4] || '').replace(/[^\d-]/g, ''), 10) || 0;
+    const key = `${iso}|${os}`;
+    const d = daily.get(key) || { iso, os, spend: 0, cnt: 0 };
     d.spend += spend;
     d.cnt += cnt;
-    daily.set(iso, d);
+    daily.set(key, d);
   }
   return daily;
 }
@@ -2959,7 +2974,7 @@ async function refreshJgglContractorSheet(projId, btn) {
   const orig = btn ? btn.textContent : '';
   if (btn) { btn.disabled = true; btn.textContent = 'Тянем из таблицы…'; }
   try {
-    const combined = new Map();
+    const combined = new Map(); // "iso|os" → {iso, os, spend, cnt}
     let anyTab = false;
     for (const tabName of JGGL_CONTRACTOR_SHEET.tabs) {
       const url = `https://docs.google.com/spreadsheets/d/${JGGL_CONTRACTOR_SHEET.id}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}`;
@@ -2971,21 +2986,21 @@ async function refreshJgglContractorSheet(projId, btn) {
         continue;
       }
       anyTab = true;
-      parseJgglContractorTab(text).forEach((v, iso) => {
-        const d = combined.get(iso) || { spend: 0, cnt: 0 };
+      parseJgglContractorTab(text).forEach((v, key) => {
+        const d = combined.get(key) || { iso: v.iso, os: v.os, spend: 0, cnt: 0 };
         d.spend += v.spend;
         d.cnt += v.cnt;
-        combined.set(iso, d);
+        combined.set(key, d);
       });
     }
     if (!anyTab) throw new Error('ни один лист таблицы не загрузился (проверь доступ к таблице)');
-    const rows = [...combined.entries()]
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([iso, v]) => {
-        const dt = parseDate(iso);
-        return { date: iso, dateStr: dt ? fmtDateStr(dt) : iso, spend: Math.round(v.spend * 100) / 100, qregs: v.cnt };
+    const rows = [...combined.values()]
+      .sort((a, b) => a.iso.localeCompare(b.iso) || a.os.localeCompare(b.os))
+      .map(v => {
+        const dt = parseDate(v.iso);
+        return { date: v.iso, dateStr: dt ? fmtDateStr(dt) : v.iso, os: v.os, spend: Math.round(v.spend * 100) / 100, qregs: v.cnt };
       });
-    if (!rows.length) throw new Error('в таблице не нашлось строк спенда по JGGL-кабинетам');
+    if (!rows.length) throw new Error('в таблице не нашлось строк спенда по JGGL-кабинетам с разбивкой по ОС');
     const all = loadCsvUploads();
     if (!all[projId]) all[projId] = {};
     all[projId][JGGL_CONTRACTOR_OVERRIDE_KEY] = {
@@ -3000,7 +3015,10 @@ async function refreshJgglContractorSheet(projId, btn) {
     await saveCsvUploads(all, { awaitCloud: true, timeoutMs: 20000 });
     await applyUploadedCsvToCache(projId);
     const total = rows.reduce((a, r) => a + (r.spend || 0), 0);
-    alert(`Готово ✓ Подтянуто ${rows.length} дней, спенд по своду $${total.toFixed(2)}.\nНа общих датах спенд взят из таблицы.`);
+    const ios = rows.filter(r => r.os === 'ios').reduce((a, r) => a + (r.spend || 0), 0);
+    const andr = rows.filter(r => r.os === 'android').reduce((a, r) => a + (r.spend || 0), 0);
+    const days = new Set(rows.map(r => r.date)).size;
+    alert(`Готово ✓ ${days} дн. с разбивкой по ОС · спенд $${total.toFixed(2)} (iOS $${ios.toFixed(2)} / Android $${andr.toFixed(2)}).\nНа общих датах спенд взят из таблицы.`);
   } catch (e) {
     alert(`Не удалось подтянуть: ${e.message || e}`);
   } finally {
@@ -3015,13 +3033,15 @@ function getJgglContractorOverrideRows(projId) {
   return deserializeUploadRows(entry.rows);
 }
 
-/** Применяет override: на общих датах заменяет spend, новые даты добавляет. Прочие метрики дня из base сохраняются. */
-function applyJgglContractorOverride(projId, rows) {
-  const ov = getJgglContractorOverrideRows(projId);
+/** Применяет override к одной платформе JGGL ('ios' / 'android'): на общих датах
+ *  заменяет spend строками свода по этой ОС, новые даты добавляет. Прочие метрики
+ *  дня (показы/клики/цели) из base сохраняются. base схлопывается по дате. */
+function applyJgglContractorOverrideOS(projId, os, rows) {
+  const ov = getJgglContractorOverrideRows(projId).filter(r => r.os === os);
   if (!ov.length) return rows;
-  const byIso = new Map();
   const isoOf = r => (r?.date ? `${r.date.getFullYear()}-${String(r.date.getMonth() + 1).padStart(2, '0')}-${String(r.date.getDate()).padStart(2, '0')}` : null);
-  const out = (rows || []).map(r => ({ ...r }));
+  const out = aggregateRowsByDate(rows || []);
+  const byIso = new Map();
   out.forEach(r => { const k = isoOf(r); if (k) byIso.set(k, r); });
   ov.forEach(o => {
     const k = isoOf(o);
@@ -3051,9 +3071,12 @@ function renderJgglContractorCard(proj) {
   const entry = getProjectCsvUploads(proj.id)?.[JGGL_CONTRACTOR_OVERRIDE_KEY];
   const rows = entry?.rows || [];
   const total = rows.reduce((a, r) => a + (Number(r.spend) || 0), 0);
+  const ios = rows.filter(r => r.os === 'ios').reduce((a, r) => a + (Number(r.spend) || 0), 0);
+  const andr = rows.filter(r => r.os === 'android').reduce((a, r) => a + (Number(r.spend) || 0), 0);
+  const days = new Set(rows.map(r => r.date)).size;
   const when = entry?.uploadedAt ? new Date(entry.uploadedAt).toLocaleString('ru-RU') : '';
   const status = rows.length
-    ? `<div class="csv-upload-meta" style="margin-top:6px">Подтянуто ${rows.length} дн. · спенд по своду $${total.toFixed(2)}${when ? ` · ${escHtml(when)}` : ''}. На общих датах спенд берётся из таблицы.</div>`
+    ? `<div class="csv-upload-meta" style="margin-top:6px">${days} дн. с разбивкой по ОС · $${total.toFixed(2)} (iOS $${ios.toFixed(2)} / Android $${andr.toFixed(2)})${when ? ` · ${escHtml(when)}` : ''}. На общих датах спенд берётся из таблицы.</div>`
     : '';
   const removeBtn = rows.length
     ? `<button type="button" class="btn-csv-del" onclick="removeJgglContractorOverride('${proj.id}')">Убрать свод</button>`
@@ -6738,10 +6761,11 @@ function selectProjectRows(proj, pack) {
   if (sources.length === 1) return sources[0].rows || [];
 
   if (isJgglProject(proj)) {
+    // Источники iOS/Android/Общее уже несут override контрагентов (см. ensureJgglPlatformSources).
     const total = sources.find(s => s.id === 'jggl_total' || isJgglTotalLabel(s.label));
-    if (total) return applyJgglContractorOverride(proj.id, aggregateRowsByDate(total.rows || []));
+    if (total) return aggregateRowsByDate(total.rows || []);
     const plats = sources.filter(s => isJgglPlatformLabel(s.label));
-    if (plats.length) return applyJgglContractorOverride(proj.id, aggregateRowsByDate(plats.flatMap(s => s.rows || [])));
+    if (plats.length) return aggregateRowsByDate(plats.flatMap(s => s.rows || []));
   }
 
   const months = sources.filter(isMonthLikeSource);
