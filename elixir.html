@@ -2813,6 +2813,9 @@ function getUploadedCsvSources(proj) {
   const map = getProjectCsvUploads(proj.id);
   const byLabel = new Map();
   Object.entries(map).forEach(([id, u]) => {
+    // Override-свод контрагентов не подмешиваем в суммирующий пайплайн —
+    // его применяет applyJgglContractorOverride отдельно (иначе задвоит spend).
+    if (u?.override || id === JGGL_CONTRACTOR_OVERRIDE_KEY) return;
     const src = buildUploadedSource(proj.id, id, u);
     if (isQlosophyProject(proj)) src.label = canonicalSourceLabel(proj, src.label);
     // Старые загрузки "Main"/"Ads" → привязать к месяцу по датам CSV
@@ -2884,6 +2887,184 @@ function mergeUploadedSources(sources, uploaded, proj) {
     }
   });
   return out;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// JGGL — свод спенда из таблицы контрагентов (FBM / RentAcc / …).
+// Отдельный источник: на общих датах ПЕРЕКРЫВАЕТ spend из CSV (по
+// просьбе — «приоритет таблице»), но только поле spend, остальные
+// метрики дня (показы/клики/цели) из CSV остаются. Новые даты, которых
+// в CSV нет (напр. RentAcc за 03–04.08), добавляются целиком.
+//
+// Хранится как запись в _csv_uploads[jggl]['contractor_sheet'] с
+// флагом override — getUploadedCsvSources её НЕ подмешивает в обычный
+// (суммирующий) пайплайн, applyJgglContractorOverride применяет отдельно.
+//
+// Хрупко по своей природе: таблицу ведёт контрагент вручную, номера
+// кабинетов и раскладка листов могут меняться. Обновляется по кнопке
+// (не тихим кроном) — админ жмёт «Подтянуть из таблицы контрагентов».
+const JGGL_CONTRACTOR_OVERRIDE_KEY = 'contractor_sheet';
+const JGGL_CONTRACTOR_SHEET = {
+  id: '1pZfqAAzzWD_bvg-vg1eB7RgOLsLfpX92ebkF7aoAdUg',
+  // Вся таблица — по JGGL. Берём слив всех контрагентов (по листу на каждого).
+  tabs: ['ФБМ', 'Рентакк', 'Блюглов', 'Адскилл'],
+  // Кабинеты, которые НЕ тянуть в JGGL (по факту другие проекты). Пусто = берём всё.
+  // Пример: new Set(['59531']) исключил бы Quadcode-кабинет из листа ФБМ.
+  excludeCabinets: new Set(),
+};
+
+/** US-формат денег из таблицы: "$1,011.98" → 1011.98 (parseNum трактует запятую как десятичную — здесь нельзя). */
+function contractorMoneyToNum(s) {
+  const t = String(s == null ? '' : s).replace(/[$\s  ,]/g, '').trim();
+  if (!t || t === '-') return null;
+  const n = parseFloat(t);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Разбирает один лист контрагента в подневной свод JGGL: Map(iso → {spend, cnt}).
+ *  Строка слива = колонка «Источник» (col4) ∈ {CSV, дашборд}. Этим одинаково во
+ *  всех листах отсекаются пополнения, инфраструктура и строки ИТОГО. */
+function parseJgglContractorTab(csvText) {
+  const rows = parseCSV(csvText);
+  const daily = new Map();
+  for (const row of rows) {
+    if (!row || row.length < 5) continue;
+    const src = String(row[4] || '').trim().toLowerCase();
+    if (src !== 'csv' && src !== 'дашборд') continue;
+    const dt = parseDate((row[0] || '').trim());
+    if (!dt) continue;
+    const spend = contractorMoneyToNum(row[2]);
+    if (spend == null) continue;
+    const cabMatch = String(row[1] || '').match(/#(\d+)/);
+    if (cabMatch && JGGL_CONTRACTOR_SHEET.excludeCabinets.has(cabMatch[1])) continue;
+    const iso = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+    const cnt = parseInt((row[3] || '').replace(/[^\d-]/g, ''), 10) || 0;
+    const d = daily.get(iso) || { spend: 0, cnt: 0 };
+    d.spend += spend;
+    d.cnt += cnt;
+    daily.set(iso, d);
+  }
+  return daily;
+}
+
+/** Тянет все листы таблицы контрагентов, собирает подневной свод JGGL и сохраняет override-запись. */
+async function refreshJgglContractorSheet(projId, btn) {
+  if (!isAdmin()) return;
+  const orig = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Тянем из таблицы…'; }
+  try {
+    const combined = new Map();
+    let anyTab = false;
+    for (const tabName of JGGL_CONTRACTOR_SHEET.tabs) {
+      const url = `https://docs.google.com/spreadsheets/d/${JGGL_CONTRACTOR_SHEET.id}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}`;
+      let text;
+      try {
+        text = await fetchWithFallback(url);
+      } catch (e) {
+        console.warn(`Contractor tab "${tabName}" fetch failed:`, e.message || e);
+        continue;
+      }
+      anyTab = true;
+      parseJgglContractorTab(text).forEach((v, iso) => {
+        const d = combined.get(iso) || { spend: 0, cnt: 0 };
+        d.spend += v.spend;
+        d.cnt += v.cnt;
+        combined.set(iso, d);
+      });
+    }
+    if (!anyTab) throw new Error('ни один лист таблицы не загрузился (проверь доступ к таблице)');
+    const rows = [...combined.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([iso, v]) => {
+        const dt = parseDate(iso);
+        return { date: iso, dateStr: dt ? fmtDateStr(dt) : iso, spend: Math.round(v.spend * 100) / 100, qregs: v.cnt };
+      });
+    if (!rows.length) throw new Error('в таблице не нашлось строк спенда по JGGL-кабинетам');
+    const all = loadCsvUploads();
+    if (!all[projId]) all[projId] = {};
+    all[projId][JGGL_CONTRACTOR_OVERRIDE_KEY] = {
+      label: 'Свод контрагентов',
+      fileName: 'contractor-sheet',
+      hash: 'contractor_override',
+      override: true,
+      uploadedAt: new Date().toISOString(),
+      rows,
+      sheetColumns: [],
+    };
+    await saveCsvUploads(all, { awaitCloud: true, timeoutMs: 20000 });
+    await applyUploadedCsvToCache(projId);
+    const total = rows.reduce((a, r) => a + (r.spend || 0), 0);
+    alert(`Готово ✓ Подтянуто ${rows.length} дней, спенд по своду $${total.toFixed(2)}.\nНа общих датах спенд взят из таблицы.`);
+  } catch (e) {
+    alert(`Не удалось подтянуть: ${e.message || e}`);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = orig; }
+  }
+}
+
+/** Строки override-свода JGGL (десериализованные), либо []. */
+function getJgglContractorOverrideRows(projId) {
+  const entry = getProjectCsvUploads(projId)?.[JGGL_CONTRACTOR_OVERRIDE_KEY];
+  if (!entry?.rows?.length) return [];
+  return deserializeUploadRows(entry.rows);
+}
+
+/** Применяет override: на общих датах заменяет spend, новые даты добавляет. Прочие метрики дня из base сохраняются. */
+function applyJgglContractorOverride(projId, rows) {
+  const ov = getJgglContractorOverrideRows(projId);
+  if (!ov.length) return rows;
+  const byIso = new Map();
+  const isoOf = r => (r?.date ? `${r.date.getFullYear()}-${String(r.date.getMonth() + 1).padStart(2, '0')}-${String(r.date.getDate()).padStart(2, '0')}` : null);
+  const out = (rows || []).map(r => ({ ...r }));
+  out.forEach(r => { const k = isoOf(r); if (k) byIso.set(k, r); });
+  ov.forEach(o => {
+    const k = isoOf(o);
+    if (!k) return;
+    const ex = byIso.get(k);
+    if (ex) {
+      ex.spend = o.spend; // приоритет таблице — только spend
+    } else {
+      const nr = { date: o.date, dateStr: o.dateStr, spend: o.spend, qregs: o.qregs || 0 };
+      out.push(nr);
+      byIso.set(k, nr);
+    }
+  });
+  return out.sort((a, b) => a.date - b.date);
+}
+
+async function removeJgglContractorOverride(projId) {
+  if (!isAdmin()) return;
+  if (!confirm('Убрать свод из таблицы контрагентов? JGGL вернётся к данным из CSV.')) return;
+  await deleteUploadedCsv(projId, JGGL_CONTRACTOR_OVERRIDE_KEY);
+  await applyUploadedCsvToCache(projId);
+}
+
+/** Карточка (только JGGL, только админ): подтянуть/обновить/убрать свод контрагентов. */
+function renderJgglContractorCard(proj) {
+  if (!isAdmin() || !isJgglProject(proj)) return '';
+  const entry = getProjectCsvUploads(proj.id)?.[JGGL_CONTRACTOR_OVERRIDE_KEY];
+  const rows = entry?.rows || [];
+  const total = rows.reduce((a, r) => a + (Number(r.spend) || 0), 0);
+  const when = entry?.uploadedAt ? new Date(entry.uploadedAt).toLocaleString('ru-RU') : '';
+  const status = rows.length
+    ? `<div class="csv-upload-meta" style="margin-top:6px">Подтянуто ${rows.length} дн. · спенд по своду $${total.toFixed(2)}${when ? ` · ${escHtml(when)}` : ''}. На общих датах спенд берётся из таблицы.</div>`
+    : '';
+  const removeBtn = rows.length
+    ? `<button type="button" class="btn-csv-del" onclick="removeJgglContractorOverride('${proj.id}')">Убрать свод</button>`
+    : '';
+  return `<div class="csv-upload-card" style="margin-top:12px">
+    <div class="csv-upload-head" style="cursor:default">
+      <div class="csv-upload-head-main">
+        <div class="csv-upload-title">Свод спенда из таблицы контрагентов</div>
+        <div class="csv-upload-hint">Тянет слив по всем контрагентам (ФБМ, Рентакк, Блюглов, Адскилл) из общей таблицы. На пересекающихся датах спенд из таблицы важнее CSV.</div>
+        ${status}
+      </div>
+      <div style="display:flex;gap:6px;white-space:nowrap">
+        <button type="button" class="btn-sm" onclick="refreshJgglContractorSheet('${proj.id}', this)">↻ Подтянуть из таблицы</button>
+        ${removeBtn}
+      </div>
+    </div>
+  </div>`;
 }
 
 /** Сохраняет файл по content-hash: повторная загрузка того же файла не дублирует, разные файлы накапливаются. */
@@ -6552,9 +6733,9 @@ function selectProjectRows(proj, pack) {
 
   if (isJgglProject(proj)) {
     const total = sources.find(s => s.id === 'jggl_total' || isJgglTotalLabel(s.label));
-    if (total) return aggregateRowsByDate(total.rows || []);
+    if (total) return applyJgglContractorOverride(proj.id, aggregateRowsByDate(total.rows || []));
     const plats = sources.filter(s => isJgglPlatformLabel(s.label));
-    if (plats.length) return aggregateRowsByDate(plats.flatMap(s => s.rows || []));
+    if (plats.length) return applyJgglContractorOverride(proj.id, aggregateRowsByDate(plats.flatMap(s => s.rows || [])));
   }
 
   const months = sources.filter(isMonthLikeSource);
@@ -8595,6 +8776,7 @@ function renderProjectDetail(projId) {
     const srcProj = projForSource(p, src);
     const suffix = (src.label && !monthPartitioned && !dateFilter) ? ' · ' + escHtml(src.label) : periodSuffix;
     html += renderCsvUploadCard(p);
+    html += renderJgglContractorCard(p);
     html += renderManualEntryCard(p);
     if (!monthPartitioned) html += renderSheetSwitcher(pack, projId, currentMonth);
     // Бюджет/аналитика — тот же universe, что таблица (не один лист).
