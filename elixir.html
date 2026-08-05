@@ -1455,6 +1455,10 @@ let projPickerFocusIdx = 0;
 let projPickerFilter = '';
 let view         = 'overview';
 let currentMonth = null;
+// Пользователь вручную выбрал месяц в этой сессии? Если нет (свежая загрузка/
+// восстановление) — показываем последний месяц с данными, а не устаревший
+// сохранённый. Сбрасывается при перезагрузке страницы (обычная переменная).
+let monthUserChosen = false;
 let dateFilter   = null; // {start:'YYYY-MM-DD', end:'YYYY-MM-DD'} — календарный фильтр, перекрывает месяц
 let chartInstance = null;
 let chartInstances = [];
@@ -7994,6 +7998,7 @@ function getPrimaryResult(type, rows) {
 function tileSwitchMonth(projId, mk, e) {
   e.stopPropagation();
   tileMonths[projId] = mk;
+  if (projId === view) monthUserChosen = true;
   renderContent();
 }
 
@@ -8037,6 +8042,7 @@ function switchSource(idx) {
   if (mk) {
     currentMonth = mk;
     tileMonths[view] = mk;
+    monthUserChosen = true;
   }
   destroyDetailCharts();
   persistViewState();
@@ -8751,7 +8757,12 @@ function renderProjectDetail(projId) {
   const data = cache[projId];
   const pack = normalizeCacheData(data);
   const months = getMonths(data, p);
-  if (!currentMonth || !months.includes(currentMonth)) currentMonth = months[months.length-1] || null;
+  // По умолчанию — последний месяц с данными. Сохранённый/устаревший месяц
+  // (напр. июль, когда уже есть август) уважаем только если пользователь сам
+  // выбрал его в этой сессии; иначе всегда показываем свежий месяц.
+  if (!currentMonth || !months.includes(currentMonth) || !monthUserChosen) {
+    currentMonth = months[months.length - 1] || null;
+  }
   if (pack && pack !== 'loading' && pack !== null && currentMonth) {
     syncSourceIndexToMonth(projId, pack, currentMonth);
   }
@@ -9048,6 +9059,7 @@ function switchView(v) {
 
 function switchMonth(m) {
   currentMonth = m;
+  monthUserChosen = true;
   dateFilter = null;
   const pack = normalizeCacheData(cache[view]);
   if (pack && pack !== 'loading' && pack !== null) {
