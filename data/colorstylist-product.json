@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-06T15:16:31+00:00",
+  "generated_at": "2026-08-06T15:29:47+00:00",
   "anchor": "2026-07-31",
   "until": "2026-08-06",
   "product": {
@@ -87,33 +87,35 @@
       "note": "AppMetrica Reporting API не отдаёт D1/D3/D7 без Logs/Retention export"
     },
     "errors": [
-      "plant_added: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"invalid_token\",\"message\":\"Invalid oauth_token\"}],\"code\":403,\"message\":\"Invalid oauth_token\"}",
-      "paywall_shown: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"invalid_token\",\"message\":\"Invalid oauth_token\"}],\"code\":403,\"message\":\"Invalid oauth_token\"}",
-      "paywall_cta_clicked: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"invalid_token\",\"message\":\"Invalid oauth_token\"}],\"code\":403,\"message\":\"Invalid oauth_token\"}",
-      "user_score5: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"invalid_token\",\"message\":\"Invalid oauth_token\"}],\"code\":403,\"message\":\"Invalid oauth_token\"}",
-      "chat_message_sent: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"invalid_token\",\"message\":\"Invalid oauth_token\"}],\"code\":403,\"message\":\"Invalid oauth_token\"}",
-      "watering_configured: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"invalid_token\",\"message\":\"Invalid oauth_token\"}],\"code\":403,\"message\":\"Invalid oauth_token\"}",
-      "watering_marked: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"invalid_token\",\"message\":\"Invalid oauth_token\"}],\"code\":403,\"message\":\"Invalid oauth_token\"}",
-      "ai_route: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"invalid_token\",\"message\":\"Invalid oauth_token\"}],\"code\":403,\"message\":\"Invalid oauth_token\"}",
-      "scan_success: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"invalid_token\",\"message\":\"Invalid oauth_token\"}],\"code\":403,\"message\":\"Invalid oauth_token\"}",
-      "user_activated: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"invalid_token\",\"message\":\"Invalid oauth_token\"}],\"code\":403,\"message\":\"Invalid oauth_token\"}",
-      "active_users: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"invalid_token\",\"message\":\"Invalid oauth_token\"}],\"code\":403,\"message\":\"Invalid oauth_token\"}"
+      "plant_added: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"access_denied\",\"message\":\"Access is denied\"}],\"code\":403,\"message\":\"Access is denied\"}",
+      "paywall_shown: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"access_denied\",\"message\":\"Access is denied\"}],\"code\":403,\"message\":\"Access is denied\"}",
+      "paywall_cta_clicked: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"access_denied\",\"message\":\"Access is denied\"}],\"code\":403,\"message\":\"Access is denied\"}",
+      "user_score5: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"access_denied\",\"message\":\"Access is denied\"}],\"code\":403,\"message\":\"Access is denied\"}",
+      "chat_message_sent: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"access_denied\",\"message\":\"Access is denied\"}],\"code\":403,\"message\":\"Access is denied\"}",
+      "watering_configured: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"access_denied\",\"message\":\"Access is denied\"}],\"code\":403,\"message\":\"Access is denied\"}",
+      "watering_marked: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"access_denied\",\"message\":\"Access is denied\"}],\"code\":403,\"message\":\"Access is denied\"}",
+      "ai_route: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"access_denied\",\"message\":\"Access is denied\"}],\"code\":403,\"message\":\"Access is denied\"}",
+      "scan_success: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"access_denied\",\"message\":\"Access is denied\"}],\"code\":403,\"message\":\"Access is denied\"}",
+      "user_activated: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"access_denied\",\"message\":\"Access is denied\"}],\"code\":403,\"message\":\"Access is denied\"}",
+      "active_users: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"access_denied\",\"message\":\"Access is denied\"}],\"code\":403,\"message\":\"Access is denied\"}"
     ]
   },
   "unit_economics": {
-    "revenue_total": 0,
-    "spend_total": 0.0,
+    "revenue_total": 798,
+    "spend_total": 6932.89,
     "active_users": 0,
-    "active_payers": 0,
-    "plus_active_users": 0,
-    "trial_cancellations": 0,
-    "trial_cancellations_by_day": {},
+    "active_payers": 1,
+    "plus_active_users": 1,
+    "trial_cancellations": 1,
+    "trial_cancellations_by_day": {
+      "2026-08-05": 1
+    },
     "renewals": 0,
     "arpu": null,
-    "arppu": null,
-    "ltv": null,
+    "arppu": 798.0,
+    "ltv": 798.0,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
-    "roas_d7": null,
+    "roas_d7": 11.5,
     "roas_d14": null,
     "roas_d30": null
   }

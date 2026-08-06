@@ -1,18 +1,20 @@
 {
-  "generated_at": "2026-08-06T15:16:31+00:00",
+  "generated_at": "2026-08-06T15:29:47+00:00",
   "anchor": "2026-07-31",
   "until": "2026-08-06",
   "window_start": "2026-07-31",
   "trial_attribution": "appmetrica_trial_started",
   "sources": {
+    "spend": "direct_api",
+    "clicks": "direct_api",
+    "impressions": "direct_api",
+    "bills": "supabase_main_active_cohort_day",
+    "trial_cancellations": "supabase_trial_cancelled",
+    "unit_economics": "supabase_entitlements",
     "product": "appmetrica_reporting"
   },
   "errors": [
-    "direct: 1 chunk(s) failed: 2026-07-31..2026-08-06: Direct HTTP 400: b'{\"error\":{\"error_string\":\"\\xd0\\x9e\\xd1\\x88\\xd0\\xb8\\xd0\\xb1\\xd0\\xba\\xd0\\xb0 \\xd0\\xb0\\xd0\\xb2\\xd1\\x82\\xd0\\xbe\\xd1\\x80\\xd0\\xb8\\xd0\\xb7\\xd0\\xb0\\xd1\\x86\\xd0\\xb8\\xd0\\xb8\",\"error_detail\":\"\\xd0\\x9d\\xd0\\xb5\\xd0\\xb4\\xd0\\xb5\\xd0\\xb9\\xd1\\x81\\xd1\\x82\\xd0\\xb2\\xd0\\xb8\\xd1\\x82\\xd0\\xb5\\xd0\\xbb\\xd1\\x8c\\xd0\\xbd\\xd1\\x8b\\xd0\\xb9 OAuth-\\xd1\\x82\\xd0\\xbe\\xd0\\xba\\xd0\\xb5\\xd0\\xbd\",\"error_code\":\"53\",\"request_id\":\"8348775851992219011\"}}'",
-    "appmetrica: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"invalid_token\",\"message\":\"Invalid oauth_token\"}],\"code\":403,\"message\":\"Invalid oauth_token\"}",
-    "supabase: invalid dsn: missing \"=\" after \"SUPABASE_DB_URL\" in connection info string\n",
-    "supabase_bills: invalid dsn: missing \"=\" after \"SUPABASE_DB_URL\" in connection info string\n",
-    "supabase_unit: invalid dsn: missing \"=\" after \"SUPABASE_DB_URL\" in connection info string\n"
+    "appmetrica: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"access_denied\",\"message\":\"Access is denied\"}],\"code\":403,\"message\":\"Access is denied\"}"
   ],
   "days": 7,
   "reconcile_diff": {
@@ -21,19 +23,21 @@
     "delta": 0
   },
   "unit_economics": {
-    "revenue_total": 0,
-    "spend_total": 0.0,
+    "revenue_total": 798,
+    "spend_total": 6932.89,
     "active_users": 0,
-    "active_payers": 0,
-    "plus_active_users": 0,
-    "trial_cancellations": 0,
-    "trial_cancellations_by_day": {},
+    "active_payers": 1,
+    "plus_active_users": 1,
+    "trial_cancellations": 1,
+    "trial_cancellations_by_day": {
+      "2026-08-05": 1
+    },
     "renewals": 0,
     "arpu": null,
-    "arppu": null,
-    "ltv": null,
+    "arppu": 798.0,
+    "ltv": 798.0,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
-    "roas_d7": null,
+    "roas_d7": 11.5,
     "roas_d14": null,
     "roas_d30": null
   },
@@ -62,6 +66,20 @@
       "d3": null,
       "d7": null,
       "note": "AppMetrica Reporting API не отдаёт D1/D3/D7 без Logs/Retention export"
+    }
+  },
+  "payments_by_plan": {
+    "yearly": {
+      "count": 0,
+      "rub": 0
+    },
+    "monthly": {
+      "count": 2,
+      "rub": 798
+    },
+    "total": {
+      "count": 2,
+      "rub": 798
     }
   },
   "trials_crosscheck_yesterday": {
