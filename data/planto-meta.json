@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-06T01:30:15+00:00",
+  "generated_at": "2026-08-06T04:56:39+00:00",
   "anchor": "2026-06-05",
   "until": "2026-08-06",
   "window_start": "2026-07-28",
@@ -20,27 +20,26 @@
   "days": 63,
   "reconcile_diff": {
     "trials_total_old_csv": 211,
-    "trials_total_new": 211,
-    "delta": 0
+    "trials_total_new": 212,
+    "delta": 1
   },
   "unit_economics": {
     "revenue_total": 90741,
-    "spend_total": 251531.0,
-    "active_users": 12891,
+    "spend_total": 252207.28,
+    "active_users": 0,
     "active_payers": 44,
-    "plus_active_users": 90,
-    "trial_cancellations": 8,
+    "plus_active_users": 88,
+    "trial_cancellations": 7,
     "trial_cancellations_by_day": {
       "2026-07-31": 1,
       "2026-08-01": 2,
-      "2026-08-02": 1,
       "2026-08-03": 1,
       "2026-08-04": 1,
       "2026-08-05": 1,
       "2026-08-06": 1
     },
     "renewals": 27,
-    "arpu": 7.04,
+    "arpu": null,
     "arppu": 2062.3,
     "ltv": 3327.8,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
@@ -58,15 +57,15 @@
     "predict_horizon_days": 180
   },
   "product": {
-    "garden_activation_pct": 29.17,
+    "garden_activation_pct": 29.16,
     "garden_avg_plants": 1.8,
     "garden_depth_icp_pct": null,
     "paywall_cta_pct": 38.33,
-    "care_engagement_pct": 3.99,
+    "care_engagement_pct": 3.98,
     "feature_activation": {
-      "scan_pct": 31.54,
-      "watering_pct": 2.32,
-      "ai_pct": 22.93
+      "scan_pct": 31.53,
+      "watering_pct": 2.33,
+      "ai_pct": 22.92
     },
     "retention": {
       "d1": null,
@@ -147,7 +146,7 @@
     "2026-08-05": 5,
     "2026-08-06": 1
   },
-  "trials_am_crosscheck_total": 211,
+  "trials_am_crosscheck_total": 212,
   "trials_am_crosscheck_by_day": {
     "2026-06-05": 2,
     "2026-06-07": 1,
@@ -203,7 +202,8 @@
     "2026-08-02": 2,
     "2026-08-03": 5,
     "2026-08-04": 2,
-    "2026-08-05": 6
+    "2026-08-05": 6,
+    "2026-08-06": 1
   },
   "trials_crosscheck_yesterday": {
     "day": "2026-08-05",
