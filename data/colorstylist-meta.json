@@ -1,0 +1,74 @@
+{
+  "generated_at": "2026-08-06T15:16:31+00:00",
+  "anchor": "2026-07-31",
+  "until": "2026-08-06",
+  "window_start": "2026-07-31",
+  "trial_attribution": "appmetrica_trial_started",
+  "sources": {
+    "product": "appmetrica_reporting"
+  },
+  "errors": [
+    "direct: 1 chunk(s) failed: 2026-07-31..2026-08-06: Direct HTTP 400: b'{\"error\":{\"error_string\":\"\\xd0\\x9e\\xd1\\x88\\xd0\\xb8\\xd0\\xb1\\xd0\\xba\\xd0\\xb0 \\xd0\\xb0\\xd0\\xb2\\xd1\\x82\\xd0\\xbe\\xd1\\x80\\xd0\\xb8\\xd0\\xb7\\xd0\\xb0\\xd1\\x86\\xd0\\xb8\\xd0\\xb8\",\"error_detail\":\"\\xd0\\x9d\\xd0\\xb5\\xd0\\xb4\\xd0\\xb5\\xd0\\xb9\\xd1\\x81\\xd1\\x82\\xd0\\xb2\\xd0\\xb8\\xd1\\x82\\xd0\\xb5\\xd0\\xbb\\xd1\\x8c\\xd0\\xbd\\xd1\\x8b\\xd0\\xb9 OAuth-\\xd1\\x82\\xd0\\xbe\\xd0\\xba\\xd0\\xb5\\xd0\\xbd\",\"error_code\":\"53\",\"request_id\":\"8348775851992219011\"}}'",
+    "appmetrica: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"invalid_token\",\"message\":\"Invalid oauth_token\"}],\"code\":403,\"message\":\"Invalid oauth_token\"}",
+    "supabase: invalid dsn: missing \"=\" after \"SUPABASE_DB_URL\" in connection info string\n",
+    "supabase_bills: invalid dsn: missing \"=\" after \"SUPABASE_DB_URL\" in connection info string\n",
+    "supabase_unit: invalid dsn: missing \"=\" after \"SUPABASE_DB_URL\" in connection info string\n"
+  ],
+  "days": 7,
+  "reconcile_diff": {
+    "trials_total_old_csv": 0,
+    "trials_total_new": 0,
+    "delta": 0
+  },
+  "unit_economics": {
+    "revenue_total": 0,
+    "spend_total": 0.0,
+    "active_users": 0,
+    "active_payers": 0,
+    "plus_active_users": 0,
+    "trial_cancellations": 0,
+    "trial_cancellations_by_day": {},
+    "renewals": 0,
+    "arpu": null,
+    "arppu": null,
+    "ltv": null,
+    "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
+    "roas_d7": null,
+    "roas_d14": null,
+    "roas_d30": null
+  },
+  "roas_config": {
+    "revenue_source": "actual",
+    "ltv_metric": "arppu",
+    "fixed_ltv_value": null,
+    "assumed_avg_check": null,
+    "funnel": null,
+    "mature_cohort_days": 30,
+    "predict_horizon_days": 180
+  },
+  "product": {
+    "garden_activation_pct": null,
+    "garden_avg_plants": null,
+    "garden_depth_icp_pct": null,
+    "paywall_cta_pct": null,
+    "care_engagement_pct": null,
+    "feature_activation": {
+      "scan_pct": null,
+      "watering_pct": null,
+      "ai_pct": null
+    },
+    "retention": {
+      "d1": null,
+      "d3": null,
+      "d7": null,
+      "note": "AppMetrica Reporting API не отдаёт D1/D3/D7 без Logs/Retention export"
+    }
+  },
+  "trials_crosscheck_yesterday": {
+    "day": "2026-08-05",
+    "appmetrica": 0,
+    "supabase": 0,
+    "dashboard": 0,
+    "note": "В дашборде trials = AppMetrica trial_started (события ym:ce:allEvents, как колонка «События» в UI). RuStore — сверка оплат."
+  }
+}

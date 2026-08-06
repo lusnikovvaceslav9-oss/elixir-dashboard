@@ -1,0 +1,120 @@
+{
+  "generated_at": "2026-08-06T15:16:31+00:00",
+  "anchor": "2026-07-31",
+  "until": "2026-08-06",
+  "product": {
+    "from": "2026-07-31",
+    "to": "2026-08-06",
+    "installs": 0,
+    "active_users": 0,
+    "events": {
+      "plant_added": {
+        "users": 0,
+        "events": 0,
+        "vs_install_pct": null,
+        "avg_per_user": null
+      },
+      "paywall_shown": {
+        "users": 0,
+        "events": 0,
+        "vs_install_pct": null,
+        "avg_per_user": null
+      },
+      "paywall_cta_clicked": {
+        "users": 0,
+        "events": 0,
+        "vs_install_pct": null,
+        "avg_per_user": null
+      },
+      "user_score5": {
+        "users": 0,
+        "events": 0,
+        "vs_install_pct": null,
+        "avg_per_user": null
+      },
+      "chat_message_sent": {
+        "users": 0,
+        "events": 0,
+        "vs_install_pct": null,
+        "avg_per_user": null
+      },
+      "watering_configured": {
+        "users": 0,
+        "events": 0,
+        "vs_install_pct": null,
+        "avg_per_user": null
+      },
+      "watering_marked": {
+        "users": 0,
+        "events": 0,
+        "vs_install_pct": null,
+        "avg_per_user": null
+      },
+      "ai_route": {
+        "users": 0,
+        "events": 0,
+        "vs_install_pct": null,
+        "avg_per_user": null
+      },
+      "scan_success": {
+        "users": 0,
+        "events": 0,
+        "vs_install_pct": null,
+        "avg_per_user": null
+      },
+      "user_activated": {
+        "users": 0,
+        "events": 0,
+        "vs_install_pct": null,
+        "avg_per_user": null
+      }
+    },
+    "garden_activation_pct": null,
+    "garden_avg_plants": null,
+    "garden_depth_icp_pct": null,
+    "paywall_cta_pct": null,
+    "care_engagement_pct": null,
+    "chat_per_plant_pct": null,
+    "feature_activation": {
+      "scan_pct": null,
+      "watering_pct": null,
+      "ai_pct": null
+    },
+    "retention": {
+      "d1": null,
+      "d3": null,
+      "d7": null,
+      "note": "AppMetrica Reporting API не отдаёт D1/D3/D7 без Logs/Retention export"
+    },
+    "errors": [
+      "plant_added: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"invalid_token\",\"message\":\"Invalid oauth_token\"}],\"code\":403,\"message\":\"Invalid oauth_token\"}",
+      "paywall_shown: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"invalid_token\",\"message\":\"Invalid oauth_token\"}],\"code\":403,\"message\":\"Invalid oauth_token\"}",
+      "paywall_cta_clicked: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"invalid_token\",\"message\":\"Invalid oauth_token\"}],\"code\":403,\"message\":\"Invalid oauth_token\"}",
+      "user_score5: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"invalid_token\",\"message\":\"Invalid oauth_token\"}],\"code\":403,\"message\":\"Invalid oauth_token\"}",
+      "chat_message_sent: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"invalid_token\",\"message\":\"Invalid oauth_token\"}],\"code\":403,\"message\":\"Invalid oauth_token\"}",
+      "watering_configured: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"invalid_token\",\"message\":\"Invalid oauth_token\"}],\"code\":403,\"message\":\"Invalid oauth_token\"}",
+      "watering_marked: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"invalid_token\",\"message\":\"Invalid oauth_token\"}],\"code\":403,\"message\":\"Invalid oauth_token\"}",
+      "ai_route: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"invalid_token\",\"message\":\"Invalid oauth_token\"}],\"code\":403,\"message\":\"Invalid oauth_token\"}",
+      "scan_success: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"invalid_token\",\"message\":\"Invalid oauth_token\"}],\"code\":403,\"message\":\"Invalid oauth_token\"}",
+      "user_activated: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"invalid_token\",\"message\":\"Invalid oauth_token\"}],\"code\":403,\"message\":\"Invalid oauth_token\"}",
+      "active_users: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"invalid_token\",\"message\":\"Invalid oauth_token\"}],\"code\":403,\"message\":\"Invalid oauth_token\"}"
+    ]
+  },
+  "unit_economics": {
+    "revenue_total": 0,
+    "spend_total": 0.0,
+    "active_users": 0,
+    "active_payers": 0,
+    "plus_active_users": 0,
+    "trial_cancellations": 0,
+    "trial_cancellations_by_day": {},
+    "renewals": 0,
+    "arpu": null,
+    "arppu": null,
+    "ltv": null,
+    "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
+    "roas_d7": null,
+    "roas_d14": null,
+    "roas_d30": null
+  }
+}
