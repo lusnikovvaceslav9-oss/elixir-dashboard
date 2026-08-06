@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-06T15:33:32+00:00",
+  "generated_at": "2026-08-06T15:39:00+00:00",
   "anchor": "2026-07-31",
   "until": "2026-08-06",
   "window_start": "2026-07-31",
@@ -8,14 +8,15 @@
     "spend": "direct_api",
     "clicks": "direct_api",
     "impressions": "direct_api",
+    "installs": "appmetrica_reporting",
+    "trials": "appmetrica_trial_started",
+    "trials_am_crosscheck": "appmetrica_reporting_events",
     "bills": "supabase_main_active_cohort_day",
     "trial_cancellations": "supabase_trial_cancelled",
     "unit_economics": "supabase_entitlements",
     "product": "appmetrica_reporting"
   },
-  "errors": [
-    "appmetrica: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"access_denied\",\"message\":\"Access is denied\"}],\"code\":403,\"message\":\"Access is denied\"}"
-  ],
+  "errors": [],
   "days": 7,
   "reconcile_diff": {
     "trials_total_old_csv": 0,
@@ -25,7 +26,7 @@
   "unit_economics": {
     "revenue_total": 798,
     "spend_total": 6932.89,
-    "active_users": 0,
+    "active_users": 290,
     "active_payers": 1,
     "plus_active_users": 1,
     "trial_cancellations": 1,
@@ -33,7 +34,7 @@
       "2026-08-05": 1
     },
     "renewals": 0,
-    "arpu": null,
+    "arpu": 2.75,
     "arppu": 798.0,
     "ltv": 798.0,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
@@ -51,15 +52,15 @@
     "predict_horizon_days": 180
   },
   "product": {
-    "garden_activation_pct": null,
+    "garden_activation_pct": 0.0,
     "garden_avg_plants": null,
     "garden_depth_icp_pct": null,
     "paywall_cta_pct": null,
-    "care_engagement_pct": null,
+    "care_engagement_pct": 0.0,
     "feature_activation": {
-      "scan_pct": null,
-      "watering_pct": null,
-      "ai_pct": null
+      "scan_pct": 0.0,
+      "watering_pct": 0.0,
+      "ai_pct": 0.0
     },
     "retention": {
       "d1": null,

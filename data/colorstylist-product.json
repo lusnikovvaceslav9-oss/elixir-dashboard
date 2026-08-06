@@ -1,84 +1,84 @@
 {
-  "generated_at": "2026-08-06T15:33:32+00:00",
+  "generated_at": "2026-08-06T15:39:00+00:00",
   "anchor": "2026-07-31",
   "until": "2026-08-06",
   "product": {
     "from": "2026-07-31",
     "to": "2026-08-06",
-    "installs": 0,
-    "active_users": 0,
+    "installs": 283,
+    "active_users": 290,
     "events": {
       "plant_added": {
         "users": 0,
         "events": 0,
-        "vs_install_pct": null,
+        "vs_install_pct": 0.0,
         "avg_per_user": null
       },
       "paywall_shown": {
         "users": 0,
         "events": 0,
-        "vs_install_pct": null,
+        "vs_install_pct": 0.0,
         "avg_per_user": null
       },
       "paywall_cta_clicked": {
         "users": 0,
         "events": 0,
-        "vs_install_pct": null,
+        "vs_install_pct": 0.0,
         "avg_per_user": null
       },
       "user_score5": {
         "users": 0,
         "events": 0,
-        "vs_install_pct": null,
+        "vs_install_pct": 0.0,
         "avg_per_user": null
       },
       "chat_message_sent": {
         "users": 0,
         "events": 0,
-        "vs_install_pct": null,
+        "vs_install_pct": 0.0,
         "avg_per_user": null
       },
       "watering_configured": {
         "users": 0,
         "events": 0,
-        "vs_install_pct": null,
+        "vs_install_pct": 0.0,
         "avg_per_user": null
       },
       "watering_marked": {
         "users": 0,
         "events": 0,
-        "vs_install_pct": null,
+        "vs_install_pct": 0.0,
         "avg_per_user": null
       },
       "ai_route": {
         "users": 0,
         "events": 0,
-        "vs_install_pct": null,
+        "vs_install_pct": 0.0,
         "avg_per_user": null
       },
       "scan_success": {
         "users": 0,
         "events": 0,
-        "vs_install_pct": null,
+        "vs_install_pct": 0.0,
         "avg_per_user": null
       },
       "user_activated": {
         "users": 0,
         "events": 0,
-        "vs_install_pct": null,
+        "vs_install_pct": 0.0,
         "avg_per_user": null
       }
     },
-    "garden_activation_pct": null,
+    "garden_activation_pct": 0.0,
     "garden_avg_plants": null,
     "garden_depth_icp_pct": null,
     "paywall_cta_pct": null,
-    "care_engagement_pct": null,
+    "care_engagement_pct": 0.0,
     "chat_per_plant_pct": null,
     "feature_activation": {
-      "scan_pct": null,
-      "watering_pct": null,
-      "ai_pct": null
+      "scan_pct": 0.0,
+      "watering_pct": 0.0,
+      "ai_pct": 0.0
     },
     "retention": {
       "d1": null,
@@ -86,24 +86,12 @@
       "d7": null,
       "note": "AppMetrica Reporting API не отдаёт D1/D3/D7 без Logs/Retention export"
     },
-    "errors": [
-      "plant_added: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"access_denied\",\"message\":\"Access is denied\"}],\"code\":403,\"message\":\"Access is denied\"}",
-      "paywall_shown: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"access_denied\",\"message\":\"Access is denied\"}],\"code\":403,\"message\":\"Access is denied\"}",
-      "paywall_cta_clicked: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"access_denied\",\"message\":\"Access is denied\"}],\"code\":403,\"message\":\"Access is denied\"}",
-      "user_score5: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"access_denied\",\"message\":\"Access is denied\"}],\"code\":403,\"message\":\"Access is denied\"}",
-      "chat_message_sent: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"access_denied\",\"message\":\"Access is denied\"}],\"code\":403,\"message\":\"Access is denied\"}",
-      "watering_configured: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"access_denied\",\"message\":\"Access is denied\"}],\"code\":403,\"message\":\"Access is denied\"}",
-      "watering_marked: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"access_denied\",\"message\":\"Access is denied\"}],\"code\":403,\"message\":\"Access is denied\"}",
-      "ai_route: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"access_denied\",\"message\":\"Access is denied\"}],\"code\":403,\"message\":\"Access is denied\"}",
-      "scan_success: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"access_denied\",\"message\":\"Access is denied\"}],\"code\":403,\"message\":\"Access is denied\"}",
-      "user_activated: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"access_denied\",\"message\":\"Access is denied\"}],\"code\":403,\"message\":\"Access is denied\"}",
-      "active_users: AppMetrica HTTP 403: {\"errors\":[{\"error_type\":\"access_denied\",\"message\":\"Access is denied\"}],\"code\":403,\"message\":\"Access is denied\"}"
-    ]
+    "errors": []
   },
   "unit_economics": {
     "revenue_total": 798,
     "spend_total": 6932.89,
-    "active_users": 0,
+    "active_users": 290,
     "active_payers": 1,
     "plus_active_users": 1,
     "trial_cancellations": 1,
@@ -111,7 +99,7 @@
       "2026-08-05": 1
     },
     "renewals": 0,
-    "arpu": null,
+    "arpu": 2.75,
     "arppu": 798.0,
     "ltv": 798.0,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
