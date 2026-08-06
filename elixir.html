@@ -2367,9 +2367,14 @@ function directSpendRowsToCsvText(rows) {
 }
 
 /**
- * Direct CSV Hupp: несколько кампаний суммируем по дате.
- * Повторная выгрузка той же кампании (тот же №) — берём только самый свежий файл.
- * Файлы без campaign_id суммируются как отдельные слоты (по id загрузки).
+ * Direct CSV Hupp: несколько кампаний (с campaign_id) суммируем по дате;
+ * повторная выгрузка той же кампании (тот же №) — берём только самый свежий файл.
+ *
+ * Файлы БЕЗ campaign_id — это перекрывающиеся по датам выгрузки одного аккаунта
+ * (напр. 15–20, потом 16–21, потом 15–26). Их нельзя ни суммировать (пересечения
+ * задвоятся: 16.07 = 3×), ни затирать всей выгрузкой (новый файл за 1 день стёр бы
+ * историю). Правило: на КАЖДУЮ дату берём значение из самого свежего файла, где эта
+ * дата есть, — и история сохраняется, и пересечения не задваиваются.
  */
 function collectHuppDirectRows(proj) {
   const uploads = getProjectCsvUploads(proj?.id || 'hupp');
@@ -2378,7 +2383,8 @@ function collectHuppDirectRows(proj) {
     .sort((a, b) => String(a[1]?.uploadedAt || '').localeCompare(String(b[1]?.uploadedAt || '')));
   const useEntries = entries.length ? entries : Object.entries(uploads || {}).filter(([, u]) => u);
 
-  const byCamp = new Map(); // campKey -> { uploadedAt, rows }
+  const byCamp = new Map();       // campKey -> { uploadedAt, rows } — файлы С campaign_id
+  const noCampByDate = new Map(); // dateStr -> { uploadedAt, row } — без id: свежий файл выигрывает подату
   useEntries.forEach(([id, u]) => {
     const chunk = [];
     if (u.text) {
@@ -2396,18 +2402,29 @@ function collectHuppDirectRows(proj) {
       });
     }
     if (!chunk.length) return;
+    const up = String(u.uploadedAt || '');
     const ids = [...new Set(chunk.map(r => r.campaignId).filter(Boolean))];
-    const campKey = ids.length === 1 ? ids[0] : (ids.length > 1 ? `multi:${ids.sort().join('+')}` : `file:${id}`);
-    const prev = byCamp.get(campKey);
-    if (!prev || String(u.uploadedAt || '') >= String(prev.uploadedAt || '')) {
-      byCamp.set(campKey, { uploadedAt: u.uploadedAt || '', rows: chunk });
+    if (!ids.length) {
+      // Без campaign_id: слить по дате, на общих датах побеждает самый свежий файл.
+      chunk.forEach(r => {
+        const key = r.dateStr || (r.date ? fmtDateStr(r.date) : '');
+        if (!key) return;
+        const prev = noCampByDate.get(key);
+        if (!prev || up >= prev.uploadedAt) noCampByDate.set(key, { uploadedAt: up, row: r });
+      });
+      return;
     }
+    const campKey = ids.length === 1 ? ids[0] : `multi:${ids.sort().join('+')}`;
+    const prev = byCamp.get(campKey);
+    if (!prev || up >= prev.uploadedAt) byCamp.set(campKey, { uploadedAt: up, rows: chunk });
   });
 
   let merged = [];
   for (const { rows } of byCamp.values()) {
     merged = mergeRowsSumByDate(merged, rows);
   }
+  const noCampRows = [...noCampByDate.values()].map(v => v.row);
+  if (noCampRows.length) merged = mergeRowsSumByDate(merged, noCampRows);
   return merged;
 }
 
