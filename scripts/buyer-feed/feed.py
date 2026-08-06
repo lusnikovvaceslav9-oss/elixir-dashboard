@@ -70,6 +70,45 @@ def fetch_admin_campaign_ids(project_id: str) -> list[str] | None:
     return None
 
 
+def other_projects_campaign_ids(project_id: str, config_dir: Path) -> list[str]:
+    """Кампании, заявленные ДРУГИМИ проектами (тот же Direct-логин).
+
+    Проект без своего include-фильтра (напр. Planto) должен исключить их, иначе
+    затянет чужой спенд. Источники: конфиги config/*.json и админка дашборда.
+    """
+    ids: set[str] = set()
+    # Из соседних конфигов.
+    try:
+        for cfg_file in config_dir.glob("*.json"):
+            try:
+                other = json.loads(cfg_file.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            if other.get("id") == project_id:
+                continue
+            for c in other.get("direct_campaign_ids") or []:
+                if str(c).strip():
+                    ids.add(str(c).strip())
+    except Exception:
+        pass
+    # Из админки (projects[]).
+    import urllib.request
+
+    try:
+        req = urllib.request.Request(DASHBOARD_API, headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        for proj in data if isinstance(data, list) else []:
+            if not isinstance(proj, dict) or proj.get("id") == project_id:
+                continue
+            for c in proj.get("directCampaignIds") or []:
+                if str(c).strip():
+                    ids.add(str(c).strip())
+    except Exception:
+        pass
+    return sorted(ids)
+
+
 def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
     work_dir = work_dir.resolve()
     cfg_path = config_path or (work_dir / "config" / "planto.json")
@@ -132,7 +171,9 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
         while d <= date_until:
             e = min(d + timedelta(days=chunk_days - 1), date_until)
             try:
-                part = fetch_direct_by_day(direct_token, client_login, d, e, direct_campaign_ids)
+                part = fetch_direct_by_day(
+                    direct_token, client_login, d, e, direct_campaign_ids, direct_exclude_ids
+                )
                 out.update(part)
             except Exception as exc:
                 chunk_errors.append(f"{d.isoformat()}..{e.isoformat()}: {exc}")
@@ -142,11 +183,18 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
     direct_token = secrets.get("DIRECT_OAUTH_TOKEN")
     client_login = secrets.get("DIRECT_CLIENT_LOGIN") or cfg.get("direct_client_login") or ""
     # Несколько проектов под одним client_login → фильтр по кампаниям, иначе спенды
-    # смешаются. Приоритет — админка дашборда (directCampaignIds), затем конфиг.
-    # Пусто — тянем все кампании логина (прежнее поведение Planto).
-    direct_campaign_ids = fetch_admin_campaign_ids(cfg.get("id") or "") or cfg.get("direct_campaign_ids") or None
+    # смешаются. Свой include: админка дашборда (directCampaignIds), затем конфиг.
+    # Нет своего — исключаем кампании, заявленные другими проектами (напр. Planto
+    # без своего фильтра исключает кампанию ColorStylist из конфига colorstylist.json).
+    proj_id = cfg.get("id") or ""
+    direct_campaign_ids = fetch_admin_campaign_ids(proj_id) or cfg.get("direct_campaign_ids") or None
+    direct_exclude_ids: list[str] | None = None
     if direct_campaign_ids:
-        print(f"  Direct campaign filter: {', '.join(direct_campaign_ids)}")
+        print(f"  Direct campaign filter (only): {', '.join(direct_campaign_ids)}")
+    else:
+        direct_exclude_ids = other_projects_campaign_ids(proj_id, cfg_path.parent) or None
+        if direct_exclude_ids:
+            print(f"  Direct campaign filter (exclude): {', '.join(direct_exclude_ids)}")
     if direct_token:
         try:
             direct_win, chunk_errors = _fetch_direct_range(window_start, until)

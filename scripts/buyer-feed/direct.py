@@ -33,27 +33,31 @@ def fetch_direct_by_day(
     date_since: date,
     date_until: date,
     campaign_ids: list[str] | None = None,
+    exclude_campaign_ids: list[str] | None = None,
 ) -> dict[str, dict[str, float]]:
-    """Day → {spend, clicks, impressions}.
+    """Day → {spend, clicks, impressions}, агрегировано по дате.
 
-    Если задан ``campaign_ids`` — тянем только эти кампании (несколько проектов
-    под одним client_login, напр. Planto и ColorStylist в doxmediagroup, не
-    смешиваются). Пустой/None — все кампании логина (прежнее поведение).
+    Несколько проектов под одним client_login не должны смешиваться:
+    - ``campaign_ids`` — тянуть ТОЛЬКО эти кампании (include);
+    - ``exclude_campaign_ids`` — тянуть все, кроме этих (проект без своего
+      include исключает кампании, заявленные другими проектами);
+    - ни то, ни другое — все кампании логина (прежнее поведение Planto).
+
+    Разбивка по кампаниям делается на нашей стороне (в отчёт добавлен CampaignId),
+    поэтому фильтры работают одинаково независимо от поддержки операторов в API.
     """
+    include = {str(c) for c in (campaign_ids or [])}
+    exclude = {str(c) for c in (exclude_campaign_ids or [])}
     selection: dict = {
         "DateFrom": date_since.isoformat(),
         "DateTo": date_until.isoformat(),
     }
-    if campaign_ids:
-        selection["Filter"] = [
-            {"Field": "CampaignId", "Operator": "IN", "Values": [str(c) for c in campaign_ids]}
-        ]
     payload = {
         "params": {
             "SelectionCriteria": selection,
-            "FieldNames": ["Date", "Impressions", "Clicks", "Cost"],
+            "FieldNames": ["Date", "CampaignId", "Impressions", "Clicks", "Cost"],
             "OrderBy": [{"Field": "Date"}],
-            "ReportName": f"PlantoBuyer_{date_since.isoformat()}_{date_until.isoformat()}",
+            "ReportName": f"BuyerCamp_{date_since.isoformat()}_{date_until.isoformat()}",
             "ReportType": "CAMPAIGN_PERFORMANCE_REPORT",
             "DateRangeType": "CUSTOM_DATE",
             "Format": "TSV",
@@ -92,7 +96,7 @@ def fetch_direct_by_day(
     else:
         raise RuntimeError("Direct report timeout")
 
-    return _parse_tsv(text)
+    return _parse_tsv(text, include, exclude)
 
 
 def _parse_num(raw: str) -> float:
@@ -102,11 +106,17 @@ def _parse_num(raw: str) -> float:
         return 0.0
 
 
-def _parse_tsv(text: str) -> dict[str, dict[str, float]]:
+def _parse_tsv(
+    text: str,
+    include: set[str] | None = None,
+    exclude: set[str] | None = None,
+) -> dict[str, dict[str, float]]:
+    """Колонки: Date, CampaignId, Impressions, Clicks, Cost. Фильтр по кампании,
+    затем агрегация по дате."""
     out: dict[str, dict[str, float]] = {}
     reader = csv.reader(io.StringIO(text), delimiter="\t")
     for row in reader:
-        if len(row) < 4:
+        if len(row) < 5:
             continue
         day_raw = row[0].strip()
         if not day_raw or day_raw.lower() in ("date", "дата", "--"):
@@ -114,9 +124,14 @@ def _parse_tsv(text: str) -> dict[str, dict[str, float]]:
         day = day_raw[:10]
         if len(day) != 10 or day[4] != "-":
             continue
-        impressions = _parse_num(row[1])
-        clicks = _parse_num(row[2])
-        cost = _parse_num(row[3])
+        camp = str(row[1]).strip()
+        if include and camp not in include:
+            continue
+        if exclude and camp in exclude:
+            continue
+        impressions = _parse_num(row[2])
+        clicks = _parse_num(row[3])
+        cost = _parse_num(row[4])
         prev = out.get(day) or {"spend": 0.0, "clicks": 0.0, "impressions": 0.0}
         prev["spend"] = round(prev["spend"] + cost, 2)
         prev["clicks"] = round(prev["clicks"] + clicks, 0)
