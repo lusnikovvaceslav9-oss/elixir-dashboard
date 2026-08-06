@@ -1213,6 +1213,11 @@ thead th{color:rgba(0,0,0,0.58)!important;font-weight:700!important}
             <input type="text" id="proj-budget-remainder-edit" placeholder="Текущий остаток на счёте" inputmode="decimal">
             <div class="form-hint">При сохранении фиксируется снимок на сегодня. Новый spend из таблицы уменьшает остаток автоматически</div>
           </div>
+          <div class="form-group">
+            <label>ID рекламных кампаний Директа</label>
+            <input type="text" id="proj-direct-campaigns-edit" placeholder="Например: 713236522, 713236523" inputmode="numeric">
+            <div class="form-hint">Через запятую. Нужно, если под одним логином Директа несколько проектов — авто-фид возьмёт спенд только этих кампаний. Пусто = все кампании логина.</div>
+          </div>
         </div>
         <div class="edit-section">
           <div class="edit-section-title">Google Sheets</div>
@@ -10282,6 +10287,7 @@ function openEditProject(projId) {
   document.getElementById('proj-status-edit').value = getProjectStatus(p);
   const rem = getBudgetRemainder(p);
   document.getElementById('proj-budget-remainder-edit').value = rem != null ? rem : '';
+  document.getElementById('proj-direct-campaigns-edit').value = Array.isArray(p.directCampaignIds) ? p.directCampaignIds.join(', ') : '';
   document.getElementById('proj-type-auto-display').textContent = 'Определяется из таблицы…';
   sheetPreviewCache.headers = p.sheetColumns || [];
   sheetPreviewCache.type = p.sheetColumns?.length ? detectSheetType(p.sheetColumns) : 'auto';
@@ -10427,9 +10433,17 @@ function getMonthlySheetsFromEditor() {
   })).filter(s => s.month && s.url);
 }
 
+function parseDirectCampaignIds(raw) {
+  return String(raw || '')
+    .split(/[,\s]+/)
+    .map(s => s.trim())
+    .filter(s => /^\d+$/.test(s));
+}
+
 function saveProject() {
   const errEl = document.getElementById('proj-error');
   let icon, name, currency, status, sheetSources, metrics, remRaw;
+  let directCampaignIds = null;
   const monthlySheets = getMonthlySheetsFromEditor();
   const detectedType = getDetectedTypeFromCache();
 
@@ -10448,6 +10462,7 @@ function saveProject() {
       metrics = buildDefaultMetrics(detectedType, sheetPreviewCache.headers);
     }
     remRaw = parseBudgetRemainder(document.getElementById('proj-budget-remainder-edit').value.trim());
+    directCampaignIds = parseDirectCampaignIds(document.getElementById('proj-direct-campaigns-edit').value);
   } else {
     icon = document.getElementById('proj-icon').value.trim() || '📊';
     name = document.getElementById('proj-name').value.trim();
@@ -10475,6 +10490,7 @@ function saveProject() {
       projects[idx] = {
         ...withBudget,
         icon, name, currency, status, type, urls: allUrls, sheetSources, monthlySheets, metrics, sheetColumns,
+        directCampaignIds: (directCampaignIds && directCampaignIds.length) ? directCampaignIds : undefined,
       };
       cache[editingProjId] = 'loading';
     }

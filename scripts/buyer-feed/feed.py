@@ -42,6 +42,34 @@ def load_config(config_path: Path) -> dict:
     return json.loads(config_path.read_text(encoding="utf-8"))
 
 
+DASHBOARD_API = "https://elixir-ua-bot.lusnikovvaceslav9.workers.dev/api/projects"
+
+
+def fetch_admin_campaign_ids(project_id: str) -> list[str] | None:
+    """ID кампаний Директа, заданные админом в дашборде для этого проекта.
+
+    Источник правды — админка (поле directCampaignIds в projects[]), чтобы
+    менять привязку кампаний к проектам без правки кода. Сеть недоступна /
+    поля нет — возвращаем None, и решает конфиг (direct_campaign_ids).
+    """
+    import urllib.request
+
+    try:
+        req = urllib.request.Request(DASHBOARD_API, headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except Exception as exc:
+        print(f"  admin campaign ids: fetch failed ({exc}) — using config")
+        return None
+    for proj in data if isinstance(data, list) else []:
+        if isinstance(proj, dict) and proj.get("id") == project_id:
+            ids = proj.get("directCampaignIds")
+            if isinstance(ids, list) and ids:
+                return [str(c).strip() for c in ids if str(c).strip()]
+            return None
+    return None
+
+
 def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
     work_dir = work_dir.resolve()
     cfg_path = config_path or (work_dir / "config" / "planto.json")
@@ -114,8 +142,11 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
     direct_token = secrets.get("DIRECT_OAUTH_TOKEN")
     client_login = secrets.get("DIRECT_CLIENT_LOGIN") or cfg.get("direct_client_login") or ""
     # Несколько проектов под одним client_login → фильтр по кампаниям, иначе спенды
-    # смешаются. Пусто у Planto — тянем все кампании логина (прежнее поведение).
-    direct_campaign_ids = cfg.get("direct_campaign_ids") or None
+    # смешаются. Приоритет — админка дашборда (directCampaignIds), затем конфиг.
+    # Пусто — тянем все кампании логина (прежнее поведение Planto).
+    direct_campaign_ids = fetch_admin_campaign_ids(cfg.get("id") or "") or cfg.get("direct_campaign_ids") or None
+    if direct_campaign_ids:
+        print(f"  Direct campaign filter: {', '.join(direct_campaign_ids)}")
     if direct_token:
         try:
             direct_win, chunk_errors = _fetch_direct_range(window_start, until)
