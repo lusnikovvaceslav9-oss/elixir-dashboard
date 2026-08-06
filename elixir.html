@@ -1341,6 +1341,21 @@ const HUPP_FEED_WORKFLOW = 'hupp-feed.yml';
 const PLANTO_FEED_WORKFLOW = 'planto-feed.yml';
 const PLANTO_GH_REPO = 'lusnikovvaceslav9-oss/elixir-dashboard';
 const PLANTO_GH_BRANCH = 'main';
+
+// ColorStylist — второй buyer-feed проект (полный аналог Planto).
+const CS_DATA_URL = 'data/colorstylist-daily.csv';
+const CS_COHORT_URL = 'data/colorstylist-cohort.json';
+const CS_META_URL = 'data/colorstylist-meta.json';
+const CS_PRODUCT_URL = 'data/colorstylist-product.json';
+const CS_FEED_WORKFLOW = 'colorstylist-feed.yml';
+
+// Реестр проектов-автофидов: id → пути к данным + воркфлоу. Ключевой источник
+// правды для «Planto-семейства» (когорты/ROAS/продукт/здоровье фида).
+const AUTO_FEED_URLS = {
+  planto:       { daily: PLANTO_DATA_URL, cohort: PLANTO_COHORT_URL, meta: PLANTO_META_URL, product: PLANTO_PRODUCT_URL, workflow: PLANTO_FEED_WORKFLOW, name: 'Planto', icon: '🌱', currency: '₽' },
+  colorstylist: { daily: CS_DATA_URL,     cohort: CS_COHORT_URL,     meta: CS_META_URL,     product: CS_PRODUCT_URL,     workflow: CS_FEED_WORKFLOW,     name: 'ColorStylist', icon: '👗', currency: '₽' },
+};
+function isAutoFeedId(id) { return Object.prototype.hasOwnProperty.call(AUTO_FEED_URLS, id); }
 let lastPlantoFeedRefresh = null; // { ok, fresh, message, at }
 let huppMetaCache = null;
 let lastHuppFeedRefresh = null;
@@ -1350,6 +1365,8 @@ let workerConfigCache = null;
 const DEFAULT_PROJECTS = [
   { id: 'planto',   name: 'Planto',      icon: '🌱', currency: '₽', type: 'planto', status: 'run',
     urls: [PLANTO_DATA_URL], dataSource: 'auto' },
+  { id: 'colorstylist', name: 'ColorStylist', icon: '👗', currency: '₽', type: 'planto', status: 'run',
+    urls: [CS_DATA_URL], dataSource: 'auto' },
   { id: 'hupp',     name: 'Hupp',        icon: '🟣', currency: '₽', type: 'hupp', status: 'run',
     urls: [HUPP_DATA_URL], dataSource: 'csv' },
   { id: 'quadcode', name: 'Quadcode AI', icon: '💻', currency: '$', type: 'quadcode', status: 'run',
@@ -1452,9 +1469,18 @@ let tilePeriods = {}; // projId → { mode:'today'|'yesterday'|'last'|'all'|'ran
 let tileSourceIndex = {};
 let sourceIndexByProject = {};
 let plantoViewByProject = {};
-let plantoCohortCache = null;
-let plantoMetaCache = null;
-let plantoProductCache = null;
+// Buyer-feed данные (meta/cohort/product) по проекту-автофиду (planto, colorstylist…).
+// Раньше были три singleton'а под один Planto — теперь по id проекта, чтобы у каждого
+// автофида были свои когорты/продукт/мета.
+let feedByProject = {}; // projId -> { meta, cohort, product }
+function feedOf(projId) { return feedByProject[projId] || (feedByProject[projId] = {}); }
+function feedProjIdFor(projId) {
+  const id = projId || (isAutoFeedId(view) ? view : null);
+  return id && isAutoFeedId(id) ? id : 'planto';
+}
+function feedMeta(projId) { return feedOf(feedProjIdFor(projId)).meta || null; }
+function feedCohort(projId) { return feedOf(feedProjIdFor(projId)).cohort || null; }
+function feedProduct(projId) { return feedOf(feedProjIdFor(projId)).product || null; }
 let projPickerOpen = false;
 let projPickerFocusIdx = 0;
 let projPickerFilter = '';
@@ -1736,14 +1762,25 @@ async function jbSave(arr) {
 }
 
 function applyPlantoAutoSource(list) {
-  return list.map(p => {
-    if (p.id !== 'planto') return p;
+  const withBuiltin = [...(list || [])];
+  // ColorStylist встроен так же, как Hupp: добавляем, если его нет в сохранённом списке.
+  if (!withBuiltin.some(p => p?.id === 'colorstylist')) {
+    const def = DEFAULT_PROJECTS.find(p => p.id === 'colorstylist');
+    if (def) withBuiltin.push(JSON.parse(JSON.stringify(def)));
+  }
+  return withBuiltin.map(p => {
+    if (!isAutoFeedId(p.id)) return p;
+    const feed = AUTO_FEED_URLS[p.id];
     const clean = {
       ...p,
+      name: p.name || feed.name,
+      icon: p.icon || feed.icon,
+      currency: p.currency || feed.currency,
+      status: p.status || 'run',
       type: 'planto',
-      urls: [PLANTO_DATA_URL],
+      urls: [feed.daily],
       dataSource: 'auto',
-      sheetSources: [{ id: 'auto', url: PLANTO_DATA_URL, label: 'Auto feed' }],
+      sheetSources: [{ id: 'auto', url: feed.daily, label: 'Auto feed' }],
       monthlySheets: [],
     };
     delete clean.fbScraper;
@@ -4863,29 +4900,16 @@ function projForSource(proj, source) {
   };
 }
 
-async function fetchPlantoMeta() {
+async function fetchFeedJson(url) {
   try {
-    const resp = await fetch(bustFeedUrl(resolvePlantoFeedUrl(PLANTO_META_URL)), { cache: 'no-store' });
+    const resp = await fetch(bustFeedUrl(resolvePlantoFeedUrl(url)), { cache: 'no-store' });
     if (!resp.ok) return null;
     return await resp.json();
-  } catch(e) { return null; }
+  } catch (e) { return null; }
 }
-
-async function fetchPlantoProduct() {
-  try {
-    const resp = await fetch(bustFeedUrl(resolvePlantoFeedUrl(PLANTO_PRODUCT_URL)), { cache: 'no-store' });
-    if (!resp.ok) return null;
-    return await resp.json();
-  } catch(e) { return null; }
-}
-
-async function fetchPlantoCohort() {
-  try {
-    const resp = await fetch(bustFeedUrl(resolvePlantoFeedUrl(PLANTO_COHORT_URL)), { cache: 'no-store' });
-    if (!resp.ok) return null;
-    return await resp.json();
-  } catch(e) { console.warn('Cohort fetch failed:', e.message); return null; }
-}
+function fetchPlantoMeta(projId = 'planto') { return fetchFeedJson(AUTO_FEED_URLS[projId].meta); }
+function fetchPlantoProduct(projId = 'planto') { return fetchFeedJson(AUTO_FEED_URLS[projId].product); }
+function fetchPlantoCohort(projId = 'planto') { return fetchFeedJson(AUTO_FEED_URLS[projId].cohort); }
 
 async function fetchHuppMeta() {
   try {
@@ -5036,8 +5060,8 @@ async function triggerHuppFeedAndWait({ dispatch = false } = {}) {
 async function triggerPlantoFeedAndWait({ dispatch = false } = {}) {
   // «Обновить» на Planto: опционально диспатчит Actions (как Hupp), затем тянет свежий SHA/commit.
   if (!projects.some(p => isPlantoAutoFeed(p))) return null;
-  const prevUntil = plantoMetaCache?.until || '';
-  const prevGen = plantoMetaCache?.generated_at || '';
+  const prevUntil = feedMeta('planto')?.until || '';
+  const prevGen = feedMeta('planto')?.generated_at || '';
   const prevRef = plantoFeedRef;
   const local = isLocalDashboard();
 
@@ -5072,9 +5096,9 @@ async function triggerPlantoFeedAndWait({ dispatch = false } = {}) {
   const pollMs = local ? 500 : 3000;
   while (Date.now() < deadline) {
     if (!local) await refreshPlantoFeedRef();
-    meta = await fetchPlantoMeta();
+    meta = await fetchPlantoMeta('planto');
     if (meta) {
-      plantoMetaCache = meta;
+      feedOf('planto').meta = meta;
       fresh = (meta.generated_at && meta.generated_at !== prevGen)
         || (meta.until && meta.until !== prevUntil)
         || (!local && plantoFeedRef !== prevRef);
@@ -5170,9 +5194,9 @@ function enrichCohortRow(r) {
 }
 
 function renderPlantoCohortSection(monthKey) {
-  const c = plantoCohortCache;
+  const c = feedCohort();
   if (!c || !c.rows?.length) return '';
-  const meta = plantoMetaCache;
+  const meta = feedMeta();
   const updated = meta?.generated_at ? new Date(meta.generated_at).toLocaleString('ru-RU') : '';
   const allRows = c.rows.map(enrichCohortRow);
   const visible = monthKey
@@ -5265,18 +5289,19 @@ async function loadAll() {
   } catch (e) {
     console.warn('Hupp seed skipped:', e.message || e);
   }
-  await Promise.allSettled([
-    fetchPlantoMeta().then(m => { plantoMetaCache = m; }),
-    fetchHuppMeta().then(m => { huppMetaCache = m; }),
-    fetchPlantoCohort().then(m => { plantoCohortCache = m; }),
-    fetchPlantoProduct().then(m => { plantoProductCache = m; }),
-  ]);
-  if (!plantoProductCache && plantoMetaCache?.product) {
-    plantoProductCache = {
-      product: plantoMetaCache.product,
-      unit_economics: plantoMetaCache.unit_economics,
-    };
-  }
+  const feedJobs = [fetchHuppMeta().then(m => { huppMetaCache = m; })];
+  Object.keys(AUTO_FEED_URLS).forEach(fid => {
+    feedJobs.push(fetchPlantoMeta(fid).then(m => { feedOf(fid).meta = m; }));
+    feedJobs.push(fetchPlantoCohort(fid).then(m => { feedOf(fid).cohort = m; }));
+    feedJobs.push(fetchPlantoProduct(fid).then(m => { feedOf(fid).product = m; }));
+  });
+  await Promise.allSettled(feedJobs);
+  Object.keys(AUTO_FEED_URLS).forEach(fid => {
+    const f = feedOf(fid);
+    if (!f.product && f.meta?.product) {
+      f.product = { product: f.meta.product, unit_economics: f.meta.unit_economics };
+    }
+  });
   await Promise.allSettled(listProjectsForUi().map(async p => {
     try {
       cache[p.id] = await Promise.race([
@@ -5336,28 +5361,30 @@ async function refreshPlantoMetaLight() {
       refreshPlantoFeedRef(),
       refreshHuppFeedRef(),
     ]);
-    const [meta, cohort, product] = await Promise.all([
-      fetchPlantoMeta(),
-      fetchPlantoCohort(),
-      fetchPlantoProduct(),
-    ]);
-    if (meta) plantoMetaCache = meta;
-    if (cohort) plantoCohortCache = cohort;
-    if (product) plantoProductCache = product;
-    else if (!plantoProductCache && plantoMetaCache?.product) {
-      plantoProductCache = { product: plantoMetaCache.product, unit_economics: plantoMetaCache.unit_economics };
-    }
-
-    // Перечитываем дневной CSV Planto — иначе таблица/KPI остаются со старым срезом.
-    const planto = projects.find(p => p.id === 'planto');
-    if (planto && isPlantoAutoFeed(planto)) {
-      try {
-        cache.planto = await Promise.race([
-          fetchProject(planto),
-          sleep(15000).then(() => { throw new Error('planto light fetch timeout'); }),
-        ]);
-      } catch (e) {
-        console.warn('Auto-refresh (Planto daily) failed:', e.message || e);
+    for (const fid of Object.keys(AUTO_FEED_URLS)) {
+      const [meta, cohort, product] = await Promise.all([
+        fetchPlantoMeta(fid),
+        fetchPlantoCohort(fid),
+        fetchPlantoProduct(fid),
+      ]);
+      const f = feedOf(fid);
+      if (meta) f.meta = meta;
+      if (cohort) f.cohort = cohort;
+      if (product) f.product = product;
+      else if (!f.product && f.meta?.product) {
+        f.product = { product: f.meta.product, unit_economics: f.meta.unit_economics };
+      }
+      // Перечитываем дневной CSV — иначе таблица/KPI остаются со старым срезом.
+      const proj = projects.find(p => p.id === fid);
+      if (proj && isPlantoAutoFeed(proj)) {
+        try {
+          cache[fid] = await Promise.race([
+            fetchProject(proj),
+            sleep(15000).then(() => { throw new Error(`${fid} light fetch timeout`); }),
+          ]);
+        } catch (e) {
+          console.warn(`Auto-refresh (${fid} daily) failed:`, e.message || e);
+        }
       }
     }
 
@@ -5397,19 +5424,20 @@ const PLANTO_VIEWS = {
 };
 
 function isPlantoAutoFeed(proj) {
-  if (!proj || proj.id !== 'planto') return false;
+  if (!proj || !isAutoFeedId(proj.id)) return false;
   if (proj.dataSource === 'auto') return true;
+  const feed = AUTO_FEED_URLS[proj.id];
   const urls = [
     ...(proj.urls || []),
     ...((proj.sheetSources || []).map(s => s.url)),
   ];
-  return urls.some(u => u && (u === PLANTO_DATA_URL || String(u).includes('planto-daily.csv')));
+  return urls.some(u => u && (u === feed.daily || String(u).includes(feed.daily.split('/').pop())));
 }
 
 function isPlantoProject(proj, rows) {
   if (!proj) return false;
   // Явные проекты не должны «перетекать» в Planto из-за эвристик по колонкам.
-  if (proj.id === 'planto') return true;
+  if (isAutoFeedId(proj.id)) return true;
   if (proj.id === 'quadcode' || proj.id === 'streamfi' || isHuppProject(proj)) return false;
   return getEffectiveType(proj, rows) === 'planto';
 }
@@ -5440,15 +5468,16 @@ function switchPlantoView(mode) {
   renderContent();
 }
 
-function getPlantoDailyRows() {
-  const data = cache.planto;
+function getPlantoDailyRows(projId) {
+  const id = projId || feedProjIdFor();
+  const data = cache[id];
   if (!data || data === 'loading' || data === null) return [];
   return getAllRowsFromCache(data) || [];
 }
 
-function plantoFeedHealth() {
-  const meta = plantoMetaCache;
-  const rows = getPlantoDailyRows();
+function plantoFeedHealth(projId) {
+  const meta = feedMeta(projId);
+  const rows = getPlantoDailyRows(projId);
   if (!meta || !rows.length) return null;
   const until = meta.until || '';
   const lastRow = rows.reduce((best, r) => {
@@ -5466,10 +5495,10 @@ function plantoFeedHealth() {
 
 function renderPlantoBreakdownCard(proj, rows) {
   if (isPlantoAutoFeed(proj)) {
-    const meta = plantoMetaCache;
-    const health = plantoFeedHealth();
+    const meta = feedMeta(proj.id);
+    const health = plantoFeedHealth(proj.id);
     const warnHtml = (health && (!health.ok || health.staleVsToday))
-      ? `<div class="budget-hint feed-warn">⚠ данные могли устареть — нажми «Обновить» на вкладке Planto (запустит feed)</div>`
+      ? `<div class="budget-hint feed-warn">⚠ данные могли устареть — нажми «Обновить» (запустит feed)</div>`
       : '';
     const refreshHint = lastPlantoFeedRefresh?.message
       ? `<div class="budget-hint">${escHtml(lastPlantoFeedRefresh.message)}</div>`
@@ -5902,7 +5931,7 @@ function getOverviewDailyMetrics(proj, data) {
     note = `${label} · Direct + Метрика`;
   }
   if ((proj?.id === 'planto' || isPlantoAutoFeed(proj)) && period.mode === 'today') {
-    const estimated = !!plantoMetaCache?.spend_today_estimated;
+    const estimated = !!feedMeta()?.spend_today_estimated;
     note = `Сегодня · обновление ~каждые 2 часа${estimated ? ' · спенд ≈' : ''}`;
   }
   return {
@@ -5940,7 +5969,7 @@ function plantoBlock(id, num, title, desc, hint, gridHtml, { cols = 3, footer = 
 }
 
 function getMatureCohortMetrics(monthKey) {
-  const c = plantoCohortCache;
+  const c = feedCohort();
   if (!c?.rows?.length) return null;
   const rows = c.rows.map(enrichCohortRow).filter(r => {
     if (monthKey && cohortRowMonthKey(r) !== monthKey) return false;
@@ -5963,11 +5992,11 @@ function getMatureCohortMetrics(monthKey) {
 }
 
 function getPlantoUnitEconomics() {
-  return plantoProductCache?.unit_economics || plantoMetaCache?.unit_economics || null;
+  return feedProduct()?.unit_economics || feedMeta()?.unit_economics || null;
 }
 
 function getPlantoProductMetrics() {
-  return plantoProductCache?.product || plantoMetaCache?.product || null;
+  return feedProduct()?.product || feedMeta()?.product || null;
 }
 
 function fmtMoneyOrDash(n, cur) {
@@ -6004,10 +6033,10 @@ function renderPlantoTodayBlock(proj, allRows) {
   const cpc = clicks ? spend / clicks : null;
   const cpm = impressions ? spend / impressions * 1000 : null;
   const cr = installs ? (trials / installs * 100) : null;
-  const updated = plantoMetaCache?.generated_at
-    ? new Date(plantoMetaCache.generated_at).toLocaleString('ru-RU')
+  const updated = feedMeta()?.generated_at
+    ? new Date(feedMeta().generated_at).toLocaleString('ru-RU')
     : '';
-  const estimated = !!plantoMetaCache?.spend_today_estimated && todayInfo.isToday;
+  const estimated = !!feedMeta()?.spend_today_estimated && todayInfo.isToday;
   const dateLabel = r.dateStr || fmtDateStr(r.date);
   const hint = todayInfo.isToday ? 'сегодня · live' : `последний день · ${dateLabel}`;
 
@@ -6365,15 +6394,15 @@ function computeMetricValue(key, type, rows, cur) {
 }
 
 function getPlantoPaidNetForRows(rows) {
-  if (plantoCohortCache?.totals?.paid_net != null && !rows?.length) {
-    return Number(plantoCohortCache.totals.paid_net) || 0;
+  if (feedCohort()?.totals?.paid_net != null && !rows?.length) {
+    return Number(feedCohort().totals.paid_net) || 0;
   }
   // Approximate period revenue from meta plan mix when daily revenue is absent:
   // use sold*2490 + (fb-sold)*399 as proxy for the selected daily rows.
   const sold = sum(rows, 'sold');
   const fb = sum(rows, 'fb');
   if (!sold && !fb) {
-    if (plantoCohortCache?.totals?.paid_net != null) return Number(plantoCohortCache.totals.paid_net) || 0;
+    if (feedCohort()?.totals?.paid_net != null) return Number(feedCohort().totals.paid_net) || 0;
     return null;
   }
   const monthly = Math.max(0, fb - sold);
@@ -7217,27 +7246,29 @@ function renderBudgetCard(proj, allData, compact) {
 }
 
 // Compact revenue chip shown right on the Planto tile (main screen / overview grid).
-// Same source as renderGlobalIncomeCard — plantoMetaCache — so it stays in sync
+// Same source as renderGlobalIncomeCard — feedMeta() — so it stays in sync
 // with the global daily refresh cycle automatically.
-function renderTileIncome() {
-  const cur = projects.find(x => x.id === 'planto')?.currency || '₽';
-  const rev = Math.round(plantoMetaCache?.unit_economics?.revenue_total || 0);
+function renderTileIncome(proj) {
+  const cur = proj?.currency || '₽';
+  const rev = Math.round(feedMeta(proj?.id)?.unit_economics?.revenue_total || 0);
   return `<div class="tile-income"><span class="tile-income-label">Доход</span><span class="tile-income-value">${fmtMoney(rev, cur)}</span></div>`;
 }
 
-// Global income card — sourced from plantoMetaCache, which loadAll()/refreshData()
+// Global income card — sourced from feedMeta(), which loadAll()/refreshData()
 // already refreshes on every data cycle. No separate polling needed: this simply
 // reads the freshest cached value each time it's rendered.
-function renderGlobalIncomeCard() {
-  const cur = projects.find(x => x.id === 'planto')?.currency || '₽';
-  const rev = Math.round(plantoMetaCache?.unit_economics?.revenue_total || 0);
+function renderGlobalIncomeCard(proj) {
+  const cur = proj?.currency || '₽';
+  const meta = feedMeta(proj?.id);
+  const rev = Math.round(meta?.unit_economics?.revenue_total || 0);
   const fmt = fmtMoney(rev, cur);
-  const updated = plantoMetaCache?.generated_at ? new Date(plantoMetaCache.generated_at).toLocaleString('ru-RU') : '';
+  const label = proj?.name || AUTO_FEED_URLS[proj?.id]?.name || 'Доход';
+  const updated = meta?.generated_at ? new Date(meta.generated_at).toLocaleString('ru-RU') : '';
   return `<div class="analytics-card income-card">
-    <div class="analytics-card-title">Общий доход</div>
+    <div class="analytics-card-title">Доход · ${escHtml(label)}</div>
     <div class="income-total-box"><span class="income-total-value">${fmt}</span></div>
     <div class="income-breakdown">
-      <span class="income-chip"><i class="income-chip-dot"></i>Planto&nbsp;<b>${fmt}</b></span>
+      <span class="income-chip"><i class="income-chip-dot"></i>${escHtml(label)}&nbsp;<b>${fmt}</b></span>
     </div>
     ${updated ? `<div class="budget-hint">Обновляется вместе со статистикой · данные на ${escHtml(updated)}</div>` : ''}
   </div>`;
@@ -7249,7 +7280,7 @@ function renderAnalyticsSection(proj, allData, rows, monthKey, opts = {}) {
   const insights = computeDayInsights(proj, rows);
   const budgetHtml = renderBudgetCard(proj, allData, false);
   const plantoBreakdown = isPlantoProject(proj, rows) ? renderPlantoBreakdownCard(proj, rows) : '';
-  const incomeHtml = isPlantoProject(proj, rows) ? renderGlobalIncomeCard() : '';
+  const incomeHtml = isPlantoProject(proj, rows) ? renderGlobalIncomeCard(proj) : '';
 
   let compareHtml = '';
   if (compare) {
@@ -8085,7 +8116,7 @@ const ROAS_CONFIG_FALLBACK = {
 const HUPP_FUNNEL_KEY_TO_COL = { reach_pay: 'trials', view_pay: 'fb', pay_submit: 'sold', purchase: 'purchase' };
 
 function getProjectRoasMeta(proj) {
-  if (proj?.id === 'planto' || isPlantoAutoFeed(proj)) return plantoMetaCache;
+  if (isPlantoAutoFeed(proj)) return feedMeta(proj.id);
   if (isHuppProject(proj)) return huppMetaCache;
   return null;
 }
@@ -8161,7 +8192,7 @@ function computeActualCohortRoas(proj, cohort, cfg, meta, reportDate) {
 
 /** Путь A (продукт): агрегируем зрелые/незрелые когорты, взвешивая по spend. */
 function computeActualProductRoas(proj, cfg) {
-  const cohort = plantoCohortCache;
+  const cohort = feedCohort(proj?.id);
   const meta = getProjectRoasMeta(proj);
   const rows = (cohort?.rows || []).filter(c => (Number(c.spend) || 0) > 0);
   const reportDate = cohort?.report_date || meta?.until || new Date().toISOString().slice(0, 10);
@@ -8390,7 +8421,7 @@ function renderOverview() {
       `<div class="tile-metrics" style="padding-bottom:14px">${daily.metrics.map(m => renderTileMetricCard(p.id, m)).join('')}</div>`;
 
     const budgetTile = isPlantoTile ? '' : renderBudgetCard(p, data, true);
-    const incomeTile = isPlantoTile ? renderTileIncome() : '';
+    const incomeTile = isPlantoTile ? renderTileIncome(p) : '';
 
     html += `<div class="proj-tile status-${status}${hiddenCls}" ${projTileAttrs(p.id)} onclick="tileOpenProject('${p.id}', event)">
       <div class="tile-drag-hint">⋮⋮</div>
@@ -8516,7 +8547,7 @@ function getProjectSections(proj, rows) {
   });
   if (isPlantoAutoFeed(proj)) sections.push({ id: 'product', label: 'Продукт', icon: 'product', keys: [] });
   if (getRevenueSource(p)) sections.push({ id: 'forecast', label: 'Прогноз ROAS', icon: 'forecast', keys: [] });
-  if (isPlantoAutoFeed(proj) && plantoCohortCache?.rows?.length) {
+  if (isPlantoAutoFeed(proj) && feedCohort(proj.id)?.rows?.length) {
     sections.push({ id: 'cohorts', label: 'Когорты', icon: 'cohorts', keys: [] });
   }
   return sections;
@@ -8634,7 +8665,7 @@ document.addEventListener('click', () => {
 /** Доп. карточки выручки для full-тира (Planto unit_economics). */
 function renderRevenueExtras(proj) {
   if (getProjectTier(proj) !== 'full') return '';
-  const ue = plantoMetaCache?.unit_economics;
+  const ue = feedMeta()?.unit_economics;
   if (!ue) return '';
   const cur = proj.currency || '₽';
   const LTV_INFO = 'Косвенно — значение не измерено по факту, а рассчитано косвенным способом. LTV здесь оценивается от ARPPU с поправкой на ребиллы (ARPPU × (1 + renewals/payers)), потому что полной кривой повторных списаний пока нет. Как только накопим фактические ребиллы, заменим на измеренный LTV.';
@@ -10867,7 +10898,7 @@ function chatMetricValue(key, proj, rows) {
   const cur = proj?.currency || '₽';
   if (key === 'revenue') {
     if (proj?.id === 'planto' || isPlantoAutoFeed(proj)) {
-      const ue = plantoMetaCache?.unit_economics;
+      const ue = feedMeta()?.unit_economics;
       if (ue?.revenue_total != null) return fmtMoney(ue.revenue_total, cur);
     }
     return 'нет данных о фактическом доходе';
