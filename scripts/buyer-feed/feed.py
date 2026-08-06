@@ -104,7 +104,7 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
         while d <= date_until:
             e = min(d + timedelta(days=chunk_days - 1), date_until)
             try:
-                part = fetch_direct_by_day(direct_token, client_login, d, e)
+                part = fetch_direct_by_day(direct_token, client_login, d, e, direct_campaign_ids)
                 out.update(part)
             except Exception as exc:
                 chunk_errors.append(f"{d.isoformat()}..{e.isoformat()}: {exc}")
@@ -113,6 +113,9 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
 
     direct_token = secrets.get("DIRECT_OAUTH_TOKEN")
     client_login = secrets.get("DIRECT_CLIENT_LOGIN") or cfg.get("direct_client_login") or ""
+    # Несколько проектов под одним client_login → фильтр по кампаниям, иначе спенды
+    # смешаются. Пусто у Planto — тянем все кампании логина (прежнее поведение).
+    direct_campaign_ids = cfg.get("direct_campaign_ids") or None
     if direct_token:
         try:
             direct_win, chunk_errors = _fetch_direct_range(window_start, until)

@@ -1,0 +1,23 @@
+{
+  "id": "colorstylist",
+  "name": "ColorStylist",
+  "anchor": "2026-07-31",
+  "refresh_days": 7,
+  "attribution_lag_days": 2,
+  "trial_lag_days": 3,
+  "currency": "RUB",
+  "revenue_source": "actual",
+  "ltv_metric": "arppu",
+  "fixed_ltv_value": null,
+  "mature_cohort_days": 30,
+  "predict_horizon_days": 180,
+  "direct_client_login": "doxmediagroup",
+  "direct_campaign_ids": ["713236522"],
+  "appmetrica_application_id": "6335791",
+  "payments_csv": "data/colorstylist-payments.csv",
+  "daily_csv": "data/colorstylist-daily.csv",
+  "cohort_json": "data/colorstylist-cohort.json",
+  "meta_json": "data/colorstylist-meta.json",
+  "product_json": "data/colorstylist-product.json",
+  "state_json": "data/colorstylist-feed-state.json"
+}

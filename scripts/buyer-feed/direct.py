@@ -20,9 +20,10 @@ def fetch_spend_by_day(
     client_login: str,
     date_since: date,
     date_until: date,
+    campaign_ids: list[str] | None = None,
 ) -> dict[str, float]:
     """Backward-compatible: day → spend only."""
-    full = fetch_direct_by_day(token, client_login, date_since, date_until)
+    full = fetch_direct_by_day(token, client_login, date_since, date_until, campaign_ids)
     return {day: vals["spend"] for day, vals in full.items()}
 
 
@@ -31,14 +32,25 @@ def fetch_direct_by_day(
     client_login: str,
     date_since: date,
     date_until: date,
+    campaign_ids: list[str] | None = None,
 ) -> dict[str, dict[str, float]]:
-    """Day → {spend, clicks, impressions}."""
+    """Day → {spend, clicks, impressions}.
+
+    Если задан ``campaign_ids`` — тянем только эти кампании (несколько проектов
+    под одним client_login, напр. Planto и ColorStylist в doxmediagroup, не
+    смешиваются). Пустой/None — все кампании логина (прежнее поведение).
+    """
+    selection: dict = {
+        "DateFrom": date_since.isoformat(),
+        "DateTo": date_until.isoformat(),
+    }
+    if campaign_ids:
+        selection["Filter"] = [
+            {"Field": "CampaignId", "Operator": "IN", "Values": [str(c) for c in campaign_ids]}
+        ]
     payload = {
         "params": {
-            "SelectionCriteria": {
-                "DateFrom": date_since.isoformat(),
-                "DateTo": date_until.isoformat(),
-            },
+            "SelectionCriteria": selection,
             "FieldNames": ["Date", "Impressions", "Clicks", "Cost"],
             "OrderBy": [{"Field": "Date"}],
             "ReportName": f"PlantoBuyer_{date_since.isoformat()}_{date_until.isoformat()}",
