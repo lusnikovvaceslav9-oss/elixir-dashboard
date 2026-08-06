@@ -35,7 +35,7 @@ jobs:
           DIRECT_OAUTH_TOKEN: ${{ secrets.CS_DIRECT_OAUTH_TOKEN }}
           DIRECT_CLIENT_LOGIN: ${{ secrets.CS_DIRECT_CLIENT_LOGIN }}
           SUPABASE_DB_URL: ${{ secrets.CS_SUPABASE_DB_URL }}
-        run: python scripts/buyer-feed/__main__.py --work-dir . --config scripts/buyer-feed/config/colorstylist.json
+        run: python scripts/buyer-feed/__main__.py --work-dir . --config config/colorstylist.json
 
       - name: Commit updated data
         run: |
