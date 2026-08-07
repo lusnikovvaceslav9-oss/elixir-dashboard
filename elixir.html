@@ -4516,18 +4516,38 @@ async function refreshGitFeedRef(path, setter, label) {
   }
 }
 
+// SHA резолвится по КАЖДОМУ проекту-автофиду отдельно: фиды коммитят независимо,
+// и общий ref (по planto-meta.json) отдавал бы файлы другого проекта на старом
+// коммите — свежие данные ColorStylist «не доезжали» до дашборда.
+let feedRefByProject = {};
+function feedRefFor(projId) { return feedRefByProject[projId] || PLANTO_GH_BRANCH; }
+
 async function refreshPlantoFeedRef() {
-  await refreshGitFeedRef('data/planto-meta.json', sha => { plantoFeedRef = sha; }, 'Planto');
+  await Promise.allSettled(Object.entries(AUTO_FEED_URLS).map(([fid, f]) =>
+    refreshGitFeedRef(f.meta, sha => {
+      feedRefByProject[fid] = sha;
+      if (fid === 'planto') plantoFeedRef = sha;
+    }, fid)
+  ));
 }
 
 async function refreshHuppFeedRef() {
   await refreshGitFeedRef('data/hupp-meta.json', sha => { huppFeedRef = sha; }, 'Hupp');
 }
 
+/** Какому проекту-автофиду принадлежит файл data/… (по имени файла из реестра). */
+function feedProjectForPath(rel) {
+  const path = String(rel || '');
+  for (const [fid, f] of Object.entries(AUTO_FEED_URLS)) {
+    if ([f.daily, f.cohort, f.meta, f.product].some(u => u && path.endsWith(u.split('/').pop()))) return fid;
+  }
+  return 'planto';
+}
+
 function resolvePlantoFeedUrl(localPath) {
   if (isLocalDashboard()) return localPath;
   const rel = String(localPath || '').replace(/^\//, '');
-  return `https://raw.githubusercontent.com/${PLANTO_GH_REPO}/${plantoFeedRef}/${rel}`;
+  return `https://raw.githubusercontent.com/${PLANTO_GH_REPO}/${feedRefFor(feedProjectForPath(rel))}/${rel}`;
 }
 
 function resolveHuppFeedUrl(localPath) {
