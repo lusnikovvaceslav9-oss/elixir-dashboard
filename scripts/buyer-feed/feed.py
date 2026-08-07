@@ -217,6 +217,9 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
 
     am_token = secrets.get("APPMETRICA_OAUTH_TOKEN")
     app_id = secrets.get("APPMETRICA_APPLICATION_ID") or cfg.get("appmetrica_application_id") or "6305902"
+    # Событие начала триала различается по приложениям: Planto шлёт trial_started,
+    # ColorStylist — purchase_success (подписка premium_week с 3-дневным триалом).
+    trial_event = cfg.get("trial_event") or "trial_started"
     trials_sb_crosscheck: dict[str, int] = {}
     # Отдельный флаг успеха запроса — пустой словарь (0 трайлов за окно) не должен
     # выглядеть как сбой AppMetrica и триггерить fallback на Supabase.
@@ -229,12 +232,12 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
             try:
                 # Daily trials = AppMetrica event count (колонка «События» в UI).
                 trials_am = fetch_event_by_day(
-                    am_token, str(app_id), "trial_started", anchor, until
+                    am_token, str(app_id), trial_event, anchor, until
                 )
                 trials_am_fetch_ok = True
                 trials = trials_am
                 trials_am_crosscheck = trials_am
-                sources["trials"] = "appmetrica_trial_started"
+                sources["trials"] = f"appmetrica_{trial_event}"
                 sources["trials_am_crosscheck"] = "appmetrica_reporting_events"
             except Exception as exc:
                 errors.append(f"appmetrica_trials: {exc}")
@@ -356,10 +359,10 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
             full_installs = fetch_installs_by_day(am_token, str(app_id), anchor, until)
         except Exception:
             full_installs = installs
-        if sources.get("trials") == "appmetrica_trial_started":
+        if sources.get("trials") == f"appmetrica_{trial_event}":
             try:
                 full_trials = fetch_event_by_day(
-                    am_token, str(app_id), "trial_started", anchor, until
+                    am_token, str(app_id), trial_event, anchor, until
                 )
             except Exception:
                 full_trials = trials
@@ -372,7 +375,7 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
             full_trials = trials
 
     # Источник истины по триалам: дни без событий = 0 (не оставляем старый CSV).
-    if sources.get("trials") in ("appmetrica_trial_started", "supabase_trial_start"):
+    if sources.get("trials") in (f"appmetrica_{trial_event}", "supabase_trial_start"):
         filled = dict(full_trials)
         d = anchor
         while d <= until:
@@ -502,7 +505,7 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
         "anchor": anchor.isoformat(),
         "until": until.isoformat(),
         "window_start": window_start.isoformat(),
-        "trial_attribution": sources.get("trials") or "appmetrica_trial_started",
+        "trial_attribution": sources.get("trials") or f"appmetrica_{trial_event}",
         "sources": sources,
         "errors": errors,
         "days": len(merged),
@@ -549,7 +552,7 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
         "appmetrica": int((trials_am_crosscheck or full_trials).get(yday) or 0),
         "supabase": int(trials_sb_crosscheck.get(yday) or 0),
         "dashboard": int((merged.get(yday) or {}).get("trials") or 0),
-        "note": "В дашборде trials = AppMetrica trial_started (события ym:ce:allEvents, как колонка «События» в UI). RuStore — сверка оплат.",
+        "note": f"В дашборде trials = AppMetrica {trial_event} (события ym:ce:allEvents, как колонка «События» в UI). RuStore — сверка оплат.",
     }
     if spend_today_estimated:
         meta["spend_today_estimated"] = True
