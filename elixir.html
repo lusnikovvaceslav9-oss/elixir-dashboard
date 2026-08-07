@@ -2425,8 +2425,12 @@ function collectHuppDirectRows(proj) {
     .sort((a, b) => String(a[1]?.uploadedAt || '').localeCompare(String(b[1]?.uploadedAt || '')));
   const useEntries = entries.length ? entries : Object.entries(uploads || {}).filter(([, u]) => u);
 
-  const byCamp = new Map();       // campKey -> { uploadedAt, rows } — файлы С campaign_id
-  const noCampByDate = new Map(); // dateStr -> { uploadedAt, row } — без id: свежий файл выигрывает подату
+  // campKey -> Map(dateStr -> { uploadedAt, row }). Внутри кампании свежая загрузка
+  // побеждает ТОЛЬКО на своих датах, а не заменяет весь набор строк: дневной экспорт
+  // Директа — это одна и та же кампания, и замена целиком стирала всю прошлую историю
+  // (баг проявлялся только у админа: у него в localStorage лежит сырой text, из
+  // которого парсер достаёт campaignId; из облака приходят rows без него).
+  const byCamp = new Map();
   useEntries.forEach(([id, u]) => {
     const chunk = [];
     if (u.text) {
@@ -2446,27 +2450,22 @@ function collectHuppDirectRows(proj) {
     if (!chunk.length) return;
     const up = String(u.uploadedAt || '');
     const ids = [...new Set(chunk.map(r => r.campaignId).filter(Boolean))];
-    if (!ids.length) {
-      // Без campaign_id: слить по дате, на общих датах побеждает самый свежий файл.
-      chunk.forEach(r => {
-        const key = r.dateStr || (r.date ? fmtDateStr(r.date) : '');
-        if (!key) return;
-        const prev = noCampByDate.get(key);
-        if (!prev || up >= prev.uploadedAt) noCampByDate.set(key, { uploadedAt: up, row: r });
-      });
-      return;
-    }
-    const campKey = ids.length === 1 ? ids[0] : `multi:${ids.sort().join('+')}`;
-    const prev = byCamp.get(campKey);
-    if (!prev || up >= prev.uploadedAt) byCamp.set(campKey, { uploadedAt: up, rows: chunk });
+    const campKey = !ids.length ? '' : (ids.length === 1 ? ids[0] : `multi:${ids.sort().join('+')}`);
+    if (!byCamp.has(campKey)) byCamp.set(campKey, new Map());
+    const byDate = byCamp.get(campKey);
+    chunk.forEach(r => {
+      const key = r.dateStr || (r.date ? fmtDateStr(r.date) : '');
+      if (!key) return;
+      const prev = byDate.get(key);
+      if (!prev || up >= prev.uploadedAt) byDate.set(key, { uploadedAt: up, row: r });
+    });
   });
 
+  // Разные кампании суммируются по дате, внутри кампании день уже разрешён выше.
   let merged = [];
-  for (const { rows } of byCamp.values()) {
-    merged = mergeRowsSumByDate(merged, rows);
+  for (const byDate of byCamp.values()) {
+    merged = mergeRowsSumByDate(merged, [...byDate.values()].map(v => v.row));
   }
-  const noCampRows = [...noCampByDate.values()].map(v => v.row);
-  if (noCampRows.length) merged = mergeRowsSumByDate(merged, noCampRows);
   return merged;
 }
 
@@ -3972,9 +3971,9 @@ async function getProjectSourcesWithLocalCsv(proj) {
 function loadProjectsLocal() {
   try {
     const saved = localStorage.getItem(PROJ_KEY);
-    if (saved) return applyProjectDefaults(JSON.parse(saved).map(normalizeProject));
+    if (saved) return sortProjectsByOrder(applyProjectDefaults(JSON.parse(saved).map(normalizeProject)));
   } catch(e) {}
-  return applyProjectDefaults(JSON.parse(JSON.stringify(DEFAULT_PROJECTS)).map(normalizeProject));
+  return sortProjectsByOrder(applyProjectDefaults(JSON.parse(JSON.stringify(DEFAULT_PROJECTS)).map(normalizeProject)));
 }
 
 // Локальный кэш сразу после определения хелперов (до async JSONBin).
@@ -4002,11 +4001,26 @@ projects = loadProjectsLocal();
   } catch (_) {}
 })();
 
+/** Порядок плиток задаётся вручную (drag&drop), но хранилище отдаёт записи по id
+ *  (order=id.asc) — без явного индекса порядок сбрасывался в алфавитный, и «hupp»
+ *  всегда всплывал первым. Сортируем по сохранённому sortOrder; проекты без него
+ *  (новые) уходят в конец, сохраняя относительный порядок. */
+function sortProjectsByOrder(list) {
+  return (list || [])
+    .map((p, i) => ({ p, i }))
+    .sort((a, b) => {
+      const ao = Number.isFinite(+a.p?.sortOrder) ? +a.p.sortOrder : Infinity;
+      const bo = Number.isFinite(+b.p?.sortOrder) ? +b.p.sortOrder : Infinity;
+      return ao - bo || a.i - b.i;
+    })
+    .map(x => x.p);
+}
+
 async function loadProjects() {
   try {
     const remote = await jbLoad();
     if (remote && remote.length) {
-      projects = applyProjectDefaults(remote.map(normalizeProject));
+      projects = sortProjectsByOrder(applyProjectDefaults(remote.map(normalizeProject)));
       localStorage.setItem(PROJ_KEY, JSON.stringify(projects));
       return;
     }
@@ -4016,6 +4030,8 @@ async function loadProjects() {
 
 async function saveProjects() {
   projects = applyProjectDefaults(projects);
+  // Фиксируем текущий порядок явно — позиция в массиве в хранилище не сохраняется.
+  projects = projects.map((p, i) => ({ ...p, sortOrder: i }));
   // budgetAlert выставляет/снимает крон воркера параллельно с админ-сейвом.
   // Перед записью подтягиваем свежую копию и берём budgetAlert оттуда — иначе
   // сейв с давно открытой страницы затирает флаг, который крон уже поменял.
