@@ -4412,10 +4412,15 @@ function parseCampaignRows(rows) {
     const ad = extra.adCol >= 0 ? (r[extra.adCol] || '').trim() : '';
     if (!spend && !qregs && !regs && !impressions && !clicks) return;
 
+    // Ключ пишем только если колонка реально есть в выгрузке: часть агентств
+    // отдаёт FB-экспорт без «Link clicks»/«Impressions», и записанный 0 читался
+    // бы как «кликов не было», а не «данных нет» (CTR 0.00% вместо «—»).
     const obj = {
-      date: dt, dateStr: fmtDateStr(dt), spend, qregs, impressions, clicks,
+      date: dt, dateStr: fmtDateStr(dt), spend, qregs,
       campaign: campaign || '—',
     };
+    if (extra.impressionsCol >= 0) obj.impressions = impressions;
+    if (extra.clicksCol >= 0) obj.clicks = clicks;
     if (adset) obj.adset = adset;
     if (ad) obj.ad = ad;
     if (rc >= 0) obj.regs = regs;
@@ -6736,9 +6741,13 @@ function getTableConfig(proj, rows) {
     // Колонка Campaign убрана по запросу — данные схлопываются по дате (aggregateByDate).
     colKeys = ['date', 'spend', 'qregs', 'cost_qreg', 'impressions', 'clicks', 'cpc', 'cpm', 'ctr'];
     const rowReg = (r) => regLikeCount([r]);
-    const rowCpc = (r) => r.clicks ? fmtMoney(r.spend / r.clicks, cur) : '—';
-    const rowCpm = (r) => r.impressions ? fmtMoney(r.spend / r.impressions * 1000, cur) : '—';
-    const rowCtr = (r) => r.impressions ? fmtPct(r.clicks / r.impressions * 100) : '—';
+    // «—» когда метрики нет в выгрузке вообще (часть агентств шлёт FB-экспорт без
+    // Link clicks / Impressions), «0» — когда она есть и реально равна нулю.
+    const hasCl = (r) => r.clicks != null;
+    const hasImp = (r) => r.impressions != null;
+    const rowCpc = (r) => (hasCl(r) && r.clicks) ? fmtMoney(r.spend / r.clicks, cur) : '—';
+    const rowCpm = (r) => (hasImp(r) && r.impressions) ? fmtMoney(r.spend / r.impressions * 1000, cur) : '—';
+    const rowCtr = (r) => (hasImp(r) && hasCl(r) && r.impressions) ? fmtPct(r.clicks / r.impressions * 100) : '—';
     tbl = {
     aggregateByDate: true,
     headers: ['Дата', `Spend (${cur})`, L('qregs','Reg'), L('cost_qreg','Cost/Reg'),
@@ -6746,7 +6755,9 @@ function getTableConfig(proj, rows) {
     row: (r) => {
       const rg = rowReg(r);
       return [r.dateStr, fmtMoneyFull(r.spend,cur), fmtInt(rg),
-        rg ? fmtMoney(r.spend/rg,cur) : '—', fmtInt(r.impressions||0), fmtInt(r.clicks||0),
+        rg ? fmtMoney(r.spend/rg,cur) : '—',
+        hasImp(r) ? fmtInt(r.impressions) : '—',
+        hasCl(r) ? fmtInt(r.clicks) : '—',
         rowCpc(r), rowCpm(r), rowCtr(r)];
     },
     total: (rows) => {
