@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-08-06T15:39:00+00:00",
+  "generated_at": "2026-08-07T00:35:48+00:00",
   "anchor": "2026-07-31",
-  "until": "2026-08-06",
+  "until": "2026-08-07",
   "window_start": "2026-07-31",
   "trial_attribution": "appmetrica_trial_started",
   "sources": {
@@ -17,7 +17,7 @@
     "product": "appmetrica_reporting"
   },
   "errors": [],
-  "days": 7,
+  "days": 8,
   "reconcile_diff": {
     "trials_total_old_csv": 0,
     "trials_total_new": 0,
@@ -25,20 +25,21 @@
   },
   "unit_economics": {
     "revenue_total": 798,
-    "spend_total": 6932.89,
-    "active_users": 290,
+    "spend_total": 7790.54,
+    "active_users": 328,
     "active_payers": 1,
     "plus_active_users": 1,
-    "trial_cancellations": 1,
+    "trial_cancellations": 4,
     "trial_cancellations_by_day": {
-      "2026-08-05": 1
+      "2026-08-05": 1,
+      "2026-08-06": 3
     },
     "renewals": 0,
-    "arpu": 2.75,
+    "arpu": 2.43,
     "arppu": 798.0,
     "ltv": 798.0,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
-    "roas_d7": 11.5,
+    "roas_d7": 10.2,
     "roas_d14": null,
     "roas_d30": null
   },
@@ -84,7 +85,7 @@
     }
   },
   "trials_crosscheck_yesterday": {
-    "day": "2026-08-05",
+    "day": "2026-08-06",
     "appmetrica": 0,
     "supabase": 0,
     "dashboard": 0,
