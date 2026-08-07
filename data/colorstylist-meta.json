@@ -1,15 +1,15 @@
 {
-  "generated_at": "2026-08-07T05:26:56+00:00",
+  "generated_at": "2026-08-07T06:35:47+00:00",
   "anchor": "2026-07-31",
   "until": "2026-08-07",
   "window_start": "2026-07-31",
-  "trial_attribution": "appmetrica_trial_started",
+  "trial_attribution": "appmetrica_purchase_success",
   "sources": {
     "spend": "direct_api",
     "clicks": "direct_api",
     "impressions": "direct_api",
     "installs": "appmetrica_reporting",
-    "trials": "appmetrica_trial_started",
+    "trials": "appmetrica_purchase_success",
     "trials_am_crosscheck": "appmetrica_reporting_events",
     "bills": "supabase_main_active_cohort_day",
     "trial_cancellations": "supabase_trial_cancelled",
@@ -20,13 +20,13 @@
   "days": 8,
   "reconcile_diff": {
     "trials_total_old_csv": 0,
-    "trials_total_new": 0,
-    "delta": 0
+    "trials_total_new": 12,
+    "delta": 12
   },
   "unit_economics": {
     "revenue_total": 798,
-    "spend_total": 7951.36,
-    "active_users": 338,
+    "spend_total": 7982.61,
+    "active_users": 342,
     "active_payers": 1,
     "plus_active_users": 1,
     "trial_cancellations": 4,
@@ -35,7 +35,7 @@
       "2026-08-06": 3
     },
     "renewals": 0,
-    "arpu": 2.36,
+    "arpu": 2.33,
     "arppu": 798.0,
     "ltv": 798.0,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
@@ -84,11 +84,18 @@
       "rub": 798
     }
   },
+  "trials_am_crosscheck_total": 12,
+  "trials_am_crosscheck_by_day": {
+    "2026-07-31": 1,
+    "2026-08-04": 3,
+    "2026-08-05": 2,
+    "2026-08-06": 6
+  },
   "trials_crosscheck_yesterday": {
     "day": "2026-08-06",
-    "appmetrica": 0,
+    "appmetrica": 6,
     "supabase": 0,
-    "dashboard": 0,
-    "note": "В дашборде trials = AppMetrica trial_started (события ym:ce:allEvents, как колонка «События» в UI). RuStore — сверка оплат."
+    "dashboard": 6,
+    "note": "В дашборде trials = AppMetrica purchase_success (события ym:ce:allEvents, как колонка «События» в UI). RuStore — сверка оплат."
   }
 }
