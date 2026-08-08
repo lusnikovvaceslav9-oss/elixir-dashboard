@@ -3054,6 +3054,29 @@ function parseContractorSummary(csvText) {
   return { remainder: Math.round(remainder * 100) / 100, byContractor };
 }
 
+/** Остаток бюджета JGGL = сумма остатков по контрагентам из листа «Сводка».
+ *  Пересобирает снимок бюджета от текущего спенда: дальше дашборд сам уменьшает
+ *  остаток по мере новых трат — до следующей подтяжки/загрузки CSV.
+ *  Возвращает summary или null (сеть/доступ упали — молча, спенд важнее). */
+async function refreshJgglContractorBudget(projId) {
+  try {
+    const sumUrl = `https://docs.google.com/spreadsheets/d/${JGGL_CONTRACTOR_SHEET.id}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(JGGL_CONTRACTOR_SHEET.summaryTab)}`;
+    const summary = parseContractorSummary(await fetchWithFallback(sumUrl));
+    if (!summary) return null;
+    const idx = projects.findIndex(p => p.id === projId);
+    if (idx < 0) return null;
+    projects[idx] = {
+      ...applyBudgetRemainderUpdate(projects[idx], summary.remainder, cache[projId], { force: true }),
+      contractorBudget: { ...summary, at: new Date().toISOString() },
+    };
+    await saveProjects();
+    return summary;
+  } catch (e) {
+    console.warn('Contractor summary (budget) failed:', e.message || e);
+    return null;
+  }
+}
+
 /** Тянет все листы таблицы контрагентов, собирает подневной свод JGGL и сохраняет override-запись. */
 async function refreshJgglContractorSheet(projId, btn) {
   if (!isAdmin()) return;
@@ -3101,28 +3124,10 @@ async function refreshJgglContractorSheet(projId, btn) {
     await saveCsvUploads(all, { awaitCloud: true, timeoutMs: 20000 });
     await applyUploadedCsvToCache(projId);
 
-    // Остаток бюджета проекта = сумма остатков по контрагентам из листа «Сводка».
-    // Пересобираем снимок бюджета от текущего спенда: дальше дашборд сам уменьшает
-    // остаток по мере новых трат, до следующей подтяжки.
-    let budgetMsg = '';
-    try {
-      const sumUrl = `https://docs.google.com/spreadsheets/d/${JGGL_CONTRACTOR_SHEET.id}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(JGGL_CONTRACTOR_SHEET.summaryTab)}`;
-      const summary = parseContractorSummary(await fetchWithFallback(sumUrl));
-      if (summary) {
-        const idx = projects.findIndex(p => p.id === projId);
-        if (idx >= 0) {
-          projects[idx] = {
-            ...applyBudgetRemainderUpdate(projects[idx], summary.remainder, cache[projId], { force: true }),
-            contractorBudget: { ...summary, at: new Date().toISOString() },
-          };
-          await saveProjects();
-          budgetMsg = `\nОстаток по контрагентам: $${summary.remainder.toFixed(2)} (${summary.byContractor.map(c => `${c.name} $${c.remainder.toFixed(2)}`).join(' · ')}).`;
-        }
-      }
-    } catch (e) {
-      console.warn('Contractor summary (budget) failed:', e.message || e);
-      budgetMsg = '\nОстаток из «Сводки» подтянуть не удалось — спенд обновлён.';
-    }
+    const summary = await refreshJgglContractorBudget(projId);
+    const budgetMsg = summary
+      ? `\nОстаток по контрагентам: $${summary.remainder.toFixed(2)} (${summary.byContractor.map(c => `${c.name} $${c.remainder.toFixed(2)}`).join(' · ')}).`
+      : '\nОстаток из «Сводки» подтянуть не удалось — спенд обновлён.';
 
     const total = rows.reduce((a, r) => a + (r.spend || 0), 0);
     const ios = rows.filter(r => r.os === 'ios').reduce((a, r) => a + (r.spend || 0), 0);
@@ -3688,6 +3693,13 @@ async function processJgglCsvUploadFiles(projId, files) {
     }
     await saveCsvUploads(loadCsvUploads(), { awaitCloud: true, timeoutMs: 20000 });
     await applyUploadedCsvToCache(projId);
+    // Новый спенд без свежего остатка «уводил» бюджет в минус — подтягиваем
+    // остаток по контрагентам сразу после загрузки.
+    const summary = await refreshJgglContractorBudget(projId);
+    if (summary) {
+      renderContent();
+      console.info(`JGGL: остаток по контрагентам обновлён — $${summary.remainder.toFixed(2)}`);
+    }
     if (anyDup) console.info('JGGL: часть файлов уже была загружена (тот же hash) — обновлено без дубля');
     else if (files.length > 1) console.info(`JGGL: загружено ${files.length} CSV, метрики по совпадающим датам суммированы`);
   } finally {
