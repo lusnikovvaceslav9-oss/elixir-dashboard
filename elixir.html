@@ -2980,6 +2980,8 @@ const JGGL_CONTRACTOR_SHEET = {
   id: '1k71RG52Ijj3K2ZDVoKMzPlcyXx91SypvkGN_PLiJOSo',
   // Вся таблица — по JGGL. Берём слив всех контрагентов (по листу на каждого).
   tabs: ['ФБМ', 'Рентакк', 'Блюглов', 'Адскилл'],
+  // Лист с остатками денег по каждому контрагенту → остаток бюджета проекта.
+  summaryTab: 'Сводка',
   // Кабинеты, которые НЕ тянуть в JGGL (по факту другие проекты). Пусто = берём всё.
   // Пример: new Set(['59531']) исключил бы Quadcode-кабинет из листа ФБМ.
   excludeCabinets: new Set(),
@@ -3030,6 +3032,28 @@ function parseJgglContractorTab(csvText) {
   return daily;
 }
 
+/** Лист «Сводка»: Подрядчик · Заведено · Комиссия · Инфра · Отлито · Остаток · Освоено.
+ *  Возвращает { remainder, byContractor[] } — остаток денег по всем контрагентам.
+ *  Строку ИТОГО не используем как источник: считаем сами по подрядчикам, чтобы
+ *  не зависеть от того, пересчитал ли контрагент итог после правок. */
+function parseContractorSummary(csvText) {
+  const rows = parseCSV(csvText);
+  const byContractor = [];
+  for (const row of rows) {
+    if (!row || row.length < 6) continue;
+    const name = String(row[0] || '').trim();
+    if (!name || /^подрядчик$/i.test(name) || /^итого$/i.test(name)) continue;
+    const deposited = contractorMoneyToNum(row[1]);
+    const spent = contractorMoneyToNum(row[4]);
+    const remainder = contractorMoneyToNum(row[5]);
+    if (remainder == null) continue;
+    byContractor.push({ name, deposited: deposited || 0, spent: spent || 0, remainder });
+  }
+  if (!byContractor.length) return null;
+  const remainder = byContractor.reduce((a, c) => a + c.remainder, 0);
+  return { remainder: Math.round(remainder * 100) / 100, byContractor };
+}
+
 /** Тянет все листы таблицы контрагентов, собирает подневной свод JGGL и сохраняет override-запись. */
 async function refreshJgglContractorSheet(projId, btn) {
   if (!isAdmin()) return;
@@ -3076,11 +3100,35 @@ async function refreshJgglContractorSheet(projId, btn) {
     };
     await saveCsvUploads(all, { awaitCloud: true, timeoutMs: 20000 });
     await applyUploadedCsvToCache(projId);
+
+    // Остаток бюджета проекта = сумма остатков по контрагентам из листа «Сводка».
+    // Пересобираем снимок бюджета от текущего спенда: дальше дашборд сам уменьшает
+    // остаток по мере новых трат, до следующей подтяжки.
+    let budgetMsg = '';
+    try {
+      const sumUrl = `https://docs.google.com/spreadsheets/d/${JGGL_CONTRACTOR_SHEET.id}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(JGGL_CONTRACTOR_SHEET.summaryTab)}`;
+      const summary = parseContractorSummary(await fetchWithFallback(sumUrl));
+      if (summary) {
+        const idx = projects.findIndex(p => p.id === projId);
+        if (idx >= 0) {
+          projects[idx] = {
+            ...applyBudgetRemainderUpdate(projects[idx], summary.remainder, cache[projId], { force: true }),
+            contractorBudget: { ...summary, at: new Date().toISOString() },
+          };
+          await saveProjects();
+          budgetMsg = `\nОстаток по контрагентам: $${summary.remainder.toFixed(2)} (${summary.byContractor.map(c => `${c.name} $${c.remainder.toFixed(2)}`).join(' · ')}).`;
+        }
+      }
+    } catch (e) {
+      console.warn('Contractor summary (budget) failed:', e.message || e);
+      budgetMsg = '\nОстаток из «Сводки» подтянуть не удалось — спенд обновлён.';
+    }
+
     const total = rows.reduce((a, r) => a + (r.spend || 0), 0);
     const ios = rows.filter(r => r.os === 'ios').reduce((a, r) => a + (r.spend || 0), 0);
     const andr = rows.filter(r => r.os === 'android').reduce((a, r) => a + (r.spend || 0), 0);
     const days = new Set(rows.map(r => r.date)).size;
-    alert(`Готово ✓ ${days} дн. с разбивкой по ОС · спенд $${total.toFixed(2)} (iOS $${ios.toFixed(2)} / Android $${andr.toFixed(2)}).\nНа общих датах спенд взят из таблицы.`);
+    alert(`Готово ✓ ${days} дн. с разбивкой по ОС · спенд $${total.toFixed(2)} (iOS $${ios.toFixed(2)} / Android $${andr.toFixed(2)}).\nНа общих датах спенд взят из таблицы.${budgetMsg}`);
   } catch (e) {
     alert(`Не удалось подтянуть: ${e.message || e}`);
   } finally {
@@ -3143,12 +3191,20 @@ function renderJgglContractorCard(proj) {
   const removeBtn = rows.length
     ? `<button type="button" class="btn-csv-del" onclick="removeJgglContractorOverride('${proj.id}')">Убрать свод</button>`
     : '';
+  const cb = proj.contractorBudget;
+  const budgetHtml = cb?.byContractor?.length
+    ? `<div class="income-chips-row" style="margin-top:8px">
+        <span class="income-chip">Остаток всего&nbsp;<b>${fmtMoney(cb.remainder, proj.currency || '$')}</b></span>
+        ${cb.byContractor.map(c => `<span class="income-chip">${escHtml(c.name)}&nbsp;<b>${fmtMoney(c.remainder, proj.currency || '$')}</b></span>`).join('')}
+      </div>`
+    : '';
   return `<div class="csv-upload-card" style="margin-top:12px">
     <div class="csv-upload-head" style="cursor:default">
       <div class="csv-upload-head-main">
         <div class="csv-upload-title">Свод спенда из таблицы контрагентов</div>
-        <div class="csv-upload-hint">Тянет слив по всем контрагентам (ФБМ, Рентакк, Блюглов, Адскилл) из общей таблицы. На пересекающихся датах спенд из таблицы важнее CSV.</div>
+        <div class="csv-upload-hint">Тянет слив по всем контрагентам (ФБМ, Рентакк, Блюглов, Адскилл) из общей таблицы. На пересекающихся датах спенд из таблицы важнее CSV. Остаток бюджета проекта = сумма остатков из листа «Сводка».</div>
         ${status}
+        ${budgetHtml}
       </div>
       <div style="display:flex;gap:6px;white-space:nowrap">
         <button type="button" class="btn-sm" onclick="refreshJgglContractorSheet('${proj.id}', this)">↻ Подтянуть из таблицы</button>
