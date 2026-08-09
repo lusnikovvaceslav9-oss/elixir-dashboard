@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-09T22:17:52+00:00",
+  "generated_at": "2026-08-09T23:19:14+00:00",
   "anchor": "2026-07-31",
   "until": "2026-08-10",
   "window_start": "2026-08-01",
@@ -19,14 +19,14 @@
   "errors": [],
   "days": 11,
   "reconcile_diff": {
-    "trials_total_old_csv": 19,
+    "trials_total_old_csv": 20,
     "trials_total_new": 20,
-    "delta": 1
+    "delta": 0
   },
   "unit_economics": {
     "revenue_total": 1995,
-    "spend_total": 10827.6,
-    "active_users": 503,
+    "spend_total": 10944.68,
+    "active_users": 507,
     "active_payers": 1,
     "plus_active_users": 1,
     "trial_cancellations": 3,
@@ -35,11 +35,11 @@
       "2026-08-09": 2
     },
     "renewals": 2,
-    "arpu": 3.97,
+    "arpu": 3.93,
     "arppu": 1995.0,
     "ltv": 5985.0,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
-    "roas_d7": 18.4,
+    "roas_d7": 18.2,
     "roas_d14": null,
     "roas_d30": null
   },
