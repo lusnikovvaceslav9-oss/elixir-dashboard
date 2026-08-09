@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-09T13:40:19+00:00",
+  "generated_at": "2026-08-09T14:23:08+00:00",
   "anchor": "2026-07-31",
   "until": "2026-08-09",
   "window_start": "2026-07-31",
@@ -20,13 +20,13 @@
   "days": 10,
   "reconcile_diff": {
     "trials_total_old_csv": 17,
-    "trials_total_new": 17,
-    "delta": 0
+    "trials_total_new": 18,
+    "delta": 1
   },
   "unit_economics": {
     "revenue_total": 1995,
-    "spend_total": 10273.52,
-    "active_users": 488,
+    "spend_total": 10306.87,
+    "active_users": 489,
     "active_payers": 1,
     "plus_active_users": 1,
     "trial_cancellations": 3,
@@ -36,7 +36,7 @@
       "2026-08-09": 1
     },
     "renewals": 2,
-    "arpu": 4.09,
+    "arpu": 4.08,
     "arppu": 1995.0,
     "ltv": 5985.0,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
@@ -85,7 +85,7 @@
       "rub": 1995
     }
   },
-  "trials_am_crosscheck_total": 17,
+  "trials_am_crosscheck_total": 18,
   "trials_am_crosscheck_by_day": {
     "2026-07-31": 1,
     "2026-08-04": 3,
@@ -93,7 +93,7 @@
     "2026-08-06": 6,
     "2026-08-07": 1,
     "2026-08-08": 1,
-    "2026-08-09": 3
+    "2026-08-09": 4
   },
   "trials_crosscheck_yesterday": {
     "day": "2026-08-08",
