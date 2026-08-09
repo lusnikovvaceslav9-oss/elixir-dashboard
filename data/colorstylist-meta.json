@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-09T15:19:30+00:00",
+  "generated_at": "2026-08-09T16:20:01+00:00",
   "anchor": "2026-07-31",
   "until": "2026-08-09",
   "window_start": "2026-07-31",
@@ -8,15 +8,14 @@
     "spend": "direct_api",
     "clicks": "direct_api",
     "impressions": "direct_api",
-    "installs": "appmetrica_reporting",
-    "trials": "appmetrica_purchase_success",
-    "trials_am_crosscheck": "appmetrica_reporting_events",
     "bills": "supabase_main_active_cohort_day",
     "trial_cancellations": "supabase_trial_cancelled",
     "unit_economics": "supabase_entitlements",
     "product": "appmetrica_reporting"
   },
-  "errors": [],
+  "errors": [
+    "appmetrica: AppMetrica HTTP 503: Service unavailable"
+  ],
   "days": 10,
   "reconcile_diff": {
     "trials_total_old_csv": 18,
@@ -25,8 +24,8 @@
   },
   "unit_economics": {
     "revenue_total": 1995,
-    "spend_total": 10349.36,
-    "active_users": 491,
+    "spend_total": 10390.42,
+    "active_users": 0,
     "active_payers": 1,
     "plus_active_users": 1,
     "trial_cancellations": 3,
@@ -36,11 +35,11 @@
       "2026-08-09": 1
     },
     "renewals": 2,
-    "arpu": 4.06,
+    "arpu": null,
     "arppu": 1995.0,
     "ltv": 5985.0,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
-    "roas_d7": 19.3,
+    "roas_d7": 19.2,
     "roas_d14": null,
     "roas_d30": null
   },
@@ -85,19 +84,9 @@
       "rub": 1995
     }
   },
-  "trials_am_crosscheck_total": 18,
-  "trials_am_crosscheck_by_day": {
-    "2026-07-31": 1,
-    "2026-08-04": 3,
-    "2026-08-05": 2,
-    "2026-08-06": 6,
-    "2026-08-07": 1,
-    "2026-08-08": 1,
-    "2026-08-09": 4
-  },
   "trials_crosscheck_yesterday": {
     "day": "2026-08-08",
-    "appmetrica": 1,
+    "appmetrica": 0,
     "supabase": 0,
     "dashboard": 1,
     "note": "В дашборде trials = AppMetrica purchase_success (события ym:ce:allEvents, как колонка «События» в UI). RuStore — сверка оплат."
