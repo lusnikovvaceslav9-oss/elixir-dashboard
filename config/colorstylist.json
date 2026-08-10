@@ -20,5 +20,39 @@
   "cohort_json": "data/colorstylist-cohort.json",
   "meta_json": "data/colorstylist-meta.json",
   "product_json": "data/colorstylist-product.json",
-  "state_json": "data/colorstylist-feed-state.json"
+  "state_json": "data/colorstylist-feed-state.json",
+
+  "trial_days": 3,
+  "plans": { "week": 199, "month": 399, "year": 2490 },
+  "sold_label": "Paid (week/month)",
+
+  "product_section": {
+    "subtitle": "Дошёл ли пользователь до ценности — цветотип, пейволл, фичи.",
+    "count_mode": "unique_devices",
+    "kpis": [
+      { "id": "aha_color", "label": "Aha: цветотип", "formula_label": "color_type_reveal / install",
+        "numerator": { "event": "color_type_reveal_view" }, "fallback_numerator": { "event": "color_type_done" },
+        "denominator": "installs", "primary": true },
+      { "id": "depth", "label": "Глубина продукта", "formula_label": "≥2 фичи / install",
+        "numerator": { "type": "unique_devices_with_at_least_n_events", "n": 2,
+          "events": ["hair_look_generated", "outfit_generated", "makeup_generated", "chat_reply", "fitting_done"] },
+        "denominator": "installs" },
+      { "id": "paywall_cta", "label": "CTA пейволла", "formula_label": "purchase_tap / paywall_view",
+        "numerator": { "event": "purchase_tap" }, "denominator": { "event": "paywall_view" }, "accent": true },
+      { "id": "engagement_hair", "label": "Вовлечение (hair)", "formula_label": "hair_look / install",
+        "numerator": { "event": "hair_look_generated" }, "denominator": "installs" }
+    ],
+    "features": [
+      { "id": "color_type", "label": "Цветотип", "event": "color_type_done" },
+      { "id": "hair", "label": "Волосы", "event": "hair_look_generated" },
+      { "id": "outfit", "label": "Образы", "event": "outfit_generated" },
+      { "id": "makeup", "label": "Макияж", "event": "makeup_generated" },
+      { "id": "chat", "label": "Чат", "event": "chat_reply" },
+      { "id": "fitting", "label": "Примерочная", "event": "fitting_done" }
+    ],
+    "quality": [
+      { "id": "ai_fail_rate", "label": "AI fail rate", "numerator": { "event": "ai_fail" },
+        "denominator": { "event": "ai_request" }, "count_mode": "events" }
+    ]
+  }
 }

@@ -56,6 +56,7 @@ def load_secrets(work_dir: Path) -> dict[str, str | None]:
         "DIRECT_OAUTH_TOKEN",
         "DIRECT_CLIENT_LOGIN",
         "SUPABASE_DB_URL",
+        "POLZA_API_KEY",
     )
     out: dict[str, str | None] = {}
     for key in keys:

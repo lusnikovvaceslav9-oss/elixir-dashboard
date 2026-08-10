@@ -233,6 +233,134 @@ PRODUCT_EVENTS = (
 )
 
 
+def _pct(num, den):
+    return round(num / den * 100, 2) if den else None
+
+
+def fetch_product_metrics_spec(
+    token: str,
+    app_id: str,
+    date_since: date,
+    date_until: date,
+    installs_total: int,
+    spec: dict,
+) -> dict:
+    """Product KPIs по спецификации проекта (config → product_section).
+
+    Считаем по УНИКАЛЬНЫМ устройствам (ym:ce:users), а не по количеству событий:
+    в стилисте один юзер делает много hair/outfit, и counts/installs дают >100%.
+    Метрики, которых Reporting API не умеет (пересечение фич на юзера), возвращаем
+    как None + note — в UI это «нет данных», а не ноль с чужим лейблом.
+    """
+    names: set[str] = set()
+    for k in spec.get("kpis") or []:
+        for side in ("numerator", "fallback_numerator", "denominator"):
+            v = k.get(side)
+            if isinstance(v, dict):
+                if v.get("event"):
+                    names.add(v["event"])
+                for e in v.get("events") or []:
+                    names.add(e)
+    for f in spec.get("features") or []:
+        if f.get("event"):
+            names.add(f["event"])
+    for q in spec.get("quality") or []:
+        for side in ("numerator", "denominator"):
+            v = q.get(side)
+            if isinstance(v, dict) and v.get("event"):
+                names.add(v["event"])
+
+    events: dict[str, dict] = {}
+    errors: list[str] = []
+    for name in sorted(names):
+        try:
+            totals = fetch_event_totals(token, app_id, name, date_since, date_until)
+            users, ev = totals["users"], totals["events"]
+            events[name] = {
+                "users": users,
+                "events": ev,
+                "vs_install_pct": _pct(users, installs_total),
+                "avg_per_user": round(ev / users, 2) if users else None,
+            }
+        except Exception as exc:
+            errors.append(f"{name}: {exc}")
+            events[name] = {"users": 0, "events": 0, "vs_install_pct": None, "avg_per_user": None}
+
+    def side_value(v, mode="users"):
+        """→ (значение, доступно?). None+False = посчитать нельзя."""
+        if v == "installs":
+            return installs_total, True
+        if isinstance(v, dict):
+            if v.get("event"):
+                return int((events.get(v["event"]) or {}).get(mode) or 0), True
+            if v.get("type") == "unique_devices_with_at_least_n_events":
+                return None, False  # нужен Logs API: пересечение фич на юзера
+        return None, False
+
+    kpis = []
+    for k in spec.get("kpis") or []:
+        mode = "events" if k.get("count_mode") == "events" else "users"
+        num, num_ok = side_value(k.get("numerator"), mode)
+        if num_ok and not num and k.get("fallback_numerator"):
+            num, num_ok = side_value(k["fallback_numerator"], mode)
+        den, den_ok = side_value(k.get("denominator"), mode)
+        value = _pct(num, den) if (num_ok and den_ok) else None
+        kpis.append({
+            "id": k.get("id"),
+            "label": k.get("label"),
+            "formula_label": k.get("formula_label"),
+            "value_pct": value,
+            "primary": bool(k.get("primary")),
+            "accent": bool(k.get("accent")),
+            "note": None if (num_ok and den_ok) else "нужен Logs API (пересечение фич на пользователя)",
+        })
+
+    features = [
+        {
+            "id": f.get("id"),
+            "label": f.get("label"),
+            "event": f.get("event"),
+            "value_pct": _pct(int((events.get(f.get("event")) or {}).get("users") or 0), installs_total),
+        }
+        for f in spec.get("features") or []
+    ]
+
+    quality = []
+    for q in spec.get("quality") or []:
+        mode = "events" if q.get("count_mode") == "events" else "users"
+        num, num_ok = side_value(q.get("numerator"), mode)
+        den, den_ok = side_value(q.get("denominator"), mode)
+        quality.append({
+            "id": q.get("id"),
+            "label": q.get("label"),
+            "value_pct": _pct(num, den) if (num_ok and den_ok) else None,
+        })
+
+    active_users = 0
+    try:
+        active_users = fetch_active_users(token, app_id, date_since, date_until)
+    except Exception as exc:
+        errors.append(f"active_users: {exc}")
+
+    return {
+        "from": date_since.isoformat(),
+        "to": date_until.isoformat(),
+        "installs": installs_total,
+        "active_users": active_users,
+        "count_mode": spec.get("count_mode") or "unique_devices",
+        "subtitle": spec.get("subtitle"),
+        "events": events,
+        "kpis": kpis,
+        "features": features,
+        "quality": quality,
+        "retention": {
+            "d1": None, "d3": None, "d7": None,
+            "note": "AppMetrica Reporting API не отдаёт D1/D3/D7 без Logs/Retention export",
+        },
+        "errors": errors,
+    }
+
+
 def fetch_product_metrics(
     token: str,
     app_id: str,

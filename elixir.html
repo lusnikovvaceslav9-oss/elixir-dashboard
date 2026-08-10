@@ -6199,12 +6199,12 @@ function getMatureCohortMetrics(monthKey) {
   };
 }
 
-function getPlantoUnitEconomics() {
-  return feedProduct()?.unit_economics || feedMeta()?.unit_economics || null;
+function getPlantoUnitEconomics(projId) {
+  return feedProduct(projId)?.unit_economics || feedMeta(projId)?.unit_economics || null;
 }
 
-function getPlantoProductMetrics() {
-  return feedProduct()?.product || feedMeta()?.product || null;
+function getPlantoProductMetrics(projId) {
+  return feedProduct(projId)?.product || feedMeta(projId)?.product || null;
 }
 
 function fmtMoneyOrDash(n, cur) {
@@ -6300,8 +6300,8 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
   const hasAds = clicks > 0 || impressions > 0;
   const paidNet = getPlantoPaidNetForRows(rows);
   const mature = getMatureCohortMetrics(monthKey);
-  const unit = getPlantoUnitEconomics();
-  const product = getPlantoProductMetrics();
+  const unit = getPlantoUnitEconomics(proj?.id);
+  const product = getPlantoProductMetrics(proj?.id);
   const feat = product?.feature_activation || {};
   const ret = product?.retention || {};
 
@@ -6365,11 +6365,31 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
     }),
   ].join('');
 
+  // Полный burn = реклама + ИИ (Polza). Показываем только когда ключ настроен и
+  // спенд реально пришёл — иначе не засоряем блок пустыми карточками.
+  const ai = feedMeta(proj?.id)?.ai_spend;
+  const aiCards = ai?.total != null ? [
+    plantoKpiCell('AI spend (Polza)', fmtMoney(ai.total, cur), {
+      sub: ai.generations ? `${fmtInt(ai.generations)} генераций` : 'списания по ключам',
+    }),
+    ai.total_burn != null
+      ? plantoKpiCell('Total burn', fmtMoney(ai.total_burn, cur), { accent: true, sub: 'реклама + ИИ' })
+      : '',
+    ai.per_install != null
+      ? plantoKpiCell('AI / install', fmtMoney(ai.per_install, cur), { sub: 'ИИ на установку' })
+      : '',
+    ai.per_trial != null
+      ? plantoKpiCell('AI / trial', fmtMoney(ai.per_trial, cur), { sub: 'ИИ на триал' })
+      : '',
+  ].join('') : '';
+
+  const soldLabel = feedMeta(proj?.id)?.sold_label;
   const unitBlock = [
     plantoKpiCell('Оплаты', fmtInt(fb), {
       primary: true,
-      sub: sold ? `из них yearly: ${fmtInt(sold)}` : 'новые + ребиллы',
+      sub: sold ? `из них ${soldLabel ? escHtml(soldLabel) : 'yearly'}: ${fmtInt(sold)}` : 'новые + ребиллы',
     }),
+    aiCards,
     plantoKpiCell('CAC', cac != null ? fmtMoney(cac, cur) : '—', { accent: true, sub: 'стоимость платящего' }),
     unit?.arpu != null
       ? plantoKpiCell('ARPU', fmtMoneyOrDash(unit.arpu, cur), { sub: `на ${fmtInt(unit.active_users || 0)} активных` })
@@ -6395,7 +6415,21 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
   ].join('');
 
   const gardenAvg = product?.garden_avg_plants;
-  const productCards = [
+  // Проект описал свои KPI в конфиге (ColorStylist) — рисуем их, а не Planto-сад.
+  const specKpis = Array.isArray(product?.kpis) ? product.kpis : null;
+  const productCards = specKpis ? specKpis.map(k => (
+    k.value_pct != null
+      ? plantoKpiCell(k.label, fmtPct(k.value_pct), {
+          primary: !!k.primary,
+          accent: !!k.accent,
+          sub: k.formula_label || '',
+          bar: { pct: Math.min(k.value_pct, 100) },
+        })
+      : plantoKpiCell(k.label, 'нет данных', {
+          pending: true,
+          sub: k.note || k.formula_label || '',
+        })
+  )).join('') : [
     product?.garden_activation_pct != null
       ? plantoKpiCell('Активация в сад', fmtPct(product.garden_activation_pct), {
           primary: true,
@@ -6424,11 +6458,17 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
       : plantoKpiCell('Вовлечение в уход', 'нет данных', { pending: true, sub: 'user_score5 / install' }),
   ].join('');
 
-  const featureHtml = plantoFeatureRows([
-    { label: 'Диагностика (scan)', value: feat.scan_pct },
-    { label: 'Полив настроен', value: feat.watering_pct },
-    { label: 'ИИ-ассистент', value: feat.ai_pct },
-  ]);
+  const specFeatures = Array.isArray(product?.features) ? product.features : null;
+  const featureHtml = specFeatures
+    ? plantoFeatureRows(specFeatures.map(f => ({ label: f.label, value: f.value_pct })))
+    : plantoFeatureRows([
+        { label: 'Диагностика (scan)', value: feat.scan_pct },
+        { label: 'Полив настроен', value: feat.watering_pct },
+        { label: 'ИИ-ассистент', value: feat.ai_pct },
+      ]);
+  const qualityHtml = Array.isArray(product?.quality) && product.quality.some(q => q.value_pct != null)
+    ? plantoFeatureRows(product.quality.map(q => ({ label: q.label, value: q.value_pct })))
+    : '';
 
   const retentionPending = ret.d1 == null && ret.d3 == null && ret.d7 == null;
   const productFooter = [
@@ -6438,18 +6478,31 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
           ${featureHtml}
         </div>`
       : '',
+    qualityHtml
+      ? `<div class="planto-kpi wide" style="margin-top:10px">
+          <div class="planto-kpi-label">Качество ИИ</div>
+          ${qualityHtml}
+        </div>`
+      : '',
     retentionPending
       ? `<div class="planto-pending-note">Retention D1 / D3 / D7 пока недоступны — нужен AppMetrica Retention или Logs API.</div>`
       : '',
   ].join('');
 
-  const allRows = getPlantoDailyRows();
+  // Копирайт триалов и подзаголовок продукта — из конфига проекта (Planto 7 дн., ColorStylist 3 дн.).
+  const meta = feedMeta(proj?.id);
+  const trialDays = Number(meta?.trial_days) || 7;
+  const trialLag = Number(meta?.trial_lag_days) || trialDays;
+  const productSubtitle = product?.subtitle
+    || 'Дошёл ли пользователь до ценности — сад, пейволл, уход и ключевые фичи.';
+
+  const allRows = getPlantoDailyRows(proj?.id);
   return `<div class="planto-blocks">
     ${renderPlantoTodayBlock(proj, allRows)}
     ${plantoBlock('acquisition', '1', 'Привлечение', 'Сколько стоит трафик и насколько кликабельны объявления.', 'Direct', acquisition)}
-    ${plantoBlock('trials', '2', 'Воронка триалов', 'Из-за 7-дневного триала смотрим конверсии и отмены, а не только день-в-день.', 'лаг 7 дней', trialsBlock)}
+    ${plantoBlock('trials', '2', 'Воронка триалов', `Из-за ${trialDays}-дневного триала смотрим конверсии и отмены, а не только день-в-день.`, `лаг ${trialLag} дн.`, trialsBlock)}
     ${plantoBlock('unit', '3', 'Юнит-экономика', 'Окупаемость и ценность платящего пользователя.', 'RuStore', unitBlock)}
-    ${plantoBlock('product', '4', 'Продукт', 'Дошёл ли пользователь до ценности — сад, пейволл, уход и ключевые фичи.', 'AppMetrica', productCards, { cols: 2, footer: productFooter })}
+    ${plantoBlock('product', '4', 'Продукт', productSubtitle, 'AppMetrica', productCards, { cols: 2, footer: productFooter })}
   </div>`;
 }
 
@@ -6679,6 +6732,12 @@ function isMetricRelevant(key, rows) {
 function getMetricsCatalogForProj(proj, rows) {
   const type = getEffectiveType(proj, rows);
   let catalog = METRIC_CATALOG[type] || METRIC_CATALOG.generic;
+  // Подпись «Продано» зависит от тарифов проекта: у Planto продаётся годовой,
+  // у ColorStylist — недельный/месячный, поэтому лейбл берём из конфига фида.
+  const soldLabel = feedMeta(proj?.id)?.sold_label;
+  if (soldLabel) {
+    catalog = catalog.map(m => (m.key === 'sold' ? { ...m, label: soldLabel } : m));
+  }
   if (type === 'streamfi' && !sheetHasRegs(proj, rows)) {
     catalog = catalog.filter(m => m.key !== 'regs' && m.key !== 'conv_rate');
   }

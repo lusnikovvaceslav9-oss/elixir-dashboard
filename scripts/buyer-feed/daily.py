@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 
-CSV_HEADERS = ("date", "spend", "installs", "trials", "sold", "fb", "clicks", "impressions")
+CSV_HEADERS = ("date", "spend", "polza_spend", "installs", "trials", "sold", "fb", "clicks", "impressions")
 
 
 def parse_day_iso(s: str) -> date | None:
@@ -93,6 +93,7 @@ def write_daily_csv(path: Path, daily: dict[str, dict]) -> None:
                 {
                     "date": r["date"],
                     "spend": round(float(r.get("spend") or 0), 2),
+                    "polza_spend": float(r.get("polza_spend") or 0),
                     "installs": int(r.get("installs") or 0),
                     "trials": int(r.get("trials") or 0),
                     "sold": int(r.get("sold") or 0),
@@ -115,7 +116,9 @@ def merge_daily(
     sold: dict[str, int] | None = None,
     clicks: dict[str, int] | None = None,
     impressions: dict[str, int] | None = None,
+    polza_spend: dict[str, float] | None = None,
 ) -> dict[str, dict]:
+    polza_spend = polza_spend or {}
     sold = sold or {}
     clicks = clicks or {}
     impressions = impressions or {}
@@ -128,6 +131,7 @@ def merge_daily(
             {
                 "date": fmt_display(d),
                 "spend": 0,
+                "polza_spend": 0,
                 "installs": 0,
                 "trials": 0,
                 "sold": 0,
@@ -143,6 +147,8 @@ def merge_daily(
                 pass
             else:
                 prev["spend"] = new_spend
+        if key in polza_spend:
+            prev["polza_spend"] = polza_spend[key]
         if key in installs:
             prev["installs"] = installs[key]
         if key in trials:
@@ -158,6 +164,7 @@ def merge_daily(
         prev["date"] = fmt_display(d)
         prev.setdefault("clicks", 0)
         prev.setdefault("impressions", 0)
+        prev.setdefault("polza_spend", 0)
         merged[key] = prev
         d = date.fromordinal(d.toordinal() + 1)
     return merged
