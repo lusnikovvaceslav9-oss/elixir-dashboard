@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-10T18:40:02+00:00",
+  "generated_at": "2026-08-10T19:46:09+00:00",
   "anchor": "2026-07-31",
   "until": "2026-08-10",
   "window_start": "2026-08-01",
@@ -28,16 +28,16 @@
   "errors": [],
   "days": 11,
   "reconcile_diff": {
-    "trials_total_old_csv": 26,
+    "trials_total_old_csv": 27,
     "trials_total_new": 27,
-    "delta": 1
+    "delta": 0
   },
   "unit_economics": {
     "revenue_total": 1395,
-    "spend_total": 12515.77,
-    "active_users": 588,
+    "spend_total": 12558.63,
+    "active_users": 589,
     "active_payers": 1,
-    "plus_active_users": 1,
+    "plus_active_users": 2,
     "trial_cancellations": 7,
     "trial_cancellations_by_day": {
       "2026-08-09": 2,
@@ -81,7 +81,7 @@
         "id": "aha_color",
         "label": "Aha: цветотип",
         "formula_label": "color_type_reveal / install",
-        "value_pct": 76.86,
+        "value_pct": 76.9,
         "primary": true,
         "accent": false,
         "note": null
@@ -99,7 +99,7 @@
         "id": "paywall_cta",
         "label": "CTA пейволла",
         "formula_label": "purchase_tap / paywall_view",
-        "value_pct": 27.95,
+        "value_pct": 27.87,
         "primary": false,
         "accent": true,
         "note": null
@@ -108,7 +108,7 @@
         "id": "engagement_hair",
         "label": "Вовлечение (hair)",
         "formula_label": "hair_look / install",
-        "value_pct": 34.54,
+        "value_pct": 34.66,
         "primary": false,
         "accent": false,
         "note": null
@@ -119,44 +119,44 @@
         "id": "color_type",
         "label": "Цветотип",
         "event": "color_type_done",
-        "value_pct": 83.77
+        "value_pct": 83.79
       },
       {
         "id": "hair",
         "label": "Волосы",
         "event": "hair_look_generated",
-        "value_pct": 34.54
+        "value_pct": 34.66
       },
       {
         "id": "outfit",
         "label": "Образы",
         "event": "outfit_generated",
-        "value_pct": 11.74
+        "value_pct": 11.72
       },
       {
         "id": "makeup",
         "label": "Макияж",
         "event": "makeup_generated",
-        "value_pct": 15.54
+        "value_pct": 15.52
       },
       {
         "id": "chat",
         "label": "Чат",
         "event": "chat_reply",
-        "value_pct": 21.59
+        "value_pct": 21.72
       },
       {
         "id": "fitting",
         "label": "Примерочная",
         "event": "fitting_done",
-        "value_pct": 5.01
+        "value_pct": 5.0
       }
     ],
     "quality": [
       {
         "id": "ai_fail_rate",
         "label": "AI fail rate",
-        "value_pct": 25.89
+        "value_pct": 25.86
       }
     ]
   },
@@ -178,6 +178,10 @@
       "rub": 1395
     }
   },
+  "trials_sb_crosscheck_total": 1,
+  "trials_sb_crosscheck_by_day": {
+    "2026-08-09": 1
+  },
   "trials_am_crosscheck_total": 27,
   "trials_am_crosscheck_by_day": {
     "2026-07-31": 1,
@@ -192,7 +196,7 @@
   "trials_crosscheck_yesterday": {
     "day": "2026-08-09",
     "appmetrica": 5,
-    "supabase": 0,
+    "supabase": 1,
     "dashboard": 5,
     "note": "В дашборде trials = AppMetrica purchase_success (события ym:ce:allEvents, как колонка «События» в UI). RuStore — сверка оплат."
   }
