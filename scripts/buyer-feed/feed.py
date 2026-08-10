@@ -29,6 +29,7 @@ from polza import fetch_polza_spend_by_day
 from secrets import load_secrets
 from supabase import (
     bills_breakdown,
+    set_plan_prices,
     bills_by_cohort_day,
     fetch_bills,
     fetch_trial_cancellations_by_day,
@@ -119,6 +120,8 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
     cfg = load_config(cfg_path)
 
     secrets = load_secrets(work_dir)
+    # Цены тарифов различаются по проектам (Planto vs ColorStylist) — берём из конфига.
+    set_plan_prices(cfg.get("plans"))
     anchor = date.fromisoformat(cfg.get("anchor") or default_anchor().isoformat())
     until = datetime.now(ZoneInfo("Europe/Moscow")).date()
     refresh_days = int(cfg.get("refresh_days") or 7)

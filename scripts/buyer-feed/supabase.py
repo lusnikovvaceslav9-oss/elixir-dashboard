@@ -33,6 +33,37 @@ def _is_yearly(product_code: str | None) -> bool:
     return "yearly" in code or "year" in code or code == "planto_plus_yearly"
 
 
+def _is_weekly(product_code: str | None) -> bool:
+    code = (product_code or "").lower()
+    return "week" in code or "7d" in code
+
+
+def plan_of(product_code: str | None) -> str:
+    """weekly / monthly / yearly. Раньше было бинарно (год vs «всё остальное»),
+    из-за чего недельная подписка (premium_week) считалась месячной."""
+    if _is_yearly(product_code):
+        return "yearly"
+    if _is_weekly(product_code):
+        return "weekly"
+    return "monthly"
+
+
+# Цены задаются проектом (config.plans): у Planto и ColorStylist они разные.
+PLAN_PRICES = {"weekly": 0, "monthly": MONTHLY_PRICE, "yearly": YEARLY_PRICE}
+
+
+def set_plan_prices(plans: dict | None) -> None:
+    if not plans:
+        return
+    for key, alias in (("weekly", "week"), ("monthly", "month"), ("yearly", "year")):
+        v = plans.get(alias, plans.get(key))
+        if v is not None:
+            try:
+                PLAN_PRICES[key] = int(v)
+            except (TypeError, ValueError):
+                pass
+
+
 def derive_trial_start(
     *,
     period: str | None,
@@ -248,22 +279,16 @@ def derive_bill(
     if charge is None:
         return None
     pay_date = _to_msk_date(charge)
-    if _is_yearly(product_code):
-        return Bill(
-            user_id=str(user_id),
-            purchase_id=str(purchase_id),
-            plan="yearly",
-            amount=YEARLY_PRICE,
-            pay_date=pay_date,
-            cohort_day=pay_date - timedelta(days=YEARLY_TRIAL_LAG_DAYS),
-        )
+    plan = plan_of(product_code)
+    # Годовой оплачивается после триала → относим к когорте старта триала.
+    cohort_day = pay_date - timedelta(days=YEARLY_TRIAL_LAG_DAYS) if plan == "yearly" else pay_date
     return Bill(
         user_id=str(user_id),
         purchase_id=str(purchase_id),
-        plan="monthly",
-        amount=MONTHLY_PRICE,
+        plan=plan,
+        amount=PLAN_PRICES.get(plan, MONTHLY_PRICE),
         pay_date=pay_date,
-        cohort_day=pay_date,
+        cohort_day=cohort_day,
     )
 
 
@@ -337,14 +362,15 @@ def paid_net_by_cohort_day(bills: list[Bill]) -> dict[str, int]:
 
 
 def bills_breakdown(bills: list[Bill]) -> dict[str, dict[str, int]]:
-    """Разбивка биллов на месячные/годовые: count + rub."""
+    """Разбивка биллов по тарифам: count + rub (недельные больше не сливаются с месячными)."""
     out: dict[str, dict[str, int]] = {
         "yearly": {"count": 0, "rub": 0},
         "monthly": {"count": 0, "rub": 0},
+        "weekly": {"count": 0, "rub": 0},
         "total": {"count": 0, "rub": 0},
     }
     for b in bills:
-        plan = "yearly" if b.plan == "yearly" else "monthly"
+        plan = b.plan if b.plan in out else "monthly"
         out[plan]["count"] += 1
         out[plan]["rub"] += b.amount
         out["total"]["count"] += 1

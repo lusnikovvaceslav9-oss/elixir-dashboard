@@ -5632,8 +5632,11 @@ function renderPlantoBreakdownCard(proj, rows) {
     const warnHtml = (health && (!health.ok || health.staleVsToday))
       ? `<div class="budget-hint feed-warn">⚠ данные могли устареть — нажми «Обновить» (запустит feed)</div>`
       : '';
-    const refreshHint = lastPlantoFeedRefresh?.message
-      ? `<div class="budget-hint">${escHtml(lastPlantoFeedRefresh.message)}</div>`
+    // lastPlantoFeedRefresh относится только к Planto-фиду — на карточке другого
+    // проекта он показывал чужое «Planto обновлён». Остальным — их же срез.
+    const refreshMsg = proj.id === 'planto' ? lastPlantoFeedRefresh?.message : null;
+    const refreshHint = refreshMsg
+      ? `<div class="budget-hint">${escHtml(refreshMsg)}</div>`
       : (meta?.generated_at
         ? `<div class="budget-hint">срез · ${escHtml(String(meta.generated_at).replace('T', ' ').replace(/\+\d{2}:\d{2}$/, ' UTC').slice(0, 19))}</div>`
         : '');
@@ -5642,6 +5645,8 @@ function renderPlantoBreakdownCard(proj, rows) {
       ? `<div class="income-chips-row">` +
         `<span class="income-chip">Годовых&nbsp;<b>${pay.yearly?.count || 0}</b>&nbsp;· ${fmtInt(pay.yearly?.rub || 0)} ₽</span>` +
         `<span class="income-chip">Месячных&nbsp;<b>${pay.monthly?.count || 0}</b>&nbsp;· ${fmtInt(pay.monthly?.rub || 0)} ₽</span>` +
+        // Недельный тариф показываем, когда он вообще есть у проекта (ColorStylist premium_week).
+        (pay.weekly ? `<span class="income-chip">Недельных&nbsp;<b>${pay.weekly.count || 0}</b>&nbsp;· ${fmtInt(pay.weekly.rub || 0)} ₽</span>` : '') +
         `<span class="income-chip">Всего&nbsp;<b>${fmtInt(pay.total.rub || 0)} ₽</b></span>` +
         `</div>`
       : '';
