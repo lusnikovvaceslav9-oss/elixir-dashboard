@@ -1,9 +1,18 @@
 {
-  "generated_at": "2026-08-10T12:39:53+00:00",
+  "generated_at": "2026-08-10T13:56:00+00:00",
   "anchor": "2026-07-31",
   "until": "2026-08-10",
   "window_start": "2026-08-01",
   "trial_attribution": "appmetrica_purchase_success",
+  "ai_spend": null,
+  "trial_days": 3,
+  "trial_lag_days": 3,
+  "sold_label": "Paid (week/month)",
+  "plans": {
+    "week": 199,
+    "month": 399,
+    "year": 2490
+  },
   "sources": {
     "spend": "direct_api",
     "clicks": "direct_api",
@@ -20,23 +29,22 @@
   "days": 11,
   "reconcile_diff": {
     "trials_total_old_csv": 24,
-    "trials_total_new": 24,
-    "delta": 0
+    "trials_total_new": 25,
+    "delta": 1
   },
   "unit_economics": {
     "revenue_total": 1995,
-    "spend_total": 12067.22,
-    "active_users": 559,
+    "spend_total": 12118.91,
+    "active_users": 566,
     "active_payers": 1,
     "plus_active_users": 1,
-    "trial_cancellations": 7,
+    "trial_cancellations": 6,
     "trial_cancellations_by_day": {
-      "2026-08-07": 1,
       "2026-08-09": 2,
       "2026-08-10": 4
     },
     "renewals": 2,
-    "arpu": 3.57,
+    "arpu": 3.52,
     "arppu": 1995.0,
     "ltv": 5985.0,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
@@ -54,22 +62,103 @@
     "predict_horizon_days": 180
   },
   "product": {
-    "garden_activation_pct": 0.0,
+    "garden_activation_pct": null,
     "garden_avg_plants": null,
     "garden_depth_icp_pct": null,
     "paywall_cta_pct": null,
-    "care_engagement_pct": 0.0,
-    "feature_activation": {
-      "scan_pct": 0.0,
-      "watering_pct": 0.0,
-      "ai_pct": 0.0
-    },
+    "care_engagement_pct": null,
+    "feature_activation": null,
     "retention": {
       "d1": null,
       "d3": null,
       "d7": null,
       "note": "AppMetrica Reporting API не отдаёт D1/D3/D7 без Logs/Retention export"
-    }
+    },
+    "subtitle": "Дошёл ли пользователь до ценности — цветотип, пейволл, фичи.",
+    "count_mode": "unique_devices",
+    "kpis": [
+      {
+        "id": "aha_color",
+        "label": "Aha: цветотип",
+        "formula_label": "color_type_reveal / install",
+        "value_pct": 76.84,
+        "primary": true,
+        "accent": false,
+        "note": null
+      },
+      {
+        "id": "depth",
+        "label": "Глубина продукта",
+        "formula_label": "≥2 фичи / install",
+        "value_pct": null,
+        "primary": false,
+        "accent": false,
+        "note": "нужен Logs API (пересечение фич на пользователя)"
+      },
+      {
+        "id": "paywall_cta",
+        "label": "CTA пейволла",
+        "formula_label": "purchase_tap / paywall_view",
+        "value_pct": 27.41,
+        "primary": false,
+        "accent": true,
+        "note": null
+      },
+      {
+        "id": "engagement_hair",
+        "label": "Вовлечение (hair)",
+        "formula_label": "hair_look / install",
+        "value_pct": 34.83,
+        "primary": false,
+        "accent": false,
+        "note": null
+      }
+    ],
+    "features": [
+      {
+        "id": "color_type",
+        "label": "Цветотип",
+        "event": "color_type_done",
+        "value_pct": 83.66
+      },
+      {
+        "id": "hair",
+        "label": "Волосы",
+        "event": "hair_look_generated",
+        "value_pct": 34.83
+      },
+      {
+        "id": "outfit",
+        "label": "Образы",
+        "event": "outfit_generated",
+        "value_pct": 12.03
+      },
+      {
+        "id": "makeup",
+        "label": "Макияж",
+        "event": "makeup_generated",
+        "value_pct": 15.44
+      },
+      {
+        "id": "chat",
+        "label": "Чат",
+        "event": "chat_reply",
+        "value_pct": 21.54
+      },
+      {
+        "id": "fitting",
+        "label": "Примерочная",
+        "event": "fitting_done",
+        "value_pct": 4.85
+      }
+    ],
+    "quality": [
+      {
+        "id": "ai_fail_rate",
+        "label": "AI fail rate",
+        "value_pct": 26.06
+      }
+    ]
   },
   "payments_by_plan": {
     "yearly": {
@@ -85,7 +174,7 @@
       "rub": 1995
     }
   },
-  "trials_am_crosscheck_total": 24,
+  "trials_am_crosscheck_total": 25,
   "trials_am_crosscheck_by_day": {
     "2026-07-31": 1,
     "2026-08-04": 3,
@@ -94,7 +183,7 @@
     "2026-08-07": 1,
     "2026-08-08": 1,
     "2026-08-09": 5,
-    "2026-08-10": 5
+    "2026-08-10": 6
   },
   "trials_crosscheck_yesterday": {
     "day": "2026-08-09",
