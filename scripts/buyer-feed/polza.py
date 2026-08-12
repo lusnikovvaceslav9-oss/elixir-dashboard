@@ -4,8 +4,12 @@
 total_burn = direct_spend + polza_spend. Тянем историю генераций и складываем
 стоимость по дате (МСК, как и остальной фид).
 
-Ключ: секрет POLZA_API_KEY. Нет ключа — молча пропускаем (фид не должен падать
-из-за необязательного источника).
+Ключ: секрет POLZA_API_KEY или POLZA_AI_API_KEY.
+Нет ключа — молча пропускаем (фид не должен падать из-за необязательного источника).
+
+API: https://polza.ai/docs/api-reference/history/generations
+  GET /v1/history/generations?page=&limit=&dateFrom=&dateTo=
+  limit: 1–100
 """
 
 from __future__ import annotations
@@ -30,8 +34,16 @@ def _get(path: str, api_key: str, params: dict | None = None, timeout: int = 60)
         url,
         headers={"Authorization": f"Bearer {api_key}", "Accept": "application/json"},
     )
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        body = ""
+        try:
+            body = exc.read().decode("utf-8", errors="replace")[:400]
+        except Exception:
+            pass
+        raise RuntimeError(f"HTTP {exc.code}: {exc.reason}" + (f" · {body}" if body else "")) from exc
 
 
 def fetch_balance(api_key: str) -> float | None:
@@ -51,8 +63,8 @@ def fetch_balance(api_key: str) -> float | None:
 def _row_dt(row: dict) -> date | None:
     """Дата генерации в МСК. Форматы у API плавают — пробуем известные поля."""
     raw = None
-    for k in ("created_at", "createdAt", "date", "timestamp", "created"):
-        if row.get(k):
+    for k in ("createdAt", "created_at", "date", "timestamp", "created"):
+        if row.get(k) is not None and row.get(k) != "":
             raw = row[k]
             break
     if raw is None:
@@ -73,9 +85,9 @@ def _row_dt(row: dict) -> date | None:
 
 
 def _row_cost(row: dict) -> float:
-    for k in ("cost", "price", "amount", "total", "cost_rub", "sum"):
+    for k in ("clientCost", "cost", "price", "amount", "total", "cost_rub", "sum"):
         v = row.get(k)
-        if v is None:
+        if v is None or v == "":
             continue
         try:
             return float(v)
@@ -85,11 +97,14 @@ def _row_cost(row: dict) -> float:
 
 
 def _row_kind(row: dict) -> str:
-    """images vs chat — по модели/типу, для разреза в дашборде."""
+    """images vs chat — по requestType/модели, для разреза в дашборде."""
+    rt = str(row.get("requestType") or row.get("request_type") or "").lower()
+    if rt in ("image", "images", "video", "audio"):
+        return "images" if rt.startswith("image") else rt
     blob = " ".join(
-        str(row.get(k) or "") for k in ("type", "kind", "model", "endpoint", "category")
+        str(row.get(k) or "") for k in ("type", "kind", "model", "modelDisplayName", "endpoint", "category", "requestType")
     ).lower()
-    if any(w in blob for w in ("image", "img", "sd", "flux", "dalle", "midjourney")):
+    if any(w in blob for w in ("image", "img", "sd", "flux", "dalle", "midjourney", "video")):
         return "images"
     return "chat"
 
@@ -98,26 +113,39 @@ def fetch_polza_spend_by_day(
     api_key: str,
     date_since: date,
     date_until: date,
-    page_limit: int = 20,
+    page_limit: int = 50,
 ) -> dict:
     """→ {"by_day": {iso: rub}, "by_kind": {...}, "generations": n, "total": rub}."""
     by_day: dict[str, float] = {}
     by_kind: dict[str, float] = {"images": 0.0, "chat": 0.0}
     count = 0
     page = 1
+    # API: limit 1–100; фильтры dateFrom / dateTo (ISO 8601).
+    per_page = 100
     while page <= page_limit:
         try:
             data = _get(
                 "/history/generations",
                 api_key,
-                {"page": page, "limit": 200, "from": date_since.isoformat(), "to": date_until.isoformat()},
+                {
+                    "page": page,
+                    "limit": per_page,
+                    "dateFrom": date_since.isoformat(),
+                    "dateTo": date_until.isoformat(),
+                    "sortBy": "createdAt",
+                    "sortOrder": "asc",
+                },
             )
         except Exception as exc:
             if page == 1:
                 raise RuntimeError(f"polza history: {exc}") from exc
             break
         rows = data if isinstance(data, list) else (
-            data.get("data") or data.get("items") or data.get("generations") or []
+            data.get("data")
+            or data.get("items")
+            or data.get("generations")
+            or data.get("results")
+            or []
         )
         if not rows:
             break
@@ -131,9 +159,10 @@ def fetch_polza_spend_by_day(
             if not cost:
                 continue
             by_day[d.isoformat()] = round(by_day.get(d.isoformat(), 0.0) + cost, 2)
-            by_kind[_row_kind(row)] = round(by_kind[_row_kind(row)] + cost, 2)
+            kind = _row_kind(row)
+            by_kind[kind] = round(by_kind.get(kind, 0.0) + cost, 2)
             count += 1
-        if len(rows) < 200:
+        if len(rows) < per_page:
             break
         page += 1
     return {
