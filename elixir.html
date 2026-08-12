@@ -446,6 +446,20 @@ body{
 .global-period-chip.active{background:#0a0a0a;border-color:#0a0a0a;color:#fff}
 .global-period-range{position:absolute;top:calc(100% + 6px);right:0;display:flex;align-items:center;gap:4px;padding:8px;border-radius:10px;border:1px solid var(--border-strong);background:var(--surface);box-shadow:var(--shadow);z-index:60}
 @media (max-width:900px){.global-period-label{display:none}.global-period-chip{padding:4px 8px;font-size:10px}}
+/* ── Разрез по гео ─────────────────────────────────────────── */
+.geo-filter{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px 16px;margin-bottom:12px;box-shadow:var(--shadow)}
+.geo-filter-head{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.geo-filter-label{font-size:10px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:var(--text-dim);margin-right:4px}
+.geo-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:20px;
+  border:1px solid var(--border-strong);background:var(--surface);cursor:pointer;
+  font-family:var(--font);font-size:12px;font-weight:600;color:var(--text-muted);
+  transition:all 0.14s ease;white-space:nowrap}
+.geo-chip:hover{background:var(--surface-hover);color:var(--text)}
+.geo-chip.active{background:#0a0a0a;border-color:#0a0a0a;color:#fff}
+.geo-chip-val{font-weight:700}
+.geo-chip-share{font-size:10px;opacity:0.6}
+.geo-filter-hint{font-size:10px;color:var(--text-dim);margin-top:8px;line-height:1.4}
+@media (max-width:768px){.geo-chip{font-size:11px;padding:5px 9px}.geo-chip-share{display:none}}
 .tile-period{display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding:0 16px 8px}
 .tile-period-chip{padding:3px 9px;border-radius:20px;font-size:10px;font-weight:600;border:1px solid rgba(0,0,0,0.1);background:transparent;cursor:pointer;color:rgba(0,0,0,0.4);font-family:var(--font);transition:all 0.12s ease;line-height:1.3}
 .tile-period-chip:hover:not(:disabled){border-color:rgba(0,0,0,0.4);color:rgba(0,0,0,0.7)}
@@ -4523,7 +4537,139 @@ function findCampaignExtraColumns(headerRow) {
     adCol: findCol(headers, ['ad name', 'объявлен'], ['ad set', 'adset']),
     impressionsCol: findCol(headers, ['impression', 'impress', 'показ', 'imps'], ['доля', 'share', '%']),
     clicksCol: findCol(headers, ['click', 'клик'], ['ctr', 'цена', 'cpc', 'ср.']),
+    // Breakdown «Country» в FB-выгрузке / «Страна» в Директе.
+    geoCol: findCol(headers, ['country', 'страна', 'регион', 'region', 'geo'], ['city', 'город', 'currency']),
   };
+}
+
+// ── ГЕО ────────────────────────────────────────────────────────
+// Страна приходит либо отдельной колонкой (FB: Breakdown → Country),
+// либо только в названии кампании («JGGL_INSTAL/ USA / 13.07»).
+const GEO_NAMES = {
+  US: ['us', 'usa', 'united states', 'сша', 'штаты'],
+  GB: ['uk', 'gb', 'united kingdom', 'великобритания', 'англия'],
+  DE: ['de', 'germany', 'германия'],
+  FR: ['fr', 'france', 'франция'],
+  ES: ['es', 'spain', 'испания'],
+  IT: ['it', 'italy', 'италия'],
+  CA: ['ca', 'canada', 'канада'],
+  AU: ['au', 'australia', 'австралия'],
+  NL: ['nl', 'netherlands', 'нидерланды'],
+  PL: ['pl', 'poland', 'польша'],
+  BR: ['br', 'brazil', 'бразилия'],
+  MX: ['mx', 'mexico', 'мексика'],
+  IN: ['in', 'india', 'индия'],
+  TR: ['tr', 'turkey', 'турция'],
+  UA: ['ua', 'ukraine', 'украина'],
+  KZ: ['kz', 'kazakhstan', 'казахстан'],
+  RU: ['ru', 'russia', 'россия'],
+};
+const GEO_LABELS = {
+  US: '🇺🇸 США', GB: '🇬🇧 Британия', DE: '🇩🇪 Германия', FR: '🇫🇷 Франция',
+  ES: '🇪🇸 Испания', IT: '🇮🇹 Италия', CA: '🇨🇦 Канада', AU: '🇦🇺 Австралия',
+  NL: '🇳🇱 Нидерланды', PL: '🇵🇱 Польша', BR: '🇧🇷 Бразилия', MX: '🇲🇽 Мексика',
+  IN: '🇮🇳 Индия', TR: '🇹🇷 Турция', UA: '🇺🇦 Украина', KZ: '🇰🇿 Казахстан', RU: '🇷🇺 Россия',
+};
+
+/** Нормализует значение колонки страны в ISO-код (US, DE…). */
+function normalizeGeoValue(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return '';
+  const low = s.toLowerCase();
+  for (const [code, aliases] of Object.entries(GEO_NAMES)) {
+    if (aliases.includes(low)) return code;
+  }
+  if (/^[A-Za-z]{2}$/.test(s)) return s.toUpperCase();
+  return s.slice(0, 24); // незнакомая страна — оставляем как есть
+}
+
+/** Гео из названия кампании: ищем токен между разделителями, чтобы «ios» не стал гео. */
+function geoFromCampaignName(name) {
+  const parts = String(name || '').split(/[\/|_\-–,()]+/).map(p => p.trim().toLowerCase()).filter(Boolean);
+  for (const p of parts) {
+    for (const [code, aliases] of Object.entries(GEO_NAMES)) {
+      // однобуквенные/двухбуквенные коды берём только как отдельный токен
+      if (aliases.includes(p)) return code;
+    }
+  }
+  const m = String(name || '').match(/999([a-z]{2})/i); // соглашение вида soc_usfarm_999US_…
+  return m ? m[1].toUpperCase() : '';
+}
+
+function geoLabel(code) {
+  if (!code) return 'Без гео';
+  return GEO_LABELS[code] || code;
+}
+
+/** Гео строки. Считаем на чтении: у уже загруженных строк поля geo нет,
+ *  но гео часто зашито в названии кампании — так разрез работает без перезаливки. */
+function rowGeo(r) {
+  if (!r) return '';
+  if (r.geo) return r.geo;
+  return r.campaign ? geoFromCampaignName(r.campaign) : '';
+}
+
+/** Сводка по гео за период: [{geo, label, spend, impressions, clicks, results, share}]. */
+function geoBreakdown(rows) {
+  const by = new Map();
+  (rows || []).forEach(r => {
+    const g = rowGeo(r);
+    const cur = by.get(g) || { geo: g, spend: 0, impressions: 0, clicks: 0, results: 0, days: new Set() };
+    cur.spend += Number(r.spend) || 0;
+    cur.impressions += Number(r.impressions) || 0;
+    cur.clicks += Number(r.clicks) || 0;
+    cur.results += regLikeCount([r]) || 0;
+    if (r.dateStr) cur.days.add(r.dateStr);
+    by.set(g, cur);
+  });
+  const total = [...by.values()].reduce((a, x) => a + x.spend, 0);
+  return [...by.values()]
+    .map(x => ({ ...x, label: geoLabel(x.geo), days: x.days.size, share: total ? x.spend / total * 100 : 0 }))
+    .sort((a, b) => b.spend - a.spend);
+}
+
+/** Есть ли в данных хоть одно распознанное гео (иначе разрез не показываем). */
+function hasGeoData(rows) {
+  return (rows || []).some(r => rowGeo(r));
+}
+
+let geoByProject = {}; // projId → '' (все) | код гео
+
+function getProjectGeo(projId) { return geoByProject[projId] || ''; }
+
+function setProjectGeo(projId, geo) {
+  geoByProject[projId] = geo === getProjectGeo(projId) ? '' : geo;
+  destroyDetailCharts();
+  renderContent();
+}
+
+function filterRowsByGeo(projId, rows) {
+  const g = getProjectGeo(projId);
+  if (!g) return rows || [];
+  return (rows || []).filter(r => rowGeo(r) === g);
+}
+
+function renderGeoFilter(proj, rows) {
+  const list = geoBreakdown(rows);
+  if (!hasGeoData(rows) || list.length < 2) return '';
+  const cur = getProjectGeo(proj.id);
+  const cur$ = proj.currency || '$';
+  const chips = list.map(g => {
+    const active = cur === g.geo;
+    return `<button type="button" class="geo-chip${active ? ' active' : ''}" onclick="setProjectGeo('${escHtml(proj.id)}','${escHtml(g.geo)}')">
+      <span class="geo-chip-name">${escHtml(g.label)}</span>
+      <span class="geo-chip-val">${fmtMoney(g.spend, cur$)}</span>
+      <span class="geo-chip-share">${g.share.toFixed(0)}%</span>
+    </button>`;
+  }).join('');
+  return `<div class="geo-filter">
+    <div class="geo-filter-head">
+      <span class="geo-filter-label">Гео</span>
+      <button type="button" class="geo-chip${cur ? '' : ' active'}" onclick="setProjectGeo('${escHtml(proj.id)}','')">Все</button>
+      ${chips}
+    </div>
+    <div class="geo-filter-hint">Разрез берётся из выгрузки: колонка Country, иначе — гео в названии кампании. Строки без гео — «Без гео».</div>
+  </div>`;
 }
 
 function parseCampaignRows(rows) {
@@ -4559,6 +4705,11 @@ function parseCampaignRows(rows) {
     if (adset) obj.adset = adset;
     if (ad) obj.ad = ad;
     if (rc >= 0) obj.regs = regs;
+    // Гео: колонка страны (FB Breakdown → Country) важнее, иначе — токен из названия кампании.
+    const geo = extra.geoCol >= 0
+      ? normalizeGeoValue(r[extra.geoCol])
+      : geoFromCampaignName(campaign);
+    if (geo) obj.geo = geo;
     raw.push(obj);
   });
 
@@ -9190,13 +9341,15 @@ function renderProjectDetail(projId) {
     const monthPartitioned = dfMonthPartitioned;
     const viewRows = selectPeriodRows(universeRows, currentMonth);
     const srcProj = projForSource(p, src);
-    const suffix = (src.label && !monthPartitioned && !dateFilter) ? ' · ' + escHtml(src.label) : periodSuffix;
+    const geoSuffix = getProjectGeo(projId) ? ' · ' + escHtml(geoLabel(getProjectGeo(projId))) : '';
+    const suffix = ((src.label && !monthPartitioned && !dateFilter) ? ' · ' + escHtml(src.label) : periodSuffix) + geoSuffix;
     html += renderCsvUploadCard(p);
     html += renderJgglContractorCard(p);
     html += renderManualEntryCard(p);
     if (!monthPartitioned) html += renderSheetSwitcher(pack, projId, currentMonth);
+    html += renderGeoFilter(p, viewRows);
     // Бюджет/аналитика — тот же universe, что таблица (не один лист).
-    html += renderWorkspaceBody(p, srcProj, viewRows, currentMonth, suffix, {
+    html += renderWorkspaceBody(p, srcProj, filterRowsByGeo(projId, viewRows), currentMonth, suffix, {
       allData: monthPartitioned ? pack : { sources: [src] },
       analyticsMonth,
     });
@@ -9208,11 +9361,13 @@ function renderProjectDetail(projId) {
   const singleSrc = pack.sources[0];
   const srcProj = singleSrc ? projForSource(p, singleSrc) : p;
   const rows = selectPeriodRows(universeRows, currentMonth);
-  const suffix = periodSuffix;
+  const geoSuffix = getProjectGeo(projId) ? ' · ' + escHtml(geoLabel(getProjectGeo(projId))) : '';
+  const suffix = periodSuffix + geoSuffix;
 
   html += renderCsvUploadCard(p);
   html += renderManualEntryCard(p);
-  html += renderWorkspaceBody(p, srcProj, rows, currentMonth, suffix, { allData: data, analyticsMonth });
+  html += renderGeoFilter(p, rows);
+  html += renderWorkspaceBody(p, srcProj, filterRowsByGeo(projId, rows), currentMonth, suffix, { allData: data, analyticsMonth });
 
   content.innerHTML = html;
   flushWorkspaceChart();
