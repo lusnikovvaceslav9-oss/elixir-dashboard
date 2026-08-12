@@ -57,6 +57,7 @@ def load_secrets(work_dir: Path) -> dict[str, str | None]:
         "DIRECT_CLIENT_LOGIN",
         "SUPABASE_DB_URL",
         "POLZA_API_KEY",
+        "POLZA_AI_API_KEY",  # alias — так лежит секрет в GitHub
     )
     out: dict[str, str | None] = {}
     for key in keys:
@@ -68,4 +69,7 @@ def load_secrets(work_dir: Path) -> dict[str, str | None]:
                 if value:
                     break
         out[key] = value
+    # Единый ключ для фида: POLZA_API_KEY ← POLZA_AI_API_KEY
+    if not out.get("POLZA_API_KEY") and out.get("POLZA_AI_API_KEY"):
+        out["POLZA_API_KEY"] = out["POLZA_AI_API_KEY"]
     return out

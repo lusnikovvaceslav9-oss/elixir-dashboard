@@ -35,6 +35,9 @@ jobs:
           DIRECT_OAUTH_TOKEN: ${{ secrets.CS_DIRECT_OAUTH_TOKEN }}
           DIRECT_CLIENT_LOGIN: ${{ secrets.CS_DIRECT_CLIENT_LOGIN }}
           SUPABASE_DB_URL: ${{ secrets.CS_SUPABASE_DB_URL }}
+          # AI spend (Polza). Секрет в GitHub: POLZA_AI_API_KEY.
+          POLZA_AI_API_KEY: ${{ secrets.POLZA_AI_API_KEY }}
+          POLZA_API_KEY: ${{ secrets.POLZA_API_KEY }}
         run: python scripts/buyer-feed/__main__.py --work-dir . --config config/colorstylist.json
 
       - name: Commit updated data
