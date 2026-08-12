@@ -1298,6 +1298,22 @@ thead th{color:rgba(0,0,0,0.58)!important;font-weight:700!important}
             <input type="text" id="proj-direct-campaigns-edit" placeholder="Например: 713236522, 713236523" inputmode="numeric">
             <div class="form-hint">Через запятую. Нужно, если под одним логином Директа несколько проектов — авто-фид возьмёт спенд только этих кампаний. Пусто = все кампании логина.</div>
           </div>
+          <div class="form-group">
+            <label>Гео по умолчанию</label>
+            <input type="text" id="proj-default-geo-edit" placeholder="Например: US" maxlength="24">
+            <div class="form-hint">Для строк, где гео не размечено (старые выгрузки без страны в названии). Новые CSV с гео в названии кампании или колонкой Country имеют приоритет.</div>
+          </div>
+          <div class="form-group">
+            <label>Источник по умолчанию</label>
+            <select id="proj-default-source-edit">
+              <option value="">— не задан —</option>
+              <option value="fb">Facebook</option>
+              <option value="google">Google Ads</option>
+              <option value="yandex">Яндекс Директ</option>
+              <option value="tiktok">TikTok</option>
+            </select>
+            <div class="form-hint">Для строк без источника в названии кампании. Кампании с «google» / «fb» в названии определяются сами.</div>
+          </div>
         </div>
         <div class="edit-section">
           <div class="edit-section-title">Google Sheets</div>
@@ -4602,74 +4618,134 @@ function geoLabel(code) {
 }
 
 /** Гео строки. Считаем на чтении: у уже загруженных строк поля geo нет,
- *  но гео часто зашито в названии кампании — так разрез работает без перезаливки. */
-function rowGeo(r) {
+ *  но гео часто зашито в названии кампании — так разрез работает без перезаливки.
+ *  fallback — «гео по умолчанию» проекта (исторический трафик, у которого разметки нет). */
+function rowGeo(r, fallback = '') {
   if (!r) return '';
   if (r.geo) return r.geo;
-  return r.campaign ? geoFromCampaignName(r.campaign) : '';
+  const fromName = r.campaign ? geoFromCampaignName(r.campaign) : '';
+  return fromName || fallback || '';
 }
 
-/** Сводка по гео за период: [{geo, label, spend, impressions, clicks, results, share}]. */
-function geoBreakdown(rows) {
+// ── ИСТОЧНИК ТРАФИКА (FB / Google / …) ──────────────────────────
+const SOURCE_LABELS = { fb: 'Facebook', google: 'Google Ads', yandex: 'Яндекс Директ', tiktok: 'TikTok' };
+
+function sourceFromCampaignName(name) {
+  const s = String(name || '').toLowerCase();
+  if (/\b(google|gads|adwords|g-ads|gg)\b/.test(s)) return 'google';
+  if (/\b(tiktok|tt)\b/.test(s)) return 'tiktok';
+  if (/\b(yandex|директ|direct)\b/.test(s)) return 'yandex';
+  if (/\b(fb|facebook|meta)\b/.test(s)) return 'fb';
+  return '';
+}
+
+function sourceLabel(code) {
+  if (!code) return 'Без источника';
+  return SOURCE_LABELS[code] || code;
+}
+
+/** Источник строки: явное поле → токен в названии кампании → умолчание проекта. */
+function rowSource(r, fallback = '') {
+  if (!r) return '';
+  if (r.source) return r.source;
+  const fromName = r.campaign ? sourceFromCampaignName(r.campaign) : '';
+  return fromName || fallback || '';
+}
+
+/** Разрезы (гео / источник) считаются одним механизмом. */
+const DIMS = {
+  geo: { key: 'geo', title: 'Гео', of: rowGeo, label: geoLabel, defField: 'defaultGeo',
+    hint: 'Разрез берётся из выгрузки: колонка Country, иначе — гео в названии кампании. Для строк без разметки действует «гео по умолчанию» проекта.' },
+  source: { key: 'source', title: 'Источник', of: rowSource, label: sourceLabel, defField: 'defaultSource',
+    hint: 'Источник определяется по названию кампании (google / fb / tiktok). Для строк без разметки действует «источник по умолчанию» проекта.' },
+};
+
+function dimFallback(proj, dim) { return proj?.[DIMS[dim].defField] || ''; }
+
+/** Сводка по разрезу: [{value, label, spend, impressions, clicks, results, days, share}]. */
+function dimBreakdown(rows, dim, fallback = '') {
+  const D = DIMS[dim];
   const by = new Map();
   (rows || []).forEach(r => {
-    const g = rowGeo(r);
-    const cur = by.get(g) || { geo: g, spend: 0, impressions: 0, clicks: 0, results: 0, days: new Set() };
+    const v = D.of(r, fallback);
+    const cur = by.get(v) || { value: v, spend: 0, impressions: 0, clicks: 0, results: 0, days: new Set() };
     cur.spend += Number(r.spend) || 0;
     cur.impressions += Number(r.impressions) || 0;
     cur.clicks += Number(r.clicks) || 0;
     cur.results += regLikeCount([r]) || 0;
     if (r.dateStr) cur.days.add(r.dateStr);
-    by.set(g, cur);
+    by.set(v, cur);
   });
   const total = [...by.values()].reduce((a, x) => a + x.spend, 0);
   return [...by.values()]
-    .map(x => ({ ...x, label: geoLabel(x.geo), days: x.days.size, share: total ? x.spend / total * 100 : 0 }))
+    .map(x => ({ ...x, label: D.label(x.value), days: x.days.size, share: total ? x.spend / total * 100 : 0 }))
     .sort((a, b) => b.spend - a.spend);
 }
 
-/** Есть ли в данных хоть одно распознанное гео (иначе разрез не показываем). */
-function hasGeoData(rows) {
-  return (rows || []).some(r => rowGeo(r));
+function geoBreakdown(rows, fallback = '') { return dimBreakdown(rows, 'geo', fallback); }
+
+/** Показываем разрез, только когда значений больше одного (иначе он бесполезен). */
+function hasDimData(rows, dim, fallback = '') {
+  const vals = new Set((rows || []).map(r => DIMS[dim].of(r, fallback)));
+  return vals.size > 1 || (vals.size === 1 && !![...vals][0]);
 }
+function hasGeoData(rows, fallback = '') { return (rows || []).some(r => rowGeo(r, fallback)); }
 
-let geoByProject = {}; // projId → '' (все) | код гео
+let dimByProject = {}; // projId → { geo: '', source: '' }
 
-function getProjectGeo(projId) { return geoByProject[projId] || ''; }
+function getProjectDim(projId, dim) { return (dimByProject[projId] || {})[dim] || ''; }
+function getProjectGeo(projId) { return getProjectDim(projId, 'geo'); }
 
-function setProjectGeo(projId, geo) {
-  geoByProject[projId] = geo === getProjectGeo(projId) ? '' : geo;
+function setProjectDim(projId, dim, value) {
+  const cur = dimByProject[projId] || {};
+  dimByProject[projId] = { ...cur, [dim]: value === (cur[dim] || '') ? '' : value };
   destroyDetailCharts();
   renderContent();
 }
+function setProjectGeo(projId, geo) { setProjectDim(projId, 'geo', geo); }
 
-function filterRowsByGeo(projId, rows) {
-  const g = getProjectGeo(projId);
-  if (!g) return rows || [];
-  return (rows || []).filter(r => rowGeo(r) === g);
+/** Применяет оба активных разреза к строкам. */
+function filterRowsByDims(proj, rows) {
+  let out = rows || [];
+  for (const dim of Object.keys(DIMS)) {
+    const sel = getProjectDim(proj.id, dim);
+    if (!sel) continue;
+    const fb = dimFallback(proj, dim);
+    out = out.filter(r => DIMS[dim].of(r, fb) === sel);
+  }
+  return out;
+}
+/** Подпись активных разрезов для заголовка таблицы. */
+function dimsSuffix(proj) {
+  return Object.keys(DIMS)
+    .map(d => { const v = getProjectDim(proj.id, d); return v ? ' · ' + escHtml(DIMS[d].label(v)) : ''; })
+    .join('');
 }
 
-function renderGeoFilter(proj, rows) {
-  const list = geoBreakdown(rows);
-  if (!hasGeoData(rows) || list.length < 2) return '';
-  const cur = getProjectGeo(proj.id);
+function renderDimFilter(proj, rows, dim) {
+  const D = DIMS[dim];
+  const fb = dimFallback(proj, dim);
+  const list = dimBreakdown(rows, dim, fb);
+  if (!hasDimData(rows, dim, fb) || list.length < 2) return '';
+  const cur = getProjectDim(proj.id, dim);
   const cur$ = proj.currency || '$';
-  const chips = list.map(g => {
-    const active = cur === g.geo;
-    return `<button type="button" class="geo-chip${active ? ' active' : ''}" onclick="setProjectGeo('${escHtml(proj.id)}','${escHtml(g.geo)}')">
+  const chips = list.map(g => `<button type="button" class="geo-chip${cur === g.value ? ' active' : ''}" onclick="setProjectDim('${escHtml(proj.id)}','${dim}','${escHtml(g.value)}')">
       <span class="geo-chip-name">${escHtml(g.label)}</span>
       <span class="geo-chip-val">${fmtMoney(g.spend, cur$)}</span>
       <span class="geo-chip-share">${g.share.toFixed(0)}%</span>
-    </button>`;
-  }).join('');
+    </button>`).join('');
   return `<div class="geo-filter">
     <div class="geo-filter-head">
-      <span class="geo-filter-label">Гео</span>
-      <button type="button" class="geo-chip${cur ? '' : ' active'}" onclick="setProjectGeo('${escHtml(proj.id)}','')">Все</button>
+      <span class="geo-filter-label">${escHtml(D.title)}</span>
+      <button type="button" class="geo-chip${cur ? '' : ' active'}" onclick="setProjectDim('${escHtml(proj.id)}','${dim}','')">Все</button>
       ${chips}
     </div>
-    <div class="geo-filter-hint">Разрез берётся из выгрузки: колонка Country, иначе — гео в названии кампании. Строки без гео — «Без гео».</div>
+    <div class="geo-filter-hint">${escHtml(D.hint)}</div>
   </div>`;
+}
+
+function renderGeoFilter(proj, rows) {
+  return renderDimFilter(proj, rows, 'geo') + renderDimFilter(proj, rows, 'source');
 }
 
 function parseCampaignRows(rows) {
@@ -9341,15 +9417,14 @@ function renderProjectDetail(projId) {
     const monthPartitioned = dfMonthPartitioned;
     const viewRows = selectPeriodRows(universeRows, currentMonth);
     const srcProj = projForSource(p, src);
-    const geoSuffix = getProjectGeo(projId) ? ' · ' + escHtml(geoLabel(getProjectGeo(projId))) : '';
-    const suffix = ((src.label && !monthPartitioned && !dateFilter) ? ' · ' + escHtml(src.label) : periodSuffix) + geoSuffix;
+    const suffix = ((src.label && !monthPartitioned && !dateFilter) ? ' · ' + escHtml(src.label) : periodSuffix) + dimsSuffix(p);
     html += renderCsvUploadCard(p);
     html += renderJgglContractorCard(p);
     html += renderManualEntryCard(p);
     if (!monthPartitioned) html += renderSheetSwitcher(pack, projId, currentMonth);
     html += renderGeoFilter(p, viewRows);
     // Бюджет/аналитика — тот же universe, что таблица (не один лист).
-    html += renderWorkspaceBody(p, srcProj, filterRowsByGeo(projId, viewRows), currentMonth, suffix, {
+    html += renderWorkspaceBody(p, srcProj, filterRowsByDims(p, viewRows), currentMonth, suffix, {
       allData: monthPartitioned ? pack : { sources: [src] },
       analyticsMonth,
     });
@@ -9361,13 +9436,12 @@ function renderProjectDetail(projId) {
   const singleSrc = pack.sources[0];
   const srcProj = singleSrc ? projForSource(p, singleSrc) : p;
   const rows = selectPeriodRows(universeRows, currentMonth);
-  const geoSuffix = getProjectGeo(projId) ? ' · ' + escHtml(geoLabel(getProjectGeo(projId))) : '';
-  const suffix = periodSuffix + geoSuffix;
+  const suffix = periodSuffix + dimsSuffix(p);
 
   html += renderCsvUploadCard(p);
   html += renderManualEntryCard(p);
   html += renderGeoFilter(p, rows);
-  html += renderWorkspaceBody(p, srcProj, filterRowsByGeo(projId, rows), currentMonth, suffix, { allData: data, analyticsMonth });
+  html += renderWorkspaceBody(p, srcProj, filterRowsByDims(p, rows), currentMonth, suffix, { allData: data, analyticsMonth });
 
   content.innerHTML = html;
   flushWorkspaceChart();
@@ -10797,6 +10871,8 @@ function openEditProject(projId) {
   const rem = getBudgetRemainder(p);
   document.getElementById('proj-budget-remainder-edit').value = rem != null ? rem : '';
   document.getElementById('proj-direct-campaigns-edit').value = Array.isArray(p.directCampaignIds) ? p.directCampaignIds.join(', ') : '';
+  document.getElementById('proj-default-geo-edit').value = p.defaultGeo || '';
+  document.getElementById('proj-default-source-edit').value = p.defaultSource || '';
   document.getElementById('proj-type-auto-display').textContent = 'Определяется из таблицы…';
   sheetPreviewCache.headers = p.sheetColumns || [];
   sheetPreviewCache.type = p.sheetColumns?.length ? detectSheetType(p.sheetColumns) : 'auto';
@@ -10953,6 +11029,7 @@ function saveProject() {
   const errEl = document.getElementById('proj-error');
   let icon, name, currency, status, sheetSources, metrics, remRaw;
   let directCampaignIds = null;
+  let defaultGeo = null, defaultSource = null;
   const monthlySheets = getMonthlySheetsFromEditor();
   const detectedType = getDetectedTypeFromCache();
 
@@ -10972,6 +11049,8 @@ function saveProject() {
     }
     remRaw = parseBudgetRemainder(document.getElementById('proj-budget-remainder-edit').value.trim());
     directCampaignIds = parseDirectCampaignIds(document.getElementById('proj-direct-campaigns-edit').value);
+    defaultGeo = normalizeGeoValue(document.getElementById('proj-default-geo-edit').value);
+    defaultSource = (document.getElementById('proj-default-source-edit').value || '').trim();
   } else {
     icon = document.getElementById('proj-icon').value.trim() || '📊';
     name = document.getElementById('proj-name').value.trim();
@@ -11000,6 +11079,8 @@ function saveProject() {
         ...withBudget,
         icon, name, currency, status, type, urls: allUrls, sheetSources, monthlySheets, metrics, sheetColumns,
         directCampaignIds: (directCampaignIds && directCampaignIds.length) ? directCampaignIds : undefined,
+        defaultGeo: defaultGeo || undefined,
+        defaultSource: defaultSource || undefined,
       };
       cache[editingProjId] = 'loading';
     }
