@@ -4171,8 +4171,16 @@ function applyLocalCsvSources(list) {
   });
 }
 
+function applyJgglSourceDefault(list) {
+  return (list || []).map(p => {
+    if (!isJgglProject(p) || p.defaultSource) return p;
+    // Исторический трафик JGGL — Meta; Google Ads ловится по формату CSV / App promotion.
+    return { ...p, defaultSource: 'fb' };
+  });
+}
+
 function applyProjectDefaults(list) {
-  return applyLocalCsvSources(applyHuppAutoSource(applyPlantoAutoSource(list)));
+  return applyJgglSourceDefault(applyLocalCsvSources(applyHuppAutoSource(applyPlantoAutoSource(list))));
 }
 
 async function loadLocalCsvManifest(dir) {
@@ -4650,6 +4658,8 @@ function findCampaignExtraColumns(headerRow) {
   if (campaignCol < 0) {
     campaignCol = findCol(headers, ['campaign name', 'campaign', 'кампани'], ['status', 'type', 'budget', 'state', 'delivery']);
   }
+  let sourceCol = headers.findIndex(h => /^(source|traffic source|источник|канал|ad network)$/i.test(h));
+  if (sourceCol < 0) sourceCol = -1;
   return {
     campaignCol,
     adsetCol: findCol(headers, ['ad set name', 'ad set', 'adset', 'группу объяв', 'группа объяв']),
@@ -4658,7 +4668,30 @@ function findCampaignExtraColumns(headerRow) {
     clicksCol: findCol(headers, ['click', 'клик'], ['ctr', 'цена', 'cpc', 'ср.']),
     // Breakdown «Country» в FB-выгрузке / «Страна» в Директе.
     geoCol: findCol(headers, ['country', 'страна', 'регион', 'region', 'geo'], ['city', 'город', 'currency']),
+    sourceCol,
   };
+}
+
+/** FB/Meta vs Google Ads по заголовкам выгрузки. */
+function detectTrafficSourceFromHeaders(headerRow) {
+  const h = (headerRow || []).map(x => String(x || '').toLowerCase().trim());
+  if (!h.length) return '';
+  if (h.some(x => x === 'campaign status') && h.some(x => x === 'cost' || x === 'стоимость' || x === 'impr.' || x.startsWith('impr'))) {
+    return 'google';
+  }
+  if (h.some(x => x.includes('reporting starts') || x.includes('amount spent'))) return 'fb';
+  return '';
+}
+
+function normalizeTrafficSourceValue(raw) {
+  const s = String(raw || '').trim().toLowerCase();
+  if (!s) return '';
+  if (/google|gads|adwords|uac|app promotion/.test(s)) return 'google';
+  if (/facebook|meta|\bfb\b/.test(s)) return 'fb';
+  if (/tiktok|\btt\b/.test(s)) return 'tiktok';
+  if (/yandex|директ|direct/.test(s)) return 'yandex';
+  if (SOURCE_LABELS[s]) return s;
+  return '';
 }
 
 // ── ГЕО ────────────────────────────────────────────────────────
@@ -4735,7 +4768,8 @@ const SOURCE_LABELS = { fb: 'Facebook', google: 'Google Ads', yandex: 'Янде�
 
 function sourceFromCampaignName(name) {
   const s = String(name || '').toLowerCase();
-  if (/\b(google|gads|adwords|g-ads|gg)\b/.test(s)) return 'google';
+  // Google App campaigns часто: "App promotion-JGGL - ANDR - …"
+  if (/app promotion|app campaigns|\buac\b|\bgads\b|adwords|google ads|\bgoogle\b|\bg-ads\b|\bgg\b/.test(s)) return 'google';
   if (/\b(tiktok|tt)\b/.test(s)) return 'tiktok';
   if (/\b(yandex|директ|direct)\b/.test(s)) return 'yandex';
   if (/\b(fb|facebook|meta)\b/.test(s)) return 'fb';
@@ -4760,7 +4794,7 @@ const DIMS = {
   geo: { key: 'geo', title: 'Гео', of: rowGeo, label: geoLabel, defField: 'defaultGeo',
     hint: 'Разрез берётся из выгрузки: колонка Country, иначе — гео в названии кампании. Для строк без разметки действует «гео по умолчанию» проекта.' },
   source: { key: 'source', title: 'Источник', of: rowSource, label: sourceLabel, defField: 'defaultSource',
-    hint: 'Источник определяется по названию кампании (google / fb / tiktok). Для строк без разметки действует «источник по умолчанию» проекта.' },
+    hint: 'Facebook / Google Ads: по формату CSV (Meta vs Google) или по названию кампании (App promotion → Google). У JGGL без разметки по умолчанию Facebook.' },
 };
 
 function dimFallback(proj, dim) { return proj?.[DIMS[dim].defField] || ''; }
@@ -4859,6 +4893,7 @@ function parseCampaignRows(rows) {
   if (!rows.length) return [];
   const { dateCol, sc, qc, rc } = findStreamfiColumns(rows[0]);
   const extra = findCampaignExtraColumns(rows[0]);
+  const fileSource = detectTrafficSourceFromHeaders(rows[0]);
   const raw = [];
 
   rows.slice(1).forEach(r => {
@@ -4893,6 +4928,9 @@ function parseCampaignRows(rows) {
       ? normalizeGeoValue(r[extra.geoCol])
       : geoFromCampaignName(campaign);
     if (geo) obj.geo = geo;
+    const fromCol = extra.sourceCol >= 0 ? normalizeTrafficSourceValue(r[extra.sourceCol]) : '';
+    const src = fromCol || sourceFromCampaignName(campaign) || fileSource;
+    if (src) obj.source = src;
     raw.push(obj);
   });
 
@@ -5005,13 +5043,24 @@ function prepareGoogleAdsMatrix(matrix) {
   if (injectDate) {
     outHeaders = ['Date', ...outHeaders];
   }
+  // Явный источник — чтобы разрез FB/Google работал после нормализации преамбулы.
+  if (!outHeaders.some(h => /^(source|traffic source|источник|канал)$/i.test(String(h || '').trim()))) {
+    outHeaders = [outHeaders[0], 'Source', ...outHeaders.slice(1)];
+  }
+  const sourceAt = outHeaders.findIndex(h => /^(source|traffic source|источник|канал)$/i.test(String(h || '').trim()));
 
   const out = [outHeaders];
   matrix.slice(headerIdx + 1).forEach(r => {
     const first = String(r?.[0] || '').trim();
     if (!first) return;
     if (/^total:/i.test(first) || /^итого/i.test(first)) return;
-    const row = injectDate ? [dayIso || first, ...r] : r.slice();
+    let row = injectDate ? [dayIso || first, ...r] : r.slice();
+    if (sourceAt === 1 && injectDate) {
+      row = [row[0], 'google', ...row.slice(1)];
+    } else if (sourceAt >= 0 && String(row[sourceAt] || '').trim() === '') {
+      row = row.slice();
+      row[sourceAt] = 'google';
+    }
     out.push(row);
   });
   return out.length > 1 ? out : null;
