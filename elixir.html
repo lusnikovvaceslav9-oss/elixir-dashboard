@@ -3828,9 +3828,25 @@ async function processJgglCsvUploadFiles(projId, files) {
   card?.classList.add('csv-upload-busy');
   try {
     let anyDup = false;
+    let savedCount = 0;
+    const skipped = [];
+    const errors = [];
     for (const file of files) {
-      const saved = await processCsvUploadFile(projId, file, { skipApply: true });
-      if (saved?.duplicate) anyDup = true;
+      try {
+        const saved = await processCsvUploadFile(projId, file, { skipApply: true, softEmpty: true });
+        if (saved?.skipped) {
+          skipped.push(saved.reason || file.name);
+          continue;
+        }
+        if (saved?.duplicate) anyDup = true;
+        if (saved) savedCount += 1;
+      } catch (e) {
+        errors.push(e.message || String(e));
+      }
+    }
+    if (!savedCount) {
+      const msg = [...errors, ...skipped].filter(Boolean).join('\n') || 'Не удалось загрузить CSV';
+      throw new Error(msg);
     }
     await saveCsvUploads(loadCsvUploads(), { awaitCloud: true, timeoutMs: 20000 });
     await applyUploadedCsvToCache(projId);
@@ -3841,8 +3857,12 @@ async function processJgglCsvUploadFiles(projId, files) {
       renderContent();
       console.info(`JGGL: остаток по контрагентам обновлён — $${summary.remainder.toFixed(2)}`);
     }
+    if (skipped.length) {
+      console.warn('JGGL: пропущены пустые/битые файлы:\n' + skipped.join('\n'));
+      alert(`Загружено ${savedCount} из ${files.length}. Пропущено:\n${skipped.slice(0, 5).join('\n')}${skipped.length > 5 ? `\n…и ещё ${skipped.length - 5}` : ''}`);
+    }
     if (anyDup) console.info('JGGL: часть файлов уже была загружена (тот же hash) — обновлено без дубля');
-    else if (files.length > 1) console.info(`JGGL: загружено ${files.length} CSV, метрики по совпадающим датам суммированы`);
+    else if (savedCount > 1) console.info(`JGGL: загружено ${savedCount} CSV, метрики по совпадающим датам суммированы`);
   } finally {
     card?.classList.remove('csv-upload-busy');
   }
@@ -3863,8 +3883,18 @@ async function processCsvUploadFile(projId, file, opts = {}) {
   if (selected === '__custom__') selected = (customEl?.value || '').trim() || fallbackLabel;
   let text = await readUploadFileAsCsvText(file);
 
+  if (isMetaEmptyExportText(text)) {
+    const reason = diagnoseCsvParseFailure(file.name, text);
+    if (opts.softEmpty) return { skipped: true, reason };
+    throw new Error(reason);
+  }
+
   const rows = parseSheet(text);
-  if (!rows.length) throw new Error('Не удалось разобрать файл — проверь заголовки Date/Spend/Reg');
+  if (!rows.length) {
+    const reason = diagnoseCsvParseFailure(file.name, text);
+    if (opts.softEmpty) return { skipped: true, reason };
+    throw new Error(reason);
+  }
 
   // JGGL Авто: режем CSV на iOS / Android по названию кампании
   if (isJgglProject(p) && (selected === '__auto_platform__' || selected === '__auto_month__')) {
@@ -4024,7 +4054,7 @@ function renderCsvUploadCard(proj) {
     : isQuadcodeProject(proj)
     ? 'Можно грузить несколько CSV/XLSX подряд — каждый файл сохраняется по хешу, данные сливаются по датам в лист месяца.'
     : isJgglProject(proj)
-    ? 'Два рекламных кабинета: загрузите оба CSV (можно сразу два файла). Данные суммируются по датам, ничего не перезаписывается. «Авто iOS / Android» режет строки по названию кампании. Чтобы заменить отчёт кабинета — сначала удалите старый файл.'
+    ? 'Meta CSV (Campaigns): Reporting starts + Amount spent + Campaign name. Можно сразу несколько файлов — пустые «No data available» пропускаются. «Авто iOS / Android» режет по названию кампании.'
     : 'Можно грузить несколько файлов подряд (CSV/XLSX). Статистика сохраняется в облако и видна всем на дашборде.';
   const multiAttr = (isHuppCsvOnly(proj) || isJgglProject(proj)) ? ' multiple' : '';
   const collapsed = isCsvUploadCollapsed(proj.id);
@@ -4317,9 +4347,15 @@ function parseCSV(text) {
 }
 
 function parseDate(str) {
-  if (!str) return null;
-  str = str.trim();
-  let m = str.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})$/);
+  if (str == null || str === '') return null;
+  if (str instanceof Date && !isNaN(str.getTime())) {
+    return new Date(str.getFullYear(), str.getMonth(), str.getDate());
+  }
+  str = String(str).trim();
+  if (!str || /^no data available\.?$/i.test(str) || /итого|total/i.test(str)) return null;
+
+  // ISO / Meta: 2026-08-11, 2026-08-11T00:00:00, 2026-08-11 00:00:00
+  let m = str.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})(?:[T\s].*)?$/);
   if (m) {
     const y = +m[1], mo = +m[2], d = +m[3];
     if (d >= 1 && d <= 31 && mo >= 1 && mo <= 12) {
@@ -4327,14 +4363,16 @@ function parseDate(str) {
       return isNaN(dt.getTime()) ? null : dt;
     }
   }
-  m = str.match(/^(\d{1,2})[\/\.](\d{1,2})[\/\.](\d{4})$/);
+
+  // EU/US: 11.08.2026 / 11/08/2026 / 11-08-2026
+  m = str.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})(?:\s.*)?$/);
   if (!m) return null;
   let a = +m[1], b = +m[2], y = +m[3];
   let d, mo;
   if (a > 12 && b <= 12) { d = a; mo = b; }
   else if (b > 12 && a <= 12) { mo = a; d = b; }
   else if (a > 12 && b > 12) return null;
-  else { d = a; mo = b; }
+  else { d = a; mo = b; } // по умолчанию ДД.ММ.ГГГГ
   if (d < 1 || d > 31 || mo < 1 || mo > 12) return null;
   const dt = new Date(y, mo - 1, d);
   return isNaN(dt.getTime()) ? null : dt;
@@ -4878,6 +4916,36 @@ function parseSheet(text) {
   if (t === 'campaign') return parseCampaignRows(rows);
   if (t === 'streamfi') return parseStreamfiRows(rows);
   return parseGenericRows(rows);
+}
+
+/** Пустая Meta-выгрузка: заголовок + строка «No data available.» */
+function isMetaEmptyExportText(text) {
+  const rows = parseCSV(text || '');
+  if (rows.length < 2) return rows.length <= 1;
+  const first = String(rows[1]?.[0] || '').trim();
+  return /^no data available\.?$/i.test(first);
+}
+
+function diagnoseCsvParseFailure(fileName, text) {
+  const name = fileName || 'файл';
+  const rows = parseCSV(text || '');
+  if (!rows.length) return `«${name}»: файл пустой или не CSV`;
+  if (isMetaEmptyExportText(text)) {
+    return `«${name}»: в выгрузке Meta нет данных (No data available). Выбери даты, где был спенд, и скачай CSV снова`;
+  }
+  const headers = (rows[0] || []).map(h => String(h || '').trim()).filter(Boolean);
+  const hdrPreview = headers.slice(0, 8).join(', ') || '—';
+  const type = detectSheetType(rows[0]);
+  const dateCol = findDateCol(headers.map(h => h.toLowerCase()));
+  const spendCol = findSpendCol(headers.map(h => h.toLowerCase()));
+  const sampleDate = rows[1] ? String(rows[1][dateCol] || '').trim() : '';
+  if (spendCol < 0) {
+    return `«${name}»: не вижу колонку расхода (Amount spent / Spend / Расход). Заголовки: ${hdrPreview}`;
+  }
+  if (sampleDate && !parseDate(sampleDate)) {
+    return `«${name}»: не разобрал дату «${sampleDate}». Нужен формат ГГГГ-ММ-ДД или ДД.ММ.ГГГГ (Reporting starts / Date)`;
+  }
+  return `«${name}»: не удалось разобрать строки (тип ${type}). Нужны дата + расход. Заголовки: ${hdrPreview}`;
 }
 
 function detectTypeFromRows(rows) {
