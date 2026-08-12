@@ -1999,9 +1999,11 @@ function resolveUploadLabel(proj, selected, rows) {
   return selected || 'CSV';
 }
 
-/** JGGL: в названии кампании/адсета есть android → Android, иначе iOS. */
+/** JGGL: android/ANDR в названии → Android, иначе iOS (в т.ч. IOS в Google Ads). */
 function jgglPlatformFromName(name) {
-  return /android/i.test(String(name || '')) ? 'Android' : 'iOS';
+  const s = String(name || '');
+  if (/android|\bandr\b|[\s_\-\/]andr[\s_\-\/]/i.test(s) || /andr/i.test(s)) return 'Android';
+  return 'iOS';
 }
 
 function jgglRowPlatformLabel(row) {
@@ -3882,6 +3884,7 @@ async function processCsvUploadFile(projId, file, opts = {}) {
   let selected = (labelEl?.value || fallbackLabel).trim();
   if (selected === '__custom__') selected = (customEl?.value || '').trim() || fallbackLabel;
   let text = await readUploadFileAsCsvText(file);
+  text = normalizeUploadCsvText(text);
 
   if (isMetaEmptyExportText(text)) {
     const reason = diagnoseCsvParseFailure(file.name, text);
@@ -4054,7 +4057,7 @@ function renderCsvUploadCard(proj) {
     : isQuadcodeProject(proj)
     ? 'Можно грузить несколько CSV/XLSX подряд — каждый файл сохраняется по хешу, данные сливаются по датам в лист месяца.'
     : isJgglProject(proj)
-    ? 'Meta CSV (Campaigns): Reporting starts + Amount spent + Campaign name. Можно сразу несколько файлов — пустые «No data available» пропускаются. «Авто iOS / Android» режет по названию кампании.'
+    ? 'Meta CSV или Google Ads «Campaign report». Можно сразу несколько файлов — пустые пропускаются. «Авто iOS / Android» режет по названию (android/ANDR → Android, иначе iOS).'
     : 'Можно грузить несколько файлов подряд (CSV/XLSX). Статистика сохраняется в облако и видна всем на дашборде.';
   const multiAttr = (isHuppCsvOnly(proj) || isJgglProject(proj)) ? ' multiple' : '';
   const collapsed = isCsvUploadCollapsed(proj.id);
@@ -4389,21 +4392,34 @@ function fmtDateStr(dt) {
 function parseNum(s) {
   if (!s) return 0;
   s = String(s).trim();
-  if (!s || s === '-' || /^#/.test(s)) return 0;
+  if (!s || s === '-' || /^#/.test(s) || s === '--') return 0;
   // Не путать ISO/EU-даты с числами (иначе 2026-07-09 → 2026).
   if (/^\d{4}[\/\-.](\d{1,2})[\/\-.](\d{1,2})\b/.test(s)) return 0;
   if (/^\d{1,2}[\/\-.](\d{1,2})[\/\-.](\d{2,4})\b/.test(s)) return 0;
-  s = s.replace(/[₽$€\s\u00a0\u202f]/g, '');
-  if (s.includes('.') && s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
-  else if (s.includes(',')) s = s.replace(',', '.');
+  s = s.replace(/[₽$€\s\u00a0\u202f%]/g, '');
+  // US thousands: 1,227 / 1,227.5
+  if (/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(s)) {
+    s = s.replace(/,/g, '');
+  } else if (s.includes('.') && s.includes(',')) {
+    // EU: 1.227,50
+    s = s.replace(/\./g, '').replace(',', '.');
+  } else if (s.includes(',')) {
+    // EU decimal 17,44 — иначе оставляем как есть только если не тысячи
+    if (/^\d+,\d{1,2}$/.test(s)) s = s.replace(',', '.');
+    else if (/^\d{1,3}(,\d{3})+$/.test(s)) s = s.replace(/,/g, '');
+    else s = s.replace(',', '.');
+  }
   s = s.replace(/[^\d.\-]/g, '');
   return parseFloat(s) || 0;
 }
 
-/** Meta Ads / FB export: "Amount spent", не "Spend". */
+/** Meta Ads / FB / Google Ads: Amount spent, Spend, Cost. */
 function findSpendCol(headers) {
-  const exclude = ['cost per', 'цена', 'cpc', 'cpm', 'cpa', 'budget'];
+  const exclude = ['cost per', 'cost /', 'cost/', 'цена', 'cpc', 'cpm', 'cpa', 'budget', 'conv'];
   let i = findCol(headers, ['amount spent', 'amount_spent', 'spent', 'спенд', 'spend', 'расход'], exclude);
+  if (i >= 0) return i;
+  // Google Ads: колонка ровно "Cost" / "Стоимость"
+  i = headers.findIndex(h => /^(cost|стоимость|расход)$/i.test(String(h || '').trim()));
   if (i >= 0) return i;
   return findCol(headers, ['спенд', 'spend', 'расход', 'spent'], exclude);
 }
@@ -4556,12 +4572,12 @@ function findStreamfiColumns(headerRow) {
   const dateCol = findDateCol(headers);
   const spendCol = findSpendCol(headers);
 
-  const qregExclude = ['цена', 'cost', 'cpa', 'cpc', 'cpl', 'cpm', 'ctr', 'за ', 'цел действ', 'цел. действ', 'целевой рег', 'целевая рег', 'цел.рег', '/', 'impression', 'click', 'campaign', 'indicator', 'delivery', 'budget', 'reach', 'frequency', 'attribution', 'reporting'];
+  const qregExclude = ['цена', 'cost', 'cpa', 'cpc', 'cpl', 'cpm', 'ctr', 'за ', 'цел действ', 'цел. действ', 'целевой рег', 'целевая рег', 'цел.рег', '/', 'impression', 'click', 'campaign', 'indicator', 'delivery', 'budget', 'reach', 'frequency', 'attribution', 'reporting', 'conv. value', 'conv. rate', 'value', 'rate'];
   let qregCol = -1;
   const qregPriority = [
     ['целевые рег'], ['целевые дей'], ['ключевые дей'], ['ключев'], ['целев рег'],
     ['qualified'], ['qregs'], ['результат'], ['results'], ['mobile app install'], ['app install'],
-    ['target reg'], ['target'],
+    ['conversions'], ['conversion'], ['target reg'], ['target'],
   ];
   for (const keys of qregPriority) {
     const i = findCol(headers, keys, qregExclude);
@@ -4629,11 +4645,16 @@ function parseStreamfiRows(rows) {
 
 function findCampaignExtraColumns(headerRow) {
   const headers = headerRow.map(h => (h || '').toLowerCase().trim());
+  // Не брать «Campaign status/type» вместо имени кампании (Google Ads).
+  let campaignCol = headers.findIndex(h => /^(campaign name|campaign|кампания|название кампании)$/i.test(h));
+  if (campaignCol < 0) {
+    campaignCol = findCol(headers, ['campaign name', 'campaign', 'кампани'], ['status', 'type', 'budget', 'state', 'delivery']);
+  }
   return {
-    campaignCol: findCol(headers, ['campaign', 'кампани']),
+    campaignCol,
     adsetCol: findCol(headers, ['ad set name', 'ad set', 'adset', 'группу объяв', 'группа объяв']),
     adCol: findCol(headers, ['ad name', 'объявлен'], ['ad set', 'adset']),
-    impressionsCol: findCol(headers, ['impression', 'impress', 'показ', 'imps'], ['доля', 'share', '%']),
+    impressionsCol: findCol(headers, ['impression', 'impress', 'показ', 'imps', 'impr'], ['доля', 'share', '%']),
     clicksCol: findCol(headers, ['click', 'клик'], ['ctr', 'цена', 'cpc', 'ср.']),
     // Breakdown «Country» в FB-выгрузке / «Страна» в Директе.
     geoCol: findCol(headers, ['country', 'страна', 'регион', 'region', 'geo'], ['city', 'город', 'currency']),
@@ -4906,9 +4927,106 @@ function parseGenericRows(rows) {
   }).filter(Boolean);
 }
 
+const EN_MONTHS = {
+  january: 0, february: 1, march: 2, april: 3, may: 4, june: 5,
+  july: 6, august: 7, september: 8, october: 9, november: 10, december: 11,
+  jan: 0, feb: 1, mar: 2, apr: 3, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+};
+
+/** Google Ads date: "August 12, 2026" */
+function parseEnglishMonthDayYear(str) {
+  const m = String(str || '').trim().match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})$/);
+  if (!m) return null;
+  const mo = EN_MONTHS[m[1].toLowerCase()];
+  if (mo == null) return null;
+  const d = +m[2], y = +m[3];
+  if (d < 1 || d > 31) return null;
+  const dt = new Date(y, mo, d);
+  return isNaN(dt.getTime()) ? null : dt;
+}
+
+/** Диапазон из шапки Google Ads: "August 12, 2026 - August 12, 2026" */
+function parseGoogleAdsDateRange(str) {
+  const s = String(str || '').replace(/^"+|"+$/g, '').trim();
+  if (!s) return null;
+  const parts = s.split(/\s+[–—−-]\s+/);
+  if (parts.length < 2) {
+    const one = parseEnglishMonthDayYear(s) || parseDate(s);
+    return one ? { start: one, end: one } : null;
+  }
+  const start = parseEnglishMonthDayYear(parts[0]) || parseDate(parts[0]);
+  const end = parseEnglishMonthDayYear(parts[1]) || parseDate(parts[1]);
+  if (!start || !end) return null;
+  return { start, end };
+}
+
+function isGoogleAdsHeaderRow(row) {
+  const h = (row || []).map(x => String(x || '').toLowerCase().trim());
+  if (h.length < 4) return false;
+  const hasCampaign = h.some(x => x === 'campaign' || x === 'campaign name' || x === 'кампания');
+  const hasCost = h.some(x => x === 'cost' || x === 'стоимость' || x.includes('amount spent') || x === 'spend');
+  const hasTraffic = h.some(x => /^(impr\.?|impressions|clicks|показ|клик)/.test(x) || x.includes('impr'));
+  return hasCampaign && hasCost && hasTraffic;
+}
+
+function findGoogleAdsHeaderIndex(matrix) {
+  for (let i = 0; i < Math.min(matrix.length, 12); i++) {
+    if (isGoogleAdsHeaderRow(matrix[i])) return i;
+  }
+  return -1;
+}
+
+/**
+ * Google Ads «Campaign report»: title + date range + headers.
+ * Без колонки Day подставляем дату из диапазона (для одного дня — она же;
+ * для нескольких дней — end date, лучше выгружать с сегментом Day).
+ */
+function prepareGoogleAdsMatrix(matrix) {
+  const headerIdx = findGoogleAdsHeaderIndex(matrix || []);
+  if (headerIdx < 0) return null;
+  const headers = matrix[headerIdx].map(h => String(h || '').trim());
+  const hdrLower = headers.map(h => h.toLowerCase());
+  const dateColFound = findCol(hdrLower, ['reporting starts', 'reporting start', 'дата', 'date', 'day', 'день']);
+
+  let range = null;
+  for (let i = headerIdx - 1; i >= Math.max(0, headerIdx - 3); i--) {
+    const cell = String(matrix[i]?.[0] || '').replace(/^"+|"+$/g, '').trim();
+    if (!cell || /^campaign report$/i.test(cell)) continue;
+    range = parseGoogleAdsDateRange(cell);
+    if (range) break;
+  }
+
+  const dayIso = range
+    ? `${range.end.getFullYear()}-${String(range.end.getMonth() + 1).padStart(2, '0')}-${String(range.end.getDate()).padStart(2, '0')}`
+    : '';
+
+  let outHeaders = headers.slice();
+  const injectDate = dateColFound < 0;
+  if (injectDate) {
+    outHeaders = ['Date', ...outHeaders];
+  }
+
+  const out = [outHeaders];
+  matrix.slice(headerIdx + 1).forEach(r => {
+    const first = String(r?.[0] || '').trim();
+    if (!first) return;
+    if (/^total:/i.test(first) || /^итого/i.test(first)) return;
+    const row = injectDate ? [dayIso || first, ...r] : r.slice();
+    out.push(row);
+  });
+  return out.length > 1 ? out : null;
+}
+
+/** Приводит Google Ads CSV к матрице с Date + Cost, иначе возвращает исходную. */
+function prepareSheetMatrix(matrix) {
+  const g = prepareGoogleAdsMatrix(matrix);
+  return g || matrix;
+}
+
 function parseSheet(text) {
-  const rows = parseCSV(text);
-  if (!rows.length) return [];
+  const raw = parseCSV(text);
+  if (!raw.length) return [];
+  const rows = prepareSheetMatrix(raw);
   const t = detectSheetType(rows[0]);
   if (t === 'hupp')     return parsePlantoRows(rows);
   if (t === 'planto')   return parsePlantoRows(rows);
@@ -4916,6 +5034,18 @@ function parseSheet(text) {
   if (t === 'campaign') return parseCampaignRows(rows);
   if (t === 'streamfi') return parseStreamfiRows(rows);
   return parseGenericRows(rows);
+}
+
+/**
+ * Нормализует Google Ads отчёт в плоский CSV (Date, Campaign, …, Cost),
+ * чтобы авто-split iOS/Android и сохранение работали без преамбулы.
+ */
+function normalizeUploadCsvText(text) {
+  const raw = parseCSV(text || '');
+  if (!raw.length) return text;
+  const prepared = prepareGoogleAdsMatrix(raw);
+  if (!prepared) return text;
+  return sheetMatrixToCsvText(prepared);
 }
 
 /** Пустая Meta-выгрузка: заголовок + строка «No data available.» */
@@ -4933,17 +5063,25 @@ function diagnoseCsvParseFailure(fileName, text) {
   if (isMetaEmptyExportText(text)) {
     return `«${name}»: в выгрузке Meta нет данных (No data available). Выбери даты, где был спенд, и скачай CSV снова`;
   }
-  const headers = (rows[0] || []).map(h => String(h || '').trim()).filter(Boolean);
-  const hdrPreview = headers.slice(0, 8).join(', ') || '—';
-  const type = detectSheetType(rows[0]);
-  const dateCol = findDateCol(headers.map(h => h.toLowerCase()));
-  const spendCol = findSpendCol(headers.map(h => h.toLowerCase()));
-  const sampleDate = rows[1] ? String(rows[1][dateCol] || '').trim() : '';
-  if (spendCol < 0) {
-    return `«${name}»: не вижу колонку расхода (Amount spent / Spend / Расход). Заголовки: ${hdrPreview}`;
+  if (findGoogleAdsHeaderIndex(rows) >= 0) {
+    const prepared = prepareGoogleAdsMatrix(rows);
+    if (!prepared || prepared.length < 2) {
+      return `«${name}»: Google Ads отчёт без строк кампаний (только Total). Проверь период и фильтры`;
+    }
   }
-  if (sampleDate && !parseDate(sampleDate)) {
-    return `«${name}»: не разобрал дату «${sampleDate}». Нужен формат ГГГГ-ММ-ДД или ДД.ММ.ГГГГ (Reporting starts / Date)`;
+  const matrix = prepareSheetMatrix(rows);
+  const headers = (matrix[0] || []).map(h => String(h || '').trim()).filter(Boolean);
+  const hdrPreview = headers.slice(0, 8).join(', ') || '—';
+  const type = detectSheetType(matrix[0]);
+  const hdrLower = headers.map(h => h.toLowerCase());
+  const spendCol = findSpendCol(hdrLower);
+  const dateCol = findDateCol(hdrLower);
+  const sampleDate = matrix[1] ? String(matrix[1][dateCol] || '').trim() : '';
+  if (spendCol < 0) {
+    return `«${name}»: не вижу колонку расхода (Amount spent / Cost / Spend). Заголовки: ${hdrPreview}`;
+  }
+  if (sampleDate && !parseDate(sampleDate) && !parseEnglishMonthDayYear(sampleDate)) {
+    return `«${name}»: не разобрал дату «${sampleDate}». Для Google Ads нужен диапазон в шапке или колонка Day`;
   }
   return `«${name}»: не удалось разобрать строки (тип ${type}). Нужны дата + расход. Заголовки: ${hdrPreview}`;
 }
