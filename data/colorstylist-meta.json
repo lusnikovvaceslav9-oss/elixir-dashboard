@@ -1,10 +1,21 @@
 {
-  "generated_at": "2026-08-12T10:23:00+00:00",
+  "generated_at": "2026-08-12T10:30:06+00:00",
   "anchor": "2026-07-31",
   "until": "2026-08-12",
   "window_start": "2026-08-03",
   "trial_attribution": "appmetrica_purchase_success",
-  "ai_spend": null,
+  "ai_spend": {
+    "provider": "polza",
+    "total": 5608.27,
+    "generations": 2214,
+    "by_kind": {
+      "images": 5530.1,
+      "chat": 78.17
+    },
+    "per_install": 7.88,
+    "per_trial": 147.59,
+    "total_burn": 20599.48
+  },
   "trial_days": 3,
   "trial_lag_days": 3,
   "sold_label": "Paid (week/month)",
@@ -23,16 +34,15 @@
     "bills": "supabase_main_active_cohort_day",
     "trial_cancellations": "supabase_trial_cancelled",
     "unit_economics": "supabase_entitlements",
+    "polza_spend": "polza_api",
     "product": "appmetrica_reporting"
   },
-  "errors": [
-    "polza: polza history: HTTP Error 400: Bad Request"
-  ],
+  "errors": [],
   "days": 13,
   "reconcile_diff": {
-    "trials_total_old_csv": 36,
+    "trials_total_old_csv": 38,
     "trials_total_new": 38,
-    "delta": 2
+    "delta": 0
   },
   "unit_economics": {
     "revenue_total": 1395,
@@ -85,7 +95,7 @@
         "id": "aha_color",
         "label": "Aha: цветотип",
         "formula_label": "color_type_reveal / install",
-        "value_pct": 81.15,
+        "value_pct": 81.04,
         "primary": true,
         "accent": false,
         "note": null
@@ -112,7 +122,7 @@
         "id": "engagement_hair",
         "label": "Вовлечение (hair)",
         "formula_label": "hair_look / install",
-        "value_pct": 38.54,
+        "value_pct": 38.48,
         "primary": false,
         "accent": false,
         "note": null
@@ -123,31 +133,31 @@
         "id": "color_type",
         "label": "Цветотип",
         "event": "color_type_done",
-        "value_pct": 87.2
+        "value_pct": 87.08
       },
       {
         "id": "hair",
         "label": "Волосы",
         "event": "hair_look_generated",
-        "value_pct": 38.54
+        "value_pct": 38.48
       },
       {
         "id": "outfit",
         "label": "Образы",
         "event": "outfit_generated",
-        "value_pct": 11.95
+        "value_pct": 11.94
       },
       {
         "id": "makeup",
         "label": "Макияж",
         "event": "makeup_generated",
-        "value_pct": 15.19
+        "value_pct": 15.17
       },
       {
         "id": "chat",
         "label": "Чат",
         "event": "chat_reply",
-        "value_pct": 22.22
+        "value_pct": 22.19
       },
       {
         "id": "fitting",
