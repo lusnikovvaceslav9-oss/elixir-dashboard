@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-12T21:33:36+00:00",
+  "generated_at": "2026-08-12T22:28:36+00:00",
   "anchor": "2026-07-31",
   "until": "2026-08-13",
   "window_start": "2026-08-04",
@@ -12,7 +12,7 @@
       "images": 5892.7,
       "chat": 92.8
     },
-    "per_install": 7.73,
+    "per_install": 7.72,
     "per_trial": 149.64,
     "total_burn": 21725.23
   },
@@ -94,7 +94,7 @@
         "id": "aha_color",
         "label": "Aha: цветотип",
         "formula_label": "color_type_reveal / install",
-        "value_pct": 82.04,
+        "value_pct": 81.94,
         "primary": true,
         "accent": false,
         "note": null
@@ -121,7 +121,7 @@
         "id": "engagement_hair",
         "label": "Вовлечение (hair)",
         "formula_label": "hair_look / install",
-        "value_pct": 38.5,
+        "value_pct": 38.45,
         "primary": false,
         "accent": false,
         "note": null
@@ -132,31 +132,31 @@
         "id": "color_type",
         "label": "Цветотип",
         "event": "color_type_done",
-        "value_pct": 88.11
+        "value_pct": 88.0
       },
       {
         "id": "hair",
         "label": "Волосы",
         "event": "hair_look_generated",
-        "value_pct": 38.5
+        "value_pct": 38.45
       },
       {
         "id": "outfit",
         "label": "Образы",
         "event": "outfit_generated",
-        "value_pct": 12.79
+        "value_pct": 12.77
       },
       {
         "id": "makeup",
         "label": "Макияж",
         "event": "makeup_generated",
-        "value_pct": 15.76
+        "value_pct": 15.74
       },
       {
         "id": "chat",
         "label": "Чат",
         "event": "chat_reply",
-        "value_pct": 22.48
+        "value_pct": 22.45
       },
       {
         "id": "fitting",
