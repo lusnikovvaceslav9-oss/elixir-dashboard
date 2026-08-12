@@ -2021,7 +2021,8 @@ function isJgglTotalLabel(label) {
 function buildJgglTotalSource(sources) {
   const plats = (sources || []).filter(s => isJgglPlatformLabel(s.label));
   if (!plats.length) return null;
-  const rows = aggregateRowsByDate(plats.flatMap(s => s.rows || []));
+  // Не схлопываем разные гео/источники в один день — иначе разрез по странам теряется.
+  const rows = aggregateRowsByDateDim(plats.flatMap(s => s.rows || []));
   return {
     id: 'jggl_total',
     label: 'Общее',
@@ -2284,9 +2285,38 @@ function mergeRowsByDate(baseRows, uploadRows) {
   return [...map.values()].sort((a, b) => a.date - b.date);
 }
 
+/** Ключ разреза строки по её собственной разметке (умолчания проекта тут не при чём). */
+function rowDimKey(r) {
+  const geo = r?.geo || (r?.campaign ? geoFromCampaignName(r.campaign) : '');
+  const src = r?.source || (r?.campaign ? sourceFromCampaignName(r.campaign) : '');
+  return `${geo}|${src}`;
+}
+
+/** Как aggregateRowsByDate, но НЕ смешивает разные гео/источники в одном дне.
+ *  Иначе разрез по странам умирал ещё на сборке источников: строки за день
+ *  склеивались, и от кампании оставалось только имя первой. */
+function aggregateRowsByDateDim(rows) {
+  const map = new Map();
+  (rows || []).forEach(r => {
+    if (!r?.date) return;
+    const ds = fmtDateStr(r.date);
+    const key = `${ds}||${rowDimKey(r)}`;
+    if (!map.has(key)) {
+      map.set(key, { ...r, dateStr: ds });
+      return;
+    }
+    const ex = map.get(key);
+    Object.keys(r).forEach(k => {
+      if (k === 'date' || k === 'dateStr' || k === 'campaign' || k === 'campaignId') return;
+      if (typeof r[k] === 'number') ex[k] = (ex[k] || 0) + r[k];
+    });
+  });
+  return [...map.values()].sort((a, b) => a.date - b.date);
+}
+
 /** Суммирует метрики по дате (два кабинета JGGL / несколько CSV). */
 function mergeRowsSumByDate(baseRows, uploadRows) {
-  return aggregateRowsByDate([...(baseRows || []), ...(uploadRows || [])]);
+  return aggregateRowsByDateDim([...(baseRows || []), ...(uploadRows || [])]);
 }
 
 /** Primary wins on overlap; gap rows only fill missing dates (no double-count). */
@@ -2759,7 +2789,7 @@ function expandJgglUploadedByPlatform(uploaded) {
         ...baseMeta,
         id: `upload_${labelKey}`,
         label,
-        rows: aggregateRowsByDate(src.rows || []),
+        rows: aggregateRowsByDateDim(src.rows || []),
       });
       return;
     }
@@ -2772,7 +2802,7 @@ function expandJgglUploadedByPlatform(uploaded) {
         ...baseMeta,
         id: `upload_${plat.toLowerCase()}`,
         label: plat,
-        rows: aggregateRowsByDate(src.rows || []),
+        rows: aggregateRowsByDateDim(src.rows || []),
       });
       return;
     }
@@ -2787,7 +2817,7 @@ function expandJgglUploadedByPlatform(uploaded) {
         ...baseMeta,
         id: `upload_${plat.toLowerCase()}`,
         label: plat,
-        rows: aggregateRowsByDate(rows),
+        rows: aggregateRowsByDateDim(rows),
       });
     });
   });
@@ -3252,19 +3282,33 @@ function applyJgglContractorOverrideOS(projId, os, rows) {
   const ov = getJgglContractorOverrideRows(projId).filter(r => r.os === os);
   if (!ov.length) return rows;
   const isoOf = r => (r?.date ? `${r.date.getFullYear()}-${String(r.date.getMonth() + 1).padStart(2, '0')}-${String(r.date.getDate()).padStart(2, '0')}` : null);
-  const out = aggregateRowsByDate(rows || []);
-  const byIso = new Map();
-  out.forEach(r => { const k = isoOf(r); if (k) byIso.set(k, r); });
+  // Схлопываем с сохранением разреза (гео/источник), иначе разбивка по странам
+  // терялась бы прямо здесь — за день оставалась одна строка.
+  const out = aggregateRowsByDateDim(rows || []);
+  const byIso = new Map(); // iso → строки этого дня (может быть несколько гео)
+  out.forEach(r => {
+    const k = isoOf(r);
+    if (!k) return;
+    if (!byIso.has(k)) byIso.set(k, []);
+    byIso.get(k).push(r);
+  });
   ov.forEach(o => {
     const k = isoOf(o);
     if (!k) return;
-    const ex = byIso.get(k);
-    if (ex) {
-      ex.spend = o.spend; // приоритет таблице — только spend
+    const day = byIso.get(k);
+    if (day && day.length) {
+      // Итог дня берём из таблицы контрагентов, разносим по строкам
+      // пропорционально их спенду — доли гео сохраняются.
+      const sum = day.reduce((a, r) => a + (Number(r.spend) || 0), 0);
+      if (sum > 0) {
+        day.forEach(r => { r.spend = Math.round((Number(r.spend) || 0) / sum * o.spend * 100) / 100; });
+      } else {
+        day[0].spend = o.spend;
+      }
     } else {
       const nr = { date: o.date, dateStr: o.dateStr, spend: o.spend, qregs: o.qregs || 0 };
       out.push(nr);
-      byIso.set(k, nr);
+      byIso.set(k, [nr]);
     }
   });
   return out.sort((a, b) => a.date - b.date);
@@ -4715,6 +4759,10 @@ function filterRowsByDims(proj, rows) {
   }
   return out;
 }
+function hasActiveDim(proj) {
+  return Object.keys(DIMS).some(d => getProjectDim(proj.id, d));
+}
+
 /** Подпись активных разрезов для заголовка таблицы. */
 function dimsSuffix(proj) {
   return Object.keys(DIMS)
@@ -7359,6 +7407,20 @@ function mergeMonthAndGapRows(sources) {
 }
 
 /** Единый набор строк проекта: бот / чат / бюджет / обзор / таблица. */
+/** Строки проекта БЕЗ финального схлопывания по дате: сохраняют разбивку
+ *  гео/источник. Нужны разрезам — таблица по дням работает на selectProjectRows. */
+function selectProjectRowsDim(proj, pack) {
+  const sources = dedupeSourcesByUrlKey(pack?.sources || []);
+  if (!sources.length) return [];
+  if (isJgglProject(proj) && sources.length > 1) {
+    const total = sources.find(s => s.id === 'jggl_total' || isJgglTotalLabel(s.label));
+    if (total) return total.rows || [];
+    const plats = sources.filter(s => isJgglPlatformLabel(s.label));
+    if (plats.length) return plats.flatMap(s => s.rows || []);
+  }
+  return selectProjectRows(proj, pack);
+}
+
 function selectProjectRows(proj, pack) {
   const sources = dedupeSourcesByUrlKey(pack?.sources || []);
   if (!sources.length) return [];
@@ -9422,9 +9484,12 @@ function renderProjectDetail(projId) {
     html += renderJgglContractorCard(p);
     html += renderManualEntryCard(p);
     if (!monthPartitioned) html += renderSheetSwitcher(pack, projId, currentMonth);
-    html += renderGeoFilter(p, viewRows);
+    // Разрезы считаем на нескленных строках (в viewRows день уже один).
+    const dimRows = selectPeriodRows(selectProjectRowsDim(p, pack), currentMonth);
+    html += renderGeoFilter(p, dimRows);
+    const bodyRows = hasActiveDim(p) ? aggregateRowsByDate(filterRowsByDims(p, dimRows)) : viewRows;
     // Бюджет/аналитика — тот же universe, что таблица (не один лист).
-    html += renderWorkspaceBody(p, srcProj, filterRowsByDims(p, viewRows), currentMonth, suffix, {
+    html += renderWorkspaceBody(p, srcProj, bodyRows, currentMonth, suffix, {
       allData: monthPartitioned ? pack : { sources: [src] },
       analyticsMonth,
     });
@@ -9440,8 +9505,10 @@ function renderProjectDetail(projId) {
 
   html += renderCsvUploadCard(p);
   html += renderManualEntryCard(p);
-  html += renderGeoFilter(p, rows);
-  html += renderWorkspaceBody(p, srcProj, filterRowsByDims(p, rows), currentMonth, suffix, { allData: data, analyticsMonth });
+  const dimRows1 = selectPeriodRows(selectProjectRowsDim(p, pack), currentMonth);
+  html += renderGeoFilter(p, dimRows1);
+  const bodyRows1 = hasActiveDim(p) ? aggregateRowsByDate(filterRowsByDims(p, dimRows1)) : rows;
+  html += renderWorkspaceBody(p, srcProj, bodyRows1, currentMonth, suffix, { allData: data, analyticsMonth });
 
   content.innerHTML = html;
   flushWorkspaceChart();
