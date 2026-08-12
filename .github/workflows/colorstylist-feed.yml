@@ -46,12 +46,21 @@ jobs:
           git config user.email "feed-bot@users.noreply.github.com"
           echo "=== data after feed ==="
           ls -la data/colorstylist-* || true
-          python3 -c "import json; m=json.load(open('data/colorstylist-meta.json')); print('until:', m.get('until'), 'days:', m.get('days'), 'errors:', m.get('errors'))" || true
+          python3 -c "import json; m=json.load(open('data/colorstylist-meta.json')); print('until:', m.get('until'), 'days:', m.get('days'), 'errors:', m.get('errors')); print('ai_spend:', m.get('ai_spend'))" || true
           git add data/colorstylist-daily.csv data/colorstylist-cohort.json data/colorstylist-meta.json data/colorstylist-product.json
           git status --short
           if git diff --staged --quiet; then
-            echo "::warning::No data changes — verify CS_* GitHub Secrets and API access"
+            echo "::warning::No data changes — verify CS_* / POLZA_* GitHub Secrets and API access"
             exit 0
           fi
           git commit -m "chore: auto-update ColorStylist feed data"
-          git push origin HEAD:main
+          # Параллельные фиды (Hupp/Planto) часто успевают запушить раньше — rebase и retry.
+          for i in 1 2 3 4 5; do
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            echo "push conflict, rebase attempt $i"
+            git pull --rebase origin main
+          done
+          echo "::error::Failed to push ColorStylist feed after retries"
+          exit 1
