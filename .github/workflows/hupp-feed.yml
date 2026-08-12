@@ -9,6 +9,8 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 jobs:
   update:
@@ -43,3 +45,33 @@ jobs:
           fi
           git commit -m "chore: auto-update Hupp feed data"
           git push origin HEAD:main
+
+  # GITHUB_TOKEN push не триггерит pages.yml — деплоим сайт здесь же.
+  deploy-pages:
+    needs: update
+    if: success()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+      - name: Prepare site artifact
+        run: |
+          mkdir -p _site
+          rsync -a --exclude '.git' --exclude '_site' --exclude 'secrets.env' \
+            --exclude '_buyer-extract' --exclude '.venv' \
+            --exclude 'venv' --exclude '__pycache__' --exclude 'worker' \
+            --exclude '.quadcodeai' --exclude '.temp' ./ _site/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - uses: actions/deploy-pages@v4
+        id: deployment

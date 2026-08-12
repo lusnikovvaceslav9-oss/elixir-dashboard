@@ -214,6 +214,7 @@ body{
 .ws-kpi:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(0,0,0,0.08);border-color:rgba(0,0,0,0.16)}
 .ws-kpi-label{font-size:11.5px;font-weight:600;letter-spacing:0.01em;color:rgba(0,0,0,0.5);line-height:1.3;margin-bottom:10px;display:flex;align-items:center;gap:6px}
 .ws-kpi-value{font-family:var(--font-display);font-size:26px;font-weight:700;color:#0a0a0a;line-height:1.05;letter-spacing:-0.01em}
+.ws-kpi-sub{margin-top:6px;font-size:11px;font-weight:500;color:rgba(0,0,0,0.42);line-height:1.3}
 .ws-kpi.accent{background:linear-gradient(180deg,#fafafa,#f3f3f5);border-color:rgba(0,0,0,0.10)}
 .ws-kpi.accent .ws-kpi-label{color:rgba(0,0,0,0.52)}
 .ws-kpi.accent .ws-kpi-label::before{content:'';width:6px;height:6px;border-radius:50%;background:rgba(0,0,0,0.35);flex-shrink:0}
@@ -6309,7 +6310,13 @@ function savePlantoBlockState(state) {
 }
 
 function isPlantoBlockCollapsed(id) {
-  return !!loadPlantoBlockState()[id];
+  const state = loadPlantoBlockState();
+  // Если юзер явно не трогал блок «unit», а есть AI spend — держим раскрытым.
+  if (!(id in state) && id === 'unit') {
+    const ai = feedMeta()?.ai_spend;
+    if (ai?.total != null) return false;
+  }
+  return !!state[id];
 }
 
 function togglePlantoBlock(id) {
@@ -7075,12 +7082,13 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
   const productSubtitle = product?.subtitle
     || 'Дошёл ли пользователь до ценности — сад, пейволл, уход и ключевые фичи.';
 
+  const unitBadge = meta?.ai_spend?.total != null ? 'Polza + ads' : (meta?.store_label || 'RuStore');
   const allRows = getPlantoDailyRows(proj?.id);
   return `<div class="planto-blocks">
     ${renderPlantoTodayBlock(proj, allRows)}
     ${plantoBlock('acquisition', '1', 'Привлечение', 'Сколько стоит трафик и насколько кликабельны объявления.', 'Direct', acquisition)}
     ${plantoBlock('trials', '2', 'Воронка триалов', `Из-за ${trialDays}-дневного триала смотрим конверсии и отмены, а не только день-в-день.`, `лаг ${trialLag} дн.`, trialsBlock)}
-    ${plantoBlock('unit', '3', 'Юнит-экономика', 'Окупаемость и ценность платящего пользователя.', 'RuStore', unitBlock)}
+    ${plantoBlock('unit', '3', 'Юнит-экономика', 'Окупаемость, burn и ценность платящего пользователя.', unitBadge, unitBlock)}
     ${plantoBlock('product', '4', 'Продукт', productSubtitle, 'AppMetrica', productCards, { cols: 2, footer: productFooter })}
   </div>`;
 }
@@ -9528,24 +9536,39 @@ document.addEventListener('click', () => {
   document.querySelectorAll('.info-wrap.open').forEach(w => w.classList.remove('open'));
 });
 
-/** Доп. карточки выручки для full-тира (Planto unit_economics). */
+/** Доп. карточки выручки для full-тира (Planto/ColorStylist unit_economics + AI spend). */
 function renderRevenueExtras(proj) {
   if (getProjectTier(proj) !== 'full') return '';
-  const ue = feedMeta()?.unit_economics;
-  if (!ue) return '';
+  const meta = feedMeta(proj?.id);
+  const ue = meta?.unit_economics;
+  if (!ue && !(meta?.ai_spend?.total != null)) return '';
   const cur = proj.currency || '₽';
   const LTV_INFO = 'Косвенно — значение не измерено по факту, а рассчитано косвенным способом. LTV здесь оценивается от ARPPU с поправкой на ребиллы (ARPPU × (1 + renewals/payers)), потому что полной кривой повторных списаний пока нет. Как только накопим фактические ребиллы, заменим на измеренный LTV.';
-  const cards = [
-    { label: 'Выручка всего', value: fmtMoney(ue.revenue_total, cur), accent: false },
-    { label: 'ARPPU', value: fmtMoney(ue.arppu, cur), accent: true },
-    { label: 'LTV (косвенно)', value: fmtMoney(ue.ltv, cur), accent: true, info: LTV_INFO },
-    { label: 'ROAS D7', value: ue.roas_d7 != null ? ue.roas_d7 + '%' : '—', accent: true },
-    { label: 'ROAS D30', value: ue.roas_d30 != null ? ue.roas_d30 + '%' : '—', accent: true },
-  ];
+  const cards = [];
+  if (ue) {
+    cards.push(
+      { label: 'Выручка всего', value: fmtMoney(ue.revenue_total, cur), accent: false },
+      { label: 'ARPPU', value: fmtMoney(ue.arppu, cur), accent: true },
+      { label: 'LTV (косвенно)', value: fmtMoney(ue.ltv, cur), accent: true, info: LTV_INFO },
+      { label: 'ROAS D7', value: ue.roas_d7 != null ? ue.roas_d7 + '%' : '—', accent: true },
+      { label: 'ROAS D30', value: ue.roas_d30 != null ? ue.roas_d30 + '%' : '—', accent: true },
+    );
+  }
+  const ai = meta?.ai_spend;
+  if (ai?.total != null) {
+    cards.push(
+      { label: 'AI spend (Polza)', value: fmtMoney(ai.total, cur), accent: false, sub: ai.generations ? `${fmtInt(ai.generations)} ген.` : '' },
+      { label: 'Total burn', value: fmtMoney(ai.total_burn != null ? ai.total_burn : ai.total, cur), accent: true, sub: 'реклама + ИИ' },
+      { label: 'AI / install', value: ai.per_install != null ? fmtMoney(ai.per_install, cur) : '—', accent: false },
+      { label: 'AI / trial', value: ai.per_trial != null ? fmtMoney(ai.per_trial, cur) : '—', accent: false },
+    );
+  }
+  if (!cards.length) return '';
   return `<div class="ws-kpis">${cards.map(c => `
     <div class="ws-kpi${c.accent ? ' accent' : ''}">
       <div class="ws-kpi-label">${escHtml(c.label)}${c.info ? infoDotHtml(c.info) : ''}</div>
       <div class="ws-kpi-value">${c.value}</div>
+      ${c.sub ? `<div class="ws-kpi-sub">${escHtml(c.sub)}</div>` : ''}
     </div>`).join('')}</div>`;
 }
 
