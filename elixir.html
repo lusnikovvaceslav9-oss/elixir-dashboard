@@ -460,6 +460,11 @@ body{
 .geo-chip-val{font-weight:700}
 .geo-chip-share{font-size:10px;opacity:0.6}
 .geo-filter-hint{font-size:10px;color:var(--text-dim);margin-top:8px;line-height:1.4}
+.geo-os-split{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px 16px;margin-bottom:12px;box-shadow:var(--shadow)}
+.geo-os-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:8px}
+.geo-os-geo{font-size:12px;font-weight:600;min-width:110px;color:var(--text)}
+.geo-os-chip .plat-wrap{display:inline-flex;margin-right:2px}
+.geo-os-chip .plat-ic{width:12px;height:12px}
 @media (max-width:768px){.geo-chip{font-size:11px;padding:5px 9px}.geo-chip-share{display:none}}
 .tile-period{display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding:0 16px 8px}
 .tile-period-chip{padding:3px 9px;border-radius:20px;font-size:10px;font-weight:600;border:1px solid rgba(0,0,0,0.1);background:transparent;cursor:pointer;color:rgba(0,0,0,0.4);font-family:var(--font);transition:all 0.12s ease;line-height:1.3}
@@ -2288,11 +2293,14 @@ function mergeRowsByDate(baseRows, uploadRows) {
   return [...map.values()].sort((a, b) => a.date - b.date);
 }
 
-/** Ключ разреза строки по её собственной разметке (умолчания проекта тут не при чём). */
+/** Ключ разреза строки по её собственной разметке (умолчания проекта тут не при чём).
+ *  ОС (iOS/Android) тоже в ключе: иначе на «Общее» мексика/США за один день
+ *  склеивались в одну строку, и разбивка по платформе пропадала. */
 function rowDimKey(r) {
   const geo = r?.geo || (r?.campaign ? geoFromCampaignName(r.campaign) : '');
   const src = r?.source || (r?.campaign ? sourceFromCampaignName(r.campaign) : '');
-  return `${geo}|${src}`;
+  const os = jgglRowPlatformLabel(r);
+  return `${geo}|${src}|${os}`;
 }
 
 /** Как aggregateRowsByDate, но НЕ смешивает разные гео/источники в одном дне.
@@ -4977,7 +4985,75 @@ function renderDimFilter(proj, rows, dim) {
 }
 
 function renderGeoFilter(proj, rows) {
-  return renderDimFilter(proj, rows, 'geo') + renderDimFilter(proj, rows, 'source');
+  return renderDimFilter(proj, rows, 'geo')
+    + renderJgglGeoOsSplit(proj)
+    + renderDimFilter(proj, rows, 'source');
+}
+
+/** JGGL: явная сводка гео × iOS/Android (на «Общее» раньше ОС терялась при склейке дня). */
+function jgglCombinedRows(proj) {
+  const pack = cache[proj?.id];
+  const sources = normalizeCacheData(pack)?.sources || [];
+  const total = sources.find(s => isJgglTotalLabel(s.label));
+  if (total?.rows?.length) return total.rows;
+  return sources.filter(s => isJgglPlatformLabel(s.label)).flatMap(s => s.rows || []);
+}
+
+function renderJgglGeoOsSplit(proj) {
+  if (!isJgglProject(proj)) return '';
+  const rows = jgglCombinedRows(proj);
+  if (!rows.length) return '';
+  const fb = dimFallback(proj, 'geo');
+  const curGeo = getProjectDim(proj.id, 'geo');
+  const cur$ = proj.currency || '$';
+  const byGeo = new Map();
+  rows.forEach(r => {
+    const g = rowGeo(r, fb);
+    if (!g) return;
+    if (curGeo && g !== curGeo) return;
+    const os = jgglRowPlatformLabel(r);
+    if (!byGeo.has(g)) byGeo.set(g, { iOS: 0, Android: 0 });
+    byGeo.get(g)[os] = (byGeo.get(g)[os] || 0) + (Number(r.spend) || 0);
+  });
+  const entries = [...byGeo.entries()]
+    .filter(([, v]) => (v.iOS || 0) + (v.Android || 0) > 0)
+    .sort((a, b) => (b[1].iOS + b[1].Android) - (a[1].iOS + a[1].Android));
+  // Показываем, только если хотя бы у одного гео есть обе ОС (иначе бессмысленно).
+  if (!entries.some(([, v]) => v.iOS > 0 && v.Android > 0)) return '';
+  const blocks = entries.map(([g, v]) => {
+    const total = v.iOS + v.Android;
+    return `<div class="geo-os-row">
+      <span class="geo-os-geo">${escHtml(geoLabel(g))}</span>
+      <button type="button" class="geo-chip geo-os-chip" title="Открыть iOS" onclick="jumpJgglGeoOs('${escHtml(proj.id)}','${escHtml(g)}','iOS')">
+        ${platformIconHtml('ios')}<span class="geo-chip-val">${fmtMoney(v.iOS, cur$)}</span>
+        <span class="geo-chip-share">${total ? Math.round(v.iOS / total * 100) : 0}%</span>
+      </button>
+      <button type="button" class="geo-chip geo-os-chip" title="Открыть Android" onclick="jumpJgglGeoOs('${escHtml(proj.id)}','${escHtml(g)}','Android')">
+        ${platformIconHtml('android')}<span class="geo-chip-val">${fmtMoney(v.Android, cur$)}</span>
+        <span class="geo-chip-share">${total ? Math.round(v.Android / total * 100) : 0}%</span>
+      </button>
+    </div>`;
+  }).join('');
+  return `<div class="geo-os-split">
+    <div class="geo-filter-label">Гео × ОС</div>
+    ${blocks}
+    <div class="geo-filter-hint">Клик по iOS/Android открывает вкладку платформы с фильтром по стране.</div>
+  </div>`;
+}
+
+function jumpJgglGeoOs(projId, geo, os) {
+  dimByProject[projId] = { ...(dimByProject[projId] || {}), geo };
+  const pack = cache[projId];
+  const sources = normalizeCacheData(pack)?.sources || [];
+  const want = String(os || '').toLowerCase();
+  const idx = sources.findIndex(s => String(s.label || '').trim().toLowerCase() === want);
+  if (idx >= 0) {
+    sourceIndexByProject[projId] = idx;
+    tileSourceIndex[projId] = idx;
+  }
+  destroyDetailCharts();
+  renderTopbar();
+  renderContent();
 }
 
 function parseCampaignRows(rows) {
