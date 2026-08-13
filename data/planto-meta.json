@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-08-13T20:31:06+00:00",
+  "generated_at": "2026-08-13T21:35:00+00:00",
   "anchor": "2026-06-05",
-  "until": "2026-08-13",
-  "window_start": "2026-08-04",
+  "until": "2026-08-14",
+  "window_start": "2026-08-05",
   "trial_attribution": "appmetrica_trial_started",
   "ai_spend": null,
   "trial_days": 7,
@@ -22,7 +22,7 @@
     "product": "appmetrica_reporting"
   },
   "errors": [],
-  "days": 70,
+  "days": 71,
   "reconcile_diff": {
     "trials_total_old_csv": 253,
     "trials_total_new": 253,
@@ -30,7 +30,7 @@
   },
   "unit_economics": {
     "revenue_total": 101100,
-    "spend_total": 273270.98,
+    "spend_total": 274628.09,
     "active_users": 13770,
     "active_payers": 49,
     "plus_active_users": 109,
@@ -48,8 +48,8 @@
     "arppu": 2063.27,
     "ltv": 3410.71,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
-    "roas_d7": 38.0,
-    "roas_d14": 39.5,
+    "roas_d7": 38.6,
+    "roas_d14": 38.0,
     "roas_d30": 31.2
   },
   "roas_config": {
@@ -234,10 +234,10 @@
     "2026-08-13": 4
   },
   "trials_crosscheck_yesterday": {
-    "day": "2026-08-12",
-    "appmetrica": 3,
-    "supabase": 3,
-    "dashboard": 3,
+    "day": "2026-08-13",
+    "appmetrica": 4,
+    "supabase": 4,
+    "dashboard": 4,
     "note": "В дашборде trials = AppMetrica trial_started (события ym:ce:allEvents, как колонка «События» в UI). RuStore — сверка оплат."
   }
 }
