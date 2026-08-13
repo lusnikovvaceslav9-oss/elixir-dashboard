@@ -4935,6 +4935,8 @@ function getProjectGeo(projId) { return getProjectDim(projId, 'geo'); }
 function setProjectDim(projId, dim, value) {
   const cur = dimByProject[projId] || {};
   dimByProject[projId] = { ...cur, [dim]: value === (cur[dim] || '') ? '' : value };
+  // Смена гео/источника — сбрасываем ОС, чтобы не залипнуть на пустом срезе.
+  if (dim === 'geo' || dim === 'source') osByProject[projId] = '';
   destroyDetailCharts();
   renderContent();
 }
@@ -4957,9 +4959,11 @@ function hasActiveDim(proj) {
 
 /** Подпись активных разрезов для заголовка таблицы. */
 function dimsSuffix(proj) {
-  return Object.keys(DIMS)
+  const dims = Object.keys(DIMS)
     .map(d => { const v = getProjectDim(proj.id, d); return v ? ' · ' + escHtml(DIMS[d].label(v)) : ''; })
     .join('');
+  const os = isJgglProject(proj) ? getJgglOsFilter(proj.id) : '';
+  return dims + (os ? ' · ' + escHtml(os) : '');
 }
 
 function renderDimFilter(proj, rows, dim) {
@@ -4986,31 +4990,61 @@ function renderDimFilter(proj, rows, dim) {
 
 function renderGeoFilter(proj, rows) {
   return renderDimFilter(proj, rows, 'geo')
-    + renderJgglGeoOsSplit(proj)
+    + renderJgglGeoOsSplit(proj, rows)
     + renderDimFilter(proj, rows, 'source');
 }
 
-/** JGGL: явная сводка гео × iOS/Android (на «Общее» раньше ОС терялась при склейке дня). */
+/** JGGL: фильтр ОС на вкладке «Общее» (не уходим на iOS/Android — свод обновляется здесь). */
+let osByProject = {}; // projId → '' | 'iOS' | 'Android'
+
+function getJgglOsFilter(projId) {
+  return osByProject[projId] || '';
+}
+
+function isJgglOnTotalTab(proj) {
+  if (!isJgglProject(proj)) return false;
+  const pack = cache[proj.id];
+  const sources = normalizeCacheData(pack)?.sources || [];
+  if (!sources.length) return true;
+  const idx = sourceIndexByProject[proj.id] ?? 0;
+  const src = sources[Math.min(idx, sources.length - 1)];
+  return !src || src.id === 'jggl_total' || isJgglTotalLabel(src.label);
+}
+
+function filterRowsByJgglOs(proj, rows) {
+  const os = getJgglOsFilter(proj?.id);
+  if (!os) return rows || [];
+  return (rows || []).filter(r => jgglRowPlatformLabel(r) === os);
+}
+
+/** JGGL: явная сводка гео × iOS/Android. Клик фильтрует «Общее», не переключая вкладку. */
 function jgglCombinedRows(proj) {
   const pack = cache[proj?.id];
   const sources = normalizeCacheData(pack)?.sources || [];
-  const total = sources.find(s => isJgglTotalLabel(s.label));
+  const total = sources.find(s => isJgglTotalLabel(s.label) || s.id === 'jggl_total');
   if (total?.rows?.length) return total.rows;
   return sources.filter(s => isJgglPlatformLabel(s.label)).flatMap(s => s.rows || []);
 }
 
-function renderJgglGeoOsSplit(proj) {
+function renderJgglGeoOsSplit(proj, periodRows) {
   if (!isJgglProject(proj)) return '';
-  const rows = jgglCombinedRows(proj);
+  // Берём строки текущего периода (как у чипов гео), иначе — весь свод.
+  let rows = periodRows?.length ? periodRows : jgglCombinedRows(proj);
+  // На вкладке iOS/Android блок всё равно показывает полный свод по ОС — иначе вторая ОС = 0.
+  if (!isJgglOnTotalTab(proj)) rows = jgglCombinedRows(proj);
   if (!rows.length) return '';
   const fb = dimFallback(proj, 'geo');
   const curGeo = getProjectDim(proj.id, 'geo');
+  const curOs = getJgglOsFilter(proj.id);
+  const curSrc = getProjectDim(proj.id, 'source');
+  const srcFb = dimFallback(proj, 'source');
   const cur$ = proj.currency || '$';
   const byGeo = new Map();
   rows.forEach(r => {
     const g = rowGeo(r, fb);
     if (!g) return;
     if (curGeo && g !== curGeo) return;
+    if (curSrc && rowSource(r, srcFb) !== curSrc) return;
     const os = jgglRowPlatformLabel(r);
     if (!byGeo.has(g)) byGeo.set(g, { iOS: 0, Android: 0 });
     byGeo.get(g)[os] = (byGeo.get(g)[os] || 0) + (Number(r.spend) || 0);
@@ -5018,41 +5052,58 @@ function renderJgglGeoOsSplit(proj) {
   const entries = [...byGeo.entries()]
     .filter(([, v]) => (v.iOS || 0) + (v.Android || 0) > 0)
     .sort((a, b) => (b[1].iOS + b[1].Android) - (a[1].iOS + a[1].Android));
-  // Показываем, только если хотя бы у одного гео есть обе ОС (иначе бессмысленно).
   if (!entries.some(([, v]) => v.iOS > 0 && v.Android > 0)) return '';
   const blocks = entries.map(([g, v]) => {
     const total = v.iOS + v.Android;
+    const iosActive = curGeo === g && curOs === 'iOS';
+    const andActive = curGeo === g && curOs === 'Android';
     return `<div class="geo-os-row">
       <span class="geo-os-geo">${escHtml(geoLabel(g))}</span>
-      <button type="button" class="geo-chip geo-os-chip" title="Открыть iOS" onclick="jumpJgglGeoOs('${escHtml(proj.id)}','${escHtml(g)}','iOS')">
+      <button type="button" class="geo-chip geo-os-chip${iosActive ? ' active' : ''}" title="Фильтр: ${escHtml(geoLabel(g))} · iOS" onclick="jumpJgglGeoOs('${escHtml(proj.id)}','${escHtml(g)}','iOS')">
         ${platformIconHtml('ios')}<span class="geo-chip-val">${fmtMoney(v.iOS, cur$)}</span>
         <span class="geo-chip-share">${total ? Math.round(v.iOS / total * 100) : 0}%</span>
       </button>
-      <button type="button" class="geo-chip geo-os-chip" title="Открыть Android" onclick="jumpJgglGeoOs('${escHtml(proj.id)}','${escHtml(g)}','Android')">
+      <button type="button" class="geo-chip geo-os-chip${andActive ? ' active' : ''}" title="Фильтр: ${escHtml(geoLabel(g))} · Android" onclick="jumpJgglGeoOs('${escHtml(proj.id)}','${escHtml(g)}','Android')">
         ${platformIconHtml('android')}<span class="geo-chip-val">${fmtMoney(v.Android, cur$)}</span>
         <span class="geo-chip-share">${total ? Math.round(v.Android / total * 100) : 0}%</span>
       </button>
     </div>`;
   }).join('');
   return `<div class="geo-os-split">
-    <div class="geo-filter-label">Гео × ОС</div>
+    <div class="geo-filter-head" style="margin-bottom:0">
+      <span class="geo-filter-label">Гео × ОС</span>
+      ${curOs ? `<button type="button" class="geo-chip" onclick="clearJgglOsFilter('${escHtml(proj.id)}')">Сбросить ОС</button>` : ''}
+    </div>
     ${blocks}
-    <div class="geo-filter-hint">Клик по iOS/Android открывает вкладку платформы с фильтром по стране.</div>
+    <div class="geo-filter-hint">Клик по iOS/Android фильтрует общий свод (таблица и инсайты) по стране и ОС.</div>
   </div>`;
 }
 
 function jumpJgglGeoOs(projId, geo, os) {
-  dimByProject[projId] = { ...(dimByProject[projId] || {}), geo };
+  const curOs = osByProject[projId] || '';
+  const curGeo = getProjectDim(projId, 'geo');
+  if (curGeo === geo && curOs === os) {
+    osByProject[projId] = '';
+  } else {
+    dimByProject[projId] = { ...(dimByProject[projId] || {}), geo };
+    osByProject[projId] = os;
+  }
+  // Остаёмся на «Общее», чтобы свод менялся здесь же.
   const pack = cache[projId];
   const sources = normalizeCacheData(pack)?.sources || [];
-  const want = String(os || '').toLowerCase();
-  const idx = sources.findIndex(s => String(s.label || '').trim().toLowerCase() === want);
+  const idx = sources.findIndex(s => s.id === 'jggl_total' || isJgglTotalLabel(s.label));
   if (idx >= 0) {
     sourceIndexByProject[projId] = idx;
     tileSourceIndex[projId] = idx;
   }
   destroyDetailCharts();
   renderTopbar();
+  renderContent();
+}
+
+function clearJgglOsFilter(projId) {
+  osByProject[projId] = '';
+  destroyDetailCharts();
   renderContent();
 }
 
@@ -9144,6 +9195,8 @@ function renderSheetSwitcher(pack, projId, monthKey) {
 
 function switchSource(idx) {
   sourceIndexByProject[view] = idx;
+  // Фильтр ОС имеет смысл только на «Общее» — на вкладке платформы сбрасываем.
+  if (view && osByProject[view]) osByProject[view] = '';
   const pack = normalizeCacheData(cache[view]);
   const src = pack?.sources?.[idx];
   const mk = sourceMonthKey(src);
@@ -9946,7 +9999,16 @@ function renderProjectDetail(projId) {
     // Разрезы считаем на нескленных строках (в viewRows день уже один).
     const dimRows = selectPeriodRows(selectProjectRowsDim(p, pack), currentMonth);
     html += renderGeoFilter(p, dimRows);
-    const bodyRows = hasActiveDim(p) ? aggregateRowsByDate(filterRowsByDims(p, dimRows)) : viewRows;
+    const osFilter = isJgglProject(p) && isJgglOnTotalTab(p) ? getJgglOsFilter(p.id) : '';
+    let bodyRows;
+    if (hasActiveDim(p) || osFilter) {
+      let work = dimRows;
+      if (hasActiveDim(p)) work = filterRowsByDims(p, work);
+      if (osFilter) work = filterRowsByJgglOs(p, work);
+      bodyRows = aggregateRowsByDate(work);
+    } else {
+      bodyRows = viewRows;
+    }
     // Бюджет/аналитика — тот же universe, что таблица (не один лист).
     html += renderWorkspaceBody(p, srcProj, bodyRows, currentMonth, suffix, {
       allData: monthPartitioned ? pack : { sources: [src] },
