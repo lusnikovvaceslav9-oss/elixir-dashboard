@@ -2958,9 +2958,50 @@ async function forceSyncCsvToCloud(btn) {
   }
 }
 
+/** Проекты, для которых уже прогнали ремонт битых Meta-загрузок в этой сессии. */
+const _metaUploadRepairDone = new Set();
+
 function getProjectCsvUploads(projId) {
   const all = loadCsvUploads();
-  return all[projId] || {};
+  const map = all[projId] || {};
+  if (!projId || _metaUploadRepairDone.has(projId)) return map;
+  let changed = false;
+  const next = { ...map };
+  Object.entries(map).forEach(([id, u]) => {
+    if (!u || u.override || id === 'contractor_sheet') return;
+    const cols = u.sheetColumns || [];
+    const rows = u.rows || [];
+    const brokenCols = isBrokenMetaSourceHeader(cols);
+    const brokenRows = rows.some(r => looksLikeMetaDeliveryStatus(r.campaign) && (Number(r.spend) || 0) > 500);
+    if (!brokenCols && !brokenRows) return;
+    const text = String(u.text || '').trim();
+    if (text) {
+      const csvRows = parseCSV(text);
+      const repaired = repairBrokenMetaSourceMatrix(csvRows) || csvRows;
+      const fixedText = sheetMatrixToCsvText(repaired);
+      const parsed = parseSheet(fixedText);
+      next[id] = {
+        ...u,
+        text: fixedText,
+        rows: serializeUploadRows(parsed),
+        sheetColumns: (repaired[0] || []).map(h => (h || '').trim()),
+        repairedAt: new Date().toISOString(),
+      };
+      changed = true;
+      console.info('JGGL: починена Meta-загрузка со сдвигом Source —', u.fileName || id);
+    } else {
+      delete next[id];
+      changed = true;
+      console.warn('JGGL: удалена битая Meta-загрузка (нет исходного CSV) —', u.fileName || id, '· перезалей файл');
+    }
+  });
+  _metaUploadRepairDone.add(projId);
+  if (changed) {
+    all[projId] = next;
+    try { localStorage.setItem(CSV_UPLOAD_KEY, JSON.stringify(all)); } catch (_) {}
+    saveCsvUploads(all);
+  }
+  return next;
 }
 
 function slugifyCsvLabel(label) {
@@ -2990,19 +3031,68 @@ function shortHash(hash) {
   return String(hash || '').slice(0, 10);
 }
 
+/** Meta CSV, в header которого ошибочно вставлен Source между Reporting starts/ends. */
+function isBrokenMetaSourceHeader(cols) {
+  const h = (cols || []).map(c => String(c || '').toLowerCase().trim());
+  const iStarts = h.findIndex(x => x.includes('reporting starts'));
+  const iSource = h.findIndex(x => x === 'source');
+  const iEnds = h.findIndex(x => x.includes('reporting ends'));
+  return iStarts >= 0 && iSource === iStarts + 1 && iEnds === iSource + 1;
+}
+
+function looksLikeMetaDeliveryStatus(campaign) {
+  return /^(active|not_delivering|paused|archived|inactive|limited|campaign delivery)$/i
+    .test(String(campaign || '').trim());
+}
+
+/** Убирает ложный столбец Source из Meta-матрицы (header-only inject). */
+function repairBrokenMetaSourceMatrix(matrix) {
+  if (!matrix?.length) return null;
+  const headers = matrix[0].map(h => String(h || '').trim());
+  if (!isBrokenMetaSourceHeader(headers)) return null;
+  const sourceAt = headers.findIndex(h => /^source$/i.test(h));
+  if (sourceAt < 0) return null;
+  const fixedHeaders = headers.filter((_, i) => i !== sourceAt);
+  const out = [fixedHeaders];
+  matrix.slice(1).forEach(r => {
+    const cell = String(r?.[sourceAt] || '').trim().toLowerCase();
+    if (cell === 'google' || cell === 'fb' || cell === 'meta' || cell === 'facebook') {
+      out.push([...r.slice(0, sourceAt), ...r.slice(sourceAt + 1)]);
+    } else {
+      // Типичный баг: Source только в header, данные уже в исходном порядке Meta.
+      out.push((r || []).slice());
+    }
+  });
+  return out.length > 1 ? out : null;
+}
+
 function buildUploadedSource(projId, id, upload) {
   const text = upload?.text || '';
-  const rows = upload?.rows?.length
+  let rows = upload?.rows?.length
     ? deserializeUploadRows(upload.rows)
     : (text.trim() ? parseSheet(text) : []);
-  const csvRows = text.trim() ? parseCSV(text) : [upload.sheetColumns || []];
+  let sheetColumns = (upload.sheetColumns || []).map(h => (h || '').trim());
+  // Починить старые Meta-загрузки, где Source сдвинул колонки (Spend ← Impressions).
+  const brokenCols = isBrokenMetaSourceHeader(sheetColumns);
+  const brokenRows = rows.some(r => looksLikeMetaDeliveryStatus(r.campaign) && (Number(r.spend) || 0) > 500);
+  if ((brokenCols || brokenRows) && text.trim()) {
+    rows = parseSheet(text);
+    const csvRows = parseCSV(text);
+    const repaired = repairBrokenMetaSourceMatrix(csvRows);
+    sheetColumns = ((repaired || csvRows)[0] || sheetColumns).map(h => (h || '').trim());
+  } else if (brokenRows && !text.trim()) {
+    // Без исходного CSV имена кампаний не восстановить — не тащим битый spend.
+    rows = [];
+  }
+  const csvRows = text.trim() ? parseCSV(text) : [sheetColumns];
+  if (!sheetColumns.length) sheetColumns = (csvRows[0] || []).map(h => (h || '').trim());
   return {
     id: `upload_${id}`,
     storageId: id,
     label: upload.label || id,
     url: `upload://${projId}/${id}`,
     rows,
-    sheetColumns: (upload.sheetColumns?.length ? upload.sheetColumns : (csvRows[0] || [])).map(h => (h || '').trim()),
+    sheetColumns,
     uploaded: true,
     uploadedAt: upload.uploadedAt || null,
     fileName: upload.fileName || '',
@@ -4663,10 +4753,10 @@ function findCampaignExtraColumns(headerRow) {
   if (sourceCol < 0) sourceCol = -1;
   return {
     campaignCol,
-    adsetCol: findCol(headers, ['ad set name', 'ad set', 'adset', 'группу объяв', 'группа объяв']),
+    adsetCol: findCol(headers, ['ad set name', 'ad set', 'adset', 'группу объяв', 'группа объяв'], ['budget', 'budget type', 'delivery']),
     adCol: findCol(headers, ['ad name', 'объявлен'], ['ad set', 'adset']),
-    impressionsCol: findCol(headers, ['impression', 'impress', 'показ', 'imps', 'impr'], ['доля', 'share', '%']),
-    clicksCol: findCol(headers, ['click', 'клик'], ['ctr', 'цена', 'cpc', 'ср.']),
+    impressionsCol: findCol(headers, ['impression', 'impress', 'показ', 'imps', 'impr'], ['доля', 'share', '%', 'cost']),
+    clicksCol: findCol(headers, ['click', 'клик'], ['ctr', 'цена', 'cpc', 'ср.', 'cost']),
     // Breakdown «Country» в FB-выгрузке / «Страна» в Директе.
     geoCol: findCol(headers, ['country', 'страна', 'регион', 'region', 'geo'], ['city', 'город', 'currency']),
     sourceCol,
@@ -5002,10 +5092,17 @@ function parseGoogleAdsDateRange(str) {
 function isGoogleAdsHeaderRow(row) {
   const h = (row || []).map(x => String(x || '').toLowerCase().trim());
   if (h.length < 4) return false;
+  // Meta Ads CSV (Reporting starts / Amount spent) нельзя принимать за Google Ads —
+  // иначе в заголовок вставляется Source без сдвига строк и Impressions читаются как Spend.
+  if (h.some(x => x.includes('reporting starts') || x.includes('amount spent'))) return false;
   const hasCampaign = h.some(x => x === 'campaign' || x === 'campaign name' || x === 'кампания');
-  const hasCost = h.some(x => x === 'cost' || x === 'стоимость' || x.includes('amount spent') || x === 'spend');
+  const hasCost = h.some(x => x === 'cost' || x === 'стоимость');
   const hasTraffic = h.some(x => /^(impr\.?|impressions|clicks|показ|клик)/.test(x) || x.includes('impr'));
-  return hasCampaign && hasCost && hasTraffic;
+  const hasGoogleMarker = h.some(x =>
+    x === 'campaign status' || x === 'impr.' || x === 'currency code'
+    || x === 'conv. value' || x === 'cost / conv.' || x === 'campaign type'
+  );
+  return hasCampaign && hasCost && hasTraffic && hasGoogleMarker;
 }
 
 function findGoogleAdsHeaderIndex(matrix) {
@@ -5045,8 +5142,11 @@ function prepareGoogleAdsMatrix(matrix) {
     outHeaders = ['Date', ...outHeaders];
   }
   // Явный источник — чтобы разрез FB/Google работал после нормализации преамбулы.
+  // Колонку Source всегда вставляем и в строки данных (не только в header).
+  let injectSource = false;
   if (!outHeaders.some(h => /^(source|traffic source|источник|канал)$/i.test(String(h || '').trim()))) {
     outHeaders = [outHeaders[0], 'Source', ...outHeaders.slice(1)];
+    injectSource = true;
   }
   const sourceAt = outHeaders.findIndex(h => /^(source|traffic source|источник|канал)$/i.test(String(h || '').trim()));
 
@@ -5056,8 +5156,8 @@ function prepareGoogleAdsMatrix(matrix) {
     if (!first) return;
     if (/^total:/i.test(first) || /^итого/i.test(first)) return;
     let row = injectDate ? [dayIso || first, ...r] : r.slice();
-    if (sourceAt === 1 && injectDate) {
-      row = [row[0], 'google', ...row.slice(1)];
+    if (injectSource && sourceAt >= 0) {
+      row = [...row.slice(0, sourceAt), 'google', ...row.slice(sourceAt)];
     } else if (sourceAt >= 0 && String(row[sourceAt] || '').trim() === '') {
       row = row.slice();
       row[sourceAt] = 'google';
@@ -5076,7 +5176,8 @@ function prepareSheetMatrix(matrix) {
 function parseSheet(text) {
   const raw = parseCSV(text);
   if (!raw.length) return [];
-  const rows = prepareSheetMatrix(raw);
+  const fixed = repairBrokenMetaSourceMatrix(raw) || raw;
+  const rows = prepareSheetMatrix(fixed);
   const t = detectSheetType(rows[0]);
   if (t === 'hupp')     return parsePlantoRows(rows);
   if (t === 'planto')   return parsePlantoRows(rows);
@@ -5093,8 +5194,12 @@ function parseSheet(text) {
 function normalizeUploadCsvText(text) {
   const raw = parseCSV(text || '');
   if (!raw.length) return text;
-  const prepared = prepareGoogleAdsMatrix(raw);
-  if (!prepared) return text;
+  const fixed = repairBrokenMetaSourceMatrix(raw) || raw;
+  const prepared = prepareGoogleAdsMatrix(fixed);
+  if (!prepared) {
+    // Meta (или уже плоский CSV): вернуть починенный текст, если убрали ложный Source.
+    return fixed !== raw ? sheetMatrixToCsvText(fixed) : text;
+  }
   return sheetMatrixToCsvText(prepared);
 }
 
