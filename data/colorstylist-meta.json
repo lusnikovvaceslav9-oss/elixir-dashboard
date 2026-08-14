@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-14T11:38:43+00:00",
+  "generated_at": "2026-08-14T12:36:45+00:00",
   "anchor": "2026-07-31",
   "until": "2026-08-14",
   "window_start": "2026-08-05",
@@ -14,7 +14,7 @@
     },
     "per_install": 7.05,
     "per_trial": 144.61,
-    "total_burn": 23419.51
+    "total_burn": 23424.09
   },
   "trial_days": 3,
   "trial_lag_days": 3,
@@ -25,6 +25,9 @@
     "year": 2490
   },
   "sources": {
+    "spend": "direct_api",
+    "clicks": "direct_api",
+    "impressions": "direct_api",
     "installs": "appmetrica_reporting",
     "trials": "appmetrica_purchase_success",
     "trials_am_crosscheck": "appmetrica_reporting_events",
@@ -34,9 +37,7 @@
     "polza_spend": "polza_api",
     "product": "appmetrica_reporting"
   },
-  "errors": [
-    "direct: 1 chunk(s) failed: 2026-08-05..2026-08-14: The read operation timed out"
-  ],
+  "errors": [],
   "days": 15,
   "reconcile_diff": {
     "trials_total_old_csv": 42,
@@ -45,7 +46,7 @@
   },
   "unit_economics": {
     "revenue_total": 2191,
-    "spend_total": 17345.73,
+    "spend_total": 17350.31,
     "active_users": 915,
     "active_payers": 1,
     "plus_active_users": 10,
@@ -118,7 +119,7 @@
         "id": "engagement_hair",
         "label": "Вовлечение (hair)",
         "formula_label": "hair_look / install",
-        "value_pct": 39.49,
+        "value_pct": 39.61,
         "primary": false,
         "accent": false,
         "note": null
@@ -135,19 +136,19 @@
         "id": "hair",
         "label": "Волосы",
         "event": "hair_look_generated",
-        "value_pct": 39.49
+        "value_pct": 39.61
       },
       {
         "id": "outfit",
         "label": "Образы",
         "event": "outfit_generated",
-        "value_pct": 14.4
+        "value_pct": 14.52
       },
       {
         "id": "makeup",
         "label": "Макияж",
         "event": "makeup_generated",
-        "value_pct": 17.19
+        "value_pct": 17.31
       },
       {
         "id": "chat",
@@ -159,14 +160,14 @@
         "id": "fitting",
         "label": "Примерочная",
         "event": "fitting_done",
-        "value_pct": 7.32
+        "value_pct": 7.43
       }
     ],
     "quality": [
       {
         "id": "ai_fail_rate",
         "label": "AI fail rate",
-        "value_pct": 25.36
+        "value_pct": 25.44
       }
     ]
   },
