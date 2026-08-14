@@ -464,6 +464,8 @@ body{
 .geo-unit-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
 @media (max-width:900px){.geo-unit-grid{grid-template-columns:1fr}}
 .geo-unit-grid .geo-os-split{margin-bottom:0}
+.geo-day-picker{font-size:12px;padding:5px 28px 5px 8px;border-radius:8px;margin-left:auto;max-width:150px}
+.geo-unit-empty{font-size:12px;color:var(--text-dim);padding:14px 2px 6px}
 .geo-os-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:8px}
 .geo-os-row.active{background:rgba(0,0,0,0.03);border-radius:12px;margin-left:-6px;margin-right:-6px;padding:6px}
 .geo-os-geo{font-size:12px;font-weight:600;min-width:130px;color:var(--text)}
@@ -5120,6 +5122,46 @@ function latestDateKeyInRows(rows) {
   return best;
 }
 
+function earliestDateKeyInRows(rows) {
+  let best = null;
+  let bestT = Infinity;
+  (rows || []).forEach(r => {
+    const t = r?.date instanceof Date ? r.date.getTime() : (r?.date ? new Date(r.date).getTime() : NaN);
+    if (!Number.isFinite(t)) return;
+    if (t <= bestT) {
+      bestT = t;
+      best = r.dateStr || fmtDateStr(r.date);
+    }
+  });
+  return best;
+}
+
+function dateStrToIso(dateStr) {
+  const dt = parseDate(dateStr);
+  if (!dt || isNaN(dt.getTime())) return '';
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+}
+
+/** Выбранный день для блока «Гео · день»: dateStr dd.mm.yyyy */
+let geoDayByProject = {};
+
+function getJgglGeoDay(projId, fallbackDateStr) {
+  return geoDayByProject[projId] || fallbackDateStr || '';
+}
+
+function setJgglGeoDay(projId, isoOrEmpty) {
+  const iso = String(isoOrEmpty || '').trim();
+  if (!iso) {
+    delete geoDayByProject[projId];
+  } else {
+    const dt = parseDate(iso) || new Date(`${iso}T12:00:00`);
+    if (!dt || isNaN(dt.getTime())) return;
+    geoDayByProject[projId] = fmtDateStr(dt);
+  }
+  destroyDetailCharts();
+  renderContent();
+}
+
 function buildJgglGeoUnitEntries(proj, rows) {
   const fb = dimFallback(proj, 'geo');
   const byGeo = new Map();
@@ -5136,35 +5178,37 @@ function buildJgglGeoUnitEntries(proj, rows) {
     .sort((a, b) => b[1].spend - a[1].spend);
 }
 
-function renderJgglGeoUnitCard(proj, entries, { title, hint, dayLabel }) {
-  if (!entries.length) return '';
+function renderJgglGeoUnitCard(proj, entries, { title, hint, dayPickerHtml = '', allowEmpty = false }) {
+  if (!entries.length && !allowEmpty) return '';
   const curGeo = getProjectDim(proj.id, 'geo');
   const cur$ = proj.currency || '$';
-  const blocks = entries.map(([g, v]) => {
-    const cpa = v.users > 0 ? v.spend / v.users : null;
-    const active = curGeo === g;
-    return `<div class="geo-os-row${active ? ' active' : ''}">
-      <button type="button" class="geo-os-row-btn" title="Фильтр по ${escHtml(geoLabel(g))}" onclick="setProjectDim('${escHtml(proj.id)}','geo','${escHtml(g)}')">
-        <span class="geo-os-geo">${escHtml(geoLabel(g))}</span>
-        <span class="geo-chip geo-metric">
-          <span class="geo-metric-label">Spend</span>
-          <span class="geo-chip-val">${fmtMoney(v.spend, cur$)}</span>
-        </span>
-        <span class="geo-chip geo-metric">
-          <span class="geo-metric-label">Юзеры</span>
-          <span class="geo-chip-val">${fmtInt(v.users)}</span>
-        </span>
-        <span class="geo-chip geo-metric">
-          <span class="geo-metric-label">Цена / юзер</span>
-          <span class="geo-chip-val">${cpa != null ? fmtMoney(cpa, cur$) : '—'}</span>
-        </span>
-      </button>
-    </div>`;
-  }).join('');
+  const blocks = entries.length
+    ? entries.map(([g, v]) => {
+      const cpa = v.users > 0 ? v.spend / v.users : null;
+      const active = curGeo === g;
+      return `<div class="geo-os-row${active ? ' active' : ''}">
+        <button type="button" class="geo-os-row-btn" title="Фильтр по ${escHtml(geoLabel(g))}" onclick="setProjectDim('${escHtml(proj.id)}','geo','${escHtml(g)}')">
+          <span class="geo-os-geo">${escHtml(geoLabel(g))}</span>
+          <span class="geo-chip geo-metric">
+            <span class="geo-metric-label">Spend</span>
+            <span class="geo-chip-val">${fmtMoney(v.spend, cur$)}</span>
+          </span>
+          <span class="geo-chip geo-metric">
+            <span class="geo-metric-label">Юзеры</span>
+            <span class="geo-chip-val">${fmtInt(v.users)}</span>
+          </span>
+          <span class="geo-chip geo-metric">
+            <span class="geo-metric-label">Цена / юзер</span>
+            <span class="geo-chip-val">${cpa != null ? fmtMoney(cpa, cur$) : '—'}</span>
+          </span>
+        </button>
+      </div>`;
+    }).join('')
+    : `<div class="geo-unit-empty">Нет данных за выбранный день</div>`;
   return `<div class="geo-os-split">
     <div class="geo-filter-head" style="margin-bottom:0">
       <span class="geo-filter-label">${escHtml(title)}</span>
-      ${dayLabel ? `<span class="geo-chip-share" style="margin-left:auto">${escHtml(dayLabel)}</span>` : ''}
+      ${dayPickerHtml || ''}
     </div>
     ${blocks}
     <div class="geo-filter-hint">${escHtml(hint)}</div>
@@ -5176,17 +5220,29 @@ function renderJgglGeoUnitBlocks(proj, periodRows) {
   const rows = jgglGeoUnitRows(proj, periodRows);
   if (!rows.length) return '';
   const periodEntries = buildJgglGeoUnitEntries(proj, rows);
-  const dayKey = latestDateKeyInRows(rows);
-  const dayRows = dayKey ? rows.filter(r => (r.dateStr || fmtDateStr(r.date)) === dayKey) : [];
+  const latest = latestDateKeyInRows(rows);
+  const earliest = earliestDateKeyInRows(rows);
+  const dayKey = getJgglGeoDay(proj.id, latest);
+  const dayRows = dayKey
+    ? rows.filter(r => (r.dateStr || (r.date ? fmtDateStr(r.date) : '')) === dayKey)
+    : [];
   const dayEntries = buildJgglGeoUnitEntries(proj, dayRows);
+  const dayPickerHtml = `<input type="date" class="date-input geo-day-picker"
+    value="${escHtml(dateStrToIso(dayKey))}"
+    ${earliest ? `min="${escHtml(dateStrToIso(earliest))}"` : ''}
+    ${latest ? `max="${escHtml(dateStrToIso(latest))}"` : ''}
+    onchange="setJgglGeoDay('${escHtml(proj.id)}', this.value)"
+    onclick="event.stopPropagation()"
+    title="Выбери день">`;
   const periodCard = renderJgglGeoUnitCard(proj, periodEntries, {
     title: 'Гео · период',
     hint: 'Сумма за выбранный период. Клик по строке фильтрует таблицу по стране.',
   });
   const dayCard = renderJgglGeoUnitCard(proj, dayEntries, {
     title: 'Гео · день',
-    dayLabel: dayKey || '',
-    hint: 'Только последний день в периоде (spend / юзеры / цена за юзера).',
+    dayPickerHtml,
+    allowEmpty: true,
+    hint: 'Выставь дату — spend / юзеры / цена за юзера за этот день.',
   });
   if (!periodCard && !dayCard) return '';
   if (periodCard && dayCard) return `<div class="geo-unit-grid">${periodCard}${dayCard}</div>`;
