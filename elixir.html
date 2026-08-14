@@ -461,6 +461,9 @@ body{
 .geo-chip-share{font-size:10px;opacity:0.6}
 .geo-filter-hint{font-size:10px;color:var(--text-dim);margin-top:8px;line-height:1.4}
 .geo-os-split{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px 16px;margin-bottom:12px;box-shadow:var(--shadow)}
+.geo-unit-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+@media (max-width:900px){.geo-unit-grid{grid-template-columns:1fr}}
+.geo-unit-grid .geo-os-split{margin-bottom:0}
 .geo-os-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:8px}
 .geo-os-row.active{background:rgba(0,0,0,0.03);border-radius:12px;margin-left:-6px;margin-right:-6px;padding:6px}
 .geo-os-geo{font-size:12px;font-weight:600;min-width:130px;color:var(--text)}
@@ -5055,7 +5058,7 @@ function renderDimFilter(proj, rows, dim) {
 
 function renderGeoFilter(proj, rows) {
   return renderDimFilter(proj, rows, 'geo')
-    + renderJgglGeoUnitSplit(proj, rows)
+    + renderJgglGeoUnitBlocks(proj, rows)
     + renderDimFilter(proj, rows, 'source');
 }
 
@@ -5091,32 +5094,52 @@ function jgglCombinedRows(proj) {
   return sources.filter(s => isJgglPlatformLabel(s.label)).flatMap(s => s.rows || []);
 }
 
-function renderJgglGeoUnitSplit(proj, periodRows) {
-  if (!isJgglProject(proj)) return '';
+function jgglGeoUnitRows(proj, periodRows) {
   let rows = periodRows?.length ? periodRows : jgglCombinedRows(proj);
   if (isJgglOnTotalTab(proj) && getJgglOsFilter(proj.id)) {
     rows = filterRowsByJgglOs(proj, rows);
   }
-  if (!rows.length) return '';
-  const fb = dimFallback(proj, 'geo');
-  const curGeo = getProjectDim(proj.id, 'geo');
   const curSrc = getProjectDim(proj.id, 'source');
   const srcFb = dimFallback(proj, 'source');
-  const cur$ = proj.currency || '$';
+  if (curSrc) rows = rows.filter(r => rowSource(r, srcFb) === curSrc);
+  return rows || [];
+}
+
+/** Последний день в наборе строк (по date / dateStr). */
+function latestDateKeyInRows(rows) {
+  let best = null;
+  let bestT = -Infinity;
+  (rows || []).forEach(r => {
+    const t = r?.date instanceof Date ? r.date.getTime() : (r?.date ? new Date(r.date).getTime() : NaN);
+    if (!Number.isFinite(t)) return;
+    if (t >= bestT) {
+      bestT = t;
+      best = r.dateStr || fmtDateStr(r.date);
+    }
+  });
+  return best;
+}
+
+function buildJgglGeoUnitEntries(proj, rows) {
+  const fb = dimFallback(proj, 'geo');
   const byGeo = new Map();
-  rows.forEach(r => {
+  (rows || []).forEach(r => {
     const g = rowGeo(r, fb);
     if (!g) return;
-    if (curSrc && rowSource(r, srcFb) !== curSrc) return;
     if (!byGeo.has(g)) byGeo.set(g, { spend: 0, users: 0 });
     const cell = byGeo.get(g);
     cell.spend += Number(r.spend) || 0;
     cell.users += installLikeCount([r]) || 0;
   });
-  const entries = [...byGeo.entries()]
+  return [...byGeo.entries()]
     .filter(([, v]) => (v.spend || 0) > 0 || (v.users || 0) > 0)
     .sort((a, b) => b[1].spend - a[1].spend);
-  if (entries.length < 1) return '';
+}
+
+function renderJgglGeoUnitCard(proj, entries, { title, hint, dayLabel }) {
+  if (!entries.length) return '';
+  const curGeo = getProjectDim(proj.id, 'geo');
+  const cur$ = proj.currency || '$';
   const blocks = entries.map(([g, v]) => {
     const cpa = v.users > 0 ? v.spend / v.users : null;
     const active = curGeo === g;
@@ -5140,11 +5163,34 @@ function renderJgglGeoUnitSplit(proj, periodRows) {
   }).join('');
   return `<div class="geo-os-split">
     <div class="geo-filter-head" style="margin-bottom:0">
-      <span class="geo-filter-label">Гео · unit</span>
+      <span class="geo-filter-label">${escHtml(title)}</span>
+      ${dayLabel ? `<span class="geo-chip-share" style="margin-left:auto">${escHtml(dayLabel)}</span>` : ''}
     </div>
     ${blocks}
-    <div class="geo-filter-hint">Spend / установки (Results) / цена за юзера. Клик по строке фильтрует таблицу по стране.</div>
+    <div class="geo-filter-hint">${escHtml(hint)}</div>
   </div>`;
+}
+
+function renderJgglGeoUnitBlocks(proj, periodRows) {
+  if (!isJgglProject(proj)) return '';
+  const rows = jgglGeoUnitRows(proj, periodRows);
+  if (!rows.length) return '';
+  const periodEntries = buildJgglGeoUnitEntries(proj, rows);
+  const dayKey = latestDateKeyInRows(rows);
+  const dayRows = dayKey ? rows.filter(r => (r.dateStr || fmtDateStr(r.date)) === dayKey) : [];
+  const dayEntries = buildJgglGeoUnitEntries(proj, dayRows);
+  const periodCard = renderJgglGeoUnitCard(proj, periodEntries, {
+    title: 'Гео · период',
+    hint: 'Сумма за выбранный период. Клик по строке фильтрует таблицу по стране.',
+  });
+  const dayCard = renderJgglGeoUnitCard(proj, dayEntries, {
+    title: 'Гео · день',
+    dayLabel: dayKey || '',
+    hint: 'Только последний день в периоде (spend / юзеры / цена за юзера).',
+  });
+  if (!periodCard && !dayCard) return '';
+  if (periodCard && dayCard) return `<div class="geo-unit-grid">${periodCard}${dayCard}</div>`;
+  return periodCard || dayCard;
 }
 
 function jumpJgglGeoOs(projId, geo, os) {
