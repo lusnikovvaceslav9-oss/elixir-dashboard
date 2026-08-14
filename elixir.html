@@ -462,9 +462,14 @@ body{
 .geo-filter-hint{font-size:10px;color:var(--text-dim);margin-top:8px;line-height:1.4}
 .geo-os-split{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px 16px;margin-bottom:12px;box-shadow:var(--shadow)}
 .geo-os-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:8px}
-.geo-os-geo{font-size:12px;font-weight:600;min-width:110px;color:var(--text)}
+.geo-os-row.active{background:rgba(0,0,0,0.03);border-radius:12px;margin-left:-6px;margin-right:-6px;padding:6px}
+.geo-os-geo{font-size:12px;font-weight:600;min-width:130px;color:var(--text)}
 .geo-os-chip .plat-wrap{display:inline-flex;margin-right:2px}
 .geo-os-chip .plat-ic{width:12px;height:12px}
+.geo-metric{cursor:default}
+.geo-metric .geo-metric-label{font-size:10px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.02em}
+.geo-os-row-btn{display:flex;flex-wrap:wrap;align-items:center;gap:6px;width:100%;border:0;background:transparent;padding:0;cursor:pointer;text-align:left;font:inherit}
+.geo-os-row-btn:hover .geo-os-geo{text-decoration:underline}
 @media (max-width:768px){.geo-chip{font-size:11px;padding:5px 9px}.geo-chip-share{display:none}}
 .tile-period{display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding:0 16px 8px}
 .tile-period-chip{padding:3px 9px;border-radius:20px;font-size:10px;font-weight:600;border:1px solid rgba(0,0,0,0.1);background:transparent;cursor:pointer;color:rgba(0,0,0,0.4);font-family:var(--font);transition:all 0.12s ease;line-height:1.3}
@@ -5050,7 +5055,7 @@ function renderDimFilter(proj, rows, dim) {
 
 function renderGeoFilter(proj, rows) {
   return renderDimFilter(proj, rows, 'geo')
-    + renderJgglGeoOsSplit(proj, rows)
+    + renderJgglGeoUnitSplit(proj, rows)
     + renderDimFilter(proj, rows, 'source');
 }
 
@@ -5077,7 +5082,7 @@ function filterRowsByJgglOs(proj, rows) {
   return (rows || []).filter(r => jgglRowPlatformLabel(r) === os);
 }
 
-/** JGGL: явная сводка гео × iOS/Android. Клик фильтрует «Общее», не переключая вкладку. */
+/** JGGL: свод по странам — spend / юзеры / цена за юзера. */
 function jgglCombinedRows(proj) {
   const pack = cache[proj?.id];
   const sources = normalizeCacheData(pack)?.sources || [];
@@ -5086,16 +5091,15 @@ function jgglCombinedRows(proj) {
   return sources.filter(s => isJgglPlatformLabel(s.label)).flatMap(s => s.rows || []);
 }
 
-function renderJgglGeoOsSplit(proj, periodRows) {
+function renderJgglGeoUnitSplit(proj, periodRows) {
   if (!isJgglProject(proj)) return '';
-  // Берём строки текущего периода (как у чипов гео), иначе — весь свод.
   let rows = periodRows?.length ? periodRows : jgglCombinedRows(proj);
-  // На вкладке iOS/Android блок всё равно показывает полный свод по ОС — иначе вторая ОС = 0.
-  if (!isJgglOnTotalTab(proj)) rows = jgglCombinedRows(proj);
+  if (isJgglOnTotalTab(proj) && getJgglOsFilter(proj.id)) {
+    rows = filterRowsByJgglOs(proj, rows);
+  }
   if (!rows.length) return '';
   const fb = dimFallback(proj, 'geo');
   const curGeo = getProjectDim(proj.id, 'geo');
-  const curOs = getJgglOsFilter(proj.id);
   const curSrc = getProjectDim(proj.id, 'source');
   const srcFb = dimFallback(proj, 'source');
   const cur$ = proj.currency || '$';
@@ -5103,39 +5107,43 @@ function renderJgglGeoOsSplit(proj, periodRows) {
   rows.forEach(r => {
     const g = rowGeo(r, fb);
     if (!g) return;
-    if (curGeo && g !== curGeo) return;
     if (curSrc && rowSource(r, srcFb) !== curSrc) return;
-    const os = jgglRowPlatformLabel(r);
-    if (!byGeo.has(g)) byGeo.set(g, { iOS: 0, Android: 0 });
-    byGeo.get(g)[os] = (byGeo.get(g)[os] || 0) + (Number(r.spend) || 0);
+    if (!byGeo.has(g)) byGeo.set(g, { spend: 0, users: 0 });
+    const cell = byGeo.get(g);
+    cell.spend += Number(r.spend) || 0;
+    cell.users += installLikeCount([r]) || 0;
   });
   const entries = [...byGeo.entries()]
-    .filter(([, v]) => (v.iOS || 0) + (v.Android || 0) > 0)
-    .sort((a, b) => (b[1].iOS + b[1].Android) - (a[1].iOS + a[1].Android));
-  if (!entries.some(([, v]) => v.iOS > 0 && v.Android > 0)) return '';
+    .filter(([, v]) => (v.spend || 0) > 0 || (v.users || 0) > 0)
+    .sort((a, b) => b[1].spend - a[1].spend);
+  if (entries.length < 1) return '';
   const blocks = entries.map(([g, v]) => {
-    const total = v.iOS + v.Android;
-    const iosActive = curGeo === g && curOs === 'iOS';
-    const andActive = curGeo === g && curOs === 'Android';
-    return `<div class="geo-os-row">
-      <span class="geo-os-geo">${escHtml(geoLabel(g))}</span>
-      <button type="button" class="geo-chip geo-os-chip${iosActive ? ' active' : ''}" title="Фильтр: ${escHtml(geoLabel(g))} · iOS" onclick="jumpJgglGeoOs('${escHtml(proj.id)}','${escHtml(g)}','iOS')">
-        ${platformIconHtml('ios')}<span class="geo-chip-val">${fmtMoney(v.iOS, cur$)}</span>
-        <span class="geo-chip-share">${total ? Math.round(v.iOS / total * 100) : 0}%</span>
-      </button>
-      <button type="button" class="geo-chip geo-os-chip${andActive ? ' active' : ''}" title="Фильтр: ${escHtml(geoLabel(g))} · Android" onclick="jumpJgglGeoOs('${escHtml(proj.id)}','${escHtml(g)}','Android')">
-        ${platformIconHtml('android')}<span class="geo-chip-val">${fmtMoney(v.Android, cur$)}</span>
-        <span class="geo-chip-share">${total ? Math.round(v.Android / total * 100) : 0}%</span>
+    const cpa = v.users > 0 ? v.spend / v.users : null;
+    const active = curGeo === g;
+    return `<div class="geo-os-row${active ? ' active' : ''}">
+      <button type="button" class="geo-os-row-btn" title="Фильтр по ${escHtml(geoLabel(g))}" onclick="setProjectDim('${escHtml(proj.id)}','geo','${escHtml(g)}')">
+        <span class="geo-os-geo">${escHtml(geoLabel(g))}</span>
+        <span class="geo-chip geo-metric">
+          <span class="geo-metric-label">Spend</span>
+          <span class="geo-chip-val">${fmtMoney(v.spend, cur$)}</span>
+        </span>
+        <span class="geo-chip geo-metric">
+          <span class="geo-metric-label">Юзеры</span>
+          <span class="geo-chip-val">${fmtInt(v.users)}</span>
+        </span>
+        <span class="geo-chip geo-metric">
+          <span class="geo-metric-label">Цена / юзер</span>
+          <span class="geo-chip-val">${cpa != null ? fmtMoney(cpa, cur$) : '—'}</span>
+        </span>
       </button>
     </div>`;
   }).join('');
   return `<div class="geo-os-split">
     <div class="geo-filter-head" style="margin-bottom:0">
-      <span class="geo-filter-label">Гео × ОС</span>
-      ${curOs ? `<button type="button" class="geo-chip" onclick="clearJgglOsFilter('${escHtml(proj.id)}')">Сбросить ОС</button>` : ''}
+      <span class="geo-filter-label">Гео · unit</span>
     </div>
     ${blocks}
-    <div class="geo-filter-hint">Клик по iOS/Android фильтрует общий свод (таблица и инсайты) по стране и ОС.</div>
+    <div class="geo-filter-hint">Spend / установки (Results) / цена за юзера. Клик по строке фильтрует таблицу по стране.</div>
   </div>`;
 }
 
@@ -5148,7 +5156,6 @@ function jumpJgglGeoOs(projId, geo, os) {
     dimByProject[projId] = { ...(dimByProject[projId] || {}), geo };
     osByProject[projId] = os;
   }
-  // Остаёмся на «Общее», чтобы свод менялся здесь же.
   const pack = cache[projId];
   const sources = normalizeCacheData(pack)?.sources || [];
   const idx = sources.findIndex(s => s.id === 'jggl_total' || isJgglTotalLabel(s.label));
