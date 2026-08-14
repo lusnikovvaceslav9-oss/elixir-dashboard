@@ -4795,10 +4795,10 @@ function normalizeTrafficSourceValue(raw) {
 
 // ── ГЕО ────────────────────────────────────────────────────────
 // Страна приходит либо отдельной колонкой (FB: Breakdown → Country),
-// либо только в названии кампании («JGGL_INSTAL/ USA / 13.07»).
+// либо только в названии кампании («jggl / MX / android», «Jggl / SA / ios»).
 const GEO_NAMES = {
   US: ['us', 'usa', 'united states', 'сша', 'штаты'],
-  GB: ['uk', 'gb', 'united kingdom', 'великобритания', 'англия'],
+  GB: ['uk', 'gb', 'united kingdom', 'britain', 'великобритания', 'англия', 'британия'],
   DE: ['de', 'germany', 'германия'],
   FR: ['fr', 'france', 'франция'],
   ES: ['es', 'spain', 'испания'],
@@ -4814,13 +4814,69 @@ const GEO_NAMES = {
   UA: ['ua', 'ukraine', 'украина'],
   KZ: ['kz', 'kazakhstan', 'казахстан'],
   RU: ['ru', 'russia', 'россия'],
+  // Частые гео из JGGL/Meta-нейминга (ISO-2 в названии кампании).
+  SA: ['sa', 'saudi', 'saudi arabia', 'саудовская', 'саудовская аравия'],
+  MY: ['my', 'malaysia', 'малайзия'],
+  PH: ['ph', 'philippines', 'филиппины'],
+  KE: ['ke', 'kenya', 'кения'],
+  NG: ['ng', 'nigeria', 'нигерия'],
+  PK: ['pk', 'pakistan', 'пакистан'],
+  AE: ['ae', 'uae', 'emirates', 'оаэ'],
+  EG: ['eg', 'egypt', 'египет'],
+  ZA: ['za', 'south africa', 'юар'],
+  ID: ['id', 'indonesia', 'индонезия'],
+  TH: ['th', 'thailand', 'таиланд'],
+  VN: ['vn', 'vietnam', 'вьетнам'],
+  CO: ['co', 'colombia', 'колумбия'],
+  AR: ['ar', 'argentina', 'аргентина'],
+  CL: ['cl', 'chile', 'чили'],
+  PE: ['pe', 'peru', 'перу'],
+  JP: ['jp', 'japan', 'япония'],
+  KR: ['kr', 'korea', 'south korea', 'корея'],
+  TW: ['tw', 'taiwan', 'тайвань'],
+  HK: ['hk', 'hong kong', 'гонконг'],
+  SG: ['sg', 'singapore', 'сингапур'],
+  NZ: ['nz', 'new zealand', 'новая зеландия'],
+  SE: ['se', 'sweden', 'швеция'],
+  NO: ['no', 'norway', 'норвегия'],
+  DK: ['dk', 'denmark', 'дания'],
+  FI: ['fi', 'finland', 'финляндия'],
+  BE: ['be', 'belgium', 'бельгия'],
+  AT: ['at', 'austria', 'австрия'],
+  CH: ['ch', 'switzerland', 'швейцария'],
+  PT: ['pt', 'portugal', 'португалия'],
+  CZ: ['cz', 'czech', 'czechia', 'чехия'],
+  RO: ['ro', 'romania', 'румыния'],
+  HU: ['hu', 'hungary', 'венгрия'],
+  IE: ['ie', 'ireland', 'ирландия'],
+  IL: ['il', 'israel', 'израиль'],
+  BD: ['bd', 'bangladesh', 'бангладеш'],
+  GH: ['gh', 'ghana', 'гана'],
+  MA: ['ma', 'morocco', 'марокко'],
 };
 const GEO_LABELS = {
   US: '🇺🇸 США', GB: '🇬🇧 Британия', DE: '🇩🇪 Германия', FR: '🇫🇷 Франция',
   ES: '🇪🇸 Испания', IT: '🇮🇹 Италия', CA: '🇨🇦 Канада', AU: '🇦🇺 Австралия',
   NL: '🇳🇱 Нидерланды', PL: '🇵🇱 Польша', BR: '🇧🇷 Бразилия', MX: '🇲🇽 Мексика',
   IN: '🇮🇳 Индия', TR: '🇹🇷 Турция', UA: '🇺🇦 Украина', KZ: '🇰🇿 Казахстан', RU: '🇷🇺 Россия',
+  SA: '🇸🇦 Саудовская Аравия', MY: '🇲🇾 Малайзия', PH: '🇵🇭 Филиппины',
+  KE: '🇰🇪 Кения', NG: '🇳🇬 Нигерия', PK: '🇵🇰 Пакистан', AE: '🇦🇪 ОАЭ',
+  EG: '🇪🇬 Египет', ZA: '🇿🇦 ЮАР', ID: '🇮🇩 Индонезия', TH: '🇹🇭 Таиланд',
+  VN: '🇻🇳 Вьетнам', CO: '🇨🇴 Колумбия', AR: '🇦🇷 Аргентина', CL: '🇨🇱 Чили',
+  PE: '🇵🇪 Перу', JP: '🇯🇵 Япония', KR: '🇰🇷 Корея', TW: '🇹🇼 Тайвань',
+  HK: '🇭🇰 Гонконг', SG: '🇸🇬 Сингапур', NZ: '🇳🇿 Новая Зеландия',
+  SE: '🇸🇪 Швеция', NO: '🇳🇴 Норвегия', DK: '🇩🇰 Дания', FI: '🇫🇮 Финляндия',
+  BE: '🇧🇪 Бельгия', AT: '🇦🇹 Австрия', CH: '🇨🇭 Швейцария', PT: '🇵🇹 Португалия',
+  CZ: '🇨🇿 Чехия', RO: '🇷🇴 Румыния', HU: '🇭🇺 Венгрия', IE: '🇮🇪 Ирландия',
+  IL: '🇮🇱 Израиль', BD: '🇧🇩 Бангладеш', GH: '🇬🇭 Гана', MA: '🇲🇦 Марокко',
 };
+
+/** Токены из нейминга кампаний, которые НЕ являются страной. */
+const GEO_SKIP_TOKENS = new Set([
+  'ios', 'android', 'andr', 'jggl', 'instal', 'install', 'inst', 'app', 'promotion',
+  'fb', 'meta', 'google', 'uac', 'gads', 'web', 'waitlist', 'redirect', 'test', 'copy',
+  'campaign', 'adset', 'ads', 'new', 'old', 'v1', 'v2', 'v3',
+]);
 
 /** Нормализует значение колонки страны в ISO-код (US, DE…). */
 function normalizeGeoValue(raw) {
@@ -4830,18 +4886,21 @@ function normalizeGeoValue(raw) {
   for (const [code, aliases] of Object.entries(GEO_NAMES)) {
     if (aliases.includes(low)) return code;
   }
-  if (/^[A-Za-z]{2}$/.test(s)) return s.toUpperCase();
+  if (/^[A-Za-z]{2}$/.test(s) && !GEO_SKIP_TOKENS.has(low)) return s.toUpperCase();
   return s.slice(0, 24); // незнакомая страна — оставляем как есть
 }
 
-/** Гео из названия кампании: ищем токен между разделителями, чтобы «ios» не стал гео. */
+/** Гео из названия кампании: токен между разделителями (MX, SA, UK…), не ios/android. */
 function geoFromCampaignName(name) {
   const parts = String(name || '').split(/[\/|_\-–,()]+/).map(p => p.trim().toLowerCase()).filter(Boolean);
   for (const p of parts) {
+    if (GEO_SKIP_TOKENS.has(p)) continue;
+    if (/^\d+(\.\d+)?(-\d+)?$/.test(p)) continue; // 04.08 / 13.08 / 1
     for (const [code, aliases] of Object.entries(GEO_NAMES)) {
-      // однобуквенные/двухбуквенные коды берём только как отдельный токен
       if (aliases.includes(p)) return code;
     }
+    // Любой ISO-2 в нейминге: SA, MY, PH, KE, NG, PK…
+    if (/^[a-z]{2}$/.test(p)) return p.toUpperCase();
   }
   const m = String(name || '').match(/999([a-z]{2})/i); // соглашение вида soc_usfarm_999US_…
   return m ? m[1].toUpperCase() : '';
