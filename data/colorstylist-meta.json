@@ -1,20 +1,20 @@
 {
-  "generated_at": "2026-08-14T20:20:57+00:00",
+  "generated_at": "2026-08-14T21:14:55+00:00",
   "anchor": "2026-07-31",
-  "until": "2026-08-14",
-  "window_start": "2026-08-05",
+  "until": "2026-08-15",
+  "window_start": "2026-08-06",
   "trial_attribution": "appmetrica_purchase_success",
   "ai_spend": {
     "provider": "polza",
-    "total": 6073.78,
-    "generations": 2454,
+    "total": 6176.97,
+    "generations": 2526,
     "by_kind": {
-      "images": 5973.7,
-      "chat": 100.08
+      "images": 6066.3,
+      "chat": 110.67
     },
-    "per_install": 6.97,
-    "per_trial": 144.61,
-    "total_burn": 23688.67
+    "per_install": 7.08,
+    "per_trial": 147.07,
+    "total_burn": 23818.01
   },
   "trial_days": 3,
   "trial_lag_days": 3,
@@ -38,7 +38,7 @@
     "product": "appmetrica_reporting"
   },
   "errors": [],
-  "days": 15,
+  "days": 16,
   "reconcile_diff": {
     "trials_total_old_csv": 42,
     "trials_total_new": 42,
@@ -46,7 +46,7 @@
   },
   "unit_economics": {
     "revenue_total": 2191,
-    "spend_total": 17614.89,
+    "spend_total": 17641.04,
     "active_users": 930,
     "active_payers": 1,
     "plus_active_users": 9,
@@ -189,9 +189,9 @@
       "rub": 2191
     }
   },
-  "trials_sb_crosscheck_total": 8,
+  "trials_sb_crosscheck_total": 7,
   "trials_sb_crosscheck_by_day": {
-    "2026-08-11": 3,
+    "2026-08-11": 2,
     "2026-08-12": 4,
     "2026-08-14": 1
   },
@@ -210,10 +210,10 @@
     "2026-08-14": 2
   },
   "trials_crosscheck_yesterday": {
-    "day": "2026-08-13",
-    "appmetrica": 0,
-    "supabase": 0,
-    "dashboard": 0,
+    "day": "2026-08-14",
+    "appmetrica": 2,
+    "supabase": 1,
+    "dashboard": 2,
     "note": "В дашборде trials = AppMetrica purchase_success (события ym:ce:allEvents, как колонка «События» в UI). RuStore — сверка оплат."
   }
 }
