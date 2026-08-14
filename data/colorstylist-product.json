@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-14T18:38:58+00:00",
+  "generated_at": "2026-08-14T19:41:28+00:00",
   "anchor": "2026-07-31",
   "until": "2026-08-14",
   "product": {
@@ -71,10 +71,10 @@
         "avg_per_user": 2.17
       },
       "purchase_tap": {
-        "users": 168,
-        "events": 280,
-        "vs_install_pct": 19.31,
-        "avg_per_user": 1.67
+        "users": 169,
+        "events": 281,
+        "vs_install_pct": 19.43,
+        "avg_per_user": 1.66
       }
     },
     "kpis": [
@@ -100,7 +100,7 @@
         "id": "paywall_cta",
         "label": "CTA пейволла",
         "formula_label": "purchase_tap / paywall_view",
-        "value_pct": 29.02,
+        "value_pct": 29.19,
         "primary": false,
         "accent": true,
         "note": null
@@ -170,7 +170,7 @@
   },
   "unit_economics": {
     "revenue_total": 2191,
-    "spend_total": 17585.45,
+    "spend_total": 17602.02,
     "active_users": 928,
     "active_payers": 1,
     "plus_active_users": 9,
