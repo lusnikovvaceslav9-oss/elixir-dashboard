@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-14T18:40:47+00:00",
+  "generated_at": "2026-08-14T20:22:00+00:00",
   "anchor": "2026-06-05",
   "until": "2026-08-14",
   "window_start": "2026-08-05",
@@ -29,26 +29,26 @@
     "delta": 0
   },
   "unit_economics": {
-    "revenue_total": 103590,
-    "spend_total": 277140.27,
-    "active_users": 13849,
-    "active_payers": 50,
+    "revenue_total": 108570,
+    "spend_total": 277315.97,
+    "active_users": 13850,
+    "active_payers": 52,
     "plus_active_users": 110,
-    "trial_cancellations": 13,
+    "trial_cancellations": 14,
     "trial_cancellations_by_day": {
       "2026-08-08": 2,
       "2026-08-09": 1,
       "2026-08-11": 1,
       "2026-08-12": 1,
       "2026-08-13": 4,
-      "2026-08-14": 4
+      "2026-08-14": 5
     },
-    "renewals": 33,
-    "arpu": 7.48,
-    "arppu": 2071.8,
-    "ltv": 3439.19,
+    "renewals": 35,
+    "arpu": 7.84,
+    "arppu": 2087.88,
+    "ltv": 3493.18,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
-    "roas_d7": 39.6,
+    "roas_d7": 41.6,
     "roas_d14": 38.0,
     "roas_d30": 31.2
   },
@@ -86,8 +86,8 @@
   },
   "payments_by_plan": {
     "yearly": {
-      "count": 40,
-      "rub": 99600
+      "count": 42,
+      "rub": 104580
     },
     "monthly": {
       "count": 10,
@@ -98,8 +98,8 @@
       "rub": 0
     },
     "total": {
-      "count": 50,
-      "rub": 103590
+      "count": 52,
+      "rub": 108570
     }
   },
   "trials_sb_crosscheck_total": 224,

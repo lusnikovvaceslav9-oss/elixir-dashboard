@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-08-14T18:40:47+00:00",
+  "generated_at": "2026-08-14T20:22:00+00:00",
   "anchor": "2026-06-05",
   "until": "2026-08-14",
   "product": {
     "from": "2026-06-05",
     "to": "2026-08-14",
-    "installs": 13644,
-    "active_users": 13849,
+    "installs": 13645,
+    "active_users": 13850,
     "events": {
       "plant_added": {
         "users": 4020,
@@ -16,7 +16,7 @@
       },
       "paywall_shown": {
         "users": 10517,
-        "events": 17400,
+        "events": 17401,
         "vs_install_pct": 77.08,
         "avg_per_user": 1.65
       },
@@ -45,10 +45,10 @@
         "avg_per_user": 2.17
       },
       "watering_marked": {
-        "users": 146,
-        "events": 1265,
-        "vs_install_pct": 1.07,
-        "avg_per_user": 8.66
+        "users": 147,
+        "events": 1268,
+        "vs_install_pct": 1.08,
+        "avg_per_user": 8.63
       },
       "ai_route": {
         "users": 3264,
@@ -63,8 +63,8 @@
         "avg_per_user": 3.04
       },
       "user_activated": {
-        "users": 11254,
-        "events": 15107,
+        "users": 11255,
+        "events": 15109,
         "vs_install_pct": 82.48,
         "avg_per_user": 1.34
       }
@@ -89,26 +89,26 @@
     "errors": []
   },
   "unit_economics": {
-    "revenue_total": 103590,
-    "spend_total": 277140.27,
-    "active_users": 13849,
-    "active_payers": 50,
+    "revenue_total": 108570,
+    "spend_total": 277315.97,
+    "active_users": 13850,
+    "active_payers": 52,
     "plus_active_users": 110,
-    "trial_cancellations": 13,
+    "trial_cancellations": 14,
     "trial_cancellations_by_day": {
       "2026-08-08": 2,
       "2026-08-09": 1,
       "2026-08-11": 1,
       "2026-08-12": 1,
       "2026-08-13": 4,
-      "2026-08-14": 4
+      "2026-08-14": 5
     },
-    "renewals": 33,
-    "arpu": 7.48,
-    "arppu": 2071.8,
-    "ltv": 3439.19,
+    "renewals": 35,
+    "arpu": 7.84,
+    "arppu": 2087.88,
+    "ltv": 3493.18,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
-    "roas_d7": 39.6,
+    "roas_d7": 41.6,
     "roas_d14": 38.0,
     "roas_d30": 31.2
   }
