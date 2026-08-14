@@ -4684,6 +4684,7 @@ function findStreamfiColumns(headerRow) {
   const qregPriority = [
     ['целевые рег'], ['целевые дей'], ['ключевые дей'], ['ключев'], ['целев рег'],
     ['qualified'], ['qregs'], ['результат'], ['results'], ['mobile app install'], ['app install'],
+    ['installs'], // Google Ads App campaign report
     ['conversions'], ['conversion'], ['target reg'], ['target'],
   ];
   for (const keys of qregPriority) {
@@ -5283,12 +5284,24 @@ function isGoogleAdsHeaderRow(row) {
   if (h.some(x => x.includes('reporting starts') || x.includes('amount spent'))) return false;
   const hasCampaign = h.some(x => x === 'campaign' || x === 'campaign name' || x === 'кампания');
   const hasCost = h.some(x => x === 'cost' || x === 'стоимость');
-  const hasTraffic = h.some(x => /^(impr\.?|impressions|clicks|показ|клик)/.test(x) || x.includes('impr'));
+  // Обычный Search/Display: Impr./Clicks. App campaigns часто без них — только Installs/Conversions.
+  const hasTraffic = h.some(x =>
+    /^(impr\.?|impressions|clicks|показ|клик)$/.test(x)
+    || x === 'impr.'
+    || x.includes('impr')
+  );
+  const hasAppMetrics = h.some(x =>
+    x === 'installs' || x === 'install'
+    || x === 'conversions' || x === 'conversion'
+    || x === 'cost / install' || x.startsWith('in-app action')
+    || x.includes('view-through conv')
+  );
   const hasGoogleMarker = h.some(x =>
     x === 'campaign status' || x === 'impr.' || x === 'currency code'
     || x === 'conv. value' || x === 'cost / conv.' || x === 'campaign type'
+    || x === 'optimization score' || x === 'budget type'
   );
-  return hasCampaign && hasCost && hasTraffic && hasGoogleMarker;
+  return hasCampaign && hasCost && hasGoogleMarker && (hasTraffic || hasAppMetrics);
 }
 
 function findGoogleAdsHeaderIndex(matrix) {
