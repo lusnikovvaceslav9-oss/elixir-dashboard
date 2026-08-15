@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-15T10:11:19+00:00",
+  "generated_at": "2026-08-15T11:10:04+00:00",
   "anchor": "2026-07-31",
   "until": "2026-08-15",
   "window_start": "2026-08-06",
@@ -14,7 +14,7 @@
     },
     "per_install": 6.92,
     "per_trial": 147.23,
-    "total_burn": 24234.28
+    "total_burn": 24280.64
   },
   "trial_days": 3,
   "trial_lag_days": 3,
@@ -46,7 +46,7 @@
   },
   "unit_economics": {
     "revenue_total": 2589,
-    "spend_total": 18050.82,
+    "spend_total": 18097.18,
     "active_users": 955,
     "active_payers": 3,
     "plus_active_users": 9,
@@ -92,7 +92,7 @@
         "id": "aha_color",
         "label": "Aha: цветотип",
         "formula_label": "color_type_reveal / install",
-        "value_pct": 83.33,
+        "value_pct": 83.45,
         "primary": true,
         "accent": false,
         "note": null
@@ -110,7 +110,7 @@
         "id": "paywall_cta",
         "label": "CTA пейволла",
         "formula_label": "purchase_tap / paywall_view",
-        "value_pct": 29.01,
+        "value_pct": 28.96,
         "primary": false,
         "accent": true,
         "note": null
@@ -130,7 +130,7 @@
         "id": "color_type",
         "label": "Цветотип",
         "event": "color_type_done",
-        "value_pct": 89.49
+        "value_pct": 89.6
       },
       {
         "id": "hair",
@@ -142,13 +142,13 @@
         "id": "outfit",
         "label": "Образы",
         "event": "outfit_generated",
-        "value_pct": 14.99
+        "value_pct": 15.21
       },
       {
         "id": "makeup",
         "label": "Макияж",
         "event": "makeup_generated",
-        "value_pct": 17.79
+        "value_pct": 17.9
       },
       {
         "id": "chat",
@@ -160,14 +160,14 @@
         "id": "fitting",
         "label": "Примерочная",
         "event": "fitting_done",
-        "value_pct": 7.72
+        "value_pct": 7.83
       }
     ],
     "quality": [
       {
         "id": "ai_fail_rate",
         "label": "AI fail rate",
-        "value_pct": 25.7
+        "value_pct": 25.67
       }
     ]
   },
