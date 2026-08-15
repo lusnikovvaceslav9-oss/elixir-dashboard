@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-15T02:08:21+00:00",
+  "generated_at": "2026-08-15T04:20:36+00:00",
   "anchor": "2026-06-05",
   "until": "2026-08-15",
   "window_start": "2026-08-06",
@@ -25,28 +25,29 @@
   "days": 72,
   "reconcile_diff": {
     "trials_total_old_csv": 258,
-    "trials_total_new": 258,
-    "delta": 0
+    "trials_total_new": 259,
+    "delta": 1
   },
   "unit_economics": {
-    "revenue_total": 108570,
-    "spend_total": 277579.96,
-    "active_users": 13857,
-    "active_payers": 52,
-    "plus_active_users": 110,
-    "trial_cancellations": 14,
+    "revenue_total": 111060,
+    "spend_total": 277935.77,
+    "active_users": 13867,
+    "active_payers": 53,
+    "plus_active_users": 111,
+    "trial_cancellations": 15,
     "trial_cancellations_by_day": {
       "2026-08-08": 2,
       "2026-08-09": 1,
       "2026-08-11": 1,
       "2026-08-12": 1,
       "2026-08-13": 4,
-      "2026-08-14": 5
+      "2026-08-14": 5,
+      "2026-08-15": 1
     },
-    "renewals": 35,
-    "arpu": 7.84,
-    "arppu": 2087.88,
-    "ltv": 3493.18,
+    "renewals": 36,
+    "arpu": 8.01,
+    "arppu": 2095.47,
+    "ltv": 3518.81,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
     "roas_d7": 41.6,
     "roas_d14": 38.0,
@@ -62,11 +63,11 @@
     "predict_horizon_days": 180
   },
   "product": {
-    "garden_activation_pct": 29.46,
-    "garden_avg_plants": 1.87,
+    "garden_activation_pct": 29.48,
+    "garden_avg_plants": 1.86,
     "garden_depth_icp_pct": null,
-    "paywall_cta_pct": 39.1,
-    "care_engagement_pct": 4.39,
+    "paywall_cta_pct": 39.11,
+    "care_engagement_pct": 4.4,
     "feature_activation": {
       "scan_pct": 31.89,
       "watering_pct": 2.56,
@@ -86,8 +87,8 @@
   },
   "payments_by_plan": {
     "yearly": {
-      "count": 42,
-      "rub": 104580
+      "count": 43,
+      "rub": 107070
     },
     "monthly": {
       "count": 10,
@@ -98,11 +99,11 @@
       "rub": 0
     },
     "total": {
-      "count": 52,
-      "rub": 108570
+      "count": 53,
+      "rub": 111060
     }
   },
-  "trials_sb_crosscheck_total": 224,
+  "trials_sb_crosscheck_total": 225,
   "trials_sb_crosscheck_by_day": {
     "2026-06-07": 1,
     "2026-06-08": 1,
@@ -166,9 +167,10 @@
     "2026-08-11": 5,
     "2026-08-12": 3,
     "2026-08-13": 4,
-    "2026-08-14": 5
+    "2026-08-14": 5,
+    "2026-08-15": 1
   },
-  "trials_am_crosscheck_total": 258,
+  "trials_am_crosscheck_total": 259,
   "trials_am_crosscheck_by_day": {
     "2026-06-05": 2,
     "2026-06-07": 1,
@@ -233,7 +235,8 @@
     "2026-08-11": 5,
     "2026-08-12": 3,
     "2026-08-13": 4,
-    "2026-08-14": 5
+    "2026-08-14": 5,
+    "2026-08-15": 1
   },
   "trials_crosscheck_yesterday": {
     "day": "2026-08-14",
