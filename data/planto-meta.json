@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-16T03:40:04+00:00",
+  "generated_at": "2026-08-16T04:25:43+00:00",
   "anchor": "2026-06-05",
   "until": "2026-08-16",
   "window_start": "2026-08-07",
@@ -25,15 +25,15 @@
   "days": 73,
   "reconcile_diff": {
     "trials_total_old_csv": 265,
-    "trials_total_new": 265,
-    "delta": 0
+    "trials_total_new": 266,
+    "delta": 1
   },
   "unit_economics": {
     "revenue_total": 118530,
-    "spend_total": 282909.15,
-    "active_users": 13974,
+    "spend_total": 282973.36,
+    "active_users": 13976,
     "active_payers": 56,
-    "plus_active_users": 113,
+    "plus_active_users": 114,
     "trial_cancellations": 14,
     "trial_cancellations_by_day": {
       "2026-08-11": 1,
@@ -42,10 +42,10 @@
       "2026-08-14": 5,
       "2026-08-15": 3
     },
-    "renewals": 37,
+    "renewals": 36,
     "arpu": 8.48,
     "arppu": 2116.61,
-    "ltv": 3515.08,
+    "ltv": 3477.29,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
     "roas_d7": 40.6,
     "roas_d14": 38.0,
@@ -67,8 +67,8 @@
     "paywall_cta_pct": 39.19,
     "care_engagement_pct": 4.43,
     "feature_activation": {
-      "scan_pct": 31.92,
-      "watering_pct": 2.57,
+      "scan_pct": 31.93,
+      "watering_pct": 2.58,
       "ai_pct": 24.05
     },
     "retention": {
@@ -101,7 +101,7 @@
       "rub": 118530
     }
   },
-  "trials_sb_crosscheck_total": 231,
+  "trials_sb_crosscheck_total": 232,
   "trials_sb_crosscheck_by_day": {
     "2026-06-07": 1,
     "2026-06-08": 1,
@@ -166,9 +166,10 @@
     "2026-08-12": 3,
     "2026-08-13": 4,
     "2026-08-14": 5,
-    "2026-08-15": 7
+    "2026-08-15": 7,
+    "2026-08-16": 1
   },
-  "trials_am_crosscheck_total": 265,
+  "trials_am_crosscheck_total": 266,
   "trials_am_crosscheck_by_day": {
     "2026-06-05": 2,
     "2026-06-07": 1,
@@ -234,7 +235,8 @@
     "2026-08-12": 3,
     "2026-08-13": 4,
     "2026-08-14": 5,
-    "2026-08-15": 7
+    "2026-08-15": 7,
+    "2026-08-16": 1
   },
   "trials_crosscheck_yesterday": {
     "day": "2026-08-15",
