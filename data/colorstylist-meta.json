@@ -1,20 +1,20 @@
 {
-  "generated_at": "2026-08-16T20:09:06+00:00",
+  "generated_at": "2026-08-16T21:09:37+00:00",
   "anchor": "2026-07-31",
-  "until": "2026-08-16",
-  "window_start": "2026-08-07",
+  "until": "2026-08-17",
+  "window_start": "2026-08-08",
   "trial_attribution": "appmetrica_purchase_success",
   "ai_spend": {
     "provider": "polza",
-    "total": 6242.61,
-    "generations": 2568,
+    "total": 6300.06,
+    "generations": 2624,
     "by_kind": {
-      "images": 6126.3,
-      "chat": 116.31
+      "images": 6174.2,
+      "chat": 125.86
     },
-    "per_install": 6.23,
-    "per_trial": 120.05,
-    "total_burn": 26715.2
+    "per_install": 6.28,
+    "per_trial": 121.16,
+    "total_burn": 27158.8
   },
   "trial_days": 3,
   "trial_lag_days": 3,
@@ -38,7 +38,7 @@
     "product": "appmetrica_reporting"
   },
   "errors": [],
-  "days": 17,
+  "days": 18,
   "reconcile_diff": {
     "trials_total_old_csv": 52,
     "trials_total_new": 52,
@@ -46,8 +46,8 @@
   },
   "unit_economics": {
     "revenue_total": 2390,
-    "spend_total": 20472.59,
-    "active_users": 1065,
+    "spend_total": 20858.74,
+    "active_users": 1069,
     "active_payers": 3,
     "plus_active_users": 13,
     "trial_cancellations": 2,
@@ -92,7 +92,7 @@
         "id": "aha_color",
         "label": "Aha: цветотип",
         "formula_label": "color_type_reveal / install",
-        "value_pct": 84.03,
+        "value_pct": 84.05,
         "primary": true,
         "accent": false,
         "note": null
@@ -119,7 +119,7 @@
         "id": "engagement_hair",
         "label": "Вовлечение (hair)",
         "formula_label": "hair_look / install",
-        "value_pct": 40.82,
+        "value_pct": 40.78,
         "primary": false,
         "accent": false,
         "note": null
@@ -130,31 +130,31 @@
         "id": "color_type",
         "label": "Цветотип",
         "event": "color_type_done",
-        "value_pct": 89.42
+        "value_pct": 89.43
       },
       {
         "id": "hair",
         "label": "Волосы",
         "event": "hair_look_generated",
-        "value_pct": 40.82
+        "value_pct": 40.78
       },
       {
         "id": "outfit",
         "label": "Образы",
         "event": "outfit_generated",
-        "value_pct": 15.67
+        "value_pct": 15.65
       },
       {
         "id": "makeup",
         "label": "Макияж",
         "event": "makeup_generated",
-        "value_pct": 18.66
+        "value_pct": 18.64
       },
       {
         "id": "chat",
         "label": "Чат",
         "event": "chat_reply",
-        "value_pct": 22.65
+        "value_pct": 22.63
       },
       {
         "id": "fitting",
@@ -167,7 +167,7 @@
       {
         "id": "ai_fail_rate",
         "label": "AI fail rate",
-        "value_pct": 24.88
+        "value_pct": 24.87
       }
     ]
   },
@@ -214,10 +214,10 @@
     "2026-08-16": 6
   },
   "trials_crosscheck_yesterday": {
-    "day": "2026-08-15",
-    "appmetrica": 4,
+    "day": "2026-08-16",
+    "appmetrica": 6,
     "supabase": 3,
-    "dashboard": 4,
+    "dashboard": 6,
     "note": "В дашборде trials = AppMetrica purchase_success (события ym:ce:allEvents, как колонка «События» в UI). RuStore — сверка оплат."
   }
 }
