@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-17T19:20:49+00:00",
+  "generated_at": "2026-08-17T20:15:04+00:00",
   "anchor": "2026-07-31",
   "until": "2026-08-17",
   "window_start": "2026-08-08",
@@ -27,7 +27,7 @@
     "keys_used": 2,
     "per_install": 9.87,
     "per_trial": 172.45,
-    "total_burn": 33273.16
+    "total_burn": 33324.54
   },
   "trial_days": 3,
   "trial_lag_days": 3,
@@ -62,8 +62,8 @@
   },
   "unit_economics": {
     "revenue_total": 2589,
-    "spend_total": 22581.27,
-    "active_users": 1149,
+    "spend_total": 22632.65,
+    "active_users": 1150,
     "active_payers": 4,
     "plus_active_users": 18,
     "trial_cancellations": 5,
@@ -136,7 +136,7 @@
         "id": "engagement_hair",
         "label": "Вовлечение (hair)",
         "formula_label": "hair_look / install",
-        "value_pct": 40.9,
+        "value_pct": 41.0,
         "primary": false,
         "accent": false,
         "note": null
@@ -147,13 +147,13 @@
         "id": "color_type",
         "label": "Цветотип",
         "event": "color_type_done",
-        "value_pct": 89.75
+        "value_pct": 89.84
       },
       {
         "id": "hair",
         "label": "Волосы",
         "event": "hair_look_generated",
-        "value_pct": 40.9
+        "value_pct": 41.0
       },
       {
         "id": "outfit",
@@ -165,13 +165,13 @@
         "id": "makeup",
         "label": "Макияж",
         "event": "makeup_generated",
-        "value_pct": 18.65
+        "value_pct": 18.74
       },
       {
         "id": "chat",
         "label": "Чат",
         "event": "chat_reply",
-        "value_pct": 22.53
+        "value_pct": 22.62
       },
       {
         "id": "fitting",
@@ -184,7 +184,7 @@
       {
         "id": "ai_fail_rate",
         "label": "AI fail rate",
-        "value_pct": 24.5
+        "value_pct": 24.55
       }
     ]
   },
