@@ -18,7 +18,10 @@
   },
   "trial_days": 3,
   "trial_lag_days": 3,
-  "sold_label": "Paid (week/month)",
+  "trial_plan": "week",
+  "grace_days": 7,
+  "hold_days": 7,
+  "sold_label": "yearly",
   "plans": {
     "week": 199,
     "month": 399,
@@ -221,5 +224,12 @@
     "supabase": 3,
     "dashboard": 6,
     "note": "В дашборде trials = AppMetrica purchase_success (события ym:ce:allEvents, как колонка «События» в UI). RuStore — сверка оплат."
+  },
+  "paid_net_by_day": {
+    "2026-08-05": 243,
+    "2026-08-08": 243,
+    "2026-08-09": 243,
+    "2026-08-12": 730,
+    "2026-08-13": 730
   }
 }

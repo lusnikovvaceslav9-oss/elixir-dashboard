@@ -4,7 +4,6 @@
   "anchor": "2026-07-31",
   "refresh_days": 7,
   "attribution_lag_days": 2,
-  "trial_lag_days": 3,
   "currency": "RUB",
   "revenue_source": "actual",
   "ltv_metric": "arppu",
@@ -23,8 +22,12 @@
   "state_json": "data/colorstylist-feed-state.json",
 
   "trial_days": 3,
+  "trial_lag_days": 3,
+  "trial_plan": "week",
+  "grace_days": 7,
+  "hold_days": 7,
   "plans": { "week": 199, "month": 399, "year": 2490 },
-  "sold_label": "Paid (week/month)",
+  "sold_label": "yearly",
 
   "product_section": {
     "subtitle": "Дошёл ли пользователь до ценности — цветотип, пейволл, фичи.",

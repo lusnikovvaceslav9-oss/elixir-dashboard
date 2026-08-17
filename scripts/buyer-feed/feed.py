@@ -29,14 +29,19 @@ from polza import fetch_polza_spend_by_day
 from secrets import load_secrets
 from supabase import (
     bills_breakdown,
+    bills_by_plan_by_day,
     set_plan_prices,
+    set_trial_config,
     bills_by_cohort_day,
+    bills_by_day,
     fetch_bills,
     fetch_trial_cancellations_by_day,
     fetch_trial_starts,
     fetch_unit_economics_snapshot,
     paid_net_by_cohort_day,
+    paid_net_by_pay_day,
     sold_by_cohort_day,
+    sold_by_day,
     trials_by_day_from_starts,
 )
 
@@ -120,8 +125,9 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
     cfg = load_config(cfg_path)
 
     secrets = load_secrets(work_dir)
-    # Цены тарифов различаются по проектам (Planto vs ColorStylist) — берём из конфига.
+    # Цены тарифов и лаг триала по тарифу (CS: week 3д; Planto: yearly 7д).
     set_plan_prices(cfg.get("plans"))
+    set_trial_config(cfg)
     anchor = date.fromisoformat(cfg.get("anchor") or default_anchor().isoformat())
     until = datetime.now(ZoneInfo("Europe/Moscow")).date()
     refresh_days = int(cfg.get("refresh_days") or 7)
@@ -146,8 +152,11 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
     bills: dict[str, int] = {}
     sold: dict[str, int] = {}
     paid_by_cohort_day: dict[str, int] = {}
+    paid_by_pay_day: dict[str, int] = {}
     sold_by_cohort_day_map: dict[str, int] = {}
     bills_by_plan: dict[str, dict[str, int]] | None = None
+    bills_by_plan_day: dict[str, dict[str, dict[str, int]]] | None = None
+    bills_cohort: dict[str, int] = {}
     trial_cancels_by_day: dict[str, int] = {}
     unit_snap: dict | None = None
     product_metrics: dict | None = None
@@ -282,17 +291,21 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
             errors.append(f"supabase: {exc}")
             print(f"  Supabase failed: {exc}")
         try:
-            # Daily fb/sold = по дню когорты (yearly: оплата − 7д = старт триала).
+            # Daily fb/sold/paid_net = по календарному дню оплаты (как RuStore «7 дней»).
+            # Когорты ниже — отдельно по cohort_day (yearly: оплата − lag).
             bills_list = fetch_bills(db_url, anchor, until)
-            bills = bills_by_cohort_day(bills_list)
-            sold = sold_by_cohort_day(bills_list)
+            bills = bills_by_day(bills_list)
+            sold = sold_by_day(bills_list)
+            paid_by_pay_day = paid_net_by_pay_day(bills_list)
             paid_by_cohort_day = paid_net_by_cohort_day(bills_list)
             sold_by_cohort_day_map = sold_by_cohort_day(bills_list)
+            bills_cohort = bills_by_cohort_day(bills_list)
             bills_by_plan = bills_breakdown(bills_list)
-            sources["bills"] = "supabase_main_active_cohort_day"
+            bills_by_plan_day = bills_by_plan_by_day(bills_list)
+            sources["bills"] = "supabase_main_active_pay_day"
             print(
                 f"  Supabase bills: {len(bills_list)} charges "
-                f"(daily = cohort day, yearly −{7}d)"
+                f"(daily = pay_date · cohort lag for yearly/week trial)"
             )
         except Exception as exc:
             errors.append(f"supabase_bills: {exc}")
@@ -317,11 +330,14 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
     if payments and sources.get("bills") not in (
         "supabase_main_active",
         "supabase_main_active_cohort_day",
+        "supabase_main_active_pay_day",
     ):
         bills = csv_bills_by_day(payments)
         sold = csv_sold_by_day(payments)
         paid_by_cohort_day = csv_paid_net_by_cohort_day(payments)
+        paid_by_pay_day = dict(paid_by_cohort_day)  # CSV path: same map unless extended
         sold_by_cohort_day_map = csv_sold_by_cohort_day(payments)
+        bills_cohort = dict(bills)
         bills_by_plan = payments_breakdown(payments)
         sources["bills"] = "rustore_payments_csv_cohort_day"
         print(f"  Payments (CSV fallback, cohort day): {len(payments)} records")
@@ -388,18 +404,25 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
             d += timedelta(days=1)
         full_trials = filled
 
-    # Аналогично для биллов: дни без списаний (по когорте) = 0.
-    if sources.get("bills") in ("supabase_main_active", "supabase_main_active_cohort_day"):
+    # Аналогично для биллов: дни без списаний = 0.
+    if sources.get("bills") in (
+        "supabase_main_active",
+        "supabase_main_active_cohort_day",
+        "supabase_main_active_pay_day",
+    ):
         filled_bills = dict(bills)
         filled_sold = dict(sold)
+        filled_paid = dict(paid_by_pay_day)
         d = anchor
         while d <= until:
             key = d.isoformat()
             filled_bills.setdefault(key, 0)
             filled_sold.setdefault(key, 0)
+            filled_paid.setdefault(key, 0)
             d += timedelta(days=1)
         bills = filled_bills
         sold = filled_sold
+        paid_by_pay_day = filled_paid
 
     # Polza (ИИ) — фактический burn по ключам. Необязательный источник: нет ключа
     # или упал запрос — фид продолжает работать, просто без polza_spend.
@@ -429,6 +452,7 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
         clicks=full_clicks,
         impressions=full_impressions,
         polza_spend=polza_by_day,
+        paid_net=paid_by_pay_day or paid_by_cohort_day,
         anchor=anchor,
         until=until,
     )
@@ -456,6 +480,7 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
         daily=daily_for_cohort,
         paid_by_cohort_day=paid_by_cohort_day,
         sold_by_cohort_day=sold_by_cohort_day_map,
+        bills_by_cohort_day=bills_cohort or bills,
         trial_starts=None,
     )
     cohort_path.parent.mkdir(parents=True, exist_ok=True)
@@ -558,6 +583,9 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
         } if polza_summary else None,
         "trial_days": int(cfg.get("trial_days") or cfg.get("trial_lag_days") or 7),
         "trial_lag_days": int(cfg.get("trial_lag_days") or 7),
+        "trial_plan": cfg.get("trial_plan"),
+        "grace_days": cfg.get("grace_days"),
+        "hold_days": cfg.get("hold_days"),
         "sold_label": cfg.get("sold_label"),
         "plans": cfg.get("plans"),
         "sources": sources,
@@ -596,6 +624,14 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
     }
     if bills_by_plan:
         meta["payments_by_plan"] = bills_by_plan
+    if bills_by_plan_day:
+        meta["payments_by_plan_by_day"] = bills_by_plan_day
+    # Календарный доход по дням оплаты (совпадает с RuStore «7 дней»).
+    paid_day_src = paid_by_pay_day or paid_by_cohort_day
+    if paid_day_src:
+        meta["paid_net_by_day"] = {k: int(v) for k, v in sorted(paid_day_src.items())}
+    if paid_by_cohort_day:
+        meta["paid_net_by_cohort_day"] = {k: int(v) for k, v in sorted(paid_by_cohort_day.items())}
     if trials_sb_crosscheck:
         meta["trials_sb_crosscheck_total"] = sum(int(v) for v in trials_sb_crosscheck.values())
         meta["trials_sb_crosscheck_by_day"] = {

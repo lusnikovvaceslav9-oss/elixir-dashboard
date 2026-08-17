@@ -151,10 +151,12 @@ def analyze_cohort_from_daily(
     daily: dict[str, dict],
     paid_by_cohort_day: dict[str, int],
     sold_by_cohort_day: dict[str, int] | None = None,
+    bills_by_cohort_day: dict[str, int] | None = None,
     trial_starts: list | None = None,
 ) -> dict:
     report_date = report_date or until
     sold_by_cohort_day = sold_by_cohort_day or {}
+    bills_by_cohort_day = bills_by_cohort_day or {}
     buckets = cohort_buckets(anchor, until)
 
     rows: list[dict] = []
@@ -163,6 +165,7 @@ def analyze_cohort_from_daily(
     total_inst = 0
     total_trials = 0
     total_sold = 0
+    total_bills = 0
     mature_pnl = 0.0
     immature_count = 0
 
@@ -190,17 +193,22 @@ def analyze_cohort_from_daily(
 
         paid = 0
         sold = 0
+        bills = 0
         d = b.start
         while d <= b.end:
             paid += int(paid_by_cohort_day.get(d.isoformat(), 0))
             sold += int(sold_by_cohort_day.get(d.isoformat(), 0))
+            bills += int(bills_by_cohort_day.get(d.isoformat(), 0))
             d += timedelta(days=1)
+        # Fallback: older callers without bills map → yearly sold as proxy.
+        if not bills and sold:
+            bills = sold
 
         cpi = spend / inst_n if inst_n else None
         cpt = spend / trial_n if trial_n else None
         install_to_trial_cr = (trial_n / inst_n * 100) if inst_n else None
-        trial_to_paid_cr = (sold / trial_n * 100) if trial_n else None
-        cac = spend / sold if sold else None
+        trial_to_paid_cr = (bills / trial_n * 100) if trial_n else None
+        cac = spend / bills if bills else None
         roas_raw = (paid / spend * 100) if spend else None
 
         # Same paid_net attribution; maturity gates differ by window.
@@ -255,6 +263,7 @@ def analyze_cohort_from_daily(
                 "roas_d14": roas_by_window["roas_d14"],
                 "roas_d30": roas_by_window["roas_d30"],
                 "sold": sold,
+                "bills": bills,
                 "paid_net": paid,
                 "pnl": pnl_val,
                 "pnl_display": pnl_display,
@@ -268,10 +277,11 @@ def analyze_cohort_from_daily(
         total_inst += inst_n
         total_trials += trial_n
         total_sold += sold
+        total_bills += bills
 
     totals_install_to_trial = (total_trials / total_inst * 100) if total_inst else None
-    totals_trial_to_paid = (total_sold / total_trials * 100) if total_trials else None
-    totals_cac = total_spend / total_sold if total_sold else None
+    totals_trial_to_paid = (total_bills / total_trials * 100) if total_trials else None
+    totals_cac = total_spend / total_bills if total_bills else None
     totals_roas = (total_paid / total_spend * 100) if total_spend else None
 
     # Totals ROAS Dn: only buckets mature for that window.
@@ -305,6 +315,7 @@ def analyze_cohort_from_daily(
             "trials_sb": total_trials,
             "trials_am": total_trials,
             "sold": total_sold,
+            "bills": total_bills,
             "paid_net": total_paid,
             "pnl_mature_only": round(mature_pnl),
             "immature_buckets": immature_count,

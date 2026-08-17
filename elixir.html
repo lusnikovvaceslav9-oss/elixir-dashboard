@@ -120,6 +120,10 @@ body{
 .income-chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:rgba(0,0,0,0.6);background:rgba(0,0,0,0.04);border:1px solid var(--border);border-radius:999px;padding:5px 12px;white-space:nowrap}
 .income-chip b{color:#15803d;font-weight:700}
 .income-chip-dot{width:6px;height:6px;border-radius:50%;background:#22C55E;flex-shrink:0}
+.income-chip.btn{cursor:pointer;font-family:inherit;transition:border-color .12s,background .12s,color .12s}
+.income-chip.btn:hover{border-color:rgba(0,0,0,0.35);color:rgba(0,0,0,0.85)}
+.income-chip.btn.active{background:#0a0a0a;border-color:#0a0a0a;color:#fff}
+.income-chip.btn.active b{color:#86efac}
 @media(max-width:768px){.income-total-value{font-size:20px}}
 
 /* ── CONTENT — normal flow, page scrolls ── */
@@ -1578,6 +1582,7 @@ let projects = []; // заполняется после определения l
 let cache      = {};
 let tileMonths = {};
 let tilePeriods = {}; // projId → { mode:'today'|'yesterday'|'last'|'all'|'range', start?, end? }
+let planFilterByProject = {}; // projId → '' | 'weekly' | 'monthly' | 'yearly'
 let globalTilePeriodMode = null; // последний режим, выставленный общим переключателем
 let tileSourceIndex = {};
 let sourceIndexByProject = {};
@@ -3599,7 +3604,7 @@ function manualEntryFieldsForProject(proj) {
     ],
     planto: [
       ['spend', 'Расход'], ['installs', 'Installs'], ['trials', 'Trials'],
-      ['sold', 'Продано'], ['fb', 'Paid'], ['impressions', 'Показы'], ['clicks', 'Клики'],
+      ['sold', 'Yearly'], ['fb', 'Оплаты'], ['impressions', 'Показы'], ['clicks', 'Клики'],
     ],
     quadcode: [
       ['spend', 'Расход'], ['regs', 'Регистрации'], ['installs', 'Инсталлы'], ['purchases', 'Покупки'],
@@ -4555,6 +4560,7 @@ function findPlantoColumns(headerRow) {
     trialCol: findCol(headers, ['trial', 'reach_pay'], ['cost', 'цена', '/', 'fb', 'inst', 'sold', 'продан']),
     soldCol: findCol(headers, ['sold', 'продан', 'pay_submit'], ['cost', 'цена', '/']),
     fbCol: findCol(headers, ['fb', 'view_pay'], ['cost', 'цена', '/', 'trial']),
+    paidNetCol: findCol(headers, ['paid_net', 'revenue', 'доход', 'выручка'], ['cost', 'цена', '/', 'arpu', 'roas']),
     purchaseCol: findCol(headers, ['purchase'], ['cost', 'цена', '/']),
     contactInfoCol: findCol(headers, ['contact_info'], ['cost', 'цена', '/']),
     formSubmitCol: findCol(headers, ['form_submit'], ['cost', 'цена', '/']),
@@ -4581,6 +4587,7 @@ function parsePlantoRows(rows) {
       sold: cols.soldCol >= 0 ? parseNum(r[cols.soldCol]) : 0,
       fb: cols.fbCol >= 0 ? parseNum(r[cols.fbCol]) : 0,
     };
+    if (cols.paidNetCol >= 0) obj.paid_net = parseNum(r[cols.paidNetCol]);
     if (cols.purchaseCol >= 0) obj.purchase = parseNum(r[cols.purchaseCol]);
     if (cols.contactInfoCol >= 0) obj.contact_info = parseNum(r[cols.contactInfoCol]);
     if (cols.formSubmitCol >= 0) obj.form_submit = parseNum(r[cols.formSubmitCol]);
@@ -6285,17 +6292,18 @@ function enrichCohortRow(r) {
   const inst = Number(r.installs_am) || 0;
   const trials = Number(r.trials_am != null ? r.trials_am : r.trials_sb) || 0;
   const sold = Number(r.sold) || 0;
+  const bills = Number(r.bills != null ? r.bills : sold) || 0;
   const paid = Number(r.paid_net) || 0;
   const installToTrial = r.install_to_trial_cr != null
     ? r.install_to_trial_cr
     : (inst ? (trials / inst * 100) : null);
   const trialToPaidRaw = r.trial_to_paid_cr_raw != null
     ? r.trial_to_paid_cr_raw
-    : (trials ? (sold / trials * 100) : null);
+    : (trials ? (bills / trials * 100) : null);
   const trialToPaid = r.mature
     ? (r.trial_to_paid_cr != null ? r.trial_to_paid_cr : trialToPaidRaw)
     : null;
-  const cac = r.cac != null ? r.cac : (sold ? spend / sold : null);
+  const cac = r.cac != null ? r.cac : (bills ? spend / bills : null);
   const roasRaw = r.roas_d7_raw != null
     ? r.roas_d7_raw
     : (spend ? (paid / spend * 100) : null);
@@ -6332,12 +6340,13 @@ function renderPlantoCohortSection(monthKey) {
     const pnlText = formatCohortPnl(r);
     const pnlCls = isCohortEarly(r) ? 'pnl-early' : (r.pnl != null && r.pnl >= 0 ? 'pnl-pos' : 'pnl-neg');
     const trials = r.trials_am != null ? r.trials_am : r.trials_sb;
+    const bills = r.bills != null ? r.bills : (r.sold || 0);
     return `<tr>
       <td><strong>${escHtml(r.cohort)}</strong></td>
       <td>${fmtRub(r.spend)}</td>
       <td>${fmtN(r.installs_am)}</td>
       <td>${fmtN(trials)}</td>
-      <td>${fmtN(r.sold || 0)}</td>
+      <td>${fmtN(bills)}</td>
       <td>${r.cpi != null ? fmtRub(r.cpi) : '—'}</td>
       <td>${r.cpt != null ? fmtRub(r.cpt) : '—'}</td>
       <td>${r.install_to_trial_cr != null ? fmtPct(r.install_to_trial_cr) : '—'}</td>
@@ -6352,23 +6361,20 @@ function renderPlantoCohortSection(monthKey) {
   const tInst = sumCohortRows(visible, 'installs_am');
   const tTrials = sumCohortRows(visible, 'trials_am') || sumCohortRows(visible, 'trials_sb');
   const tSold = sumCohortRows(visible, 'sold');
+  const tBills = sumCohortRows(visible, 'bills') || tSold;
   const tPaid = sumCohortRows(visible, 'paid_net');
   const maturePnl = visible.filter(r => r.mature && r.pnl != null).reduce((a, r) => a + r.pnl, 0);
   const immature = visible.filter(r => !r.mature).length;
   const tCrInst = tInst ? (tTrials / tInst * 100) : null;
-  const tCrPaid = tTrials ? (tSold / tTrials * 100) : null;
-  const tCac = tSold ? tSpend / tSold : null;
+  const tCrPaid = tTrials ? (tBills / tTrials * 100) : null;
+  const tCac = tBills ? tSpend / tBills : null;
   const tRoas = tSpend ? (tPaid / tSpend * 100) : null;
   rows += `<tr class="total-row">
     <td><strong>Итого${monthKey ? ' · ' + escHtml(formatMonthKey(monthKey)) : ''}</strong></td>
     <td>${fmtRub(tSpend)}</td>
     <td>${fmtN(tInst)}</td>
     <td>${fmtN(tTrials)}</td>
-    <td>${fmtN(tSold)}</td>
-    <td>—</td><td>—</td>
-    <td>${tCrInst != null ? fmtPct(tCrInst) : '—'}</td>
-    <td>${tCrPaid != null ? fmtPct(tCrPaid) : '—'}</td>
-    <td>${tCac != null ? fmtRub(tCac) : '—'}</td>
+    <td>${fmtN(tBills)}</td>
     <td>${tRoas != null ? fmtPct(tRoas) : '—'}</td>
     <td>${fmtRub(tPaid)}</td>
     <td>${fmtRub(maturePnl)}${immature ? ` (+${immature} рано)` : ''}</td>
@@ -6385,7 +6391,7 @@ function renderPlantoCohortSection(monthKey) {
     <div class="cohort-meta">${attr} · лаг ${c.trial_lag_days || 7} дн.${monthHint}${updated ? ' · обновлено ' + escHtml(updated) : ''}</div>
     <div class="table-wrap"><table class="cohort-table">
       <thead><tr>
-        <th>Когорта</th><th>Spend</th><th>Inst</th><th>Триалы</th><th>Продано</th><th>CPI</th><th>CPT</th><th>Inst→Trial</th><th>Trial→Paid</th><th>CAC</th><th>ROAS D7</th><th>Paid net</th><th>P&L</th>
+        <th>Когорта</th><th>Spend</th><th>Inst</th><th>Триалы</th><th>Оплаты</th><th>CPI</th><th>CPT</th><th>Inst→Trial</th><th>Trial→Paid</th><th>CAC</th><th>ROAS D7</th><th>Paid net</th><th>P&L</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table></div>
@@ -6537,10 +6543,10 @@ document.addEventListener('visibilitychange', () => {
 // METRICS / TABLE / CHART CONFIG PER TYPE
 // ═══════════════════════════════════════════════════════════════
 const PLANTO_VIEWS = {
-  summary:  { label: 'Все',      resultKey: 'installs', costKey: 'cost_install', keys: ['spend', 'installs', 'cost_install', 'impressions', 'clicks', 'cpc', 'cpm', 'ctr', 'trials', 'cost_trial', 'cr_install_trial', 'sold', 'fb', 'cost_fb', 'cac', 'cr_trial_paid', 'roas'] },
+  summary:  { label: 'Все',      resultKey: 'installs', costKey: 'cost_install', keys: ['spend', 'installs', 'cost_install', 'impressions', 'clicks', 'cpc', 'cpm', 'ctr', 'trials', 'cost_trial', 'cr_install_trial', 'fb', 'cost_fb', 'sold', 'revenue', 'cac', 'cr_trial_paid', 'roas'] },
   installs: { label: 'Installs', resultKey: 'installs', costKey: 'cost_install', keys: ['spend', 'installs', 'cost_install', 'impressions', 'clicks', 'cpc', 'cpm', 'ctr'] },
   trials:   { label: 'Trials',   resultKey: 'trials',   costKey: 'cost_trial',  keys: ['spend', 'trials', 'cost_trial', 'cr_install_trial'] },
-  fb:       { label: 'Bills',    resultKey: 'fb',       costKey: 'cost_fb',     keys: ['spend', 'fb', 'cost_fb', 'sold', 'cac', 'roas'] },
+  fb:       { label: 'Оплаты',   resultKey: 'fb',       costKey: 'cost_fb',     keys: ['spend', 'fb', 'cost_fb', 'sold', 'revenue', 'cac', 'roas'] },
 };
 
 function isPlantoAutoFeed(proj) {
@@ -6592,7 +6598,141 @@ function getPlantoDailyRows(projId) {
   const id = projId || feedProjIdFor();
   const data = cache[id];
   if (!data || data === 'loading' || data === null) return [];
-  return getAllRowsFromCache(data) || [];
+  const rows = getAllRowsFromCache(data) || [];
+  return enrichRowsWithDailyRevenue({ id }, rows);
+}
+
+const PLAN_FILTER_OPTS = [
+  { id: 'weekly', label: 'Неделя', priceKey: 'week', metaKey: 'weekly' },
+  { id: 'monthly', label: 'Месяц', priceKey: 'month', metaKey: 'monthly' },
+  { id: 'yearly', label: 'Год', priceKey: 'year', metaKey: 'yearly' },
+];
+
+function getPlanFilter(projId) {
+  return planFilterByProject[projId] || '';
+}
+
+function setPlanFilter(projId, plan) {
+  const next = plan || '';
+  if (planFilterByProject[projId] === next) return;
+  planFilterByProject[projId] = next;
+  destroyDetailCharts();
+  renderContent();
+}
+
+function rowDateIso(r) {
+  if (!r) return '';
+  if (r.date instanceof Date && !isNaN(r.date)) {
+    const d = r.date;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+  const s = String(r.dateStr || r.date || '');
+  const m = s.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  const m2 = s.match(/(\d{2})\.(\d{2})\.(\d{4})/);
+  if (m2) return `${m2[3]}-${m2[2]}-${m2[1]}`;
+  return '';
+}
+
+/** Есть ли у проекта тарифы для фильтра (ColorStylist / Planto auto-feed). */
+function projectHasPlanFilter(proj) {
+  if (!isPlantoAutoFeed(proj)) return false;
+  const meta = feedMeta(proj?.id);
+  const plans = meta?.plans || {};
+  const pay = meta?.payments_by_plan;
+  return !!(plans.week || plans.month || plans.year || pay?.weekly || pay?.monthly || pay?.yearly);
+}
+
+function applyPlanFilterToRows(proj, rows) {
+  const plan = getPlanFilter(proj?.id);
+  if (!plan || !rows?.length) return rows || [];
+  const byDay = feedMeta(proj.id)?.payments_by_plan_by_day?.[plan];
+  if (!byDay) {
+    // Пока нет дневной разбивки — оставляем строки, unit-блок возьмёт totals из payments_by_plan.
+    return rows.map(r => ({ ...r, _planFilter: plan, _planNoDay: true }));
+  }
+  return rows.map(r => {
+    const iso = rowDateIso(r);
+    const cell = (iso && byDay[iso]) || { count: 0, rub: 0 };
+    const count = Number(cell.count) || 0;
+    const rub = Number(cell.rub) || 0;
+    return {
+      ...r,
+      fb: count,
+      sold: plan === 'yearly' ? count : 0,
+      paid_net: rub,
+      _planFilter: plan,
+      _planRub: rub,
+    };
+  });
+}
+
+function planFilterTotals(proj, rows) {
+  const plan = getPlanFilter(proj?.id);
+  if (!plan) return null;
+  const meta = feedMeta(proj?.id);
+  const byDay = meta?.payments_by_plan_by_day?.[plan];
+  if (byDay && rows?.length) {
+    let count = 0, rub = 0;
+    rows.forEach(r => {
+      if (r._planRub != null) {
+        count += Number(r.fb) || 0;
+        rub += Number(r._planRub) || 0;
+        return;
+      }
+      const cell = byDay[rowDateIso(r)];
+      if (!cell) return;
+      count += Number(cell.count) || 0;
+      rub += Number(cell.rub) || 0;
+    });
+    return { plan, count, rub, source: 'by_day' };
+  }
+  const pay = meta?.payments_by_plan?.[plan];
+  if (!pay) return { plan, count: 0, rub: 0, source: 'totals' };
+  return { plan, count: Number(pay.count) || 0, rub: Number(pay.rub) || 0, source: 'totals' };
+}
+
+function renderPlanFilter(proj) {
+  if (!projectHasPlanFilter(proj)) return '';
+  const meta = feedMeta(proj.id) || {};
+  const plans = meta.plans || {};
+  const pay = meta.payments_by_plan || {};
+  const cur = getPlanFilter(proj.id);
+  const trialPlan = String(meta.trial_plan || '').toLowerCase();
+  const trialDays = Number(meta.trial_days) || 0;
+  const grace = meta.grace_days != null ? Number(meta.grace_days) : null;
+  const hold = meta.hold_days != null ? Number(meta.hold_days) : null;
+  const chips = PLAN_FILTER_OPTS.map(opt => {
+    const price = plans[opt.priceKey];
+    const cnt = pay[opt.metaKey]?.count;
+    const pricePart = price != null ? ` ${fmtInt(price)} ₽` : '';
+    const cntPart = cnt != null ? ` · ${fmtInt(cnt)}` : '';
+    const trialMark = (trialPlan === 'week' || trialPlan === 'weekly') && opt.id === 'weekly' && trialDays
+      ? ` · триал ${trialDays}д`
+      : '';
+    return `<button type="button" class="geo-chip${cur === opt.id ? ' active' : ''}" onclick="setPlanFilter('${escHtml(proj.id)}','${opt.id}')">
+      <span class="geo-chip-name">${escHtml(opt.label)}${escHtml(pricePart)}</span>
+      <span class="geo-chip-val">${escHtml(String(cntPart + trialMark).replace(/^ · /, '') || '—')}</span>
+    </button>`;
+  }).join('');
+  let hint = 'Фильтр оплат по тарифу · CAC = spend / оплаты выбранного плана';
+  if (trialPlan === 'week' || trialPlan === 'weekly') {
+    const parts = [`триал ${trialDays || 3}д только на неделе`];
+    if (grace != null) parts.push(`грейс ${grace}д`);
+    if (hold != null) parts.push(`холд ${hold}д`);
+    hint += ` · ${parts.join(' · ')}`;
+  }
+  if (cur && !meta.payments_by_plan_by_day?.[cur]) {
+    hint += ' · по дням появится после обновления feed';
+  }
+  return `<div class="geo-filter">
+    <div class="geo-filter-head">
+      <span class="geo-filter-label">Подписка</span>
+      <button type="button" class="geo-chip${cur ? '' : ' active'}" onclick="setPlanFilter('${escHtml(proj.id)}','')">Все</button>
+      ${chips}
+    </div>
+    <div class="geo-filter-hint">${escHtml(hint)}</div>
+  </div>`;
 }
 
 function plantoFeedHealth(projId) {
@@ -6629,13 +6769,16 @@ function renderPlantoBreakdownCard(proj, rows) {
         ? `<div class="budget-hint">срез · ${escHtml(String(meta.generated_at).replace('T', ' ').replace(/\+\d{2}:\d{2}$/, ' UTC').slice(0, 19))}</div>`
         : '');
     const pay = meta?.payments_by_plan;
+    const plans = meta?.plans || {};
+    const curPlan = getPlanFilter(proj.id);
     const payHtml = pay && pay.total?.count
       ? `<div class="income-chips-row">` +
-        `<span class="income-chip">Годовых&nbsp;<b>${pay.yearly?.count || 0}</b>&nbsp;· ${fmtInt(pay.yearly?.rub || 0)} ₽</span>` +
-        `<span class="income-chip">Месячных&nbsp;<b>${pay.monthly?.count || 0}</b>&nbsp;· ${fmtInt(pay.monthly?.rub || 0)} ₽</span>` +
-        // Недельный тариф показываем, когда он вообще есть у проекта (ColorStylist premium_week).
-        (pay.weekly ? `<span class="income-chip">Недельных&nbsp;<b>${pay.weekly.count || 0}</b>&nbsp;· ${fmtInt(pay.weekly.rub || 0)} ₽</span>` : '') +
-        `<span class="income-chip">Всего&nbsp;<b>${fmtInt(pay.total.rub || 0)} ₽</b></span>` +
+        `<button type="button" class="income-chip btn${curPlan === 'yearly' ? ' active' : ''}" onclick="setPlanFilter('${escHtml(proj.id)}','yearly')">Год ${plans.year != null ? fmtInt(plans.year) + ' ₽' : ''}&nbsp;<b>${pay.yearly?.count || 0}</b>&nbsp;· ${fmtInt(pay.yearly?.rub || 0)} ₽</button>` +
+        `<button type="button" class="income-chip btn${curPlan === 'monthly' ? ' active' : ''}" onclick="setPlanFilter('${escHtml(proj.id)}','monthly')">Месяц ${plans.month != null ? fmtInt(plans.month) + ' ₽' : ''}&nbsp;<b>${pay.monthly?.count || 0}</b>&nbsp;· ${fmtInt(pay.monthly?.rub || 0)} ₽</button>` +
+        (pay.weekly || plans.week != null
+          ? `<button type="button" class="income-chip btn${curPlan === 'weekly' ? ' active' : ''}" onclick="setPlanFilter('${escHtml(proj.id)}','weekly')">Неделя ${plans.week != null ? fmtInt(plans.week) + ' ₽' : ''}&nbsp;<b>${pay.weekly?.count || 0}</b>&nbsp;· ${fmtInt(pay.weekly?.rub || 0)} ₽</button>`
+          : '') +
+        `<button type="button" class="income-chip btn${!curPlan ? ' active' : ''}" onclick="setPlanFilter('${escHtml(proj.id)}','')">Все&nbsp;<b>${fmtInt(pay.total.rub || 0)} ₽</b></button>` +
         `</div>`
       : '';
     return `<div class="analytics-card planto-breakdown-card">
@@ -7065,17 +7208,19 @@ function metricsFromTileRows(proj, rows, subHint) {
     const impressions = r.impressions || 0;
     const cpi = installs ? spend / installs : null;
     const cpt = trials ? spend / trials : null;
-    const cpb = bills ? spend / bills : null;
+    const cac = bills ? spend / bills : null;
     const ctr = impressions ? (clicks / impressions * 100) : null;
     const cpc = clicks ? spend / clicks : null;
     const dateLabel = r.dateStr || fmtDateStr(r.date);
+    const soldLabel = feedMeta(proj?.id)?.sold_label || 'yearly';
     const metrics = [
       { key: 'today_spend', label: 'Расход', value: fmtMoney(spend, cur), live: true, sub: dateLabel },
       { key: 'today_installs', label: 'Установки', value: fmtInt(installs), live: true, sub: subHint || 'за день' },
       { key: 'today_cpi', label: 'CPI', value: cpi != null ? fmtMoney(cpi, cur) : '—', accent: true, live: true, sub: 'цена установки' },
       { key: 'today_trials', label: 'Триалы', value: fmtInt(trials), live: true, sub: 'старты' },
       { key: 'today_cpt', label: 'CPT', value: cpt != null ? fmtMoney(cpt, cur) : '—', accent: true, live: true, sub: 'цена триала' },
-      { key: 'today_bills', label: 'Оплаты', value: fmtInt(bills), live: true, sub: sold ? `yearly: ${fmtInt(sold)}` : (cpb != null ? `Cost/Bill ${fmtMoney(cpb, cur)}` : 'оплаты') },
+      { key: 'today_bills', label: 'Оплаты', value: fmtInt(bills), live: true, sub: sold ? `из них ${soldLabel}: ${fmtInt(sold)}` : 'bills' },
+      { key: 'today_cac', label: 'CAC', value: cac != null ? fmtMoney(cac, cur) : '—', accent: true, live: true, sub: 'spend / оплаты' },
     ];
     if (clicks || impressions) {
       metrics.push({ key: 'today_impressions', label: 'Показы', value: fmtInt(impressions), live: true, sub: 'Direct' });
@@ -7104,11 +7249,11 @@ function pickOverviewSourceRows(pack, proj) {
 /** Приоритет unit-economics на плитках overview (spend → результат → цены → трафик). */
 const OVERVIEW_METRIC_PRIORITY = [
   'spend',
-  'installs', 'regs', 'qregs', 'trials', 'purchase', 'purchases', 'sold', 'fb',
-  'cost_install', 'cost_trial', 'cost_reg', 'cost_qreg', 'cost_purchase', 'cost_sold',
+  'installs', 'regs', 'qregs', 'trials', 'purchase', 'purchases', 'fb', 'sold', 'revenue',
+  'cost_install', 'cost_trial', 'cost_reg', 'cost_qreg', 'cost_purchase', 'cost_fb', 'cost_sold',
   'cpc', 'cpm', 'ctr',
   'impressions', 'clicks',
-  'roas', 'cac', 'cr_install_trial', 'conv_rate',
+  'roas', 'cac', 'cr_install_trial', 'cr_trial_paid', 'conv_rate',
 ];
 
 function sortMetricsForOverview(metrics) {
@@ -7186,11 +7331,12 @@ function getMatureCohortMetrics(monthKey) {
   const spend = sumCohortRows(rows, 'spend');
   const trials = sumCohortRows(rows, 'trials_am') || sumCohortRows(rows, 'trials_sb');
   const sold = sumCohortRows(rows, 'sold');
+  const bills = sumCohortRows(rows, 'bills') || sold;
   const paid = sumCohortRows(rows, 'paid_net');
   const totals = c.totals || {};
   return {
-    trialToPaid: trials ? (sold / trials * 100) : null,
-    cac: sold ? spend / sold : null,
+    trialToPaid: trials ? (bills / trials * 100) : null,
+    cac: bills ? spend / bills : null,
     roasD7: spend ? (paid / spend * 100) : null,
     roasD14: totals.roas_d14 != null ? totals.roas_d14 : null,
     roasD30: totals.roas_d30 != null ? totals.roas_d30 : null,
@@ -7257,8 +7403,11 @@ function renderPlantoTodayBlock(proj, allRows) {
     plantoKpiCell('Триалы', fmtInt(trials), { sub: cr != null ? `CR ${fmtPct(cr)}` : 'старты за день' }),
     plantoKpiCell('CPT', cpt != null ? fmtMoney(cpt, cur) : '—', { accent: true, sub: 'цена триала' }),
     plantoKpiCell('Оплаты', fmtInt(bills), {
-      sub: sold ? `yearly: ${fmtInt(sold)}` : (cpb != null ? `Cost/Bill ${fmtMoney(cpb, cur)}` : 'за день'),
+      sub: sold
+        ? `из них yearly: ${fmtInt(sold)}`
+        : (cpb != null ? `CAC ${fmtMoney(cpb, cur)}` : 'за день'),
     }),
+    plantoKpiCell('CAC', cpb != null ? fmtMoney(cpb, cur) : '—', { accent: true, sub: 'spend / оплаты' }),
     clicks || impressions
       ? plantoKpiCell('Показы', fmtInt(impressions), {
           sub: cpm != null ? `CPM ${fmtMoney(cpm, cur)}` : 'Direct',
@@ -7288,16 +7437,29 @@ function renderPlantoTodayBlock(proj, allRows) {
 
 function renderPlantoMetricBlocks(proj, rows, monthKey) {
   if (!isPlantoProject(proj, rows)) return '';
+  rows = applyPlanFilterToRows(proj, rows);
   const cur = proj.currency;
   const sp = sum(rows, 'spend');
   const ins = sum(rows, 'installs');
   const tr = sum(rows, 'trials');
-  const sold = sum(rows, 'sold');
-  const fb = sum(rows, 'fb');
+  let sold = sum(rows, 'sold');
+  let fb = sum(rows, 'fb');
+  const activePlan = getPlanFilter(proj?.id);
+  const planTot = planFilterTotals(proj, rows);
+  if (planTot && (planTot.source === 'totals' || activePlan)) {
+    // Без by_day — берём totals тарифа; с by_day fb уже переписан в rows.
+    if (planTot.source === 'totals' && activePlan) {
+      fb = planTot.count;
+      sold = activePlan === 'yearly' ? planTot.count : 0;
+    }
+  }
   const clicks = sum(rows, 'clicks');
   const impressions = sum(rows, 'impressions');
   const hasAds = clicks > 0 || impressions > 0;
-  const paidNet = getPlantoPaidNetForRows(rows);
+  let paidNet = getPlantoPaidNetForRows(rows);
+  if (planTot && activePlan) {
+    paidNet = planTot.rub;
+  }
   const mature = getMatureCohortMetrics(monthKey);
   const unit = getPlantoUnitEconomics(proj?.id);
   const product = getPlantoProductMetrics(proj?.id);
@@ -7309,13 +7471,16 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
   const installToTrial = ins ? (tr / ins * 100) : null;
   const trialToPaid = mature?.trialToPaid != null
     ? mature.trialToPaid
-    : (tr ? ((sold || fb) / tr * 100) : null);
+    : (activePlan && activePlan !== 'weekly'
+      ? null  // триал только на неделе — для month/year CR не считаем
+      : (tr ? (fb / tr * 100) : null));
   const ctr = (hasAds && impressions) ? (clicks / impressions * 100) : null;
   const cpm = (hasAds && impressions) ? (sp / impressions * 1000) : null;
   const cpi = ins ? (sp / ins) : null;
   const cpt = tr ? (sp / tr) : null;
   const cpc = (hasAds && clicks) ? (sp / clicks) : null;
-  const cac = (sold || fb) ? (sp / (sold || fb)) : null;
+  // CAC = spend / bills (fb). sold — только yearly-подмножество, не знаменатель.
+  const cac = fb ? (sp / fb) : null;
   const roasD7 = mature?.roasD7 != null
     ? mature.roasD7
     : (sp && paidNet != null ? (paidNet / sp * 100) : null);
@@ -7357,9 +7522,11 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
       : plantoKpiCell('Отмены триала', 'нет данных', { pending: true, sub: 'подтянем из Supabase' }),
     plantoKpiCell('Trial → Paid', trialToPaid != null ? fmtPct(trialToPaid) : '—', {
       accent: true,
-      sub: mature?.trialToPaid != null
-        ? `зрелые когорты · лаг 7+ дн.`
-        : 'по дням оплаты · когорты зреют',
+      sub: activePlan && activePlan !== 'weekly'
+        ? 'триал только на неделе'
+        : (mature?.trialToPaid != null
+          ? `зрелые когорты · лаг 7+ дн.`
+          : 'по дням оплаты · когорты зреют'),
       bar: trialToPaid != null ? { pct: Math.min(trialToPaid * 2, 100) } : null,
     }),
   ].join('');
@@ -7382,14 +7549,35 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
       : '',
   ].join('') : '';
 
-  const soldLabel = feedMeta(proj?.id)?.sold_label;
+  const soldLabel = feedMeta(proj?.id)?.sold_label || 'yearly';
+  const byPlan = feedMeta(proj?.id)?.payments_by_plan;
+  const planLabel = PLAN_FILTER_OPTS.find(p => p.id === activePlan)?.label;
+  let billsSub = 'новые + ребиллы';
+  if (activePlan && planLabel) {
+    const priceKey = { weekly: 'week', monthly: 'month', yearly: 'year' }[activePlan];
+    const price = feedMeta(proj?.id)?.plans?.[priceKey];
+    billsSub = price != null ? `${planLabel} · ${fmtInt(price)} ₽` : planLabel;
+    if (planTot?.source === 'totals') billsSub += ' · всего за срез';
+  } else if (sold > 0) {
+    billsSub = `из них ${soldLabel}: ${fmtInt(sold)}`;
+  } else if (byPlan) {
+    const parts = [];
+    if (byPlan.weekly?.count) parts.push(`week ${fmtInt(byPlan.weekly.count)}`);
+    if (byPlan.monthly?.count) parts.push(`month ${fmtInt(byPlan.monthly.count)}`);
+    if (byPlan.yearly?.count) parts.push(`year ${fmtInt(byPlan.yearly.count)}`);
+    if (parts.length) billsSub = parts.join(' · ');
+  }
   const unitBlock = [
     plantoKpiCell('Оплаты', fmtInt(fb), {
       primary: true,
-      sub: sold ? `из них ${soldLabel ? escHtml(soldLabel) : 'yearly'}: ${fmtInt(sold)}` : 'новые + ребиллы',
+      sub: billsSub,
+    }),
+    plantoKpiCell('Доход', paidNet != null ? fmtMoney(paidNet, cur) : '—', {
+      primary: true,
+      sub: activePlan ? 'за период · выбранный тариф' : 'за период · по дням',
     }),
     aiCards,
-    plantoKpiCell('CAC', cac != null ? fmtMoney(cac, cur) : '—', { accent: true, sub: 'стоимость платящего' }),
+    plantoKpiCell('CAC', cac != null ? fmtMoney(cac, cur) : '—', { accent: true, sub: 'spend / оплаты' }),
     unit?.arpu != null
       ? plantoKpiCell('ARPU', fmtMoneyOrDash(unit.arpu, cur), { sub: `на ${fmtInt(unit.active_users || 0)} активных` })
       : plantoKpiCell('ARPU', 'нет данных', { pending: true, sub: 'нужна база активных' }),
@@ -7492,6 +7680,18 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
   const meta = feedMeta(proj?.id);
   const trialDays = Number(meta?.trial_days) || 7;
   const trialLag = Number(meta?.trial_lag_days) || trialDays;
+  const trialPlan = String(meta?.trial_plan || '').toLowerCase();
+  const graceDays = meta?.grace_days != null ? Number(meta.grace_days) : null;
+  const holdDays = meta?.hold_days != null ? Number(meta.hold_days) : null;
+  let trialsDesc = `Из-за ${trialDays}-дневного триала смотрим конверсии и отмены, а не только день-в-день.`;
+  let trialsHint = `лаг ${trialLag} дн.`;
+  if (trialPlan === 'week' || trialPlan === 'weekly') {
+    const bits = [`триал ${trialDays}д только на неделе 199 ₽`];
+    if (graceDays != null) bits.push(`грейс ${graceDays}д`);
+    if (holdDays != null) bits.push(`холд ${holdDays}д`);
+    trialsDesc = bits.join(' · ') + '. Месяц 399 ₽ и год 2490 ₽ — без триала.';
+    trialsHint = `триал → week`;
+  }
   const productSubtitle = product?.subtitle
     || 'Дошёл ли пользователь до ценности — сад, пейволл, уход и ключевые фичи.';
 
@@ -7500,7 +7700,7 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
   return `<div class="planto-blocks">
     ${renderPlantoTodayBlock(proj, allRows)}
     ${plantoBlock('acquisition', '1', 'Привлечение', 'Сколько стоит трафик и насколько кликабельны объявления.', 'Direct', acquisition)}
-    ${plantoBlock('trials', '2', 'Воронка триалов', `Из-за ${trialDays}-дневного триала смотрим конверсии и отмены, а не только день-в-день.`, `лаг ${trialLag} дн.`, trialsBlock)}
+    ${plantoBlock('trials', '2', 'Воронка триалов', trialsDesc, trialsHint, trialsBlock)}
     ${plantoBlock('unit', '3', 'Юнит-экономика', 'Окупаемость, burn и ценность платящего пользователя.', unitBadge, unitBlock)}
     ${plantoBlock('product', '4', 'Продукт', productSubtitle, 'AppMetrica', productCards, { cols: 2, footer: productFooter })}
   </div>`;
@@ -7519,9 +7719,10 @@ const METRIC_CATALOG = {
     { key: 'trials', label: 'Trials Started', accent: false },
     { key: 'cost_trial', label: 'CPT', accent: true },
     { key: 'cr_install_trial', label: 'Install → Trial', accent: false },
-    { key: 'sold', label: 'Продано (yearly)', accent: false },
-    { key: 'fb', label: 'Paid Subscriptions', accent: false },
+    { key: 'fb', label: 'Оплаты', accent: false },
     { key: 'cost_fb', label: 'Cost / Bill', accent: true },
+    { key: 'sold', label: 'Yearly', accent: false },
+    { key: 'revenue', label: 'Доход', accent: false },
     { key: 'cac', label: 'CAC', accent: true },
     { key: 'cr_trial_paid', label: 'Trial → Paid', accent: false },
     { key: 'roas', label: 'ROAS', accent: true },
@@ -7630,15 +7831,13 @@ function computeMetricValue(key, type, rows, cur) {
       return v ? fmtMoney(sp / v, cur) : '—';
     }
     case 'cost_fb': return fb ? fmtMoney(sp / fb, cur) : '—';
-    case 'cac': {
-      const payers = sold || fb;
-      return payers ? fmtMoney(sp / payers, cur) : '—';
+    case 'cac': return fb ? fmtMoney(sp / fb, cur) : '—';
+    case 'revenue': {
+      const rev = getPlantoPaidNetForRows(rows);
+      return rev != null ? fmtMoney(rev, cur) : '—';
     }
     case 'cr_install_trial': return ins ? fmtPct(tr / ins * 100) : '—';
-    case 'cr_trial_paid': {
-      const payers = sold || fb;
-      return tr ? fmtPct(payers / tr * 100) : '—';
-    }
+    case 'cr_trial_paid': return tr ? fmtPct(fb / tr * 100) : '—';
     case 'roas': return sp && paidNet != null ? fmtPct(paidNet / sp * 100) : '—';
     case 'cpc': { const v = sum(rows, 'clicks'); return v ? fmtMoney(sp / v, cur) : '—'; }
     case 'cpm': { const v = sum(rows, 'impressions'); return v ? fmtMoney(sp / v * 1000, cur) : '—'; }
@@ -7658,16 +7857,73 @@ function getPlantoPaidNetForRows(rows) {
   if (feedCohort()?.totals?.paid_net != null && !rows?.length) {
     return Number(feedCohort().totals.paid_net) || 0;
   }
-  // Approximate period revenue from meta plan mix when daily revenue is absent:
-  // use sold*2490 + (fb-sold)*399 as proxy for the selected daily rows.
+  // Если строки уже отфильтрованы по тарифу — суммируем фактический rub.
+  const planRub = (rows || []).reduce((a, r) => a + (Number(r._planRub) || 0), 0);
+  if (planRub > 0 || (rows || []).some(r => r._planFilter && r._planRub != null)) {
+    return planRub;
+  }
+  // Фактический доход по дням (колонка paid_net / meta.paid_net_by_day).
+  const hasDaily = (rows || []).some(r => r.paid_net != null);
+  if (hasDaily) {
+    return (rows || []).reduce((a, r) => a + (Number(r.paid_net) || 0), 0);
+  }
   const sold = sum(rows, 'sold');
   const fb = sum(rows, 'fb');
   if (!sold && !fb) {
     if (feedCohort()?.totals?.paid_net != null) return Number(feedCohort().totals.paid_net) || 0;
     return null;
   }
+  const meta = feedMeta();
+  const plans = meta?.plans || {};
+  const yearPrice = Number(plans.year) || 2490;
+  const monthPrice = Number(plans.month) || 399;
+  const byPlan = meta?.payments_by_plan;
+  // ColorStylist / week+month mix: scale average bill from plan breakdown.
+  if (!sold && byPlan?.total?.count > 0 && byPlan.total.rub != null) {
+    return fb * (Number(byPlan.total.rub) / Number(byPlan.total.count));
+  }
+  // Planto: sold = yearly; remainder of bills ≈ monthly.
   const monthly = Math.max(0, fb - sold);
-  return sold * 2490 + monthly * 399;
+  return sold * yearPrice + monthly * monthPrice;
+}
+
+/** Оценка дохода за день: CSV paid_net → meta by day → proxy по тарифам. */
+function estimateRowPaidNet(proj, r) {
+  if (!r) return 0;
+  const existing = Number(r.paid_net);
+  if (Number.isFinite(existing) && existing > 0) return existing;
+  const meta = feedMeta(proj?.id);
+  const iso = rowDateIso(r);
+  if (iso && meta?.paid_net_by_day?.[iso] != null) {
+    return Number(meta.paid_net_by_day[iso]) || 0;
+  }
+  if (iso && meta?.payments_by_plan_by_day) {
+    let rub = 0;
+    ['weekly', 'monthly', 'yearly'].forEach(p => {
+      rub += Number(meta.payments_by_plan_by_day[p]?.[iso]?.rub) || 0;
+    });
+    if (rub > 0) return rub;
+  }
+  const sold = Number(r.sold) || 0;
+  const fb = Number(r.fb) || 0;
+  if (!sold && !fb) return 0;
+  const plans = meta?.plans || {};
+  const yearP = Number(plans.year) || 2490;
+  const monthP = Number(plans.month) || 399;
+  const byPlan = meta?.payments_by_plan;
+  if (!sold && byPlan?.total?.count > 0 && byPlan.total.rub != null) {
+    return Math.round(fb * (Number(byPlan.total.rub) / Number(byPlan.total.count)));
+  }
+  return sold * yearP + Math.max(0, fb - sold) * monthP;
+}
+
+/** Подтянуть paid_net в каждую строку (CSV / meta / proxy). */
+function enrichRowsWithDailyRevenue(proj, rows) {
+  if (!rows?.length) return rows || [];
+  return rows.map(r => {
+    const paid = estimateRowPaidNet(proj, r);
+    return paid === Number(r.paid_net) ? r : { ...r, paid_net: paid };
+  });
 }
 
 function mergeMetricsConfig(type, saved, catalogOverride) {
@@ -7723,7 +7979,8 @@ function isMetricRelevant(key, rows) {
   if (key === 'cr_install_trial') return rows.some(r => 'installs' in r && 'trials' in r);
   if (key === 'cr_trial_paid') return rows.some(r => 'trials' in r && ('sold' in r || 'fb' in r));
   if (key === 'cac') return rows.some(r => 'sold' in r || 'fb' in r);
-  if (key === 'roas') return rows.some(r => 'fb' in r || 'sold' in r);
+  if (key === 'revenue') return rows.some(r => 'paid_net' in r || 'fb' in r || 'sold' in r);
+  if (key === 'roas') return rows.some(r => 'fb' in r || 'sold' in r || 'paid_net' in r);
   if (key === 'ctr') return rows.some(r => ('impressions' in r && r.impressions > 0) || ('clicks' in r && r.clicks > 0));
   if (!field) return true;
   return rows.some(r => field in r);
@@ -7732,10 +7989,9 @@ function isMetricRelevant(key, rows) {
 function getMetricsCatalogForProj(proj, rows) {
   const type = getEffectiveType(proj, rows);
   let catalog = METRIC_CATALOG[type] || METRIC_CATALOG.generic;
-  // Подпись «Продано» зависит от тарифов проекта: у Planto продаётся годовой,
-  // у ColorStylist — недельный/месячный, поэтому лейбл берём из конфига фида.
+  // sold_label — подпись yearly-подмножества (не переименовывает Оплаты/fb).
   const soldLabel = feedMeta(proj?.id)?.sold_label;
-  if (soldLabel) {
+  if (soldLabel && type === 'planto') {
     catalog = catalog.map(m => (m.key === 'sold' ? { ...m, label: soldLabel } : m));
   }
   if (type === 'streamfi' && !sheetHasRegs(proj, rows)) {
@@ -7877,9 +8133,11 @@ function getTableConfig(proj, rows) {
   } else if (type === 'planto') {
     if (isPlantoAutoFeed(proj)) {
       const hasAds = rows?.some(r => (r.clicks || 0) > 0 || (r.impressions || 0) > 0);
-      colKeys = ['date', 'spend', 'installs', 'cost_install', 'trials', 'cost_trial', 'sold', 'fb', 'cost_fb'];
-      let headers = ['Дата', `Spend (${cur})`, L('installs','Installs'), L('cost_install','CPI'),
-        L('trials','Trials'), L('cost_trial','CPT'), L('sold','Продано'), L('fb','Paid'), L('cost_fb','Cost/Bill')];
+      // Доход сразу после Spend — иначе колонка теряется в горизонтальном скролле.
+      colKeys = ['date', 'spend', 'revenue', 'roas', 'fb', 'cost_fb', 'installs', 'cost_install', 'trials', 'cost_trial', 'sold'];
+      // Жёсткие подписи: сохранённые метрики в админке не должны прятать «Доход».
+      let headers = ['Дата', `Spend (${cur})`, 'Доход', 'ROAS', 'Оплаты', 'CAC',
+        'Installs', 'CPI', 'Trials', 'CPT', 'Yearly'];
       if (hasAds) {
         colKeys = colKeys.concat(['impressions', 'clicks', 'cpc', 'cpm', 'ctr']);
         headers = headers.concat(['Показы', 'Clicks', 'CPC', 'CPM', 'CTR']);
@@ -7887,12 +8145,16 @@ function getTableConfig(proj, rows) {
       tbl = {
         headers,
         row: (r) => {
+          const rev = Number(r.paid_net) || 0;
+          const dayRoas = r.spend ? (rev / r.spend * 100) : null;
           const base = [
             r.dateStr, fmtMoneyFull(r.spend, cur),
+            fmtMoneyFull(rev, cur),
+            dayRoas != null ? fmtPct(dayRoas) : '—',
+            fmtInt(r.fb || 0), r.fb ? fmtMoney(r.spend / r.fb, cur) : '—',
             fmtInt(r.installs || 0), r.installs ? fmtMoney(r.spend / r.installs, cur) : '—',
             fmtInt(r.trials || 0), r.trials ? fmtMoney(r.spend / r.trials, cur) : '—',
             fmtInt(r.sold || 0),
-            fmtInt(r.fb || 0), r.fb ? fmtMoney(r.spend / r.fb, cur) : '—',
           ];
           if (!hasAds) return base;
           const cl = r.clicks || 0, imp = r.impressions || 0;
@@ -7906,8 +8168,13 @@ function getTableConfig(proj, rows) {
         },
         total: (rows) => {
           const sp = sum(rows, 'spend'), ins = sum(rows, 'installs'), tr = sum(rows, 'trials'), sold = sum(rows, 'sold'), fb = sum(rows, 'fb');
-          const base = ['Итого', fmtMoneyFull(sp, cur), fmtInt(ins), ins ? fmtMoney(sp / ins, cur) : '—',
-            fmtInt(tr), tr ? fmtMoney(sp / tr, cur) : '—', fmtInt(sold), fmtInt(fb), fb ? fmtMoney(sp / fb, cur) : '—'];
+          const rev = sum(rows, 'paid_net');
+          const totRoas = sp ? (rev / sp * 100) : null;
+          const base = ['Итого', fmtMoneyFull(sp, cur),
+            fmtMoneyFull(rev, cur), totRoas != null ? fmtPct(totRoas) : '—',
+            fmtInt(fb), fb ? fmtMoney(sp / fb, cur) : '—',
+            fmtInt(ins), ins ? fmtMoney(sp / ins, cur) : '—',
+            fmtInt(tr), tr ? fmtMoney(sp / tr, cur) : '—', fmtInt(sold)];
           if (!hasAds) return base;
           const cl = sum(rows, 'clicks'), imp = sum(rows, 'impressions');
           return base.concat([
@@ -8374,11 +8641,10 @@ function computeFunnels(proj, rows) {
       steps.push({ label: 'Reg → Целевое', pct: (qg / rg) * 100, count: `${fmtInt(qg)} / ${fmtInt(rg)}` });
     }
   } else if (type === 'planto') {
-    const ins = sum(rows, 'installs'), tr = sum(rows, 'trials'), sold = sum(rows, 'sold'), fb = sum(rows, 'fb');
-    const paid = sold || fb;
+    const ins = sum(rows, 'installs'), tr = sum(rows, 'trials'), fb = sum(rows, 'fb');
     if (ins > 0) steps.push({ label: 'Install → Trial', pct: (tr / ins) * 100, count: `${fmtInt(tr)} / ${fmtInt(ins)}` });
-    if (tr > 0) steps.push({ label: 'Trial → Paid', pct: (paid / tr) * 100, count: `${fmtInt(paid)} / ${fmtInt(tr)}` });
-    if (ins > 0 && paid > 0) steps.push({ label: 'Install → Paid', pct: (paid / ins) * 100, count: `${fmtInt(paid)} / ${fmtInt(ins)}` });
+    if (tr > 0) steps.push({ label: 'Trial → Paid', pct: (fb / tr) * 100, count: `${fmtInt(fb)} / ${fmtInt(tr)}` });
+    if (ins > 0 && fb > 0) steps.push({ label: 'Install → Paid', pct: (fb / ins) * 100, count: `${fmtInt(fb)} / ${fmtInt(ins)}` });
   }
   return steps;
 }
@@ -8537,27 +8803,35 @@ function renderBudgetCard(proj, allData, compact) {
 // with the global daily refresh cycle automatically.
 function renderTileIncome(proj) {
   const cur = proj?.currency || '₽';
-  const rev = Math.round(feedMeta(proj?.id)?.unit_economics?.revenue_total || 0);
+  const rows = enrichRowsWithDailyRevenue(proj, getPlantoDailyRows(proj?.id));
+  const periodRev = getPlantoPaidNetForRows(rows);
+  const rev = Math.round(periodRev != null ? periodRev : (feedMeta(proj?.id)?.unit_economics?.revenue_total || 0));
   return `<div class="tile-income"><span class="tile-income-label">Доход</span><span class="tile-income-value">${fmtMoney(rev, cur)}</span></div>`;
 }
 
-// Global income card — sourced from feedMeta(), which loadAll()/refreshData()
-// already refreshes on every data cycle. No separate polling needed: this simply
-// reads the freshest cached value each time it's rendered.
-function renderGlobalIncomeCard(proj) {
+// Карточка дохода: за выбранный период (сумма paid_net по дням), не только all-time total.
+function renderGlobalIncomeCard(proj, rows) {
   const cur = proj?.currency || '₽';
   const meta = feedMeta(proj?.id);
-  const rev = Math.round(meta?.unit_economics?.revenue_total || 0);
+  const enriched = enrichRowsWithDailyRevenue(proj, rows || getPlantoDailyRows(proj?.id));
+  const periodRev = getPlantoPaidNetForRows(enriched);
+  const allTime = Math.round(meta?.unit_economics?.revenue_total || 0);
+  const rev = Math.round(periodRev != null ? periodRev : allTime);
   const fmt = fmtMoney(rev, cur);
   const label = proj?.name || AUTO_FEED_URLS[proj?.id]?.name || 'Доход';
   const updated = meta?.generated_at ? new Date(meta.generated_at).toLocaleString('ru-RU') : '';
+  const days = enriched?.length || 0;
+  const periodHint = days
+    ? `по дню оплаты · ${days} дн.${allTime && Math.abs(allTime - rev) > 1 ? ` · всё время ${fmtMoney(allTime, cur)}` : ''}`
+    : 'весь срез · по дню оплаты';
   return `<div class="analytics-card income-card">
     <div class="analytics-card-title">Доход · ${escHtml(label)}</div>
     <div class="income-total-box"><span class="income-total-value">${fmt}</span></div>
     <div class="income-breakdown">
-      <span class="income-chip"><i class="income-chip-dot"></i>${escHtml(label)}&nbsp;<b>${fmt}</b></span>
+      <span class="income-chip"><i class="income-chip-dot"></i>Период&nbsp;<b>${fmt}</b></span>
+      ${allTime && Math.abs(allTime - rev) > 1 ? `<span class="income-chip">Всё время&nbsp;<b>${fmtMoney(allTime, cur)}</b></span>` : ''}
     </div>
-    ${updated ? `<div class="budget-hint">Обновляется вместе со статистикой · данные на ${escHtml(updated)}</div>` : ''}
+    <div class="budget-hint">${escHtml(periodHint)}${updated ? ` · данные на ${escHtml(updated)}` : ''}</div>
   </div>`;
 }
 
@@ -8567,7 +8841,7 @@ function renderAnalyticsSection(proj, allData, rows, monthKey, opts = {}) {
   const insights = computeDayInsights(proj, rows);
   const budgetHtml = renderBudgetCard(proj, allData, false);
   const plantoBreakdown = isPlantoProject(proj, rows) ? renderPlantoBreakdownCard(proj, rows) : '';
-  const incomeHtml = isPlantoProject(proj, rows) ? renderGlobalIncomeCard(proj) : '';
+  const incomeHtml = isPlantoProject(proj, rows) ? renderGlobalIncomeCard(proj, rows) : '';
 
   let compareHtml = '';
   if (compare) {
@@ -8828,7 +9102,7 @@ function getChartDatasets(proj, rows) {
 
   chartKeys.forEach((key, i) => {
     base.push({
-      label: L(key, key), data: rows.map(r => r[key] || 0),
+      label: L(key, key), data: rows.map(r => rowMetricNumber(r, key)),
       borderColor: colors[i % colors.length], backgroundColor: 'transparent',
       fill: false, yAxisID: 'y1', tension: 0.3, borderWidth: 2, pointRadius: 3,
       pointBackgroundColor: colors[i % colors.length],
@@ -9760,7 +10034,7 @@ const WORKSPACE_GROUPS = [
   { id: 'ads',    label: 'Реклама',      icon: '📊', keys: ['spend', 'impressions', 'clicks', 'cpm', 'cpc', 'ctr'] },
   { id: 'users',  label: 'Пользователи', icon: '👥', keys: ['installs', 'cost_install', 'regs', 'cost_reg'] },
   { id: 'funnel', label: 'Воронка',      icon: '🎯', keys: ['trials', 'cost_trial', 'cr_install_trial', 'fb', 'sold', 'cost_sold', 'purchase', 'cost_purchase', 'contact_info', 'form_submit', 'contact_sent', 'qregs', 'cost_qreg', 'purchases', 'conv_rate'] },
-  { id: 'revenue',label: 'Доход',        icon: '💰', keys: ['roas', 'cac'] },
+  { id: 'revenue',label: 'Доход',        icon: '💰', keys: ['revenue', 'roas', 'cac'] },
 ];
 
 const WS_NONCHART_KEYS = new Set(['cpc', 'cpm', 'ctr', 'roas', 'cac', 'conv_rate', 'cr_install_trial', 'cr_trial_paid']);
@@ -9896,17 +10170,29 @@ function filterTblByKeys(tbl, allowedKeys) {
   };
 }
 
+function rowMetricNumber(r, key) {
+  if (!r) return 0;
+  if (key === 'revenue') return Number(r.paid_net) || Number(r.revenue) || 0;
+  if (key === 'roas') {
+    const sp = Number(r.spend) || 0;
+    const rev = Number(r.paid_net) || 0;
+    return sp ? (rev / sp * 100) : 0;
+  }
+  return Number(r[key]) || 0;
+}
+
 function buildSectionChartDatasets(proj, rows, keys) {
   const p = withEffectiveType(proj, rows);
   const chartKeys = keys.filter(wsChartableKey);
   const palette = ['#0a0a0a', '#22C55E', '#2563EB', '#F59E0B', '#EC4899', '#06B6D4', '#8B5CF6', '#EF4444'];
   const datasets = chartKeys.map((k, i) => {
     const isSpend = k === 'spend';
+    const isMoney = isMoneyKey(k) || k === 'revenue';
     return {
-      label: getMetricLabel(p, k, k), data: rows.map(r => r[k] || 0),
+      label: getMetricLabel(p, k, k), data: rows.map(r => rowMetricNumber(r, k)),
       borderColor: palette[i % palette.length],
       backgroundColor: isSpend ? 'rgba(0,0,0,0.14)' : 'transparent',
-      fill: isSpend, yAxisID: isSpend ? 'y' : 'y1', tension: 0.3, borderWidth: 2, pointRadius: 2,
+      fill: isSpend, yAxisID: (isSpend || isMoney) ? 'y' : 'y1', tension: 0.3, borderWidth: 2, pointRadius: 2,
       pointBackgroundColor: palette[i % palette.length],
     };
   });
@@ -10031,12 +10317,13 @@ function renderWorkspaceBody(p, srcProj, rows, monthKey, titleSuffix = '', opts 
   if (sections.length > 1) html += renderSectionNav(p.id, sections, section.id);
   html += `<div class="ws-section">`;
   if (section.id === 'summary') {
-    const keys = section.keys.length ? section.keys : getSummaryMetricKeys(srcProj, rows);
+    const dayRows = enrichRowsWithDailyRevenue(srcProj, rows);
+    const keys = section.keys.length ? section.keys : getSummaryMetricKeys(srcProj, dayRows);
     if (getProjectTier(srcProj) === 'full') html += renderRevenueExtras(srcProj);
-    if (keys.length) html += renderWorkspaceKpis(srcProj, rows, keys);
-    const CHART_PREF = ['spend', 'installs', 'trials', 'regs', 'qregs', 'purchase', 'purchases', 'clicks', 'impressions'];
+    if (keys.length) html += renderWorkspaceKpis(srcProj, dayRows, keys);
+    const CHART_PREF = ['spend', 'revenue', 'installs', 'trials', 'regs', 'qregs', 'purchase', 'purchases', 'clicks', 'impressions', 'fb'];
     const chartKeys = CHART_PREF.filter(k => keys.includes(k) && wsChartableKey(k));
-    if (rows.length && chartKeys.length) {
+    if (dayRows.length && chartKeys.length) {
       html += `<div class="chart-card">
         <div class="chart-card-header">
           <div class="card-title">Динамика${titleSuffix}</div>
@@ -10044,14 +10331,14 @@ function renderWorkspaceBody(p, srcProj, rows, monthKey, titleSuffix = '', opts 
         </div>
         <div class="chart-wrap"><canvas id="mainChart"></canvas></div>
       </div>`;
-      pendingWorkspaceChart = { proj: srcProj, rows, keys: chartKeys };
+      pendingWorkspaceChart = { proj: srcProj, rows: dayRows, keys: chartKeys };
     }
-    const tbl = getTableConfig(srcProj, rows);
+    const tbl = getTableConfig(srcProj, dayRows);
     html += `<div class="table-card">
-      <div class="table-header"><span class="card-title">По дням — ${rows.length} строк${titleSuffix}</span></div>
-      ${renderDailyTableHtml(p, rows, tbl)}
+      <div class="table-header"><span class="card-title">По дням — ${dayRows.length} строк${titleSuffix}</span></div>
+      ${renderDailyTableHtml(p, dayRows, tbl)}
     </div>`;
-    html += renderAnalyticsSection(p, allData != null ? allData : { sources: [{ rows }] }, rows, analyticsMonth, { bare: true });
+    html += renderAnalyticsSection(p, allData != null ? allData : { sources: [{ rows: dayRows }] }, dayRows, analyticsMonth, { bare: true });
   } else if (section.id === 'forecast') {
     html += renderProductRoasDetail(srcProj);
   } else if (section.id === 'cohorts') {
@@ -10073,20 +10360,18 @@ function renderWorkspaceBody(p, srcProj, rows, monthKey, titleSuffix = '', opts 
       </div>`;
       pendingWorkspaceChart = { proj: srcProj, rows, keys: chartKeys };
     }
-    const fullTbl = getTableConfig(srcProj, rows);
+    const fullTbl = getTableConfig(srcProj, enrichRowsWithDailyRevenue(srcProj, rows));
+    const dayRows = enrichRowsWithDailyRevenue(srcProj, rows);
     let tbl;
     if (section.id === 'revenue') {
-      const cols = fullTbl.columnKeys || fullTbl.colKeys || [];
-      const exclude = new Set(['cpc', 'cpm', 'cost_install']);
-      const moneyKeys = cols.filter(k => k !== 'date' && isMoneyKey(k) && !exclude.has(k));
-      tbl = filterTblByKeys(fullTbl, moneyKeys);
+      tbl = filterTblByKeys(fullTbl, ['spend', 'revenue', 'roas', 'fb', 'cost_fb', 'cac']);
     } else {
       tbl = filterTblByKeys(fullTbl, section.keys);
       if ((tbl.columnKeys || []).length <= 1) tbl = fullTbl;
     }
     html += `<div class="table-card">
-      <div class="table-header"><span class="card-title">По дням — ${rows.length} строк${titleSuffix}</span></div>
-      ${renderDailyTableHtml(p, rows, tbl)}
+      <div class="table-header"><span class="card-title">По дням — ${dayRows.length} строк${titleSuffix}</span></div>
+      ${renderDailyTableHtml(p, dayRows, tbl)}
     </div>`;
   }
   html += `</div>`;
@@ -10180,6 +10465,7 @@ function renderProjectDetail(projId) {
     // Разрезы считаем на нескленных строках (в viewRows день уже один).
     const dimRows = selectPeriodRows(selectProjectRowsDim(p, pack), currentMonth);
     html += renderGeoFilter(p, dimRows);
+    html += renderPlanFilter(p);
     const osFilter = isJgglProject(p) && isJgglOnTotalTab(p) ? getJgglOsFilter(p.id) : '';
     let bodyRows;
     if (hasActiveDim(p) || osFilter) {
@@ -10190,6 +10476,7 @@ function renderProjectDetail(projId) {
     } else {
       bodyRows = viewRows;
     }
+    bodyRows = applyPlanFilterToRows(p, enrichRowsWithDailyRevenue(p, bodyRows));
     // Бюджет/аналитика — тот же universe, что таблица (не один лист).
     html += renderWorkspaceBody(p, srcProj, bodyRows, currentMonth, suffix, {
       allData: monthPartitioned ? pack : { sources: [src] },
@@ -10209,7 +10496,10 @@ function renderProjectDetail(projId) {
   html += renderManualEntryCard(p);
   const dimRows1 = selectPeriodRows(selectProjectRowsDim(p, pack), currentMonth);
   html += renderGeoFilter(p, dimRows1);
-  const bodyRows1 = hasActiveDim(p) ? aggregateRowsByDate(filterRowsByDims(p, dimRows1)) : rows;
+  html += renderPlanFilter(p);
+  let bodyRows1 = hasActiveDim(p) ? aggregateRowsByDate(filterRowsByDims(p, dimRows1)) : rows;
+  bodyRows1 = enrichRowsWithDailyRevenue(p, bodyRows1);
+  bodyRows1 = applyPlanFilterToRows(p, bodyRows1);
   html += renderWorkspaceBody(p, srcProj, bodyRows1, currentMonth, suffix, { allData: data, analyticsMonth });
 
   content.innerHTML = html;
@@ -12393,7 +12683,9 @@ function chatMetricValue(key, proj, rows) {
   const cur = proj?.currency || '₽';
   if (key === 'revenue') {
     if (proj?.id === 'planto' || isPlantoAutoFeed(proj)) {
-      const ue = feedMeta()?.unit_economics;
+      const rev = getPlantoPaidNetForRows(rows);
+      if (rev != null) return fmtMoney(rev, cur);
+      const ue = feedMeta(proj?.id)?.unit_economics;
       if (ue?.revenue_total != null) return fmtMoney(ue.revenue_total, cur);
     }
     return 'нет данных о фактическом доходе';

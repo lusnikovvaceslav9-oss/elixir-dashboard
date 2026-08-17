@@ -51,6 +51,10 @@ def plan_of(product_code: str | None) -> str:
 # Цены задаются проектом (config.plans): у Planto и ColorStylist они разные.
 PLAN_PRICES = {"weekly": 0, "monthly": MONTHLY_PRICE, "yearly": YEARLY_PRICE}
 
+# Лаг триала по тарифу: когортный день оплаты = pay_date − lag.
+# ColorStylist: триал только на week (3д). Planto: триал на yearly (7д).
+TRIAL_LAG_BY_PLAN = {"yearly": YEARLY_TRIAL_LAG_DAYS, "weekly": 0, "monthly": 0}
+
 
 def set_plan_prices(plans: dict | None) -> None:
     if not plans:
@@ -62,6 +66,39 @@ def set_plan_prices(plans: dict | None) -> None:
                 PLAN_PRICES[key] = int(v)
             except (TypeError, ValueError):
                 pass
+
+
+def set_trial_config(cfg: dict | None) -> None:
+    """trial_plan + trial_days из конфига проекта.
+
+    ColorStylist: trial_plan=week, trial_days=3 → лаг только у weekly.
+    Planto (без trial_plan): trial_lag_days=7 → лаг у yearly.
+    """
+    if not cfg:
+        return
+    trial_days = cfg.get("trial_days")
+    if trial_days is None:
+        trial_days = cfg.get("trial_lag_days")
+    try:
+        lag = int(trial_days) if trial_days is not None else None
+    except (TypeError, ValueError):
+        lag = None
+    plan = str(cfg.get("trial_plan") or "").strip().lower()
+    if plan in ("week", "weekly", "7d"):
+        TRIAL_LAG_BY_PLAN["weekly"] = lag if lag is not None else 0
+        TRIAL_LAG_BY_PLAN["yearly"] = 0
+        TRIAL_LAG_BY_PLAN["monthly"] = 0
+    elif plan in ("year", "yearly"):
+        TRIAL_LAG_BY_PLAN["yearly"] = lag if lag is not None else YEARLY_TRIAL_LAG_DAYS
+        TRIAL_LAG_BY_PLAN["weekly"] = 0
+        TRIAL_LAG_BY_PLAN["monthly"] = 0
+    elif lag is not None:
+        # Legacy: trial_lag_days без trial_plan → yearly (Planto).
+        TRIAL_LAG_BY_PLAN["yearly"] = lag
+
+
+def trial_lag_for_plan(plan: str) -> int:
+    return int(TRIAL_LAG_BY_PLAN.get(plan) or 0)
 
 
 def derive_trial_start(
@@ -247,24 +284,10 @@ def fetch_trials_by_day(db_url: str, date_since: date, date_until: date) -> dict
 class Bill:
     user_id: str
     purchase_id: str
-    plan: str  # 'yearly' | 'monthly'
+    plan: str  # 'yearly' | 'monthly' | 'weekly'
     amount: int
     pay_date: date  # день списания (last_event_time, MSK)
-    cohort_day: date  # день когорты (годовой: pay_date − 7; месячный: pay_date)
-
-
-_BILLS_SQL = """
-    SELECT purchase_id,
-           user_id::text,
-           product_code,
-           last_subscription_event_type,
-           last_event_time,
-           activated_at
-    FROM rustore_subscription_entitlements
-    WHERE period = 'MAIN'
-      AND status = 'ACTIVE'
-      AND coalesce(last_event_time, activated_at) IS NOT NULL;
-"""
+    cohort_day: date  # день когорты (тариф с триалом: pay_date − lag)
 
 
 def derive_bill(
@@ -280,8 +303,8 @@ def derive_bill(
         return None
     pay_date = _to_msk_date(charge)
     plan = plan_of(product_code)
-    # Годовой оплачивается после триала → относим к когорте старта триала.
-    cohort_day = pay_date - timedelta(days=YEARLY_TRIAL_LAG_DAYS) if plan == "yearly" else pay_date
+    lag = trial_lag_for_plan(plan)
+    cohort_day = pay_date - timedelta(days=lag) if lag else pay_date
     return Bill(
         user_id=str(user_id),
         purchase_id=str(purchase_id),
@@ -290,6 +313,20 @@ def derive_bill(
         pay_date=pay_date,
         cohort_day=cohort_day,
     )
+
+
+_BILLS_SQL = """
+    SELECT purchase_id,
+           user_id::text,
+           product_code,
+           last_subscription_event_type,
+           last_event_time,
+           activated_at
+    FROM rustore_subscription_entitlements
+    WHERE period = 'MAIN'
+      AND status = 'ACTIVE'
+      AND coalesce(last_event_time, activated_at) IS NOT NULL;
+"""
 
 
 def fetch_bills(db_url: str, date_since: date, date_until: date) -> list[Bill]:
@@ -353,12 +390,21 @@ def sold_by_cohort_day(bills: list[Bill]) -> dict[str, int]:
 
 
 def paid_net_by_cohort_day(bills: list[Bill]) -> dict[str, int]:
-    """Сумма ₽ по дню когорты (годовой: оплата − 7д; месячный: день оплаты)."""
+    """Сумма ₽ по дню когорты (годовой: оплата − lag; месячный/неделя: день оплаты)."""
     out: dict[str, int] = {}
     for b in bills:
         key = b.cohort_day.isoformat()
         out[key] = out.get(key, 0) + b.amount
     return out
+
+
+def paid_net_by_pay_day(bills: list[Bill]) -> dict[str, int]:
+    """Сумма ₽ по календарному дню оплаты — как в консоли RuStore."""
+    out: dict[str, int] = {}
+    for b in bills:
+        key = b.pay_date.isoformat()
+        out[key] = out.get(key, 0) + int(b.amount or 0)
+    return dict(sorted(out.items()))
 
 
 def bills_breakdown(bills: list[Bill]) -> dict[str, dict[str, int]]:
@@ -375,6 +421,22 @@ def bills_breakdown(bills: list[Bill]) -> dict[str, dict[str, int]]:
         out[plan]["rub"] += b.amount
         out["total"]["count"] += 1
         out["total"]["rub"] += b.amount
+    return out
+
+
+def bills_by_plan_by_day(bills: list[Bill]) -> dict[str, dict[str, dict[str, int]]]:
+    """Оплаты по тарифу и календарному дню оплаты (как RuStore «за N дней»)."""
+    out: dict[str, dict[str, dict[str, int]]] = {
+        "yearly": {},
+        "monthly": {},
+        "weekly": {},
+    }
+    for b in bills:
+        plan = b.plan if b.plan in out else "monthly"
+        key = b.pay_date.isoformat()
+        cell = out[plan].setdefault(key, {"count": 0, "rub": 0})
+        cell["count"] += 1
+        cell["rub"] += int(b.amount or 0)
     return out
 
 
