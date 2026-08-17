@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from pathlib import Path
@@ -430,6 +431,21 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
     polza_summary: dict | None = None
     polza_keys = polza_api_keys(secrets)
     if polza_keys:
+        distinct = {k for _, k in polza_keys}
+        digests = ", ".join(
+            f"{label}:{hashlib.sha256(key.encode()).hexdigest()[:8]}"
+            for label, key in polza_keys
+        )
+        print(
+            f"  Polza keys: {len(polza_keys)} configured, "
+            f"{len(distinct)} distinct [{digests}]"
+        )
+        if len(polza_keys) > 1 and len(distinct) == 1:
+            errors.append(
+                "polza: POLZA_API_KEY_FALLBACK совпадает с primary — "
+                "проверь, что в GitHub Secrets лежит Style-emergency, не Style"
+            )
+            print(f"  Polza warning: {errors[-1]}")
         try:
             polza_summary = fetch_polza_spend_by_day_multi(polza_keys, anchor, until)
             polza_by_day = polza_summary.get("by_day") or {}
