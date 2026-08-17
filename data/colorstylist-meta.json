@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-17T11:43:54+00:00",
+  "generated_at": "2026-08-17T11:46:57+00:00",
   "anchor": "2026-07-31",
   "until": "2026-08-17",
   "window_start": "2026-08-08",
@@ -20,7 +20,7 @@
       }
     ],
     "keys_used": 1,
-    "per_install": 6.0,
+    "per_install": 5.99,
     "per_trial": 110.21,
     "total_burn": 28613.25
   },
@@ -48,7 +48,9 @@
     "polza_spend": "polza_api",
     "product": "appmetrica_reporting"
   },
-  "errors": [],
+  "errors": [
+    "polza: POLZA_API_KEY_FALLBACK совпадает с primary — проверь, что в GitHub Secrets лежит Style-emergency, не Style"
+  ],
   "days": 18,
   "reconcile_diff": {
     "trials_total_old_csv": 58,
@@ -104,7 +106,7 @@
         "id": "aha_color",
         "label": "Aha: цветотип",
         "formula_label": "color_type_reveal / install",
-        "value_pct": 84.71,
+        "value_pct": 84.63,
         "primary": true,
         "accent": false,
         "note": null
@@ -131,7 +133,7 @@
         "id": "engagement_hair",
         "label": "Вовлечение (hair)",
         "formula_label": "hair_look / install",
-        "value_pct": 40.9,
+        "value_pct": 40.86,
         "primary": false,
         "accent": false,
         "note": null
@@ -142,37 +144,37 @@
         "id": "color_type",
         "label": "Цветотип",
         "event": "color_type_done",
-        "value_pct": 89.77
+        "value_pct": 89.69
       },
       {
         "id": "hair",
         "label": "Волосы",
         "event": "hair_look_generated",
-        "value_pct": 40.9
+        "value_pct": 40.86
       },
       {
         "id": "outfit",
         "label": "Образы",
         "event": "outfit_generated",
-        "value_pct": 15.85
+        "value_pct": 15.84
       },
       {
         "id": "makeup",
         "label": "Макияж",
         "event": "makeup_generated",
-        "value_pct": 18.48
+        "value_pct": 18.46
       },
       {
         "id": "chat",
         "label": "Чат",
         "event": "chat_reply",
-        "value_pct": 22.61
+        "value_pct": 22.59
       },
       {
         "id": "fitting",
         "label": "Примерочная",
         "event": "fitting_done",
-        "value_pct": 8.26
+        "value_pct": 8.25
       }
     ],
     "quality": [
