@@ -1,33 +1,33 @@
 {
-  "generated_at": "2026-08-17T20:15:04+00:00",
+  "generated_at": "2026-08-17T21:16:21+00:00",
   "anchor": "2026-07-31",
-  "until": "2026-08-17",
-  "window_start": "2026-08-08",
+  "until": "2026-08-18",
+  "window_start": "2026-08-09",
   "trial_attribution": "appmetrica_purchase_success",
   "ai_spend": {
     "provider": "polza",
-    "total": 10691.89,
-    "generations": 7594,
+    "total": 10920.38,
+    "generations": 7728,
     "by_kind": {
-      "images": 9668.0,
-      "chat": 1023.89
+      "images": 9880.2,
+      "chat": 1040.18
     },
     "by_key": [
       {
         "label": "style",
-        "total": 4299.69,
-        "generations": 4931
+        "total": 4325.58,
+        "generations": 4948
       },
       {
         "label": "style-emergency",
-        "total": 6392.2,
-        "generations": 2663
+        "total": 6594.8,
+        "generations": 2780
       }
     ],
     "keys_used": 2,
-    "per_install": 9.87,
-    "per_trial": 172.45,
-    "total_burn": 33324.54
+    "per_install": 10.08,
+    "per_trial": 176.14,
+    "total_burn": 33579.68
   },
   "trial_days": 3,
   "trial_lag_days": 3,
@@ -54,7 +54,7 @@
     "product": "appmetrica_reporting"
   },
   "errors": [],
-  "days": 18,
+  "days": 19,
   "reconcile_diff": {
     "trials_total_old_csv": 62,
     "trials_total_new": 62,
@@ -62,7 +62,7 @@
   },
   "unit_economics": {
     "revenue_total": 2589,
-    "spend_total": 22632.65,
+    "spend_total": 22659.3,
     "active_users": 1150,
     "active_payers": 4,
     "plus_active_users": 18,
@@ -109,7 +109,7 @@
         "id": "aha_color",
         "label": "Aha: цветотип",
         "formula_label": "color_type_reveal / install",
-        "value_pct": 84.76,
+        "value_pct": 84.86,
         "primary": true,
         "accent": false,
         "note": null
@@ -127,7 +127,7 @@
         "id": "paywall_cta",
         "label": "CTA пейволла",
         "formula_label": "purchase_tap / paywall_view",
-        "value_pct": 29.58,
+        "value_pct": 29.54,
         "primary": false,
         "accent": true,
         "note": null
@@ -159,7 +159,7 @@
         "id": "outfit",
         "label": "Образы",
         "event": "outfit_generated",
-        "value_pct": 16.07
+        "value_pct": 16.16
       },
       {
         "id": "makeup",
@@ -171,7 +171,7 @@
         "id": "chat",
         "label": "Чат",
         "event": "chat_reply",
-        "value_pct": 22.62
+        "value_pct": 22.71
       },
       {
         "id": "fitting",
@@ -184,7 +184,7 @@
       {
         "id": "ai_fail_rate",
         "label": "AI fail rate",
-        "value_pct": 24.55
+        "value_pct": 24.59
       }
     ]
   },
@@ -259,7 +259,8 @@
     "2026-08-14": 0,
     "2026-08-15": 398,
     "2026-08-16": 398,
-    "2026-08-17": 797
+    "2026-08-17": 797,
+    "2026-08-18": 0
   },
   "paid_net_by_cohort_day": {
     "2026-08-05": 399,
@@ -296,10 +297,10 @@
     "2026-08-17": 10
   },
   "trials_crosscheck_yesterday": {
-    "day": "2026-08-16",
-    "appmetrica": 6,
-    "supabase": 3,
-    "dashboard": 6,
+    "day": "2026-08-17",
+    "appmetrica": 10,
+    "supabase": 5,
+    "dashboard": 10,
     "note": "В дашборде trials = AppMetrica purchase_success (события ym:ce:allEvents, как колонка «События» в UI). RuStore — сверка оплат."
   }
 }
