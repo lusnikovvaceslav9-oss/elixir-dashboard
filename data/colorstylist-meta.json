@@ -1,28 +1,33 @@
 {
-  "generated_at": "2026-08-17T11:46:57+00:00",
+  "generated_at": "2026-08-17T11:58:27+00:00",
   "anchor": "2026-07-31",
   "until": "2026-08-17",
   "window_start": "2026-08-08",
   "trial_attribution": "appmetrica_purchase_success",
   "ai_spend": {
     "provider": "polza",
-    "total": 6392.2,
-    "generations": 2663,
+    "total": 10691.89,
+    "generations": 7594,
     "by_kind": {
-      "images": 6264.0,
-      "chat": 128.2
+      "images": 9668.0,
+      "chat": 1023.89
     },
     "by_key": [
       {
         "label": "style",
+        "total": 4299.69,
+        "generations": 4931
+      },
+      {
+        "label": "style-emergency",
         "total": 6392.2,
         "generations": 2663
       }
     ],
-    "keys_used": 1,
-    "per_install": 5.99,
-    "per_trial": 110.21,
-    "total_burn": 28613.25
+    "keys_used": 2,
+    "per_install": 10.02,
+    "per_trial": 184.34,
+    "total_burn": 32915.86
   },
   "trial_days": 3,
   "trial_lag_days": 3,
@@ -48,9 +53,7 @@
     "polza_spend": "polza_api",
     "product": "appmetrica_reporting"
   },
-  "errors": [
-    "polza: POLZA_API_KEY_FALLBACK совпадает с primary — проверь, что в GitHub Secrets лежит Style-emergency, не Style"
-  ],
+  "errors": [],
   "days": 18,
   "reconcile_diff": {
     "trials_total_old_csv": 58,
@@ -59,7 +62,7 @@
   },
   "unit_economics": {
     "revenue_total": 2589,
-    "spend_total": 22221.05,
+    "spend_total": 22223.97,
     "active_users": 1131,
     "active_payers": 4,
     "plus_active_users": 16,
@@ -133,7 +136,7 @@
         "id": "engagement_hair",
         "label": "Вовлечение (hair)",
         "formula_label": "hair_look / install",
-        "value_pct": 40.86,
+        "value_pct": 40.96,
         "primary": false,
         "accent": false,
         "note": null
@@ -150,7 +153,7 @@
         "id": "hair",
         "label": "Волосы",
         "event": "hair_look_generated",
-        "value_pct": 40.86
+        "value_pct": 40.96
       },
       {
         "id": "outfit",
