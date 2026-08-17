@@ -4,7 +4,8 @@
 total_burn = direct_spend + polza_spend. Тянем историю генераций и складываем
 стоимость по дате (МСК, как и остальной фид).
 
-Ключ: секрет POLZA_API_KEY или POLZA_AI_API_KEY.
+Ключи: POLZA_API_KEY / POLZA_AI_API_KEY и опционально POLZA_API_KEY_FALLBACK
+(второй ключ ColorStylist — суммируем spend по обоим).
 Нет ключа — молча пропускаем (фид не должен падать из-за необязательного источника).
 
 API: https://polza.ai/docs/api-reference/history/generations
@@ -171,3 +172,69 @@ def fetch_polza_spend_by_day(
         "generations": count,
         "total": round(sum(by_day.values()), 2),
     }
+
+
+def _merge_polza_summaries(parts: list[dict]) -> dict:
+    by_day: dict[str, float] = {}
+    by_kind: dict[str, float] = {"images": 0.0, "chat": 0.0}
+    generations = 0
+    by_key: list[dict] = []
+    for part in parts:
+        label = part.get("key_label") or "key"
+        total = float(part.get("total") or 0)
+        gens = int(part.get("generations") or 0)
+        by_key.append({"label": label, "total": total, "generations": gens})
+        generations += gens
+        for day, rub in (part.get("by_day") or {}).items():
+            by_day[day] = round(by_day.get(day, 0.0) + float(rub or 0), 2)
+        for kind, rub in (part.get("by_kind") or {}).items():
+            by_kind[kind] = round(by_kind.get(kind, 0.0) + float(rub or 0), 2)
+    return {
+        "by_day": by_day,
+        "by_kind": by_kind,
+        "generations": generations,
+        "total": round(sum(by_day.values()), 2),
+        "by_key": by_key,
+        "keys_used": len(parts),
+    }
+
+
+def fetch_polza_spend_by_day_multi(
+    api_keys: list[tuple[str, str]],
+    date_since: date,
+    date_until: date,
+    page_limit: int = 50,
+) -> dict:
+    """Суммирует spend по нескольким ключам (Style + Style-emergency).
+
+    api_keys: [(label, key), ...] — пустые ключи пропускаются.
+    """
+    parts: list[dict] = []
+    errors: list[str] = []
+    seen: set[str] = set()
+    for label, key in api_keys:
+        key = (key or "").strip()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        try:
+            part = fetch_polza_spend_by_day(key, date_since, date_until, page_limit=page_limit)
+            part["key_label"] = label
+            parts.append(part)
+        except Exception as exc:
+            errors.append(f"{label}: {exc}")
+    if not parts:
+        if errors:
+            raise RuntimeError("; ".join(errors))
+        return {
+            "by_day": {},
+            "by_kind": {"images": 0.0, "chat": 0.0},
+            "generations": 0,
+            "total": 0.0,
+            "by_key": [],
+            "keys_used": 0,
+        }
+    out = _merge_polza_summaries(parts)
+    if errors:
+        out["errors"] = errors
+    return out

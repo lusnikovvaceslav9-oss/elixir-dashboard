@@ -25,8 +25,8 @@ from payments import (
     sold_trials_by_cohort_day as csv_sold_by_cohort_day,
     sold_trials_by_cohort_day as csv_sold_by_day,
 )
-from polza import fetch_polza_spend_by_day
-from secrets import load_secrets
+from polza import fetch_polza_spend_by_day_multi
+from secrets import load_secrets, polza_api_keys
 from supabase import (
     bills_breakdown,
     bills_by_plan_by_day,
@@ -424,20 +424,30 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
         sold = filled_sold
         paid_by_pay_day = filled_paid
 
-    # Polza (ИИ) — фактический burn по ключам. Необязательный источник: нет ключа
-    # или упал запрос — фид продолжает работать, просто без polza_spend.
+    # Polza (ИИ) — фактический burn по ключам ColorStylist (Style + Style-emergency).
+    # Необязательный источник: нет ключа или упал запрос — фид без polza_spend.
     polza_by_day: dict[str, float] = {}
     polza_summary: dict | None = None
-    polza_key = secrets.get("POLZA_API_KEY")
-    if polza_key:
+    polza_keys = polza_api_keys(secrets)
+    if polza_keys:
         try:
-            polza_summary = fetch_polza_spend_by_day(polza_key, anchor, until)
+            polza_summary = fetch_polza_spend_by_day_multi(polza_keys, anchor, until)
             polza_by_day = polza_summary.get("by_day") or {}
             sources["polza_spend"] = "polza_api"
+            by_key = polza_summary.get("by_key") or []
+            keys_note = ", ".join(
+                f"{k.get('label')}={k.get('total')}₽/{k.get('generations')}г"
+                for k in by_key
+            )
             print(
                 f"  Polza: {polza_summary.get('total')} ₽ "
-                f"({polza_summary.get('generations')} ген.) · {polza_summary.get('by_kind')}"
+                f"({polza_summary.get('generations')} ген., "
+                f"{polza_summary.get('keys_used')} ключ.) · {polza_summary.get('by_kind')}"
+                + (f" · [{keys_note}]" if keys_note else "")
             )
+            for warn in polza_summary.get("errors") or []:
+                errors.append(f"polza partial: {warn}")
+                print(f"  Polza partial: {warn}")
         except Exception as exc:
             errors.append(f"polza: {exc}")
             print(f"  Polza failed: {exc}")
@@ -574,6 +584,8 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
             "total": (polza_summary or {}).get("total"),
             "generations": (polza_summary or {}).get("generations"),
             "by_kind": (polza_summary or {}).get("by_kind"),
+            "by_key": (polza_summary or {}).get("by_key"),
+            "keys_used": (polza_summary or {}).get("keys_used"),
             "per_install": round((polza_summary or {}).get("total", 0) / installs_total, 2)
                 if polza_summary and installs_total else None,
             "per_trial": round((polza_summary or {}).get("total", 0) / new_trials_total, 2)

@@ -58,6 +58,7 @@ def load_secrets(work_dir: Path) -> dict[str, str | None]:
         "SUPABASE_DB_URL",
         "POLZA_API_KEY",
         "POLZA_AI_API_KEY",  # alias — так лежит секрет в GitHub
+        "POLZA_API_KEY_FALLBACK",  # второй ключ ColorStylist (Style-emergency)
     )
     out: dict[str, str | None] = {}
     for key in keys:
@@ -73,3 +74,15 @@ def load_secrets(work_dir: Path) -> dict[str, str | None]:
     if not out.get("POLZA_API_KEY") and out.get("POLZA_AI_API_KEY"):
         out["POLZA_API_KEY"] = out["POLZA_AI_API_KEY"]
     return out
+
+
+def polza_api_keys(secrets: dict[str, str | None]) -> list[tuple[str, str]]:
+    """Ключи Polza для ColorStylist: primary + optional fallback (суммируем spend)."""
+    keys: list[tuple[str, str]] = []
+    primary = (secrets.get("POLZA_API_KEY") or secrets.get("POLZA_AI_API_KEY") or "").strip()
+    fallback = (secrets.get("POLZA_API_KEY_FALLBACK") or "").strip()
+    if primary:
+        keys.append(("style", primary))
+    if fallback:
+        keys.append(("style-emergency", fallback))
+    return keys
