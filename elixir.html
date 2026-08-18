@@ -1808,6 +1808,35 @@ function isCorruptMetaUpload(u) {
   return !String(u.text || '').trim();
 }
 
+/** «file (1).csv · Android» → ключ дедупа. Не трогаем «Campaign report (11).csv» —
+ *  это разные выгрузки Google, а не Finder-копия. */
+function uploadDedupeKey(fileName, label) {
+  let s = String(fileName || '').trim();
+  s = s.replace(/\s*·\s*(iOS|Android|Waitlist|Redirect|Web)\s*$/i, '');
+  const lab = String(label || '').trim().toLowerCase() || 'csv';
+  // Только суффикс копии Finder/Chrome « (1)» / « (2)» перед расширением.
+  const copy = /\s*\([12]\)(?=\.[^.]+$)/.test(s);
+  const base = s.replace(/\s*\([12]\)(?=\.[^.]+$)/, '').toLowerCase();
+  return { key: `${lab}||${base}`, isCopy: copy, base };
+}
+
+/** Удаляет «…(1).csv», только если есть такой же файл без «(1)». Иначе удваивается spend. */
+function dedupeUploadsByFileBase(files) {
+  const map = { ...(files || {}) };
+  const nonCopyBases = new Set();
+  Object.values(map).forEach(u => {
+    if (!u || u.override) return;
+    const { key, isCopy } = uploadDedupeKey(u.fileName || '', u.label);
+    if (!isCopy) nonCopyBases.add(key);
+  });
+  Object.entries(map).forEach(([id, u]) => {
+    if (!u || u.override || id === 'contractor_sheet' || id === 'manual_entries') return;
+    const { key, isCopy } = uploadDedupeKey(u.fileName || id, u.label);
+    if (isCopy && nonCopyBases.has(key)) delete map[id];
+  });
+  return map;
+}
+
 function mergeCsvUploadStores(local, remote) {
   const out = JSON.parse(JSON.stringify(remote || {}));
   const projIds = new Set([...Object.keys(out), ...Object.keys(local || {})]);
@@ -1832,7 +1861,7 @@ function mergeCsvUploadStores(local, remote) {
     Object.keys(next).forEach(id => {
       if (isCorruptMetaUpload(next[id])) delete next[id];
     });
-    out[projId] = next;
+    out[projId] = dedupeUploadsByFileBase(next);
   });
   return out;
 }
@@ -3009,13 +3038,13 @@ const _metaCorruptPurgedCloud = new Set();
 
 function getProjectCsvUploads(projId) {
   const all = loadCsvUploads();
-  const map = all[projId] || {};
+  let map = all[projId] || {};
   if (!projId) return map;
   // Повторно сканируем даже после «done»: union-merge с облаком может вернуть
   // битые загрузки без text (Spend←Impressions), их надо снова выкинуть.
   let changed = false;
   const purgedIds = [];
-  const next = { ...map };
+  let next = { ...map };
   Object.entries(map).forEach(([id, u]) => {
     if (!u || u.override || id === 'contractor_sheet') return;
     const cols = u.sheetColumns || [];
@@ -3045,6 +3074,12 @@ function getProjectCsvUploads(projId) {
       console.warn('JGGL: удалена битая Meta-загрузка (нет исходного CSV) —', u.fileName || id, '· перезалей файл');
     }
   });
+  const beforeDedup = Object.keys(next).length;
+  next = dedupeUploadsByFileBase(next);
+  if (Object.keys(next).length !== beforeDedup) {
+    changed = true;
+    console.info('JGGL: убраны дубли CSV с суффиксом (1)/(2)…');
+  }
   _metaUploadRepairDone.add(projId);
   if (changed) {
     all[projId] = next;
@@ -3066,9 +3101,9 @@ function getProjectCsvUploads(projId) {
           return [...rest, { id: '_csv_uploads', uploads, updatedAt: new Date().toISOString() }];
         }).catch(e => console.warn('JGGL corrupt purge cloud failed:', e.message || e));
       }
-    } else {
-      saveCsvUploads(all);
     }
+    // Дедуп «(1)» тоже нужно закрепить в облаке (не через resurrecting union).
+    saveCsvUploads(all, { awaitCloud: true, timeoutMs: 20000 }).catch(() => {});
   }
   return next;
 }
