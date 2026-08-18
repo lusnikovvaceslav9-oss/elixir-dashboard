@@ -1796,6 +1796,18 @@ function deserializeUploadRows(rows) {
   }).filter(r => r.date);
 }
 
+/** Meta CSV со сдвигом Source: Campaign=active/not_delivering, Spend←Impressions.
+ *  Без исходного text не восстановить — такие загрузки нельзя возвращать из облака. */
+function isCorruptMetaUpload(u) {
+  if (!u || u.override) return false;
+  const cols = u.sheetColumns || [];
+  const rows = u.rows || [];
+  const brokenCols = isBrokenMetaSourceHeader(cols);
+  const brokenRows = rows.some(r => looksLikeMetaDeliveryStatus(r.campaign) && (Number(r.spend) || 0) > 500);
+  if (!brokenCols && !brokenRows) return false;
+  return !String(u.text || '').trim();
+}
+
 function mergeCsvUploadStores(local, remote) {
   const out = JSON.parse(JSON.stringify(remote || {}));
   const projIds = new Set([...Object.keys(out), ...Object.keys(local || {})]);
@@ -1815,6 +1827,11 @@ function mergeCsvUploadStores(local, remote) {
       const localRicher = !!(file.text && !prev.text);
       next[id] = (localRicher || nextAt >= prevAt) ? { ...prev, ...file } : { ...file, ...prev };
     });
+    // Битые Meta без text (Spend←Impressions) — выкидываем и из remote, и из local,
+    // иначе union-merge после локального delete снова поднимает их из облака.
+    Object.keys(next).forEach(id => {
+      if (isCorruptMetaUpload(next[id])) delete next[id];
+    });
     out[projId] = next;
   });
   return out;
@@ -1825,16 +1842,20 @@ function uploadsForRemote(all) {
   Object.entries(all || {}).forEach(([projId, files]) => {
     out[projId] = {};
     Object.entries(files || {}).forEach(([id, u]) => {
+      if (isCorruptMetaUpload(u)) return;
       const rows = u.rows?.length
         ? deserializeUploadRows(u.rows)
         : (u.text ? parseSheet(u.text) : []);
+      // Не тащим в облако строки, где Campaign = delivery status (сдвиг Source).
+      const cleanRows = rows.filter(r => !looksLikeMetaDeliveryStatus(r.campaign));
       out[projId][id] = {
         label: u.label,
         fileName: u.fileName,
         uploadedAt: u.uploadedAt,
         hash: u.hash,
+        override: u.override || undefined,
         sheetColumns: u.sheetColumns || (u.text ? (parseCSV(u.text)[0] || []).map(h => (h || '').trim()) : []),
-        rows: serializeUploadRows(rows),
+        rows: serializeUploadRows(cleanRows.length ? cleanRows : rows),
       };
     });
   });
@@ -2983,12 +3004,17 @@ async function forceSyncCsvToCloud(btn) {
 
 /** Проекты, для которых уже прогнали ремонт битых Meta-загрузок в этой сессии. */
 const _metaUploadRepairDone = new Set();
+/** Битые id, которые уже точечно вычистили из облака (не через union-merge). */
+const _metaCorruptPurgedCloud = new Set();
 
 function getProjectCsvUploads(projId) {
   const all = loadCsvUploads();
   const map = all[projId] || {};
-  if (!projId || _metaUploadRepairDone.has(projId)) return map;
+  if (!projId) return map;
+  // Повторно сканируем даже после «done»: union-merge с облаком может вернуть
+  // битые загрузки без text (Spend←Impressions), их надо снова выкинуть.
   let changed = false;
+  const purgedIds = [];
   const next = { ...map };
   Object.entries(map).forEach(([id, u]) => {
     if (!u || u.override || id === 'contractor_sheet') return;
@@ -3014,6 +3040,7 @@ function getProjectCsvUploads(projId) {
       console.info('JGGL: починена Meta-загрузка со сдвигом Source —', u.fileName || id);
     } else {
       delete next[id];
+      purgedIds.push(id);
       changed = true;
       console.warn('JGGL: удалена битая Meta-загрузка (нет исходного CSV) —', u.fileName || id, '· перезалей файл');
     }
@@ -3022,7 +3049,26 @@ function getProjectCsvUploads(projId) {
   if (changed) {
     all[projId] = next;
     try { localStorage.setItem(CSV_UPLOAD_KEY, JSON.stringify(all)); } catch (_) {}
-    saveCsvUploads(all);
+    // Обычный saveCsvUploads = union-merge → битые id снова приедут из remote.
+    // Чистим облако точечно, как deleteUploadedCsv.
+    if (purgedIds.length) {
+      const cloudKey = `${projId}:${purgedIds.slice().sort().join(',')}`;
+      if (!_metaCorruptPurgedCloud.has(cloudKey)) {
+        _metaCorruptPurgedCloud.add(cloudKey);
+        jbSaveRecord(raw => {
+          const rest = raw.filter(p => p && p.id !== '_csv_uploads');
+          const entry = raw.find(p => p?.id === '_csv_uploads');
+          const uploads = entry?.uploads ? JSON.parse(JSON.stringify(entry.uploads)) : {};
+          if (uploads[projId]) {
+            purgedIds.forEach(id => { delete uploads[projId][id]; });
+            if (!Object.keys(uploads[projId]).length) delete uploads[projId];
+          }
+          return [...rest, { id: '_csv_uploads', uploads, updatedAt: new Date().toISOString() }];
+        }).catch(e => console.warn('JGGL corrupt purge cloud failed:', e.message || e));
+      }
+    } else {
+      saveCsvUploads(all);
+    }
   }
   return next;
 }
