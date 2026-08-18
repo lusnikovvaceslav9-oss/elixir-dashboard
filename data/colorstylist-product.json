@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-18T21:13:51+00:00",
+  "generated_at": "2026-08-18T22:11:22+00:00",
   "anchor": "2026-07-31",
   "until": "2026-08-19",
   "product": {
@@ -12,13 +12,13 @@
     "events": {
       "ai_fail": {
         "users": 502,
-        "events": 2750,
+        "events": 2753,
         "vs_install_pct": 43.54,
         "avg_per_user": 5.48
       },
       "ai_request": {
         "users": 1101,
-        "events": 10910,
+        "events": 10915,
         "vs_install_pct": 95.49,
         "avg_per_user": 9.91
       },
@@ -41,14 +41,14 @@
         "avg_per_user": 1.43
       },
       "fitting_done": {
-        "users": 101,
-        "events": 152,
-        "vs_install_pct": 8.76,
+        "users": 102,
+        "events": 153,
+        "vs_install_pct": 8.85,
         "avg_per_user": 1.5
       },
       "hair_look_generated": {
         "users": 475,
-        "events": 1691,
+        "events": 1693,
         "vs_install_pct": 41.2,
         "avg_per_user": 3.56
       },
@@ -66,15 +66,15 @@
       },
       "paywall_view": {
         "users": 790,
-        "events": 1779,
+        "events": 1780,
         "vs_install_pct": 68.52,
         "avg_per_user": 2.25
       },
       "purchase_tap": {
         "users": 242,
-        "events": 393,
+        "events": 396,
         "vs_install_pct": 20.99,
-        "avg_per_user": 1.62
+        "avg_per_user": 1.64
       }
     },
     "kpis": [
@@ -150,14 +150,14 @@
         "id": "fitting",
         "label": "Примерочная",
         "event": "fitting_done",
-        "value_pct": 8.76
+        "value_pct": 8.85
       }
     ],
     "quality": [
       {
         "id": "ai_fail_rate",
         "label": "AI fail rate",
-        "value_pct": 25.21
+        "value_pct": 25.22
       }
     ],
     "retention": {
@@ -170,10 +170,10 @@
   },
   "unit_economics": {
     "revenue_total": 2988,
-    "spend_total": 24671.57,
+    "spend_total": 24699.59,
     "active_users": 1228,
     "active_payers": 5,
-    "plus_active_users": 24,
+    "plus_active_users": 25,
     "trial_cancellations": 6,
     "trial_cancellations_by_day": {
       "2026-08-17": 2,
