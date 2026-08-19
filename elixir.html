@@ -7065,7 +7065,9 @@ function saveTilePeriods() {
 }
 
 function overviewBaseRows(proj, data) {
-  if (proj?.id === 'planto' || isPlantoAutoFeed(proj)) return getPlantoDailyRows();
+  // Важно: на overview view !== colorstylist → feedProjIdFor() без id даёт planto.
+  // Без proj.id плитка ColorStylist показывала spend/installs Planto.
+  if (proj?.id === 'planto' || isPlantoAutoFeed(proj)) return getPlantoDailyRows(proj.id);
   const pack = normalizeCacheData(data != null ? data : cache[proj.id]);
   return pickOverviewSourceRows(pack, proj);
 }
@@ -7410,7 +7412,7 @@ function getOverviewDailyMetrics(proj, data) {
     note = `${label} · Direct + Метрика`;
   }
   if ((proj?.id === 'planto' || isPlantoAutoFeed(proj)) && period.mode === 'today') {
-    const estimated = !!feedMeta()?.spend_today_estimated;
+    const estimated = !!feedMeta(proj?.id)?.spend_today_estimated;
     note = `Сегодня · обновление ~каждые 2 часа${estimated ? ' · спенд ≈' : ''}`;
   }
   return {
@@ -7421,7 +7423,8 @@ function getOverviewDailyMetrics(proj, data) {
 }
 
 function getPlantoOverviewDailyMetrics(proj) {
-  return getOverviewDailyMetrics(proj, cache.planto);
+  const id = proj?.id || 'planto';
+  return getOverviewDailyMetrics(proj, cache[id]);
 }
 
 function plantoBlock(id, num, title, desc, hint, gridHtml, { cols = 3, footer = '', live = false } = {}) {
@@ -7513,10 +7516,11 @@ function renderPlantoTodayBlock(proj, allRows) {
   const cpc = clicks ? spend / clicks : null;
   const cpm = impressions ? spend / impressions * 1000 : null;
   const cr = installs ? (trials / installs * 100) : null;
-  const updated = feedMeta()?.generated_at
-    ? new Date(feedMeta().generated_at).toLocaleString('ru-RU')
+  const meta = feedMeta(proj?.id);
+  const updated = meta?.generated_at
+    ? new Date(meta.generated_at).toLocaleString('ru-RU')
     : '';
-  const estimated = !!feedMeta()?.spend_today_estimated && todayInfo.isToday;
+  const estimated = !!meta?.spend_today_estimated && todayInfo.isToday;
   const dateLabel = r.dateStr || fmtDateStr(r.date);
   const hint = todayInfo.isToday ? 'сегодня · live' : `последний день · ${dateLabel}`;
 
@@ -7583,7 +7587,7 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
   const clicks = sum(rows, 'clicks');
   const impressions = sum(rows, 'impressions');
   const hasAds = clicks > 0 || impressions > 0;
-  let paidNet = getPlantoPaidNetForRows(rows);
+  let paidNet = getPlantoPaidNetForRows(rows, proj?.id);
   if (planTot && activePlan) {
     paidNet = planTot.rub;
   }
@@ -7980,9 +7984,10 @@ function computeMetricValue(key, type, rows, cur) {
   }
 }
 
-function getPlantoPaidNetForRows(rows) {
-  if (feedCohort()?.totals?.paid_net != null && !rows?.length) {
-    return Number(feedCohort().totals.paid_net) || 0;
+function getPlantoPaidNetForRows(rows, projId) {
+  const cohort = feedCohort(projId);
+  if (cohort?.totals?.paid_net != null && !rows?.length) {
+    return Number(cohort.totals.paid_net) || 0;
   }
   // Если строки уже отфильтрованы по тарифу — суммируем фактический rub.
   const planRub = (rows || []).reduce((a, r) => a + (Number(r._planRub) || 0), 0);
@@ -7997,10 +8002,10 @@ function getPlantoPaidNetForRows(rows) {
   const sold = sum(rows, 'sold');
   const fb = sum(rows, 'fb');
   if (!sold && !fb) {
-    if (feedCohort()?.totals?.paid_net != null) return Number(feedCohort().totals.paid_net) || 0;
+    if (cohort?.totals?.paid_net != null) return Number(cohort.totals.paid_net) || 0;
     return null;
   }
-  const meta = feedMeta();
+  const meta = feedMeta(projId);
   const plans = meta?.plans || {};
   const yearPrice = Number(plans.year) || 2490;
   const monthPrice = Number(plans.month) || 399;
@@ -8931,7 +8936,7 @@ function renderBudgetCard(proj, allData, compact) {
 function renderTileIncome(proj) {
   const cur = proj?.currency || '₽';
   const rows = enrichRowsWithDailyRevenue(proj, getPlantoDailyRows(proj?.id));
-  const periodRev = getPlantoPaidNetForRows(rows);
+  const periodRev = getPlantoPaidNetForRows(rows, proj?.id);
   const rev = Math.round(periodRev != null ? periodRev : (feedMeta(proj?.id)?.unit_economics?.revenue_total || 0));
   return `<div class="tile-income"><span class="tile-income-label">Доход</span><span class="tile-income-value">${fmtMoney(rev, cur)}</span></div>`;
 }
@@ -8941,7 +8946,7 @@ function renderGlobalIncomeCard(proj, rows) {
   const cur = proj?.currency || '₽';
   const meta = feedMeta(proj?.id);
   const enriched = enrichRowsWithDailyRevenue(proj, rows || getPlantoDailyRows(proj?.id));
-  const periodRev = getPlantoPaidNetForRows(enriched);
+  const periodRev = getPlantoPaidNetForRows(enriched, proj?.id);
   const allTime = Math.round(meta?.unit_economics?.revenue_total || 0);
   const rev = Math.round(periodRev != null ? periodRev : allTime);
   const fmt = fmtMoney(rev, cur);
@@ -12810,7 +12815,7 @@ function chatMetricValue(key, proj, rows) {
   const cur = proj?.currency || '₽';
   if (key === 'revenue') {
     if (proj?.id === 'planto' || isPlantoAutoFeed(proj)) {
-      const rev = getPlantoPaidNetForRows(rows);
+      const rev = getPlantoPaidNetForRows(rows, proj?.id);
       if (rev != null) return fmtMoney(rev, cur);
       const ue = feedMeta(proj?.id)?.unit_economics;
       if (ue?.revenue_total != null) return fmtMoney(ue.revenue_total, cur);
