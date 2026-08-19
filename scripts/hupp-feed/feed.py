@@ -6,6 +6,7 @@ import csv
 import json
 import os
 import ssl
+import sys
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -130,9 +131,11 @@ def _load_env_file(path: Path) -> None:
             os.environ[key] = value
 
 
-def run_feed(work_dir: Path) -> int:
+def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
     _load_env_file(work_dir / "secrets.env")
-    config = json.loads((work_dir / "config/hupp.json").read_text(encoding="utf-8"))
+    path = config_path or (work_dir / "config/hupp.json")
+    config = json.loads(path.read_text(encoding="utf-8"))
+    project_id = str(config.get("id") or "hupp")
     anchor = date.fromisoformat(config["anchor"])
     until = datetime.now(ZoneInfo("Europe/Moscow")).date()
     daily_path = work_dir / config["daily_csv"]
@@ -140,12 +143,24 @@ def run_feed(work_dir: Path) -> int:
     errors: list[str] = []
     sources: dict[str, str] = {}
 
-    metrika_token = os.environ.get("HUPP_METRIKA_OAUTH_TOKEN") or os.environ.get("METRIKA_OAUTH_TOKEN")
+    prefix = project_id.upper().replace("-", "_")
+    metrika_token = (
+        os.environ.get(f"{prefix}_METRIKA_OAUTH_TOKEN")
+        or os.environ.get("HUPP_METRIKA_OAUTH_TOKEN")
+        or os.environ.get("METRIKA_OAUTH_TOKEN")
+    )
     counter_id = (
-        os.environ.get("HUPP_METRIKA_COUNTER_ID")
+        os.environ.get(f"{prefix}_METRIKA_COUNTER_ID")
+        or os.environ.get("HUPP_METRIKA_COUNTER_ID")
         or os.environ.get("METRIKA_COUNTER_ID")
         or config["metrika_counter_id"]
     )
+    # Счётчик из конфига проекта важнее общего HUPP_METRIKA_COUNTER_ID.
+    if project_id != "hupp":
+        counter_id = (
+            os.environ.get(f"{prefix}_METRIKA_COUNTER_ID")
+            or config["metrika_counter_id"]
+        )
     if metrika_token:
         try:
             metrika = _fetch_metrika(metrika_token, counter_id, anchor, until, config["goals"])
@@ -162,6 +177,62 @@ def run_feed(work_dir: Path) -> int:
     else:
         errors.append("metrika: HUPP_METRIKA_OAUTH_TOKEN missing")
 
+
+    direct_token = (
+        os.environ.get(f"{prefix}_DIRECT_OAUTH_TOKEN")
+        or os.environ.get("HUPP_DIRECT_OAUTH_TOKEN")
+        or os.environ.get("DIRECT_OAUTH_TOKEN")
+    )
+    client_login = (
+        os.environ.get(f"{prefix}_DIRECT_CLIENT_LOGIN")
+        or os.environ.get("HUPP_DIRECT_CLIENT_LOGIN")
+        or config.get("direct_client_login")
+        or os.environ.get("DIRECT_CLIENT_LOGIN")
+        or ""
+    )
+    campaign_ids = [str(c) for c in (config.get("direct_campaign_ids") or [])] or None
+    if direct_token and client_login:
+        try:
+            buyer = work_dir / "scripts" / "buyer-feed"
+            if str(buyer) not in sys.path:
+                sys.path.insert(0, str(buyer))
+            from direct import fetch_direct_by_day
+
+            direct_rows = {}
+            chunk_errors = []
+            cursor = anchor
+            while cursor <= until:
+                end = min(cursor + timedelta(days=9), until)
+                try:
+                    part = fetch_direct_by_day(
+                        direct_token, client_login, cursor, end, campaign_ids
+                    )
+                    direct_rows.update(part)
+                except Exception as chunk_error:
+                    chunk_errors.append(f"{cursor.isoformat()}..{end.isoformat()}: {chunk_error}")
+                cursor = end + timedelta(days=1)
+            for day_key, values in direct_rows.items():
+                prev = rows.setdefault(day_key, {})
+                for key in DIRECT_KEYS:
+                    if key in values:
+                        prev[key] = values[key]
+            if direct_rows:
+                sources["spend"] = "direct_api"
+                sources["clicks"] = "direct_api"
+                sources["impressions"] = "direct_api"
+            print(
+                f"  Direct: {len(direct_rows)} days"
+                + (f" · campaigns {', '.join(campaign_ids)}" if campaign_ids else "")
+                + (f" · {len(chunk_errors)} chunk(s) failed" if chunk_errors else "")
+            )
+            if chunk_errors:
+                errors.append("direct: " + "; ".join(chunk_errors))
+        except Exception as error:
+            errors.append(f"direct: {error}")
+            print(f"  Direct failed: {error}")
+    elif project_id != "hupp":
+        errors.append("direct: token or Client-Login missing")
+
     day = anchor
     while day <= until:
         key = day.isoformat()
@@ -177,14 +248,14 @@ def run_feed(work_dir: Path) -> int:
     }
     meta = {
         "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
-        "project": "hupp",
+        "project": project_id,
         "anchor": anchor.isoformat(),
         "until": until.isoformat(),
         "metric_map": {goal["csv"]: goal["key"] for goal in config["goals"]} | {
             "installs": "metrika_visits",
-            "spend": "direct_csv_upload",
-            "clicks": "direct_csv_upload",
-            "impressions": "direct_csv_upload",
+            "spend": sources.get("spend", "direct_csv_upload"),
+            "clicks": sources.get("clicks", "direct_csv_upload"),
+            "impressions": sources.get("impressions", "direct_csv_upload"),
         },
         "goals": config["goals"],
         "sources": sources,
@@ -192,7 +263,7 @@ def run_feed(work_dir: Path) -> int:
         "days": len(rows),
         "totals": totals,
         "metrika_counter_id": counter_id,
-        "direct_source": "csv_upload",
+        "direct_source": sources.get("spend", "csv_upload"),
         "roas_config": {
             "revenue_source": config.get("revenue_source", "proxy_events"),
             "ltv_metric": config.get("ltv_metric"),

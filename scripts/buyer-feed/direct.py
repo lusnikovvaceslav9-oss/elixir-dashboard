@@ -5,10 +5,20 @@ from __future__ import annotations
 import csv
 import io
 import json
+import ssl
 import time
 import urllib.error
 import urllib.request
 from datetime import date
+
+
+def _ssl_context() -> ssl.SSLContext:
+    try:
+        import certifi
+
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        return ssl.create_default_context()
 
 REPORTS_URL = "https://api.direct.yandex.com/json/v5/reports"
 MAX_POLL = 12
@@ -82,7 +92,7 @@ def fetch_direct_by_day(
     for attempt in range(1, MAX_POLL + 1):
         req = urllib.request.Request(REPORTS_URL, data=body, headers=headers, method="POST")
         try:
-            with urllib.request.urlopen(req, timeout=120) as resp:
+            with urllib.request.urlopen(req, timeout=120, context=_ssl_context()) as resp:
                 text = resp.read().decode(resp.headers.get_content_charset() or "utf-8")
                 break
         except urllib.error.HTTPError as err:

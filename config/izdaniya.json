@@ -1,0 +1,26 @@
+{
+  "id": "izdaniya",
+  "name": "Издания",
+  "product": "The Panel",
+  "site": "https://the-panel.ru",
+  "anchor": "2026-07-23",
+  "currency": "RUB",
+  "revenue_source": "metrika_purchase",
+  "ltv_metric": "fixed",
+  "assumed_avg_check": 890,
+  "funnel": ["signup", "checkout", "purchase"],
+  "predict_horizon_days": 180,
+  "direct_client_login": "partners-m",
+  "direct_campaign_ids": ["713655574", "713656113", "713656248"],
+  "metrika_counter_id": "111409801",
+  "goals": [
+    {"id": "599007245", "key": "signup", "label": "signup — регистрация / получение доступа", "csv": "trials"},
+    {"id": "599007665", "key": "checkout", "label": "checkout — переход к оплате", "csv": "sold"},
+    {"id": "599007827", "key": "purchase", "label": "purchase — успешная оплата 890 ₽", "csv": "purchase"},
+    {"id": "598989422", "key": "contact_info", "label": "Автоцель: заполнил контактные данные", "csv": "contact_info"},
+    {"id": "598989421", "key": "form_submit", "label": "Автоцель: отправка формы", "csv": "form_submit"},
+    {"id": "598989423", "key": "contact_sent", "label": "Автоцель: отправил контактные данные", "csv": "contact_sent"}
+  ],
+  "daily_csv": "data/izdaniya-daily.csv",
+  "meta_json": "data/izdaniya-meta.json"
+}

@@ -1451,6 +1451,27 @@ const PLANTO_PRODUCT_URL = 'data/planto-product.json';
 const HUPP_DATA_URL = 'data/hupp-daily.csv';
 const HUPP_META_URL = 'data/hupp-meta.json';
 const HUPP_START_CSV_URL = 'data/hupp-start.csv';
+const HUPP_FEEDS = {
+  hupp: {
+    daily: HUPP_DATA_URL,
+    meta: HUPP_META_URL,
+    start: HUPP_START_CSV_URL,
+    name: 'Hupp',
+    icon: '🟣',
+  },
+  izdaniya: {
+    daily: 'data/izdaniya-daily.csv',
+    meta: 'data/izdaniya-meta.json',
+    start: '',
+    name: 'Издания',
+    icon: '📰',
+  },
+};
+function huppFeedOf(proj) {
+  const id = String(proj?.id || '').toLowerCase();
+  return HUPP_FEEDS[id] || null;
+}
+
 const HUPP_START_SEED_FLAG = 'hupp_csv_start_seeded_v1';
 const HUPP_DIRECT_KEYS = ['spend', 'clicks', 'impressions'];
 const HUPP_FEED_WORKFLOW = 'hupp-feed.yml';
@@ -1485,6 +1506,8 @@ const DEFAULT_PROJECTS = [
     urls: [CS_DATA_URL], dataSource: 'auto' },
   { id: 'hupp',     name: 'Hupp',        icon: '🟣', currency: '₽', type: 'hupp', status: 'run',
     urls: [HUPP_DATA_URL], dataSource: 'csv' },
+  { id: 'izdaniya', name: 'Издания',     icon: '📰', currency: '₽', type: 'hupp', status: 'run',
+    urls: ['data/izdaniya-daily.csv'], dataSource: 'csv' },
   { id: 'quadcode', name: 'Quadcode AI', icon: '💻', currency: '$', type: 'quadcode', status: 'run',
     urls: ['https://docs.google.com/spreadsheets/d/1GRLgK6CnvH4innf7n4k8K_bhQ9nsTl2Q/export?format=csv'] },
   { id: 'streamfi', name: 'StreamFi',    icon: '📡', currency: '$', type: 'streamfi', status: 'run',
@@ -1979,28 +2002,30 @@ function applyPlantoAutoSource(list) {
 
 function applyHuppAutoSource(list) {
   const withBuiltin = [...(list || [])];
-  if (!withBuiltin.some(p => p?.id === 'hupp')) {
-    const def = DEFAULT_PROJECTS.find(p => p.id === 'hupp');
-    if (def) withBuiltin.push(JSON.parse(JSON.stringify(def)));
-  }
+  Object.keys(HUPP_FEEDS).forEach(id => {
+    if (!withBuiltin.some(p => p?.id === id)) {
+      const def = DEFAULT_PROJECTS.find(p => p.id === id);
+      if (def) withBuiltin.push(JSON.parse(JSON.stringify(def)));
+    }
+  });
   return withBuiltin.map(p => {
-    if (p.id !== 'hupp') return p;
+    const feed = huppFeedOf(p);
+    if (!feed) return p;
     return normalizeProject({
       ...p,
-      name: p.name || 'Hupp',
-      icon: p.icon || '🟣',
+      name: p.name || feed.name,
+      icon: p.icon || feed.icon,
       currency: '₽',
       type: 'hupp',
       status: p.status || 'run',
-      urls: [HUPP_DATA_URL],
+      urls: [feed.daily],
       dataSource: 'csv',
-      sheetSources: [{ id: 'csv', url: 'upload://hupp', label: 'CSV upload' }],
+      sheetSources: [{ id: 'csv', url: `upload://${p.id}`, label: 'CSV upload' }],
       monthlySheets: [],
     });
   });
 }
 
-const CSV_UPLOAD_KEY = 'elixir_csv_uploads_v1';
 
 function isJgglProject(p) {
   return !!(p && (/jggl|джигл/i.test(p.id || '') || /jggl|джигл/i.test(p.name || '')));
@@ -2019,7 +2044,7 @@ function isQuadcodeProject(p) {
 }
 
 function isHuppProject(p) {
-  return !!(p && (/^hupp$/i.test(p.id || '') || /^hupp$/i.test(p.name || '')));
+  return !!(p && (huppFeedOf(p) || p.type === 'hupp' || /^hupp$/i.test(p.id || '') || /^hupp$/i.test(p.name || '')));
 }
 
 /** Hupp: spend только из CSV Директа; визиты/цели — из Метрики (hupp-daily.csv). */
@@ -2781,15 +2806,12 @@ async function ensureHuppStartCsvSeed() {
   }
 }
 
-async function fetchHuppMetrikaDailyRows() {
+async function fetchHuppMetrikaDailyRows(proj) {
   try {
-    const text = await fetchWithFallback(HUPP_DATA_URL);
+    const feed = huppFeedOf(proj) || HUPP_FEEDS.hupp;
+    const text = await fetchWithFallback(feed.daily);
     const rows = parseSheet(text) || [];
-    return rows.map(r => {
-      const copy = { ...r };
-      HUPP_DIRECT_KEYS.forEach(k => { copy[k] = 0; });
-      return copy;
-    });
+    return rows.map(r => ({ ...r }));
   } catch (e) {
     console.warn('Hupp Metrika daily load failed:', e.message || e);
     return [];
@@ -5777,9 +5799,11 @@ function isRepoDataUrl(url) {
 
 function resolveFeedFetchUrl(url) {
   if (!url) return url;
-  if (url === HUPP_DATA_URL || String(url).includes('hupp-daily.csv')) return resolveHuppFeedUrl(HUPP_DATA_URL);
-  if (url === HUPP_META_URL || String(url).includes('hupp-meta.json')) return resolveHuppFeedUrl(HUPP_META_URL);
-  if (url === HUPP_START_CSV_URL || String(url).includes('hupp-start.csv')) return resolveHuppFeedUrl(HUPP_START_CSV_URL);
+  for (const feed of Object.values(HUPP_FEEDS)) {
+    if (feed.daily && (url === feed.daily || String(url).includes(feed.daily.split('/').pop()))) return resolveHuppFeedUrl(feed.daily);
+    if (feed.meta && (url === feed.meta || String(url).includes(feed.meta.split('/').pop()))) return resolveHuppFeedUrl(feed.meta);
+    if (feed.start && (url === feed.start || String(url).includes(feed.start.split('/').pop()))) return resolveHuppFeedUrl(feed.start);
+  }
   if (isRepoDataUrl(url)) return resolvePlantoFeedUrl(url.trim());
   if (url === PLANTO_DATA_URL || String(url).includes('planto-daily.csv')) return resolvePlantoFeedUrl(PLANTO_DATA_URL);
   if (url === PLANTO_META_URL || String(url).includes('planto-meta.json')) return resolvePlantoFeedUrl(PLANTO_META_URL);
@@ -5943,14 +5967,15 @@ async function fetchProject(proj) {
 
   if (isHuppCsvOnly(proj)) {
     const metrikaRows = await Promise.race([
-      fetchHuppMetrikaDailyRows(),
+      fetchHuppMetrikaDailyRows(proj),
       sleep(12000).then(() => []),
     ]);
     let directRows = collectHuppDirectRows(proj);
-    if (!directRows.length) {
+    const feed = huppFeedOf(proj) || HUPP_FEEDS.hupp;
+    if (!directRows.length && feed.start) {
       try {
         const text = await Promise.race([
-          fetchWithFallback(HUPP_START_CSV_URL),
+          fetchWithFallback(feed.start),
           sleep(5000).then(() => ''),
         ]);
         if (text) directRows = directSpendRowsFromUploadText(text);
@@ -5962,7 +5987,7 @@ async function fetchProject(proj) {
       sources: [{
         id: 'csv',
         label: 'Metrika + Direct',
-        url: HUPP_DATA_URL,
+        url: feed.daily,
         rows,
         sheetColumns: [
           'date', 'spend', 'installs', 'trials', 'sold', 'fb', 'purchase',

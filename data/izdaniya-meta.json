@@ -1,0 +1,92 @@
+{
+  "generated_at": "2026-08-19T18:17:46+07:00",
+  "project": "izdaniya",
+  "anchor": "2026-07-23",
+  "until": "2026-08-19",
+  "metric_map": {
+    "trials": "signup",
+    "sold": "checkout",
+    "purchase": "purchase",
+    "contact_info": "contact_info",
+    "form_submit": "form_submit",
+    "contact_sent": "contact_sent",
+    "installs": "metrika_visits",
+    "spend": "direct_api",
+    "clicks": "direct_api",
+    "impressions": "direct_api"
+  },
+  "goals": [
+    {
+      "id": "599007245",
+      "key": "signup",
+      "label": "signup — регистрация / получение доступа",
+      "csv": "trials"
+    },
+    {
+      "id": "599007665",
+      "key": "checkout",
+      "label": "checkout — переход к оплате",
+      "csv": "sold"
+    },
+    {
+      "id": "599007827",
+      "key": "purchase",
+      "label": "purchase — успешная оплата 890 ₽",
+      "csv": "purchase"
+    },
+    {
+      "id": "598989422",
+      "key": "contact_info",
+      "label": "Автоцель: заполнил контактные данные",
+      "csv": "contact_info"
+    },
+    {
+      "id": "598989421",
+      "key": "form_submit",
+      "label": "Автоцель: отправка формы",
+      "csv": "form_submit"
+    },
+    {
+      "id": "598989423",
+      "key": "contact_sent",
+      "label": "Автоцель: отправил контактные данные",
+      "csv": "contact_sent"
+    }
+  ],
+  "sources": {
+    "metrika": "counter_111409801",
+    "spend": "direct_api",
+    "clicks": "direct_api",
+    "impressions": "direct_api"
+  },
+  "errors": [],
+  "days": 28,
+  "totals": {
+    "spend": 0.0,
+    "installs": 75.0,
+    "trials": 1.0,
+    "sold": 1.0,
+    "fb": 0.0,
+    "purchase": 1.0,
+    "contact_info": 0.0,
+    "form_submit": 1.0,
+    "contact_sent": 0.0,
+    "clicks": 62.0,
+    "impressions": 3934.0
+  },
+  "metrika_counter_id": "111409801",
+  "direct_source": "direct_api",
+  "roas_config": {
+    "revenue_source": "metrika_purchase",
+    "ltv_metric": "fixed",
+    "fixed_ltv_value": null,
+    "assumed_avg_check": 890,
+    "funnel": [
+      "signup",
+      "checkout",
+      "purchase"
+    ],
+    "mature_cohort_days": null,
+    "predict_horizon_days": 180
+  }
+}
