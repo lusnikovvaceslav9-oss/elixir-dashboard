@@ -1,28 +1,28 @@
 {
-  "generated_at": "2026-08-19T19:18:13+00:00",
+  "generated_at": "2026-08-19T21:16:44+00:00",
   "anchor": "2026-06-05",
-  "until": "2026-08-19",
+  "until": "2026-08-20",
   "product": {
     "from": "2026-06-05",
-    "to": "2026-08-19",
-    "installs": 14148,
-    "active_users": 14360,
+    "to": "2026-08-20",
+    "installs": 14151,
+    "active_users": 14364,
     "events": {
       "plant_added": {
-        "users": 4145,
-        "events": 7826,
+        "users": 4146,
+        "events": 7827,
         "vs_install_pct": 29.3,
         "avg_per_user": 1.89
       },
       "paywall_shown": {
-        "users": 10893,
-        "events": 18233,
-        "vs_install_pct": 76.99,
+        "users": 10897,
+        "events": 18240,
+        "vs_install_pct": 77.01,
         "avg_per_user": 1.67
       },
       "paywall_cta_clicked": {
-        "users": 4302,
-        "events": 6156,
+        "users": 4303,
+        "events": 6159,
         "vs_install_pct": 30.41,
         "avg_per_user": 1.43
       },
@@ -51,21 +51,21 @@
         "avg_per_user": 8.75
       },
       "ai_route": {
-        "users": 3419,
-        "events": 24248,
+        "users": 3420,
+        "events": 24252,
         "vs_install_pct": 24.17,
         "avg_per_user": 7.09
       },
       "scan_success": {
         "users": 4500,
         "events": 13836,
-        "vs_install_pct": 31.81,
+        "vs_install_pct": 31.8,
         "avg_per_user": 3.07
       },
       "user_activated": {
-        "users": 11672,
-        "events": 15680,
-        "vs_install_pct": 82.5,
+        "users": 11676,
+        "events": 15686,
+        "vs_install_pct": 82.51,
         "avg_per_user": 1.34
       }
     },
@@ -76,7 +76,7 @@
     "care_engagement_pct": 4.52,
     "chat_per_plant_pct": 9.67,
     "feature_activation": {
-      "scan_pct": 31.81,
+      "scan_pct": 31.8,
       "watering_pct": 2.59,
       "ai_pct": 24.17
     },
@@ -90,18 +90,18 @@
   },
   "unit_economics": {
     "revenue_total": 123909,
-    "spend_total": 304755.09,
-    "active_users": 14360,
+    "spend_total": 304864.08,
+    "active_users": 14364,
     "active_payers": 59,
     "plus_active_users": 117,
-    "trial_cancellations": 14,
+    "trial_cancellations": 15,
     "trial_cancellations_by_day": {
       "2026-08-13": 1,
       "2026-08-14": 1,
       "2026-08-15": 2,
       "2026-08-16": 2,
       "2026-08-17": 5,
-      "2026-08-19": 3
+      "2026-08-19": 4
     },
     "renewals": 37,
     "arpu": 8.63,
@@ -110,6 +110,6 @@
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
     "roas_d7": 40.6,
     "roas_d14": 38.0,
-    "roas_d30": 31.2
+    "roas_d30": 32.4
   }
 }
