@@ -1834,6 +1834,27 @@ function dedupeUploadsByFileBase(files) {
     const { key, isCopy } = uploadDedupeKey(u.fileName || id, u.label);
     if (isCopy && nonCopyBases.has(key)) delete map[id];
   });
+  return pruneOldGoogleCampaignReports(map);
+}
+
+/** Google Ads: «Campaign report (13)» заменяет все старые (1)/(2)/… — иначе union-merge
+ *  с локального кэша снова поднимает дневные куски и задвоевает Google spend. */
+function pruneOldGoogleCampaignReports(files) {
+  const map = { ...(files || {}) };
+  const google = Object.entries(map).filter(([, u]) =>
+    u && !u.override && /campaign report/i.test(String(u.fileName || ''))
+  );
+  if (google.length <= 2) return map;
+  let maxN = -1;
+  google.forEach(([, u]) => {
+    const m = String(u.fileName || '').match(/campaign\s*report\s*\((\d+)\)/i);
+    if (m) maxN = Math.max(maxN, +m[1]);
+  });
+  if (maxN < 0) return map;
+  google.forEach(([id, u]) => {
+    const m = String(u.fileName || '').match(/campaign\s*report\s*\((\d+)\)/i);
+    if (m && +m[1] < maxN) delete map[id];
+  });
   return map;
 }
 
