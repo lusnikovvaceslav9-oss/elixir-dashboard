@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-19T10:19:05+00:00",
+  "generated_at": "2026-08-19T12:23:52+00:00",
   "anchor": "2026-06-05",
   "until": "2026-08-19",
   "window_start": "2026-08-10",
@@ -31,26 +31,26 @@
   "days": 76,
   "reconcile_diff": {
     "trials_total_old_csv": 276,
-    "trials_total_new": 276,
-    "delta": 0
+    "trials_total_new": 277,
+    "delta": 1
   },
   "unit_economics": {
     "revenue_total": 123909,
-    "spend_total": 302883.83,
-    "active_users": 14329,
+    "spend_total": 303972.2,
+    "active_users": 14342,
     "active_payers": 59,
-    "plus_active_users": 113,
-    "trial_cancellations": 12,
+    "plus_active_users": 114,
+    "trial_cancellations": 13,
     "trial_cancellations_by_day": {
       "2026-08-13": 1,
       "2026-08-14": 1,
       "2026-08-15": 2,
       "2026-08-16": 2,
       "2026-08-17": 5,
-      "2026-08-19": 1
+      "2026-08-19": 2
     },
     "renewals": 37,
-    "arpu": 8.65,
+    "arpu": 8.64,
     "arppu": 2100.15,
     "ltv": 3417.19,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
@@ -74,7 +74,7 @@
     "paywall_cta_pct": 39.44,
     "care_engagement_pct": 4.51,
     "feature_activation": {
-      "scan_pct": 31.81,
+      "scan_pct": 31.8,
       "watering_pct": 2.59,
       "ai_pct": 24.15
     },
@@ -415,7 +415,7 @@
     "2026-08-13": 399,
     "2026-08-18": 399
   },
-  "trials_sb_crosscheck_total": 242,
+  "trials_sb_crosscheck_total": 243,
   "trials_sb_crosscheck_by_day": {
     "2026-06-07": 1,
     "2026-06-08": 1,
@@ -483,9 +483,10 @@
     "2026-08-15": 7,
     "2026-08-16": 3,
     "2026-08-17": 5,
-    "2026-08-18": 3
+    "2026-08-18": 3,
+    "2026-08-19": 1
   },
-  "trials_am_crosscheck_total": 276,
+  "trials_am_crosscheck_total": 277,
   "trials_am_crosscheck_by_day": {
     "2026-06-05": 2,
     "2026-06-07": 1,
@@ -554,7 +555,8 @@
     "2026-08-15": 7,
     "2026-08-16": 3,
     "2026-08-17": 5,
-    "2026-08-18": 3
+    "2026-08-18": 3,
+    "2026-08-19": 1
   },
   "trials_crosscheck_yesterday": {
     "day": "2026-08-18",
