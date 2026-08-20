@@ -2026,6 +2026,10 @@ function applyHuppAutoSource(list) {
   });
 }
 
+// localStorage-ключ CSV-загрузок (JGGL / Qlosophy / Quadcode / Hupp).
+// Случайно снесли при добавлении Изданий — без него load/save падает
+// с «CSV_UPLOAD_KEY is not defined», UI пустой, хотя облако целое.
+const CSV_UPLOAD_KEY = 'elixir_csv_uploads_v1';
 
 function isJgglProject(p) {
   return !!(p && (/jggl|джигл/i.test(p.id || '') || /jggl|джигл/i.test(p.name || '')));
