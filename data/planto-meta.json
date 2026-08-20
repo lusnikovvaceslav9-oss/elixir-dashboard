@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-20T10:19:55+00:00",
+  "generated_at": "2026-08-20T12:26:21+00:00",
   "anchor": "2026-06-05",
   "until": "2026-08-20",
   "window_start": "2026-08-11",
@@ -35,24 +35,23 @@
     "delta": 0
   },
   "unit_economics": {
-    "revenue_total": 123909,
-    "spend_total": 307974.56,
-    "active_users": 14404,
-    "active_payers": 59,
-    "plus_active_users": 117,
-    "trial_cancellations": 14,
+    "revenue_total": 126399,
+    "spend_total": 308318.54,
+    "active_users": 14415,
+    "active_payers": 60,
+    "plus_active_users": 116,
+    "trial_cancellations": 13,
     "trial_cancellations_by_day": {
-      "2026-08-13": 1,
       "2026-08-14": 1,
       "2026-08-15": 2,
       "2026-08-16": 2,
       "2026-08-17": 5,
       "2026-08-19": 3
     },
-    "renewals": 37,
-    "arpu": 8.6,
-    "arppu": 2100.15,
-    "ltv": 3417.19,
+    "renewals": 38,
+    "arpu": 8.77,
+    "arppu": 2106.65,
+    "ltv": 3440.86,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
     "roas_d7": 40.6,
     "roas_d14": 38.0,
@@ -71,8 +70,8 @@
     "garden_activation_pct": 29.33,
     "garden_avg_plants": 1.89,
     "garden_depth_icp_pct": null,
-    "paywall_cta_pct": 39.52,
-    "care_engagement_pct": 4.54,
+    "paywall_cta_pct": 39.53,
+    "care_engagement_pct": 4.53,
     "feature_activation": {
       "scan_pct": 31.83,
       "watering_pct": 2.59,
@@ -92,8 +91,8 @@
   },
   "payments_by_plan": {
     "yearly": {
-      "count": 48,
-      "rub": 119520
+      "count": 49,
+      "rub": 122010
     },
     "monthly": {
       "count": 11,
@@ -104,8 +103,8 @@
       "rub": 0
     },
     "total": {
-      "count": 59,
-      "rub": 123909
+      "count": 60,
+      "rub": 126399
     }
   },
   "payments_by_plan_by_day": {
@@ -245,6 +244,10 @@
       "2026-08-19": {
         "count": 1,
         "rub": 2490
+      },
+      "2026-08-20": {
+        "count": 1,
+        "rub": 2490
       }
     },
     "monthly": {
@@ -372,7 +375,7 @@
     "2026-08-17": 2490,
     "2026-08-18": 399,
     "2026-08-19": 2490,
-    "2026-08-20": 0
+    "2026-08-20": 2490
   },
   "paid_net_by_cohort_day": {
     "2026-05-29": 2490,
@@ -413,7 +416,7 @@
     "2026-08-10": 2490,
     "2026-08-11": 399,
     "2026-08-12": 2490,
-    "2026-08-13": 399,
+    "2026-08-13": 2889,
     "2026-08-18": 399
   },
   "trials_sb_crosscheck_total": 248,
