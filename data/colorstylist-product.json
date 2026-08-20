@@ -1,43 +1,43 @@
 {
-  "generated_at": "2026-08-20T22:16:21+00:00",
+  "generated_at": "2026-08-20T23:16:36+00:00",
   "anchor": "2026-07-31",
   "until": "2026-08-21",
   "product": {
     "from": "2026-07-31",
     "to": "2026-08-21",
-    "installs": 1291,
+    "installs": 1292,
     "active_users": 1384,
     "count_mode": "unique_devices",
     "subtitle": "Дошёл ли пользователь до ценности — цветотип, пейволл, фичи.",
     "events": {
       "ai_fail": {
-        "users": 577,
-        "events": 3165,
-        "vs_install_pct": 44.69,
-        "avg_per_user": 5.49
+        "users": 578,
+        "events": 3167,
+        "vs_install_pct": 44.74,
+        "avg_per_user": 5.48
       },
       "ai_request": {
         "users": 1232,
-        "events": 12398,
-        "vs_install_pct": 95.43,
+        "events": 12400,
+        "vs_install_pct": 95.36,
         "avg_per_user": 10.06
       },
       "chat_reply": {
         "users": 302,
-        "events": 687,
-        "vs_install_pct": 23.39,
-        "avg_per_user": 2.27
+        "events": 688,
+        "vs_install_pct": 23.37,
+        "avg_per_user": 2.28
       },
       "color_type_done": {
         "users": 1164,
         "events": 1647,
-        "vs_install_pct": 90.16,
+        "vs_install_pct": 90.09,
         "avg_per_user": 1.41
       },
       "color_type_reveal_view": {
         "users": 1108,
         "events": 1584,
-        "vs_install_pct": 85.82,
+        "vs_install_pct": 85.76,
         "avg_per_user": 1.43
       },
       "fitting_done": {
@@ -49,31 +49,31 @@
       "hair_look_generated": {
         "users": 523,
         "events": 1849,
-        "vs_install_pct": 40.51,
+        "vs_install_pct": 40.48,
         "avg_per_user": 3.54
       },
       "makeup_generated": {
         "users": 255,
         "events": 611,
-        "vs_install_pct": 19.75,
+        "vs_install_pct": 19.74,
         "avg_per_user": 2.4
       },
       "outfit_generated": {
         "users": 241,
         "events": 571,
-        "vs_install_pct": 18.67,
+        "vs_install_pct": 18.65,
         "avg_per_user": 2.37
       },
       "paywall_view": {
         "users": 894,
         "events": 2060,
-        "vs_install_pct": 69.25,
+        "vs_install_pct": 69.2,
         "avg_per_user": 2.3
       },
       "purchase_tap": {
         "users": 270,
         "events": 439,
-        "vs_install_pct": 20.91,
+        "vs_install_pct": 20.9,
         "avg_per_user": 1.63
       }
     },
@@ -82,7 +82,7 @@
         "id": "aha_color",
         "label": "Aha: цветотип",
         "formula_label": "color_type_reveal / install",
-        "value_pct": 85.82,
+        "value_pct": 85.76,
         "primary": true,
         "accent": false,
         "note": null
@@ -109,7 +109,7 @@
         "id": "engagement_hair",
         "label": "Вовлечение (hair)",
         "formula_label": "hair_look / install",
-        "value_pct": 40.51,
+        "value_pct": 40.48,
         "primary": false,
         "accent": false,
         "note": null
@@ -120,31 +120,31 @@
         "id": "color_type",
         "label": "Цветотип",
         "event": "color_type_done",
-        "value_pct": 90.16
+        "value_pct": 90.09
       },
       {
         "id": "hair",
         "label": "Волосы",
         "event": "hair_look_generated",
-        "value_pct": 40.51
+        "value_pct": 40.48
       },
       {
         "id": "outfit",
         "label": "Образы",
         "event": "outfit_generated",
-        "value_pct": 18.67
+        "value_pct": 18.65
       },
       {
         "id": "makeup",
         "label": "Макияж",
         "event": "makeup_generated",
-        "value_pct": 19.75
+        "value_pct": 19.74
       },
       {
         "id": "chat",
         "label": "Чат",
         "event": "chat_reply",
-        "value_pct": 23.39
+        "value_pct": 23.37
       },
       {
         "id": "fitting",
@@ -157,7 +157,7 @@
       {
         "id": "ai_fail_rate",
         "label": "AI fail rate",
-        "value_pct": 25.53
+        "value_pct": 25.54
       }
     ],
     "retention": {
@@ -170,7 +170,7 @@
   },
   "unit_economics": {
     "revenue_total": 3585,
-    "spend_total": 27478.28,
+    "spend_total": 27485.9,
     "active_users": 1384,
     "active_payers": 9,
     "plus_active_users": 29,
