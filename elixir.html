@@ -1860,8 +1860,22 @@ function dedupeUploadsByFileBase(files) {
   return pruneOldGoogleCampaignReports(map);
 }
 
-/** Google Ads: «Campaign report (13)» заменяет все старые (1)/(2)/… — иначе union-merge
- *  с локального кэша снова поднимает дневные куски и задвоевает Google spend. */
+/** День строки upload (ISO) — для Google Campaign report prune. */
+function uploadRowDayIso(r) {
+  if (!r) return '';
+  if (typeof r.date === 'string' && /^\d{4}-\d{2}-\d{2}/.test(r.date)) return r.date.slice(0, 10);
+  if (r.date instanceof Date && !isNaN(r.date.getTime())) {
+    const d = r.date;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+  const ds = String(r.dateStr || '');
+  const m = ds.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : '';
+}
+
+/** Google Ads: более новый «Campaign report (N)» вытесняет старые только по
+ *  пересекающимся датам. Однодневный (14) не должен стирать многодневный (13)
+ *  за предыдущие дни — иначе Meta+Google spend «проседает» (как 18.08 −$403.82). */
 function pruneOldGoogleCampaignReports(files) {
   const map = { ...(files || {}) };
   const google = Object.entries(map).filter(([, u]) =>
@@ -1874,9 +1888,25 @@ function pruneOldGoogleCampaignReports(files) {
     if (m) maxN = Math.max(maxN, +m[1]);
   });
   if (maxN < 0) return map;
+  const covered = new Set();
+  google.forEach(([, u]) => {
+    const m = String(u.fileName || '').match(/campaign\s*report\s*\((\d+)\)/i);
+    if (!m || +m[1] !== maxN) return;
+    (u.rows || []).forEach(r => {
+      const day = uploadRowDayIso(r);
+      if (day) covered.add(day);
+    });
+  });
   google.forEach(([id, u]) => {
     const m = String(u.fileName || '').match(/campaign\s*report\s*\((\d+)\)/i);
-    if (m && +m[1] < maxN) delete map[id];
+    if (!m || +m[1] >= maxN) return;
+    const rows = u.rows || [];
+    const kept = rows.filter(r => {
+      const day = uploadRowDayIso(r);
+      return day && !covered.has(day);
+    });
+    if (!kept.length) delete map[id];
+    else if (kept.length !== rows.length) map[id] = { ...u, rows: kept };
   });
   return map;
 }
