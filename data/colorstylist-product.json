@@ -1,79 +1,79 @@
 {
-  "generated_at": "2026-08-20T19:23:37+00:00",
+  "generated_at": "2026-08-20T20:17:30+00:00",
   "anchor": "2026-07-31",
   "until": "2026-08-20",
   "product": {
     "from": "2026-07-31",
     "to": "2026-08-20",
-    "installs": 1284,
-    "active_users": 1377,
+    "installs": 1287,
+    "active_users": 1380,
     "count_mode": "unique_devices",
     "subtitle": "Дошёл ли пользователь до ценности — цветотип, пейволл, фичи.",
     "events": {
       "ai_fail": {
-        "users": 574,
-        "events": 3144,
-        "vs_install_pct": 44.7,
-        "avg_per_user": 5.48
+        "users": 575,
+        "events": 3145,
+        "vs_install_pct": 44.68,
+        "avg_per_user": 5.47
       },
       "ai_request": {
-        "users": 1228,
-        "events": 12340,
-        "vs_install_pct": 95.64,
-        "avg_per_user": 10.05
+        "users": 1230,
+        "events": 12350,
+        "vs_install_pct": 95.57,
+        "avg_per_user": 10.04
       },
       "chat_reply": {
         "users": 301,
         "events": 685,
-        "vs_install_pct": 23.44,
+        "vs_install_pct": 23.39,
         "avg_per_user": 2.28
       },
       "color_type_done": {
-        "users": 1160,
-        "events": 1643,
-        "vs_install_pct": 90.34,
+        "users": 1162,
+        "events": 1645,
+        "vs_install_pct": 90.29,
         "avg_per_user": 1.42
       },
       "color_type_reveal_view": {
-        "users": 1104,
-        "events": 1580,
-        "vs_install_pct": 85.98,
+        "users": 1105,
+        "events": 1581,
+        "vs_install_pct": 85.86,
         "avg_per_user": 1.43
       },
       "fitting_done": {
-        "users": 116,
-        "events": 172,
-        "vs_install_pct": 9.03,
+        "users": 117,
+        "events": 173,
+        "vs_install_pct": 9.09,
         "avg_per_user": 1.48
       },
       "hair_look_generated": {
-        "users": 522,
-        "events": 1839,
-        "vs_install_pct": 40.65,
+        "users": 523,
+        "events": 1843,
+        "vs_install_pct": 40.64,
         "avg_per_user": 3.52
       },
       "makeup_generated": {
         "users": 255,
         "events": 611,
-        "vs_install_pct": 19.86,
+        "vs_install_pct": 19.81,
         "avg_per_user": 2.4
       },
       "outfit_generated": {
         "users": 241,
         "events": 568,
-        "vs_install_pct": 18.77,
+        "vs_install_pct": 18.73,
         "avg_per_user": 2.36
       },
       "paywall_view": {
-        "users": 890,
-        "events": 2049,
-        "vs_install_pct": 69.31,
+        "users": 891,
+        "events": 2053,
+        "vs_install_pct": 69.23,
         "avg_per_user": 2.3
       },
       "purchase_tap": {
         "users": 270,
         "events": 438,
-        "vs_install_pct": 21.03,
+        "vs_install_pct": 20.98,
         "avg_per_user": 1.62
       }
     },
@@ -82,7 +82,7 @@
         "id": "aha_color",
         "label": "Aha: цветотип",
         "formula_label": "color_type_reveal / install",
-        "value_pct": 85.98,
+        "value_pct": 85.86,
         "primary": true,
         "accent": false,
         "note": null
@@ -100,7 +100,7 @@
         "id": "paywall_cta",
         "label": "CTA пейволла",
         "formula_label": "purchase_tap / paywall_view",
-        "value_pct": 30.34,
+        "value_pct": 30.3,
         "primary": false,
         "accent": true,
         "note": null
@@ -109,7 +109,7 @@
         "id": "engagement_hair",
         "label": "Вовлечение (hair)",
         "formula_label": "hair_look / install",
-        "value_pct": 40.65,
+        "value_pct": 40.64,
         "primary": false,
         "accent": false,
         "note": null
@@ -120,44 +120,44 @@
         "id": "color_type",
         "label": "Цветотип",
         "event": "color_type_done",
-        "value_pct": 90.34
+        "value_pct": 90.29
       },
       {
         "id": "hair",
         "label": "Волосы",
         "event": "hair_look_generated",
-        "value_pct": 40.65
+        "value_pct": 40.64
       },
       {
         "id": "outfit",
         "label": "Образы",
         "event": "outfit_generated",
-        "value_pct": 18.77
+        "value_pct": 18.73
       },
       {
         "id": "makeup",
         "label": "Макияж",
         "event": "makeup_generated",
-        "value_pct": 19.86
+        "value_pct": 19.81
       },
       {
         "id": "chat",
         "label": "Чат",
         "event": "chat_reply",
-        "value_pct": 23.44
+        "value_pct": 23.39
       },
       {
         "id": "fitting",
         "label": "Примерочная",
         "event": "fitting_done",
-        "value_pct": 9.03
+        "value_pct": 9.09
       }
     ],
     "quality": [
       {
         "id": "ai_fail_rate",
         "label": "AI fail rate",
-        "value_pct": 25.48
+        "value_pct": 25.47
       }
     ],
     "retention": {
@@ -170,8 +170,8 @@
   },
   "unit_economics": {
     "revenue_total": 3386,
-    "spend_total": 27402.16,
-    "active_users": 1377,
+    "spend_total": 27432.83,
+    "active_users": 1380,
     "active_payers": 8,
     "plus_active_users": 29,
     "trial_cancellations": 6,
@@ -180,7 +180,7 @@
       "2026-08-19": 3
     },
     "renewals": 7,
-    "arpu": 2.46,
+    "arpu": 2.45,
     "arppu": 423.25,
     "ltv": 793.59,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
