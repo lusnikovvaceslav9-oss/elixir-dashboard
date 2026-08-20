@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-20T08:24:25+00:00",
+  "generated_at": "2026-08-20T09:23:10+00:00",
   "anchor": "2026-07-31",
   "until": "2026-08-20",
   "window_start": "2026-08-11",
@@ -25,9 +25,9 @@
       }
     ],
     "keys_used": 2,
-    "per_install": 9.29,
+    "per_install": 9.24,
     "per_trial": 128.93,
-    "total_burn": 38108.05
+    "total_burn": 38186.39
   },
   "trial_days": 3,
   "trial_lag_days": 3,
@@ -56,14 +56,14 @@
   "errors": [],
   "days": 21,
   "reconcile_diff": {
-    "trials_total_old_csv": 27,
+    "trials_total_old_csv": 89,
     "trials_total_new": 89,
-    "delta": 62
+    "delta": 0
   },
   "unit_economics": {
     "revenue_total": 3386,
-    "spend_total": 26633.53,
-    "active_users": 1317,
+    "spend_total": 26711.87,
+    "active_users": 1320,
     "active_payers": 8,
     "plus_active_users": 27,
     "trial_cancellations": 7,
@@ -110,7 +110,7 @@
         "id": "aha_color",
         "label": "Aha: цветотип",
         "formula_label": "color_type_reveal / install",
-        "value_pct": 85.1,
+        "value_pct": 84.86,
         "primary": true,
         "accent": false,
         "note": null
@@ -128,7 +128,7 @@
         "id": "paywall_cta",
         "label": "CTA пейволла",
         "formula_label": "purchase_tap / paywall_view",
-        "value_pct": 30.33,
+        "value_pct": 30.19,
         "primary": false,
         "accent": true,
         "note": null
@@ -137,7 +137,7 @@
         "id": "engagement_hair",
         "label": "Вовлечение (hair)",
         "formula_label": "hair_look / install",
-        "value_pct": 40.81,
+        "value_pct": 40.74,
         "primary": false,
         "accent": false,
         "note": null
@@ -148,37 +148,37 @@
         "id": "color_type",
         "label": "Цветотип",
         "event": "color_type_done",
-        "value_pct": 89.47
+        "value_pct": 89.29
       },
       {
         "id": "hair",
         "label": "Волосы",
         "event": "hair_look_generated",
-        "value_pct": 40.81
+        "value_pct": 40.74
       },
       {
         "id": "outfit",
         "label": "Образы",
         "event": "outfit_generated",
-        "value_pct": 17.98
+        "value_pct": 17.87
       },
       {
         "id": "makeup",
         "label": "Макияж",
         "event": "makeup_generated",
-        "value_pct": 19.35
+        "value_pct": 19.32
       },
       {
         "id": "chat",
         "label": "Чат",
         "event": "chat_reply",
-        "value_pct": 23.24
+        "value_pct": 23.19
       },
       {
         "id": "fitting",
         "label": "Примерочная",
         "event": "fitting_done",
-        "value_pct": 8.83
+        "value_pct": 8.86
       }
     ],
     "quality": [
