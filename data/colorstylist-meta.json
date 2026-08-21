@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-21T05:23:36+00:00",
+  "generated_at": "2026-08-21T06:25:07+00:00",
   "anchor": "2026-07-31",
   "until": "2026-08-21",
   "window_start": "2026-08-12",
@@ -27,7 +27,7 @@
     "keys_used": 2,
     "per_install": 8.93,
     "per_trial": 124.49,
-    "total_burn": 39160.54
+    "total_burn": 39200.5
   },
   "trial_days": 3,
   "trial_lag_days": 3,
@@ -62,10 +62,10 @@
   },
   "unit_economics": {
     "revenue_total": 3585,
-    "spend_total": 27583.16,
-    "active_users": 1389,
+    "spend_total": 27623.12,
+    "active_users": 1390,
     "active_payers": 9,
-    "plus_active_users": 26,
+    "plus_active_users": 25,
     "trial_cancellations": 3,
     "trial_cancellations_by_day": {
       "2026-08-18": 2,
@@ -136,7 +136,7 @@
         "id": "engagement_hair",
         "label": "Вовлечение (hair)",
         "formula_label": "hair_look / install",
-        "value_pct": 40.51,
+        "value_pct": 40.59,
         "primary": false,
         "accent": false,
         "note": null
@@ -153,7 +153,7 @@
         "id": "hair",
         "label": "Волосы",
         "event": "hair_look_generated",
-        "value_pct": 40.51
+        "value_pct": 40.59
       },
       {
         "id": "outfit",
@@ -184,7 +184,7 @@
       {
         "id": "ai_fail_rate",
         "label": "AI fail rate",
-        "value_pct": 25.41
+        "value_pct": 25.39
       }
     ]
   },
