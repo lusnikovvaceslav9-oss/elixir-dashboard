@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-21T13:38:32+00:00",
+  "generated_at": "2026-08-21T14:24:21+00:00",
   "anchor": "2026-07-31",
   "until": "2026-08-21",
   "window_start": "2026-08-12",
@@ -27,7 +27,7 @@
     "keys_used": 2,
     "per_install": 8.89,
     "per_trial": 124.49,
-    "total_burn": 39543.08
+    "total_burn": 39587.41
   },
   "trial_days": 3,
   "trial_lag_days": 3,
@@ -62,18 +62,18 @@
   },
   "unit_economics": {
     "revenue_total": 3585,
-    "spend_total": 27965.7,
-    "active_users": 1395,
+    "spend_total": 28010.03,
+    "active_users": 1396,
     "active_payers": 9,
     "plus_active_users": 22,
     "trial_cancellations": 1,
     "trial_cancellations_by_day": {
       "2026-08-19": 1
     },
-    "renewals": 9,
+    "renewals": 8,
     "arpu": 2.57,
     "arppu": 398.33,
-    "ltv": 796.66,
+    "ltv": 752.4,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
     "roas_d7": 3.4,
     "roas_d14": 4.5,
@@ -108,7 +108,7 @@
         "id": "aha_color",
         "label": "Aha: цветотип",
         "formula_label": "color_type_reveal / install",
-        "value_pct": 85.94,
+        "value_pct": 86.1,
         "primary": true,
         "accent": false,
         "note": null
@@ -126,7 +126,7 @@
         "id": "paywall_cta",
         "label": "CTA пейволла",
         "formula_label": "purchase_tap / paywall_view",
-        "value_pct": 29.79,
+        "value_pct": 29.87,
         "primary": false,
         "accent": true,
         "note": null
@@ -146,7 +146,7 @@
         "id": "color_type",
         "label": "Цветотип",
         "event": "color_type_done",
-        "value_pct": 90.02
+        "value_pct": 90.09
       },
       {
         "id": "hair",
@@ -170,7 +170,7 @@
         "id": "chat",
         "label": "Чат",
         "event": "chat_reply",
-        "value_pct": 23.66
+        "value_pct": 23.73
       },
       {
         "id": "fitting",
@@ -183,7 +183,7 @@
       {
         "id": "ai_fail_rate",
         "label": "AI fail rate",
-        "value_pct": 25.45
+        "value_pct": 25.46
       }
     ]
   },
@@ -235,12 +235,12 @@
         "rub": 597
       },
       "2026-08-20": {
-        "count": 6,
-        "rub": 1194
+        "count": 5,
+        "rub": 995
       },
       "2026-08-21": {
-        "count": 1,
-        "rub": 199
+        "count": 2,
+        "rub": 398
       }
     }
   },
@@ -265,16 +265,16 @@
     "2026-08-17": 199,
     "2026-08-18": 199,
     "2026-08-19": 597,
-    "2026-08-20": 1593,
-    "2026-08-21": 598
+    "2026-08-20": 1394,
+    "2026-08-21": 797
   },
   "paid_net_by_cohort_day": {
     "2026-08-05": 399,
     "2026-08-14": 199,
     "2026-08-15": 199,
     "2026-08-16": 597,
-    "2026-08-17": 1194,
-    "2026-08-18": 199,
+    "2026-08-17": 995,
+    "2026-08-18": 398,
     "2026-08-20": 399,
     "2026-08-21": 399
   },
