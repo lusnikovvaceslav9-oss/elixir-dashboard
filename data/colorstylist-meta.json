@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-21T19:20:04+00:00",
+  "generated_at": "2026-08-21T20:13:43+00:00",
   "anchor": "2026-07-31",
   "until": "2026-08-21",
   "window_start": "2026-08-12",
@@ -27,7 +27,7 @@
     "keys_used": 2,
     "per_install": 8.86,
     "per_trial": 124.49,
-    "total_burn": 39661.18
+    "total_burn": 39719.0
   },
   "trial_days": 3,
   "trial_lag_days": 3,
@@ -62,8 +62,8 @@
   },
   "unit_economics": {
     "revenue_total": 3585,
-    "spend_total": 28083.8,
-    "active_users": 1399,
+    "spend_total": 28141.62,
+    "active_users": 1401,
     "active_payers": 9,
     "plus_active_users": 22,
     "trial_cancellations": 1,
@@ -108,7 +108,7 @@
         "id": "aha_color",
         "label": "Aha: цветотип",
         "formula_label": "color_type_reveal / install",
-        "value_pct": 85.99,
+        "value_pct": 86.07,
         "primary": true,
         "accent": false,
         "note": null
@@ -135,7 +135,7 @@
         "id": "engagement_hair",
         "label": "Вовлечение (hair)",
         "formula_label": "hair_look / install",
-        "value_pct": 40.89,
+        "value_pct": 40.93,
         "primary": false,
         "accent": false,
         "note": null
@@ -146,44 +146,44 @@
         "id": "color_type",
         "label": "Цветотип",
         "event": "color_type_done",
-        "value_pct": 89.97
+        "value_pct": 90.05
       },
       {
         "id": "hair",
         "label": "Волосы",
         "event": "hair_look_generated",
-        "value_pct": 40.89
+        "value_pct": 40.93
       },
       {
         "id": "outfit",
         "label": "Образы",
         "event": "outfit_generated",
-        "value_pct": 18.84
+        "value_pct": 18.9
       },
       {
         "id": "makeup",
         "label": "Макияж",
         "event": "makeup_generated",
-        "value_pct": 19.91
+        "value_pct": 19.97
       },
       {
         "id": "chat",
         "label": "Чат",
         "event": "chat_reply",
-        "value_pct": 23.74
+        "value_pct": 23.79
       },
       {
         "id": "fitting",
         "label": "Примерочная",
         "event": "fitting_done",
-        "value_pct": 9.04
+        "value_pct": 9.03
       }
     ],
     "quality": [
       {
         "id": "ai_fail_rate",
         "label": "AI fail rate",
-        "value_pct": 25.46
+        "value_pct": 25.41
       }
     ]
   },
