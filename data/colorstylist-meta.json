@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-21T18:21:50+00:00",
+  "generated_at": "2026-08-21T19:20:04+00:00",
   "anchor": "2026-07-31",
   "until": "2026-08-21",
   "window_start": "2026-08-12",
@@ -27,7 +27,7 @@
     "keys_used": 2,
     "per_install": 8.86,
     "per_trial": 124.49,
-    "total_burn": 39658.18
+    "total_burn": 39661.18
   },
   "trial_days": 3,
   "trial_lag_days": 3,
@@ -62,7 +62,7 @@
   },
   "unit_economics": {
     "revenue_total": 3585,
-    "spend_total": 28080.8,
+    "spend_total": 28083.8,
     "active_users": 1399,
     "active_payers": 9,
     "plus_active_users": 22,
@@ -126,7 +126,7 @@
         "id": "paywall_cta",
         "label": "CTA пейволла",
         "formula_label": "purchase_tap / paywall_view",
-        "value_pct": 29.83,
+        "value_pct": 29.91,
         "primary": false,
         "accent": true,
         "note": null
@@ -135,7 +135,7 @@
         "id": "engagement_hair",
         "label": "Вовлечение (hair)",
         "formula_label": "hair_look / install",
-        "value_pct": 40.81,
+        "value_pct": 40.89,
         "primary": false,
         "accent": false,
         "note": null
@@ -152,7 +152,7 @@
         "id": "hair",
         "label": "Волосы",
         "event": "hair_look_generated",
-        "value_pct": 40.81
+        "value_pct": 40.89
       },
       {
         "id": "outfit",

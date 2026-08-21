@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-21T18:21:50+00:00",
+  "generated_at": "2026-08-21T19:20:04+00:00",
   "anchor": "2026-07-31",
   "until": "2026-08-21",
   "product": {
@@ -11,16 +11,16 @@
     "subtitle": "Дошёл ли пользователь до ценности — цветотип, пейволл, фичи.",
     "events": {
       "ai_fail": {
-        "users": 588,
-        "events": 3215,
-        "vs_install_pct": 45.02,
-        "avg_per_user": 5.47
+        "users": 589,
+        "events": 3217,
+        "vs_install_pct": 45.1,
+        "avg_per_user": 5.46
       },
       "ai_request": {
         "users": 1245,
-        "events": 12630,
+        "events": 12634,
         "vs_install_pct": 95.33,
-        "avg_per_user": 10.14
+        "avg_per_user": 10.15
       },
       "chat_reply": {
         "users": 310,
@@ -47,9 +47,9 @@
         "avg_per_user": 1.47
       },
       "hair_look_generated": {
-        "users": 533,
-        "events": 1871,
-        "vs_install_pct": 40.81,
+        "users": 534,
+        "events": 1872,
+        "vs_install_pct": 40.89,
         "avg_per_user": 3.51
       },
       "makeup_generated": {
@@ -65,16 +65,16 @@
         "avg_per_user": 2.43
       },
       "paywall_view": {
-        "users": 905,
-        "events": 2092,
-        "vs_install_pct": 69.3,
+        "users": 906,
+        "events": 2097,
+        "vs_install_pct": 69.37,
         "avg_per_user": 2.31
       },
       "purchase_tap": {
-        "users": 270,
-        "events": 439,
-        "vs_install_pct": 20.67,
-        "avg_per_user": 1.63
+        "users": 271,
+        "events": 440,
+        "vs_install_pct": 20.75,
+        "avg_per_user": 1.62
       }
     },
     "kpis": [
@@ -100,7 +100,7 @@
         "id": "paywall_cta",
         "label": "CTA пейволла",
         "formula_label": "purchase_tap / paywall_view",
-        "value_pct": 29.83,
+        "value_pct": 29.91,
         "primary": false,
         "accent": true,
         "note": null
@@ -109,7 +109,7 @@
         "id": "engagement_hair",
         "label": "Вовлечение (hair)",
         "formula_label": "hair_look / install",
-        "value_pct": 40.81,
+        "value_pct": 40.89,
         "primary": false,
         "accent": false,
         "note": null
@@ -126,7 +126,7 @@
         "id": "hair",
         "label": "Волосы",
         "event": "hair_look_generated",
-        "value_pct": 40.81
+        "value_pct": 40.89
       },
       {
         "id": "outfit",
@@ -170,7 +170,7 @@
   },
   "unit_economics": {
     "revenue_total": 3585,
-    "spend_total": 28080.8,
+    "spend_total": 28083.8,
     "active_users": 1399,
     "active_payers": 9,
     "plus_active_users": 22,
