@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-22T08:17:10+00:00",
+  "generated_at": "2026-08-22T09:17:33+00:00",
   "anchor": "2026-07-31",
   "until": "2026-08-22",
   "window_start": "2026-08-13",
@@ -27,7 +27,7 @@
     "keys_used": 2,
     "per_install": 8.82,
     "per_trial": 122.39,
-    "total_burn": 40012.66
+    "total_burn": 40095.98
   },
   "trial_days": 3,
   "trial_lag_days": 3,
@@ -56,22 +56,22 @@
   "errors": [],
   "days": 23,
   "reconcile_diff": {
-    "trials_total_old_csv": 93,
+    "trials_total_old_csv": 95,
     "trials_total_new": 95,
-    "delta": 2
+    "delta": 0
   },
   "unit_economics": {
-    "revenue_total": 4183,
-    "spend_total": 28385.22,
-    "active_users": 1415,
-    "active_payers": 11,
-    "plus_active_users": 22,
+    "revenue_total": 3984,
+    "spend_total": 28468.54,
+    "active_users": 1416,
+    "active_payers": 10,
+    "plus_active_users": 21,
     "trial_cancellations": 0,
     "trial_cancellations_by_day": {},
     "renewals": 9,
-    "arpu": 2.96,
-    "arppu": 380.27,
-    "ltv": 691.4,
+    "arpu": 2.81,
+    "arppu": 398.4,
+    "ltv": 756.96,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
     "roas_d7": 3.4,
     "roas_d14": 4.5,
@@ -181,7 +181,7 @@
       {
         "id": "ai_fail_rate",
         "label": "AI fail rate",
-        "value_pct": 25.37
+        "value_pct": 25.36
       }
     ]
   },
@@ -195,12 +195,12 @@
       "rub": 1596
     },
     "weekly": {
-      "count": 13,
-      "rub": 2587
+      "count": 12,
+      "rub": 2388
     },
     "total": {
-      "count": 17,
-      "rub": 4183
+      "count": 16,
+      "rub": 3984
     }
   },
   "payments_by_plan_by_day": {
@@ -229,8 +229,8 @@
         "rub": 199
       },
       "2026-08-19": {
-        "count": 3,
-        "rub": 597
+        "count": 2,
+        "rub": 398
       },
       "2026-08-20": {
         "count": 5,
@@ -266,7 +266,7 @@
     "2026-08-16": 0,
     "2026-08-17": 199,
     "2026-08-18": 0,
-    "2026-08-19": 597,
+    "2026-08-19": 398,
     "2026-08-20": 1394,
     "2026-08-21": 996,
     "2026-08-22": 598
@@ -274,7 +274,7 @@
   "paid_net_by_cohort_day": {
     "2026-08-05": 399,
     "2026-08-14": 199,
-    "2026-08-16": 597,
+    "2026-08-16": 398,
     "2026-08-17": 995,
     "2026-08-18": 597,
     "2026-08-19": 199,
