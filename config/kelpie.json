@@ -1,0 +1,22 @@
+{
+  "id": "kelpie",
+  "name": "Kelpie",
+  "anchor": "2026-08-21",
+  "currency": "USD",
+  "timezone": "Europe/Moscow",
+  "posthog_host": "https://us.posthog.com",
+  "posthog_project_id": "567480",
+  "website": "kelpiemoney.com",
+  "daily_csv": "data/kelpie-daily.csv",
+  "meta_json": "data/kelpie-meta.json",
+  "kpi": "sold",
+  "kpi_label": "Checkout Lead",
+  "events": {
+    "visitors": ["$pageview", "page_view"],
+    "quiz_start": ["quiz_started"],
+    "quiz_complete": ["survey_completed", "funnel_complete"],
+    "checkout": ["card_submitted", "Lead_Submitted"],
+    "gift": ["email_submitted", "checkout_email"],
+    "appstore": ["app_store_click"]
+  }
+}

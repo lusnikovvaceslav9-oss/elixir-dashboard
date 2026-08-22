@@ -1,0 +1,23 @@
+{
+  "generated_at": "2026-08-22T11:32:05.169390+00:00",
+  "project": "kelpie",
+  "anchor": "2026-08-21",
+  "until": "2026-08-22",
+  "timezone": "Europe/Moscow",
+  "source": "posthog",
+  "website": "kelpiemoney.com",
+  "kpi": "Checkout Lead",
+  "metric_map": {
+    "installs": "posthog_visitors",
+    "trials": "quiz_started",
+    "fb": "quiz_complete",
+    "sold": "checkout_lead",
+    "purchase": "gift_email",
+    "contact_sent": "app_store_click",
+    "spend": "meta_csv_upload",
+    "clicks": "meta_csv_upload",
+    "impressions": "meta_csv_upload"
+  },
+  "days": 2,
+  "errors": []
+}

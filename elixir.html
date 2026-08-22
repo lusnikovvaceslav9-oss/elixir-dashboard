@@ -1472,6 +1472,26 @@ function huppFeedOf(proj) {
   return HUPP_FEEDS[id] || null;
 }
 
+const KELPIE_DATA_URL = 'data/kelpie-daily.csv';
+const KELPIE_META_URL = 'data/kelpie-meta.json';
+const KELPIE_SPEND_CSV_URL = 'data/kelpie-meta-spend.csv';
+const KELPIE_FEED_WORKFLOW = 'kelpie-feed.yml';
+const KELPIE_FEEDS = {
+  kelpie: {
+    daily: KELPIE_DATA_URL,
+    meta: KELPIE_META_URL,
+    spendSeed: KELPIE_SPEND_CSV_URL,
+    name: 'Kelpie',
+    icon: '🌊',
+    currency: '$',
+    workflow: KELPIE_FEED_WORKFLOW,
+  },
+};
+function kelpieFeedOf(proj) {
+  const id = String(proj?.id || '').toLowerCase();
+  return KELPIE_FEEDS[id] || null;
+}
+
 const HUPP_START_SEED_FLAG = 'hupp_csv_start_seeded_v1';
 const HUPP_DIRECT_KEYS = ['spend', 'clicks', 'impressions'];
 const HUPP_FEED_WORKFLOW = 'hupp-feed.yml';
@@ -1508,6 +1528,8 @@ const DEFAULT_PROJECTS = [
     urls: [HUPP_DATA_URL], dataSource: 'csv' },
   { id: 'izdaniya', name: 'Издания',     icon: '📰', currency: '₽', type: 'hupp', status: 'run',
     urls: ['data/izdaniya-daily.csv'], dataSource: 'csv' },
+  { id: 'kelpie',   name: 'Kelpie',      icon: '🌊', currency: '$', type: 'kelpie', status: 'run',
+    urls: [KELPIE_DATA_URL], dataSource: 'csv' },
   { id: 'quadcode', name: 'Quadcode AI', icon: '💻', currency: '$', type: 'quadcode', status: 'run',
     urls: ['https://docs.google.com/spreadsheets/d/1GRLgK6CnvH4innf7n4k8K_bhQ9nsTl2Q/export?format=csv'] },
   { id: 'streamfi', name: 'StreamFi',    icon: '📡', currency: '$', type: 'streamfi', status: 'run',
@@ -1705,12 +1727,13 @@ let isEditMode = false;
 let discoveredTabsCache = { add: [], edit: [] };
 let sheetPreviewCache = { headers: [], type: 'generic', rowCount: 0 };
 
-const EMOJI_OPTIONS = ['📊','📡','🌱','💻','🚀','📱','💰','🎯','⚡','🔥','📈','🎮','🛒','💎','🌍','✨'];
+const EMOJI_OPTIONS = ['📊','📡','🌱','💻','🚀','📱','💰','🎯','⚡','🔥','📈','🎮','🛒','💎','🌍','✨','🌊'];
 const TYPE_TEMPLATES = [
   { id: 'streamfi', icon: '📡', name: 'StreamFi / UA', desc: 'Спенд + целевые действия / регистрации' },
   { id: 'campaign', icon: '🎯', name: 'Campaign / Ads', desc: 'Reg, Spend, Impressions, Clicks, CPC, CPM' },
   { id: 'planto',   icon: '🌱', name: 'Planto',   desc: 'Installs, Trials, FB' },
   { id: 'hupp',     icon: '🟣', name: 'Hupp',     desc: 'Metrika visits + payment funnel' },
+  { id: 'kelpie',   icon: '🌊', name: 'Kelpie',   desc: 'PostHog funnel + Meta Ads spend' },
   { id: 'quadcode', icon: '💻', name: 'Quadcode', desc: 'Regs, Installs, Purchases' },
   { id: 'generic',  icon: '📊', name: 'Generic',  desc: 'Только Spend' },
 ];
@@ -2030,6 +2053,34 @@ function applyPlantoAutoSource(list) {
   });
 }
 
+function applyKelpieAutoSource(list) {
+  const withBuiltin = [...(list || [])];
+  Object.keys(KELPIE_FEEDS).forEach(id => {
+    if (!withBuiltin.some(p => p?.id === id)) {
+      const def = DEFAULT_PROJECTS.find(p => p.id === id);
+      if (def) withBuiltin.push(JSON.parse(JSON.stringify(def)));
+    }
+  });
+  return withBuiltin.map(p => {
+    const feed = kelpieFeedOf(p);
+    if (!feed) return p;
+    return normalizeProject({
+      ...p,
+      name: p.name || feed.name,
+      icon: p.icon || feed.icon,
+      currency: feed.currency || '$',
+      type: 'kelpie',
+      status: p.status || 'run',
+      urls: [feed.daily],
+      dataSource: 'csv',
+      sheetSources: [{ id: 'csv', url: `upload://${p.id}`, label: 'Meta Ads CSV' }],
+      monthlySheets: [],
+      defaultSource: p.defaultSource || 'fb',
+    });
+  });
+}
+
+
 function applyHuppAutoSource(list) {
   const withBuiltin = [...(list || [])];
   Object.keys(HUPP_FEEDS).forEach(id => {
@@ -2086,13 +2137,20 @@ function isHuppCsvOnly(proj) {
   return isHuppProject(proj);
 }
 
+function isKelpieProject(p) {
+  return !!(p && (kelpieFeedOf(p) || p.type === 'kelpie' || /^kelpie$/i.test(p.id || '') || /^kelpie$/i.test(p.name || '')));
+}
+
 function supportsCsvUpload(proj) {
-  return isMultiSheetCsvProject(proj) || isQuadcodeProject(proj) || isHuppCsvOnly(proj);
+  return isMultiSheetCsvProject(proj) || isQuadcodeProject(proj) || isHuppCsvOnly(proj) || isKelpieProject(proj);
 }
 
 function csvUploadPresets(proj) {
   if (isHuppCsvOnly(proj)) {
     return [{ value: 'CSV upload', label: 'Direct CSV (spend)' }];
+  }
+  if (isKelpieProject(proj)) {
+    return [{ value: 'CSV upload', label: 'Meta Ads CSV (spend)' }];
   }
   if (isQlosophyProject(proj)) {
     return [
@@ -2838,6 +2896,37 @@ async function ensureHuppStartCsvSeed() {
     console.warn('Hupp start CSV seed failed:', e.message || e);
     return false;
   }
+}
+
+async function fetchKelpieDailyRows(proj) {
+  try {
+    const feed = kelpieFeedOf(proj) || KELPIE_FEEDS.kelpie;
+    const text = await fetchWithFallback(feed.daily);
+    const rows = parseSheet(text) || [];
+    return rows.map(r => ({ ...r }));
+  } catch (e) {
+    console.warn('Kelpie PostHog daily load failed:', e.message || e);
+    return [];
+  }
+}
+
+function collectKelpieMetaRows(proj) {
+  const uploads = getProjectCsvUploads(proj?.id) || {};
+  const all = [];
+  Object.values(uploads).forEach(u => {
+    if (!u || u.override) return;
+    const rows = (u.rows && u.rows.length)
+      ? deserializeUploadRows(u.rows)
+      : (u.text ? parseSheet(u.text) : []);
+    rows.forEach(r => all.push(r));
+  });
+  return aggregateRowsByDate(all).map(r => ({
+    date: r.date,
+    dateStr: r.dateStr || fmtDateStr(r.date),
+    spend: r.spend || 0,
+    clicks: r.clicks || 0,
+    impressions: r.impressions || 0,
+  })).filter(r => r.date);
 }
 
 async function fetchHuppMetrikaDailyRows(proj) {
@@ -4231,6 +4320,8 @@ async function onCsvUploadFile(projId, inputEl) {
       await processHuppCsvUploadFiles(projId, files);
     } else if (isJgglProject(p)) {
       await processJgglCsvUploadFiles(projId, files);
+    } else if (isKelpieProject(p)) {
+      for (const file of files) await processCsvUploadFile(projId, file);
     } else {
       for (const file of files) await processCsvUploadFile(projId, file);
     }
@@ -4268,6 +4359,8 @@ async function onCsvDropFile(projId, e) {
       await processHuppCsvUploadFiles(projId, files);
     } else if (isJgglProject(p)) {
       await processJgglCsvUploadFiles(projId, files);
+    } else if (isKelpieProject(p)) {
+      for (const file of files) await processCsvUploadFile(projId, file);
     } else {
       for (const file of files) await processCsvUploadFile(projId, file);
     }
@@ -4326,12 +4419,14 @@ function renderCsvUploadCard(proj) {
   ).join('');
   const hint = isHuppCsvOnly(proj)
     ? 'Несколько CSV Директа подряд: дни копятся, одинаковые даты — spend/clicks/impressions суммируются.'
+    : isKelpieProject(proj)
+    ? 'Meta Ads CSV: расход и клики. Воронка (visitors → quiz → checkout) подтягивается из PostHog каждый час.'
     : isQuadcodeProject(proj)
     ? 'Можно грузить несколько CSV/XLSX подряд — каждый файл сохраняется по хешу, данные сливаются по датам в лист месяца.'
     : isJgglProject(proj)
     ? 'Meta CSV или Google Ads «Campaign report». Можно сразу несколько файлов — пустые пропускаются. «Авто iOS / Android» режет по названию (android/ANDR → Android, иначе iOS).'
     : 'Можно грузить несколько файлов подряд (CSV/XLSX). Статистика сохраняется в облако и видна всем на дашборде.';
-  const multiAttr = (isHuppCsvOnly(proj) || isJgglProject(proj)) ? ' multiple' : '';
+  const multiAttr = (isHuppCsvOnly(proj) || isJgglProject(proj) || isKelpieProject(proj)) ? ' multiple' : '';
   const collapsed = isCsvUploadCollapsed(proj.id);
   const chevron = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
   const countLabel = fileCount ? `${fileCount} файл${fileCount === 1 ? '' : (fileCount < 5 ? 'а' : 'ов')}` : 'нет файлов';
@@ -4452,7 +4547,7 @@ function applyJgglSourceDefault(list) {
 }
 
 function applyProjectDefaults(list) {
-  return applyJgglSourceDefault(applyLocalCsvSources(applyHuppAutoSource(applyPlantoAutoSource(list))));
+  return applyJgglSourceDefault(applyLocalCsvSources(applyKelpieAutoSource(applyHuppAutoSource(applyPlantoAutoSource(list)))));
 }
 
 async function loadLocalCsvManifest(dir) {
@@ -5731,6 +5826,7 @@ function detectTypeFromRows(rows) {
 }
 
 function getEffectiveType(proj, rows) {
+  if (isKelpieProject(proj)) return 'kelpie';
   if (isHuppProject(proj)) return 'hupp';
   if (proj.sheetColumns?.length) return detectSheetType(proj.sheetColumns);
   if (rows?.length) return detectTypeFromRows(rows);
@@ -5763,6 +5859,7 @@ function isLocalDashboard() {
 
 let plantoFeedRef = PLANTO_GH_BRANCH;
 let huppFeedRef = PLANTO_GH_BRANCH;
+let kelpieFeedRef = PLANTO_GH_BRANCH;
 
 async function refreshGitFeedRef(path, setter, label) {
   if (isLocalDashboard()) return;
@@ -5798,6 +5895,16 @@ async function refreshPlantoFeedRef() {
 
 async function refreshHuppFeedRef() {
   await refreshGitFeedRef('data/hupp-meta.json', sha => { huppFeedRef = sha; }, 'Hupp');
+}
+
+async function refreshKelpieFeedRef() {
+  await refreshGitFeedRef('data/kelpie-meta.json', sha => { kelpieFeedRef = sha; }, 'Kelpie');
+}
+
+function resolveKelpieFeedUrl(localPath) {
+  if (isLocalDashboard()) return localPath;
+  const rel = String(localPath || '').replace(/^\//, '');
+  return `https://raw.githubusercontent.com/${PLANTO_GH_REPO}/${kelpieFeedRef}/${rel}`;
 }
 
 /** Какому проекту-автофиду принадлежит файл data/… (по имени файла из реестра). */
@@ -5837,6 +5944,11 @@ function resolveFeedFetchUrl(url) {
     if (feed.daily && (url === feed.daily || String(url).includes(feed.daily.split('/').pop()))) return resolveHuppFeedUrl(feed.daily);
     if (feed.meta && (url === feed.meta || String(url).includes(feed.meta.split('/').pop()))) return resolveHuppFeedUrl(feed.meta);
     if (feed.start && (url === feed.start || String(url).includes(feed.start.split('/').pop()))) return resolveHuppFeedUrl(feed.start);
+  }
+  for (const feed of Object.values(KELPIE_FEEDS)) {
+    if (feed.daily && (url === feed.daily || String(url).includes(feed.daily.split('/').pop()))) return resolveKelpieFeedUrl(feed.daily);
+    if (feed.meta && (url === feed.meta || String(url).includes(feed.meta.split('/').pop()))) return resolveKelpieFeedUrl(feed.meta);
+    if (feed.spendSeed && (url === feed.spendSeed || String(url).includes(feed.spendSeed.split('/').pop()))) return resolveKelpieFeedUrl(feed.spendSeed);
   }
   if (isRepoDataUrl(url)) return resolvePlantoFeedUrl(url.trim());
   if (url === PLANTO_DATA_URL || String(url).includes('planto-daily.csv')) return resolvePlantoFeedUrl(PLANTO_DATA_URL);
@@ -6030,6 +6142,50 @@ async function fetchProject(proj) {
         uploaded: !!csvMeta,
         fileName: csvMeta?.fileName || '',
         uploadedAt: csvMeta?.uploadedAt || null,
+      }],
+    };
+  }
+
+  if (isKelpieProject(proj)) {
+    const funnelRows = await Promise.race([
+      fetchKelpieDailyRows(proj),
+      sleep(12000).then(() => []),
+    ]);
+    let metaRows = collectKelpieMetaRows(proj);
+    const feed = kelpieFeedOf(proj) || KELPIE_FEEDS.kelpie;
+    if (!metaRows.length && feed.spendSeed) {
+      try {
+        const text = await Promise.race([
+          fetchWithFallback(feed.spendSeed),
+          sleep(5000).then(() => ''),
+        ]);
+        if (text) {
+          metaRows = aggregateRowsByDate(parseSheet(text) || []).map(r => ({
+            date: r.date,
+            dateStr: r.dateStr || fmtDateStr(r.date),
+            spend: r.spend || 0,
+            clicks: r.clicks || 0,
+            impressions: r.impressions || 0,
+          }));
+        }
+      } catch (_) {}
+    }
+    const rows = mergeMetrikaWithDirectSpend(funnelRows, metaRows);
+    const uploads = getProjectCsvUploads(proj.id) || {};
+    const first = Object.values(uploads).find(u => u && !u.override);
+    return {
+      sources: [{
+        id: 'csv',
+        label: 'PostHog + Meta Ads',
+        url: feed.daily,
+        rows,
+        sheetColumns: [
+          'date', 'spend', 'installs', 'trials', 'sold', 'fb', 'purchase',
+          'contact_info', 'form_submit', 'contact_sent', 'clicks', 'impressions',
+        ],
+        uploaded: !!first,
+        fileName: first?.fileName || '',
+        uploadedAt: first?.uploadedAt || null,
       }],
     };
   }
@@ -6566,6 +6722,7 @@ async function loadAll() {
   await Promise.allSettled([
     refreshPlantoFeedRef(),
     refreshHuppFeedRef(),
+    refreshKelpieFeedRef(),
   ]);
   // Seed/prune не должны держать UI в «Загрузка…».
   try {
@@ -7912,6 +8069,26 @@ const METRIC_CATALOG = {
     { key: 'form_submit', label: 'Form submit', accent: false },
     { key: 'contact_sent', label: 'Contact sent', accent: false },
   ],
+  kelpie: [
+    { key: 'spend', label: 'Spend', accent: false },
+    { key: 'impressions', label: 'Показы', accent: false },
+    { key: 'clicks', label: 'Клики', accent: false },
+    { key: 'cpc', label: 'CPC', accent: true },
+    { key: 'cpm', label: 'CPM', accent: true },
+    { key: 'ctr', label: 'CTR', accent: false },
+    { key: 'installs', label: 'Visitors', accent: false },
+    { key: 'cost_install', label: 'Cost / Visitor', accent: true },
+    { key: 'trials', label: 'Quiz Starts', accent: false },
+    { key: 'cost_trial', label: 'Cost / Quiz', accent: true },
+    { key: 'fb', label: 'Quiz Complete', accent: false },
+    { key: 'cost_fb', label: 'Cost / Quiz Complete', accent: true },
+    { key: 'sold', label: 'Checkout Lead', accent: false },
+    { key: 'cost_sold', label: 'Cost Checkout', accent: true },
+    { key: 'purchase', label: 'Gift Email', accent: false },
+    { key: 'cost_purchase', label: 'Cost Gift', accent: true },
+    { key: 'contact_sent', label: 'App Store', accent: false },
+    { key: 'cost_app', label: 'Cost App Store', accent: true },
+  ],
   quadcode: [
     { key: 'spend', label: 'Total Spend', accent: false },
     { key: 'regs', label: 'Registrations', accent: false },
@@ -7991,6 +8168,10 @@ function computeMetricValue(key, type, rows, cur) {
       return v ? fmtMoney(sp / v, cur) : '—';
     }
     case 'cost_sold': { const v = sum(rows, 'sold'); return v ? fmtMoney(sp / v, cur) : '—'; }
+    case 'cost_app': {
+      const v = sum(rows, 'contact_sent');
+      return v ? fmtMoney(sp / v, cur) : '—';
+    }
     case 'cost_qreg': {
       const v = regLikeCount(rows) || sum(rows, 'qregs');
       return v ? fmtMoney(sp / v, cur) : '—';
@@ -8138,6 +8319,7 @@ function isMetricRelevant(key, rows) {
     form_submit: 'form_submit', contact_sent: 'contact_sent', impressions: 'impressions', clicks: 'clicks',
     cost_install: 'installs', cost_trial: 'trials', cost_reg: 'regs', cost_qreg: 'qregs',
     cost_sold: 'sold', cost_fb: 'fb', cac: 'fb', cpc: 'clicks', cpm: 'impressions', ctr: 'impressions',
+    cost_app: 'contact_sent',
     cr_install_trial: 'trials', cr_trial_paid: 'sold', roas: 'fb',
   }[key];
   if (key === 'conv_rate') return rows.some(r => 'regs' in r && 'qregs' in r);
@@ -8172,8 +8354,8 @@ function getMetricsCatalogForProj(proj, rows) {
 function getProjectMetricsConfig(proj, rows) {
   const type = rows ? getEffectiveType(proj, rows) : proj.type;
   const catalog = getMetricsCatalogForProj({ ...proj, type }, rows);
-  // Hupp: каталог задаёт порядок (Показы/Клики сразу после Spend), labels/enabled из сохранения.
-  if (type === 'hupp') {
+  // Hupp / Kelpie: каталог задаёт порядок, labels/enabled из сохранения.
+  if (type === 'hupp' || type === 'kelpie') {
     const savedMap = Object.fromEntries((proj.metrics || []).map(m => [m.key, m]));
     return catalog.map(base => {
       const s = savedMap[base.key];
@@ -8201,11 +8383,12 @@ function getMetrics(proj, rows) {
     config = config.filter(m => allowed.has(m.key));
   }
   const GREEN_HUPP = new Set(['spend', 'purchase', 'cost_purchase']);
+  const GREEN_KELPIE = new Set(['spend', 'sold', 'cost_sold']);
   return config.map(m => ({
       label: m.label,
       value: computeMetricValue(m.key, p.type, rows, p.currency),
       accent: m.accent,
-      green: p.type === 'hupp' && GREEN_HUPP.has(m.key),
+      green: (p.type === 'hupp' && GREEN_HUPP.has(m.key)) || (p.type === 'kelpie' && GREEN_KELPIE.has(m.key)),
       key: m.key,
     }));
 }
@@ -8236,7 +8419,7 @@ function getTableConfig(proj, rows) {
   const L = (key, fb) => getMetricLabel(p, key, fb, rows);
   let tbl, colKeys;
 
-  if (type === 'hupp') {
+  if (type === 'hupp' || type === 'kelpie') {
     const hasSpend = rows?.some(r => (r.spend || 0) > 0);
     const hasAds = rows?.some(r => (r.clicks || 0) > 0 || (r.impressions || 0) > 0);
     colKeys = ['date'];
@@ -8287,9 +8470,11 @@ function getTableConfig(proj, rows) {
         rs => { const sp = sum(rs, 'spend'), pu = sum(rs, 'purchase'); return pu ? fmtMoney(sp / pu, cur) : '—'; },
       );
     }
-    pushCol('contact_info', 'Contact info', r => fmtInt(r.contact_info), rs => fmtInt(sum(rs, 'contact_info')));
-    pushCol('form_submit', 'Form submit', r => fmtInt(r.form_submit), rs => fmtInt(sum(rs, 'form_submit')));
-    pushCol('contact_sent', 'Contact sent', r => fmtInt(r.contact_sent), rs => fmtInt(sum(rs, 'contact_sent')));
+    if (type !== 'kelpie') {
+      pushCol('contact_info', 'Contact info', r => fmtInt(r.contact_info), rs => fmtInt(sum(rs, 'contact_info')));
+      pushCol('form_submit', 'Form submit', r => fmtInt(r.form_submit), rs => fmtInt(sum(rs, 'form_submit')));
+    }
+    pushCol('contact_sent', type === 'kelpie' ? 'App Store' : 'Contact sent', r => fmtInt(r.contact_sent), rs => fmtInt(sum(rs, 'contact_sent')));
     tbl = {
       headers,
       row: (r) => rowCells.map(fn => fn(r)),
@@ -9239,13 +9424,13 @@ function getChartDatasets(proj, rows) {
     });
     return base;
   }
-  if (p.type === 'hupp') {
+  if (p.type === 'hupp' || p.type === 'kelpie') {
     // Direct-метрики на отдельной оси, чтобы показы были видны, а не тонули в воронке.
     [
       { key: 'impressions', label: 'Показы', color: '#2563EB' },
       { key: 'clicks', label: 'Клики', color: '#06B6D4' },
-      { key: 'installs', label: 'Visits', color: '#22C55E' },
-      { key: 'purchase', label: 'Purchase', color: '#EC4899' },
+      { key: 'installs', label: p.type === 'kelpie' ? 'Visitors' : 'Visits', color: '#22C55E' },
+      { key: p.type === 'kelpie' ? 'sold' : 'purchase', label: p.type === 'kelpie' ? 'Checkout' : 'Purchase', color: '#EC4899' },
     ].forEach(m => {
       base.push({
         label: L(m.key, m.label),
@@ -10199,7 +10384,7 @@ let pendingWorkspaceChart = null;
 const WORKSPACE_GROUPS = [
   { id: 'ads',    label: 'Реклама',      icon: '📊', keys: ['spend', 'impressions', 'clicks', 'cpm', 'cpc', 'ctr'] },
   { id: 'users',  label: 'Пользователи', icon: '👥', keys: ['installs', 'cost_install', 'regs', 'cost_reg'] },
-  { id: 'funnel', label: 'Воронка',      icon: '🎯', keys: ['trials', 'cost_trial', 'cr_install_trial', 'fb', 'sold', 'cost_sold', 'purchase', 'cost_purchase', 'contact_info', 'form_submit', 'contact_sent', 'qregs', 'cost_qreg', 'purchases', 'conv_rate'] },
+  { id: 'funnel', label: 'Воронка',      icon: '🎯', keys: ['trials', 'cost_trial', 'cr_install_trial', 'fb', 'sold', 'cost_sold', 'purchase', 'cost_purchase', 'contact_info', 'form_submit', 'contact_sent', 'cost_app', 'qregs', 'cost_qreg', 'purchases', 'conv_rate'] },
   { id: 'revenue',label: 'Доход',        icon: '💰', keys: ['revenue', 'roas', 'cac'] },
 ];
 
@@ -10266,11 +10451,11 @@ function getProjectSections(proj, rows) {
   WORKSPACE_GROUPS.forEach(g => {
     const keys = g.keys.filter(k => available.has(k));
     if (!keys.length) return;
-    const isHuppFunnel = g.id === 'funnel' && p.type === 'hupp';
+    const isFunnelEvents = g.id === 'funnel' && (p.type === 'hupp' || p.type === 'kelpie');
     sections.push({
       id: g.id,
-      label: isHuppFunnel ? 'События' : g.label,
-      icon: isHuppFunnel ? 'events' : g.id,
+      label: isFunnelEvents ? 'События' : g.label,
+      icon: isFunnelEvents ? 'events' : g.id,
       keys,
     });
   });
@@ -10310,11 +10495,12 @@ function renderWorkspaceKpis(proj, rows, keys) {
   const cur = p.currency;
   const accentMap = Object.fromEntries(getMetricsCatalogForProj(p, rows).map(m => [m.key, m.accent]));
   const GREEN_HUPP = new Set(['spend', 'purchase', 'cost_purchase']);
+  const GREEN_KELPIE = new Set(['spend', 'sold', 'cost_sold']);
   return `<div class="ws-kpis">${keys.map(k => {
     const label = getMetricLabel(p, k, k, rows);
     const val = computeMetricValue(k, p.type, rows, cur);
     const accent = accentMap[k];
-    const green = p.type === 'hupp' && GREEN_HUPP.has(k);
+    const green = (p.type === 'hupp' && GREEN_HUPP.has(k)) || (p.type === 'kelpie' && GREEN_KELPIE.has(k));
     return `<div class="ws-kpi${accent ? ' accent' : ''}${green ? ' green' : ''}">
       <div class="ws-kpi-label">${escHtml(label)}</div>
       <div class="ws-kpi-value">${val}</div>
@@ -12555,7 +12741,7 @@ const CHAT_METRIC_ALIASES = [
   { key: 'regs', labels: ['регистрации', 'регистраций', 'регистрация', 'регистрацию', 'regs', 'registrations'] },
   { key: 'qregs', labels: ['целевые', 'qregs', 'qreg', 'результаты', 'results'] },
   { key: 'trials', labels: ['триалы', 'trials', 'триал', 'триалов', 'пробные'] },
-  { key: 'sold', labels: ['sold', 'проданные триалы', 'конверсии триала'] },
+  { key: 'sold', labels: ['sold', 'проданные триалы', 'конверсии триала', 'checkout', 'чекаут', 'лиды', 'leads'] },
   { key: 'fb', labels: ['билы', 'bills', 'fb', 'оплаты', 'списания'] },
   { key: 'purchase', labels: ['purchase', 'покупки', 'purchases', 'покупок'] },
   { key: 'cpc', labels: ['cpc', 'спс', 'цена клика', 'стоимость клика'] },
@@ -12574,7 +12760,7 @@ const CHAT_PROJECT_ALIASES = {
   hupp: ['hupp', 'хапп', 'хапа', 'хаппа', 'хаппу', 'хаппом'],
   jggl: ['jggl', 'джигл', 'джиггл', 'jiggle'],
   streamfi: ['streamfi', 'стримф', 'стримфай', 'stream', 'стрим'],
-  qlosophy: ['qlosophy', 'клософ', 'qlosof', 'философ'],
+  kelpie: ['kelpie', 'келпи', 'келпай', 'dash kelpie', 'kelpiemoney'],
   quadcode: ['quadcode', 'квадкод', 'quad', 'квад'],
   rumbleads: ['rumbleads', 'rumble', 'рамбл'],
 };
