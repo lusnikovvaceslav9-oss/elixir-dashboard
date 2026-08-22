@@ -1,15 +1,15 @@
 {
-  "generated_at": "2026-08-21T23:14:19+00:00",
+  "generated_at": "2026-08-22T00:33:15+00:00",
   "anchor": "2026-07-31",
   "until": "2026-08-22",
   "window_start": "2026-08-13",
   "trial_attribution": "appmetrica_purchase_success",
   "ai_spend": {
     "provider": "polza",
-    "total": 11624.44,
-    "generations": 8184,
+    "total": 11627.44,
+    "generations": 8185,
     "by_kind": {
-      "images": 10520.3,
+      "images": 10523.3,
       "chat": 1104.14
     },
     "by_key": [
@@ -20,14 +20,14 @@
       },
       {
         "label": "style-emergency",
-        "total": 7298.86,
-        "generations": 3236
+        "total": 7301.86,
+        "generations": 3237
       }
     ],
     "keys_used": 2,
     "per_install": 8.88,
-    "per_trial": 124.99,
-    "total_burn": 39791.31
+    "per_trial": 125.03,
+    "total_burn": 39795.32
   },
   "trial_days": 3,
   "trial_lag_days": 3,
@@ -62,7 +62,7 @@
   },
   "unit_economics": {
     "revenue_total": 3784,
-    "spend_total": 28166.87,
+    "spend_total": 28167.88,
     "active_users": 1403,
     "active_payers": 10,
     "plus_active_users": 23,
@@ -126,7 +126,7 @@
         "id": "paywall_cta",
         "label": "CTA пейволла",
         "formula_label": "purchase_tap / paywall_view",
-        "value_pct": 29.85,
+        "value_pct": 29.96,
         "primary": false,
         "accent": true,
         "note": null
@@ -183,7 +183,7 @@
       {
         "id": "ai_fail_rate",
         "label": "AI fail rate",
-        "value_pct": 25.41
+        "value_pct": 25.4
       }
     ]
   },
