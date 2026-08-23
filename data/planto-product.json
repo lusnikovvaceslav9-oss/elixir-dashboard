@@ -1,84 +1,84 @@
 {
-  "generated_at": "2026-08-23T06:23:41+00:00",
+  "generated_at": "2026-08-23T10:13:43+00:00",
   "anchor": "2026-06-05",
   "until": "2026-08-23",
   "product": {
     "from": "2026-06-05",
     "to": "2026-08-23",
-    "installs": 14559,
-    "active_users": 14777,
+    "installs": 14606,
+    "active_users": 14828,
     "events": {
       "plant_added": {
-        "users": 4255,
-        "events": 8108,
-        "vs_install_pct": 29.23,
+        "users": 4273,
+        "events": 8166,
+        "vs_install_pct": 29.26,
         "avg_per_user": 1.91
       },
       "paywall_shown": {
-        "users": 11223,
-        "events": 18889,
-        "vs_install_pct": 77.09,
+        "users": 11264,
+        "events": 18959,
+        "vs_install_pct": 77.12,
         "avg_per_user": 1.68
       },
       "paywall_cta_clicked": {
-        "users": 4460,
-        "events": 6390,
-        "vs_install_pct": 30.63,
+        "users": 4481,
+        "events": 6424,
+        "vs_install_pct": 30.68,
         "avg_per_user": 1.43
       },
       "user_score5": {
-        "users": 667,
-        "events": 669,
-        "vs_install_pct": 4.58,
+        "users": 673,
+        "events": 675,
+        "vs_install_pct": 4.61,
         "avg_per_user": 1.0
       },
       "chat_message_sent": {
-        "users": 420,
-        "events": 926,
-        "vs_install_pct": 2.88,
+        "users": 423,
+        "events": 932,
+        "vs_install_pct": 2.9,
         "avg_per_user": 2.2
       },
       "watering_configured": {
-        "users": 380,
-        "events": 842,
-        "vs_install_pct": 2.61,
+        "users": 385,
+        "events": 854,
+        "vs_install_pct": 2.64,
         "avg_per_user": 2.22
       },
       "watering_marked": {
-        "users": 166,
-        "events": 1479,
-        "vs_install_pct": 1.14,
-        "avg_per_user": 8.91
+        "users": 168,
+        "events": 1488,
+        "vs_install_pct": 1.15,
+        "avg_per_user": 8.86
       },
       "ai_route": {
-        "users": 3550,
-        "events": 25434,
-        "vs_install_pct": 24.38,
-        "avg_per_user": 7.16
+        "users": 3566,
+        "events": 25633,
+        "vs_install_pct": 24.41,
+        "avg_per_user": 7.19
       },
       "scan_success": {
-        "users": 4621,
-        "events": 14268,
-        "vs_install_pct": 31.74,
+        "users": 4637,
+        "events": 14350,
+        "vs_install_pct": 31.75,
         "avg_per_user": 3.09
       },
       "user_activated": {
-        "users": 12059,
-        "events": 16234,
-        "vs_install_pct": 82.83,
+        "users": 12103,
+        "events": 16294,
+        "vs_install_pct": 82.86,
         "avg_per_user": 1.35
       }
     },
-    "garden_activation_pct": 29.23,
+    "garden_activation_pct": 29.26,
     "garden_avg_plants": 1.91,
     "garden_depth_icp_pct": null,
-    "paywall_cta_pct": 39.74,
-    "care_engagement_pct": 4.58,
-    "chat_per_plant_pct": 9.87,
+    "paywall_cta_pct": 39.78,
+    "care_engagement_pct": 4.61,
+    "chat_per_plant_pct": 9.9,
     "feature_activation": {
-      "scan_pct": 31.74,
-      "watering_pct": 2.61,
-      "ai_pct": 24.38
+      "scan_pct": 31.75,
+      "watering_pct": 2.64,
+      "ai_pct": 24.41
     },
     "retention": {
       "d1": null,
@@ -90,22 +90,22 @@
   },
   "unit_economics": {
     "revenue_total": 133869,
-    "spend_total": 319110.88,
-    "active_users": 14777,
+    "spend_total": 319999.5,
+    "active_users": 14828,
     "active_payers": 63,
-    "plus_active_users": 120,
-    "trial_cancellations": 12,
+    "plus_active_users": 122,
+    "trial_cancellations": 13,
     "trial_cancellations_by_day": {
-      "2026-08-16": 2,
+      "2026-08-16": 1,
       "2026-08-17": 3,
       "2026-08-19": 1,
       "2026-08-20": 2,
       "2026-08-21": 1,
       "2026-08-22": 1,
-      "2026-08-23": 2
+      "2026-08-23": 4
     },
     "renewals": 38,
-    "arpu": 9.06,
+    "arpu": 9.03,
     "arppu": 2124.9,
     "ltv": 3406.59,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
