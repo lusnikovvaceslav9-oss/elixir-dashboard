@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-23T18:13:29+00:00",
+  "generated_at": "2026-08-23T19:15:47+00:00",
   "anchor": "2026-07-31",
   "until": "2026-08-23",
   "window_start": "2026-08-14",
@@ -27,7 +27,7 @@
     "keys_used": 2,
     "per_install": 8.26,
     "per_trial": 111.19,
-    "total_burn": 42085.38
+    "total_burn": 42114.8
   },
   "trial_days": 3,
   "trial_lag_days": 3,
@@ -62,12 +62,14 @@
   },
   "unit_economics": {
     "revenue_total": 4183,
-    "spend_total": 30410.13,
-    "active_users": 1513,
+    "spend_total": 30439.55,
+    "active_users": 1514,
     "active_payers": 12,
     "plus_active_users": 23,
-    "trial_cancellations": 0,
-    "trial_cancellations_by_day": {},
+    "trial_cancellations": 1,
+    "trial_cancellations_by_day": {
+      "2026-08-23": 1
+    },
     "renewals": 11,
     "arpu": 2.76,
     "arppu": 348.58,
@@ -106,7 +108,7 @@
         "id": "aha_color",
         "label": "Aha: цветотип",
         "formula_label": "color_type_reveal / install",
-        "value_pct": 85.57,
+        "value_pct": 85.64,
         "primary": true,
         "accent": false,
         "note": null
@@ -144,7 +146,7 @@
         "id": "color_type",
         "label": "Цветотип",
         "event": "color_type_done",
-        "value_pct": 89.6
+        "value_pct": 89.67
       },
       {
         "id": "hair",
@@ -218,7 +220,7 @@
         "count": 1,
         "rub": 399
       },
-      "2026-08-22": {
+      "2026-08-23": {
         "count": 1,
         "rub": 399
       }
@@ -269,8 +271,8 @@
     "2026-08-19": 199,
     "2026-08-20": 1394,
     "2026-08-21": 797,
-    "2026-08-22": 1195,
-    "2026-08-23": 199
+    "2026-08-22": 796,
+    "2026-08-23": 598
   },
   "paid_net_by_cohort_day": {
     "2026-08-05": 399,
@@ -280,7 +282,7 @@
     "2026-08-19": 796,
     "2026-08-20": 598,
     "2026-08-21": 399,
-    "2026-08-22": 399
+    "2026-08-23": 399
   },
   "trials_sb_crosscheck_total": 25,
   "trials_sb_crosscheck_by_day": {
