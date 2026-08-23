@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-08-23T20:11:40+00:00",
+  "generated_at": "2026-08-23T21:12:56+00:00",
   "anchor": "2026-06-05",
-  "until": "2026-08-23",
-  "window_start": "2026-08-14",
+  "until": "2026-08-24",
+  "window_start": "2026-08-15",
   "trial_attribution": "appmetrica_trial_started",
   "ai_spend": null,
   "trial_days": 7,
@@ -28,7 +28,7 @@
     "product": "appmetrica_reporting"
   },
   "errors": [],
-  "days": 80,
+  "days": 81,
   "reconcile_diff": {
     "trials_total_old_csv": 300,
     "trials_total_new": 300,
@@ -36,8 +36,8 @@
   },
   "unit_economics": {
     "revenue_total": 133869,
-    "spend_total": 322048.61,
-    "active_users": 14883,
+    "spend_total": 322116.61,
+    "active_users": 14886,
     "active_payers": 63,
     "plus_active_users": 121,
     "trial_cancellations": 12,
@@ -71,7 +71,7 @@
     "garden_activation_pct": 29.2,
     "garden_avg_plants": 1.91,
     "garden_depth_icp_pct": null,
-    "paywall_cta_pct": 39.84,
+    "paywall_cta_pct": 39.83,
     "care_engagement_pct": 4.61,
     "feature_activation": {
       "scan_pct": 31.73,
@@ -383,7 +383,8 @@
     "2026-08-20": 2490,
     "2026-08-21": 4980,
     "2026-08-22": 798,
-    "2026-08-23": 2490
+    "2026-08-23": 2490,
+    "2026-08-24": 0
   },
   "paid_net_by_cohort_day": {
     "2026-05-29": 2490,
@@ -581,7 +582,7 @@
     "2026-08-23": 7
   },
   "trials_crosscheck_yesterday": {
-    "day": "2026-08-22",
+    "day": "2026-08-23",
     "appmetrica": 7,
     "supabase": 7,
     "dashboard": 7,
