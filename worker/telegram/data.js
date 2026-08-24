@@ -208,7 +208,13 @@ function isPlatformLabel(label) {
   return /^(ios|android)$/i.test(String(label || '').trim());
 }
 
+function isJgglAdsTotalName(name) {
+  const s = String(name || '').trim();
+  return s === '—' || s === '--' || s === '–' || s === '-' || /^total\b/i.test(s);
+}
+
 function jgglPlatformFromName(name) {
+  if (isJgglAdsTotalName(name)) return null;
   return /android/i.test(String(name || '')) ? 'Android' : 'iOS';
 }
 
@@ -247,7 +253,9 @@ function normalizeJgglSources(proj, sources) {
     }
     const buckets = { iOS: [], Android: [] };
     for (const r of src.rows || []) {
+      if (isJgglAdsTotalName(r.campaign)) continue;
       const plat = jgglPlatformFromName(r.campaign || '');
+      if (!plat || !buckets[plat]) continue;
       buckets[plat].push(r);
     }
     for (const plat of ['iOS', 'Android']) {

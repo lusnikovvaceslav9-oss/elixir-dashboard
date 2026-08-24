@@ -1973,7 +1973,7 @@ function uploadsForRemote(all) {
         ? deserializeUploadRows(u.rows)
         : (u.text ? parseSheet(u.text) : []);
       // Не тащим в облако строки, где Campaign = delivery status (сдвиг Source).
-      const cleanRows = rows.filter(r => !looksLikeMetaDeliveryStatus(r.campaign));
+      const cleanRows = rows.filter(r => !looksLikeMetaDeliveryStatus(r.campaign) && !isJgglAdsTotalName(r.campaign));
       out[projId][id] = {
         label: u.label,
         fileName: u.fileName,
@@ -2209,7 +2209,13 @@ function resolveUploadLabel(proj, selected, rows) {
 }
 
 /** JGGL: android/ANDR в названии → Android, иначе iOS (в т.ч. IOS в Google Ads). */
+function isJgglAdsTotalName(name) {
+  const s = String(name || '').trim();
+  return s === '—' || s === '--' || s === '–' || s === '-' || /^total\b/i.test(s);
+}
+
 function jgglPlatformFromName(name) {
+  if (isJgglAdsTotalName(name)) return null;
   const s = String(name || '');
   if (/android|\bandr\b|[\s_\-\/]andr[\s_\-\/]/i.test(s) || /andr/i.test(s)) return 'Android';
   return 'iOS';
@@ -2268,7 +2274,9 @@ function sourceLabelHtml(label, { withText = false } = {}) {
 function splitJgglRowsByPlatform(rows) {
   const out = { iOS: [], Android: [] };
   (rows || []).forEach(r => {
+    if (isJgglAdsTotalName(r?.campaign)) return;
     const plat = jgglRowPlatformLabel(r);
+    if (!plat || !out[plat]) return;
     out[plat].push(r);
   });
   return out;
@@ -3356,6 +3364,7 @@ function buildUploadedSource(projId, id, upload) {
   }
   const csvRows = text.trim() ? parseCSV(text) : [sheetColumns];
   if (!sheetColumns.length) sheetColumns = (csvRows[0] || []).map(h => (h || '').trim());
+  rows = (rows || []).filter(r => !isJgglAdsTotalName(r?.campaign));
   return {
     id: `upload_${id}`,
     storageId: id,
@@ -4303,8 +4312,9 @@ function rebuildJgglPlatformCsvText(originalText, platform) {
     const adset = extra.adsetCol >= 0 ? String(r[extra.adsetCol] || '').trim() : '';
     const ad = extra.adCol >= 0 ? String(r[extra.adCol] || '').trim() : '';
     const name = [campaign, adset, ad].filter(Boolean).join(' ');
-    if (!name) return;
-    if (jgglPlatformFromName(name) !== platform) return;
+    if (!name || isJgglAdsTotalName(campaign) || isJgglAdsTotalName(name)) return;
+    const plat = jgglPlatformFromName(name);
+    if (plat !== platform) return;
     out.push(r);
   });
   return sheetMatrixToCsvText(out);
@@ -5554,6 +5564,7 @@ function parseCampaignRows(rows) {
     const impressions = extra.impressionsCol >= 0 ? parseNum(r[extra.impressionsCol]) : 0;
     const clicks = extra.clicksCol >= 0 ? parseNum(r[extra.clicksCol]) : 0;
     const campaign = extra.campaignCol >= 0 ? (r[extra.campaignCol] || '').trim() : '';
+    if (isJgglAdsTotalName(campaign)) return;
     const adset = extra.adsetCol >= 0 ? (r[extra.adsetCol] || '').trim() : '';
     const ad = extra.adCol >= 0 ? (r[extra.adCol] || '').trim() : '';
     if (!spend && !qregs && !regs && !impressions && !clicks) return;
@@ -5590,12 +5601,12 @@ function parseCampaignRows(rows) {
   });
   const filtered = [];
   byDate.forEach(list => {
-    const named = list.filter(r => r.campaign && r.campaign !== '—');
+    const named = list.filter(r => r.campaign && r.campaign !== '—' && !isJgglAdsTotalName(r.campaign));
     (named.length ? named : list).forEach(r => filtered.push(r));
   });
 
   // Для листа без разбивки по кампаниям — одна строка на день.
-  const hasNamed = filtered.some(r => r.campaign && r.campaign !== '—');
+  const hasNamed = filtered.some(r => r.campaign && !isJgglAdsTotalName(r.campaign));
   if (!hasNamed) return aggregateRowsByDate(filtered);
 
   return filtered.sort((a, b) => a.date - b.date || (a.campaign || '').localeCompare(b.campaign || ''));
@@ -5723,6 +5734,7 @@ function prepareGoogleAdsMatrix(matrix) {
     const first = String(r?.[0] || '').trim();
     if (!first) return;
     if (/^total:/i.test(first) || /^итого/i.test(first)) return;
+    if (first === '--' || first === '—' || first === '–' || first === '-') return;
     let row = injectDate ? [dayIso || first, ...r] : r.slice();
     if (injectSource && sourceAt >= 0) {
       row = [...row.slice(0, sourceAt), 'google', ...row.slice(sourceAt)];

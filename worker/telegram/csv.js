@@ -240,7 +240,10 @@ export function mergeUploadEntries(entries) {
     let rows = [];
     if (e.text) rows = parseSheetRows(e.text);
     else if (Array.isArray(e.rows)) rows = e.rows.map(hydrateStoredRow).filter(Boolean);
-    all.push(...rows);
+    all.push(...rows.filter(r => {
+      const c = String(r?.campaign || '').trim();
+      return c !== '—' && c !== '--' && c !== '–' && c !== '-' && !/^total\b/i.test(c);
+    }));
   }
   return aggregateByDate(all);
 }
