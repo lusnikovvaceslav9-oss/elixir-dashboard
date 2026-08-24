@@ -2484,7 +2484,8 @@ function aggregateRowsByDate(rows) {
     const ex = map.get(key);
     Object.keys(r).forEach(k => {
       if (k === 'date' || k === 'dateStr' || k === 'campaign' || k === 'campaignId') return;
-      if (typeof r[k] === 'number') ex[k] = (ex[k] || 0) + r[k];
+      const nv = typeof r[k] === 'number' ? r[k] : Number(r[k]);
+      if (Number.isFinite(nv) && k !== 'os') ex[k] = (Number(ex[k]) || 0) + nv;
     });
   });
   return [...map.values()].sort((a, b) => a.date - b.date);
@@ -2530,7 +2531,8 @@ function aggregateRowsByDateDim(rows) {
     const ex = map.get(key);
     Object.keys(r).forEach(k => {
       if (k === 'date' || k === 'dateStr' || k === 'campaign' || k === 'campaignId') return;
-      if (typeof r[k] === 'number') ex[k] = (ex[k] || 0) + r[k];
+      const nv = typeof r[k] === 'number' ? r[k] : Number(r[k]);
+      if (Number.isFinite(nv) && k !== 'os') ex[k] = (Number(ex[k]) || 0) + nv;
     });
   });
   return [...map.values()].sort((a, b) => a.date - b.date);
@@ -3521,7 +3523,8 @@ function parseJgglContractorTab(csvText) {
     const cabMatch = String(row[1] || '').match(/#(\d+)/);
     if (cabMatch && JGGL_CONTRACTOR_SHEET.excludeCabinets.has(cabMatch[1])) continue;
     const iso = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
-    const cnt = parseInt((row[4] || '').replace(/[^\d-]/g, ''), 10) || 0;
+    // Как деньги: «434.00» → 434. parseInt + вырезание точки давало 43400 и CPA $0.94.
+    const cnt = Math.round(contractorMoneyToNum(row[4]) || 0);
     const key = `${iso}|${os}`;
     const d = daily.get(key) || { iso, os, spend: 0, cnt: 0 };
     d.spend += spend;
@@ -3677,8 +3680,10 @@ function applyJgglContractorOverrideOS(projId, os, rows) {
         day[0].spend = o.spend;
       }
       const qTarget = Number(o.qregs) || 0;
-      if (qTarget > 0) {
-        const qsum = day.reduce((a, r) => a + (Number(r.qregs) || 0), 0);
+      const qsum = day.reduce((a, r) => a + (Number(r.qregs) || 0), 0);
+      // Старый парсер «434.00»→43400. Не подменяем CSV, если свод явно сломан.
+      const qregsPlausible = qTarget > 0 && (qsum <= 0 || (qTarget <= qsum * 4 && qTarget >= qsum / 4));
+      if (qregsPlausible) {
         if (qsum > 0) {
           day.forEach(r => { r.qregs = Math.round((Number(r.qregs) || 0) / qsum * qTarget); });
         } else {
@@ -5480,6 +5485,22 @@ function renderJgglGeoUnitCard(proj, entries, { title, hint, dayPickerHtml = '',
   if (!entries.length && !allowEmpty) return '';
   const curGeo = getProjectDim(proj.id, 'geo');
   const cur$ = proj.currency || '$';
+  const totSpend = entries.reduce((a, [, v]) => a + (v.spend || 0), 0);
+  const totUsers = entries.reduce((a, [, v]) => a + (v.users || 0), 0);
+  const totCpa = totUsers > 0 ? totSpend / totUsers : null;
+  const metricChips = (spend, users, cpa) => `
+          <span class="geo-chip geo-metric">
+            <span class="geo-metric-label">Spend</span>
+            <span class="geo-chip-val">${fmtMoneyFull(spend, cur$)}</span>
+          </span>
+          <span class="geo-chip geo-metric">
+            <span class="geo-metric-label">Юзеры</span>
+            <span class="geo-chip-val">${fmtInt(users)}</span>
+          </span>
+          <span class="geo-chip geo-metric">
+            <span class="geo-metric-label">Цена / юзер</span>
+            <span class="geo-chip-val">${cpa != null ? fmtMoney(cpa, cur$) : '—'}</span>
+          </span>`;
   const blocks = entries.length
     ? entries.map(([g, v]) => {
       const cpa = v.users > 0 ? v.spend / v.users : null;
@@ -5487,21 +5508,15 @@ function renderJgglGeoUnitCard(proj, entries, { title, hint, dayPickerHtml = '',
       return `<div class="geo-os-row${active ? ' active' : ''}">
         <button type="button" class="geo-os-row-btn" title="Фильтр по ${escHtml(geoLabel(g))}" onclick="setProjectDim('${escHtml(proj.id)}','geo','${escHtml(g)}')">
           <span class="geo-os-geo">${escHtml(geoLabel(g))}</span>
-          <span class="geo-chip geo-metric">
-            <span class="geo-metric-label">Spend</span>
-            <span class="geo-chip-val">${fmtMoney(v.spend, cur$)}</span>
-          </span>
-          <span class="geo-chip geo-metric">
-            <span class="geo-metric-label">Юзеры</span>
-            <span class="geo-chip-val">${fmtInt(v.users)}</span>
-          </span>
-          <span class="geo-chip geo-metric">
-            <span class="geo-metric-label">Цена / юзер</span>
-            <span class="geo-chip-val">${cpa != null ? fmtMoney(cpa, cur$) : '—'}</span>
-          </span>
+          ${metricChips(v.spend, v.users, cpa)}
         </button>
       </div>`;
-    }).join('')
+    }).join('') + (entries.length > 1 ? `<div class="geo-os-row" style="opacity:0.85">
+        <div class="geo-os-row-btn" style="cursor:default">
+          <span class="geo-os-geo">Итого</span>
+          ${metricChips(totSpend, totUsers, totCpa)}
+        </div>
+      </div>` : '')
     : `<div class="geo-unit-empty">Нет данных за выбранный день</div>`;
   return `<div class="geo-os-split">
     <div class="geo-filter-head" style="margin-bottom:0">
@@ -8189,7 +8204,7 @@ function computeMetricValue(key, type, rows, cur) {
     case 'sold': return fmtInt(sold);
     case 'fb': return fmtInt(fb);
     case 'regs': return fmtInt(regLikeCount(rows));
-    case 'qregs': return fmtInt(sum(rows, 'qregs') || sum(rows, 'regs'));
+    case 'qregs': return fmtInt(regLikeCount(rows));
     case 'purchases': return fmtInt(sum(rows, 'purchases'));
     case 'purchase': return fmtInt(sum(rows, 'purchase'));
     case 'contact_info': return fmtInt(sum(rows, 'contact_info'));
@@ -8213,7 +8228,7 @@ function computeMetricValue(key, type, rows, cur) {
       return v ? fmtMoney(sp / v, cur) : '—';
     }
     case 'cost_qreg': {
-      const v = regLikeCount(rows) || sum(rows, 'qregs');
+      const v = regLikeCount(rows);
       return v ? fmtMoney(sp / v, cur) : '—';
     }
     case 'cost_fb': return fb ? fmtMoney(sp / fb, cur) : '—';
@@ -9042,7 +9057,7 @@ function computeFunnels(proj, rows) {
 
 function getRowPrimaryResult(proj, row) {
   const type = getEffectiveType(proj, [row]);
-  if (type === 'streamfi') return row.qregs || 0;
+  if (type === 'streamfi' || type === 'campaign') return regLikeCount([row]);
   if (type === 'quadcode') return row.regs || 0;
   if (type === 'planto') {
     const rk = PLANTO_VIEWS[getPlantoView(proj.id)].resultKey;
@@ -9066,12 +9081,16 @@ function computeDayInsights(proj, rows) {
   const worstSpend = [...withResult].sort((a, b) => b.spend - a.spend)[0];
   const zeroResult = withResult.filter(r => r.result === 0);
   const avgDailySpend = sum(withResult, 'spend') / withResult.length;
+  const totSpend = sum(withResult, 'spend');
+  const totRes = withResult.reduce((a, r) => a + (r.result || 0), 0);
+  const avgCpa = totRes > 0 ? totSpend / totRes : null;
 
   return {
     best: best ? { date: best.dateStr, value: fmtMoney(best.cpa, p.currency) } : null,
     topSpend: worstSpend ? { date: worstSpend.dateStr, value: fmtMoney(worstSpend.spend, p.currency) } : null,
     zeroDays: zeroResult.length,
     avgDailySpend: fmtMoney(avgDailySpend, p.currency),
+    avgCpa: avgCpa != null ? fmtMoney(avgCpa, p.currency) : null,
   };
 }
 
@@ -9268,7 +9287,8 @@ function renderAnalyticsSection(proj, allData, rows, monthKey, opts = {}) {
     insightsHtml = `<div class="analytics-card">
       <div class="analytics-card-title">Инсайты за период</div>
       <div class="insights-list">
-        ${insights.best ? `<div class="insight-row best"><span>Лучший CPA</span><span>${insights.best.date} · ${insights.best.value}</span></div>` : ''}
+        ${insights.avgCpa ? `<div class="insight-row best"><span>Средний CPA</span><span>${insights.avgCpa}</span></div>` : ''}
+        ${insights.best ? `<div class="insight-row"><span>Лучший день (CPA)</span><span>${insights.best.date} · ${insights.best.value}</span></div>` : ''}
         ${insights.topSpend ? `<div class="insight-row"><span>Макс. spend за день</span><span>${insights.topSpend.date} · ${insights.topSpend.value}</span></div>` : ''}
         <div class="insight-row"><span>Средний spend / день</span><span>${insights.avgDailySpend}</span></div>
         ${insights.zeroDays ? `<div class="insight-row worst"><span>Дней без результата</span><span>${insights.zeroDays}</span></div>` : ''}
@@ -10709,7 +10729,12 @@ function renderWorkspaceBody(p, srcProj, rows, monthKey, titleSuffix = '', opts 
   if (sections.length > 1) html += renderSectionNav(p.id, sections, section.id);
   html += `<div class="ws-section">`;
   if (section.id === 'summary') {
-    const dayRows = enrichRowsWithDailyRevenue(srcProj, rows);
+    let dayRows = enrichRowsWithDailyRevenue(srcProj, rows);
+    // Campaign/JGGL: KPI и заголовок «N строк» должны быть по дням, как таблица,
+    // иначе cost_* считается по 200+ кускам кампаний и расходится с Итого.
+    if (getTableConfig(srcProj, dayRows).aggregateByDate) {
+      dayRows = aggregateRowsByDate(dayRows);
+    }
     const keys = section.keys.length ? section.keys : getSummaryMetricKeys(srcProj, dayRows);
     if (getProjectTier(srcProj) === 'full') html += renderRevenueExtras(srcProj);
     if (keys.length) html += renderWorkspaceKpis(srcProj, dayRows, keys);
