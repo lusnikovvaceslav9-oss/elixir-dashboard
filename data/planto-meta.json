@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-24T13:42:33+00:00",
+  "generated_at": "2026-08-24T16:23:54+00:00",
   "anchor": "2026-06-05",
   "until": "2026-08-24",
   "window_start": "2026-08-15",
@@ -31,32 +31,31 @@
   "days": 81,
   "reconcile_diff": {
     "trials_total_old_csv": 302,
-    "trials_total_new": 302,
-    "delta": 0
+    "trials_total_new": 305,
+    "delta": 3
   },
   "unit_economics": {
-    "revenue_total": 133869,
-    "spend_total": 324982.27,
-    "active_users": 14973,
+    "revenue_total": 135960,
+    "spend_total": 325622.09,
+    "active_users": 15013,
     "active_payers": 63,
     "plus_active_users": 121,
-    "trial_cancellations": 12,
+    "trial_cancellations": 9,
     "trial_cancellations_by_day": {
-      "2026-08-17": 2,
       "2026-08-19": 1,
       "2026-08-20": 1,
       "2026-08-21": 1,
       "2026-08-22": 1,
-      "2026-08-23": 4,
+      "2026-08-23": 3,
       "2026-08-24": 2
     },
-    "renewals": 38,
-    "arpu": 8.94,
-    "arppu": 2124.9,
-    "ltv": 3406.59,
+    "renewals": 39,
+    "arpu": 9.06,
+    "arppu": 2158.1,
+    "ltv": 3494.07,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
-    "roas_d7": 46.2,
-    "roas_d14": 40.4,
+    "roas_d7": 46.0,
+    "roas_d14": 40.3,
     "roas_d30": 32.4
   },
   "roas_config": {
@@ -69,15 +68,15 @@
     "predict_horizon_days": 180
   },
   "product": {
-    "garden_activation_pct": 29.21,
+    "garden_activation_pct": 29.22,
     "garden_avg_plants": 1.91,
     "garden_depth_icp_pct": null,
     "paywall_cta_pct": 39.85,
-    "care_engagement_pct": 4.62,
+    "care_engagement_pct": 4.64,
     "feature_activation": {
-      "scan_pct": 31.74,
-      "watering_pct": 2.67,
-      "ai_pct": 24.5
+      "scan_pct": 31.76,
+      "watering_pct": 2.68,
+      "ai_pct": 24.53
     },
     "retention": {
       "d1": null,
@@ -93,12 +92,12 @@
   },
   "payments_by_plan": {
     "yearly": {
-      "count": 52,
-      "rub": 129480
+      "count": 53,
+      "rub": 131970
     },
     "monthly": {
-      "count": 11,
-      "rub": 4389
+      "count": 10,
+      "rub": 3990
     },
     "weekly": {
       "count": 0,
@@ -106,7 +105,7 @@
     },
     "total": {
       "count": 63,
-      "rub": 133869
+      "rub": 135960
     }
   },
   "payments_by_plan_by_day": {
@@ -258,6 +257,10 @@
       "2026-08-23": {
         "count": 1,
         "rub": 2490
+      },
+      "2026-08-24": {
+        "count": 1,
+        "rub": 2490
       }
     },
     "monthly": {
@@ -274,10 +277,6 @@
         "rub": 399
       },
       "2026-07-30": {
-        "count": 1,
-        "rub": 399
-      },
-      "2026-08-02": {
         "count": 1,
         "rub": 399
       },
@@ -363,7 +362,7 @@
     "2026-07-30": 2889,
     "2026-07-31": 2490,
     "2026-08-01": 4980,
-    "2026-08-02": 2889,
+    "2026-08-02": 2490,
     "2026-08-03": 5379,
     "2026-08-04": 2490,
     "2026-08-05": 399,
@@ -385,7 +384,7 @@
     "2026-08-21": 4980,
     "2026-08-22": 798,
     "2026-08-23": 2490,
-    "2026-08-24": 0
+    "2026-08-24": 2490
   },
   "paid_net_by_cohort_day": {
     "2026-05-29": 2490,
@@ -415,7 +414,6 @@
     "2026-07-27": 4980,
     "2026-07-28": 2889,
     "2026-07-30": 399,
-    "2026-08-02": 399,
     "2026-08-03": 399,
     "2026-08-04": 2490,
     "2026-08-05": 2889,
@@ -429,9 +427,10 @@
     "2026-08-13": 2889,
     "2026-08-14": 4980,
     "2026-08-16": 2490,
+    "2026-08-17": 2490,
     "2026-08-22": 798
   },
-  "trials_sb_crosscheck_total": 265,
+  "trials_sb_crosscheck_total": 269,
   "trials_sb_crosscheck_by_day": {
     "2026-06-07": 1,
     "2026-06-08": 1,
@@ -505,9 +504,9 @@
     "2026-08-21": 1,
     "2026-08-22": 7,
     "2026-08-23": 7,
-    "2026-08-24": 2
+    "2026-08-24": 6
   },
-  "trials_am_crosscheck_total": 302,
+  "trials_am_crosscheck_total": 305,
   "trials_am_crosscheck_by_day": {
     "2026-06-05": 2,
     "2026-06-07": 1,
@@ -582,7 +581,7 @@
     "2026-08-21": 1,
     "2026-08-22": 7,
     "2026-08-23": 7,
-    "2026-08-24": 2
+    "2026-08-24": 5
   },
   "trials_crosscheck_yesterday": {
     "day": "2026-08-23",
