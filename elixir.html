@@ -6916,7 +6916,7 @@ document.addEventListener('visibilitychange', () => {
 // METRICS / TABLE / CHART CONFIG PER TYPE
 // ═══════════════════════════════════════════════════════════════
 const PLANTO_VIEWS = {
-  summary:  { label: 'Все',      resultKey: 'installs', costKey: 'cost_install', keys: ['spend', 'installs', 'cost_install', 'impressions', 'clicks', 'cpc', 'cpm', 'ctr', 'trials', 'cost_trial', 'cr_install_trial', 'fb', 'cost_fb', 'sold', 'revenue', 'cac', 'cr_trial_paid', 'roas'] },
+  summary:  { label: 'Все',      resultKey: 'installs', costKey: 'cost_install', keys: ['spend', 'spend_vat', 'installs', 'cost_install', 'impressions', 'clicks', 'cpc', 'cpm', 'ctr', 'trials', 'cost_trial', 'cr_install_trial', 'fb', 'cost_fb', 'sold', 'revenue', 'cac', 'cr_trial_paid', 'roas'] },
   installs: { label: 'Installs', resultKey: 'installs', costKey: 'cost_install', keys: ['spend', 'installs', 'cost_install', 'impressions', 'clicks', 'cpc', 'cpm', 'ctr'] },
   trials:   { label: 'Trials',   resultKey: 'trials',   costKey: 'cost_trial',  keys: ['spend', 'trials', 'cost_trial', 'cr_install_trial'] },
   fb:       { label: 'Оплаты',   resultKey: 'fb',       costKey: 'cost_fb',     keys: ['spend', 'fb', 'cost_fb', 'sold', 'revenue', 'cac', 'roas'] },
@@ -7590,6 +7590,7 @@ function metricsFromTileRows(proj, rows, subHint) {
     const soldLabel = feedMeta(proj?.id)?.sold_label || 'yearly';
     const metrics = [
       { key: 'today_spend', label: 'Расход', value: fmtMoney(spend, cur), live: true, sub: dateLabel },
+      { key: 'today_spend_vat', label: 'Спенд +22% НДС', value: fmtMoney(spend * 1.22, cur), live: true, sub: 'с НДС' },
       { key: 'today_installs', label: 'Установки', value: fmtInt(installs), live: true, sub: subHint || 'за день' },
       { key: 'today_cpi', label: 'CPI', value: cpi != null ? fmtMoney(cpi, cur) : '—', accent: true, live: true, sub: 'цена установки' },
       { key: 'today_trials', label: 'Триалы', value: fmtInt(trials), live: true, sub: 'старты' },
@@ -7623,7 +7624,7 @@ function pickOverviewSourceRows(pack, proj) {
 
 /** Приоритет unit-economics на плитках overview (spend → результат → цены → трафик). */
 const OVERVIEW_METRIC_PRIORITY = [
-  'spend',
+  'spend', 'spend_vat',
   'installs', 'regs', 'qregs', 'trials', 'purchase', 'purchases', 'fb', 'sold', 'revenue',
   'cost_install', 'cost_trial', 'cost_reg', 'cost_qreg', 'cost_purchase', 'cost_fb', 'cost_sold',
   'cpc', 'cpm', 'ctr',
@@ -7775,6 +7776,7 @@ function renderPlantoTodayBlock(proj, allRows) {
       primary: true,
       sub: estimated ? 'оценочный (Direct ещё не отдал)' : dateLabel,
     }),
+    plantoKpiCell('Спенд +22% НДС', fmtMoney(spend * 1.22, cur), { sub: 'с НДС' }),
     plantoKpiCell('Установки', fmtInt(installs), { sub: 'за день' }),
     plantoKpiCell('CPI', cpi != null ? fmtMoney(cpi, cur) : '—', { accent: true, sub: 'цена установки' }),
     plantoKpiCell('Триалы', fmtInt(trials), { sub: cr != null ? `CR ${fmtPct(cr)}` : 'старты за день' }),
@@ -7866,6 +7868,7 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
 
   const acquisition = [
     plantoKpiCell('Расход', fmtMoney(sp, cur), { primary: true, sub: 'рекламный spend' }),
+    plantoKpiCell('Спенд +22% НДС', fmtMoney(sp * 1.22, cur), { sub: 'с НДС' }),
     plantoKpiCell('Установки', fmtInt(ins), { sub: 'AppMetrica' }),
     plantoKpiCell('CPI', cpi != null ? fmtMoney(cpi, cur) : '—', { accent: true, sub: 'стоимость установки' }),
     hasAds
@@ -8086,6 +8089,7 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
 const METRIC_CATALOG = {
   planto: [
     { key: 'spend', label: 'Spend', accent: false },
+    { key: 'spend_vat', label: 'Спенд +22% НДС', accent: false },
     { key: 'installs', label: 'Installs', accent: false },
     { key: 'cost_install', label: 'CPI', accent: true },
     { key: 'clicks', label: 'Clicks', accent: false },
@@ -8199,6 +8203,7 @@ function computeMetricValue(key, type, rows, cur) {
   const paidNet = getPlantoPaidNetForRows(rows);
   switch (key) {
     case 'spend': return fmtMoney(sp, cur);
+    case 'spend_vat': return fmtMoney(sp * 1.22, cur);
     case 'installs': return fmtInt(ins);
     case 'trials': return fmtInt(tr);
     case 'sold': return fmtInt(sold);
@@ -8367,7 +8372,7 @@ function typeLabel(type) {
 }
 
 function isMetricRelevant(key, rows) {
-  if (key === 'spend') return true;
+  if (key === 'spend' || key === 'spend_vat') return true;
   const field = {
     installs: 'installs', trials: 'trials', fb: 'fb', sold: 'sold', regs: 'regs', qregs: 'qregs',
     purchases: 'purchases', purchase: 'purchase', contact_info: 'contact_info',
@@ -8396,6 +8401,9 @@ function getMetricsCatalogForProj(proj, rows) {
   const soldLabel = feedMeta(proj?.id)?.sold_label;
   if (soldLabel && type === 'planto') {
     catalog = catalog.map(m => (m.key === 'sold' ? { ...m, label: soldLabel } : m));
+  }
+  if (type === 'planto' && !isAutoFeedId(proj?.id)) {
+    catalog = catalog.filter(m => m.key !== 'spend_vat');
   }
   if (type === 'streamfi' && !sheetHasRegs(proj, rows)) {
     catalog = catalog.filter(m => m.key !== 'regs' && m.key !== 'conv_rate');
@@ -10442,16 +10450,16 @@ let sectionByProject = {};
 let pendingWorkspaceChart = null;
 
 const WORKSPACE_GROUPS = [
-  { id: 'ads',    label: 'Реклама',      icon: '📊', keys: ['spend', 'impressions', 'clicks', 'cpm', 'cpc', 'ctr'] },
+  { id: 'ads',    label: 'Реклама',      icon: '📊', keys: ['spend', 'spend_vat', 'impressions', 'clicks', 'cpm', 'cpc', 'ctr'] },
   { id: 'users',  label: 'Пользователи', icon: '👥', keys: ['installs', 'cost_install', 'regs', 'cost_reg'] },
   { id: 'funnel', label: 'Воронка',      icon: '🎯', keys: ['trials', 'cost_trial', 'cr_install_trial', 'fb', 'sold', 'cost_sold', 'purchase', 'cost_purchase', 'contact_info', 'form_submit', 'contact_sent', 'cost_app', 'qregs', 'cost_qreg', 'purchases', 'conv_rate'] },
   { id: 'revenue',label: 'Доход',        icon: '💰', keys: ['revenue', 'roas', 'cac'] },
 ];
 
-const WS_NONCHART_KEYS = new Set(['cpc', 'cpm', 'ctr', 'roas', 'cac', 'conv_rate', 'cr_install_trial', 'cr_trial_paid']);
+const WS_NONCHART_KEYS = new Set(['cpc', 'cpm', 'ctr', 'roas', 'cac', 'conv_rate', 'cr_install_trial', 'cr_trial_paid', 'spend_vat']);
 function wsChartableKey(k) { return !k.startsWith('cost_') && !WS_NONCHART_KEYS.has(k); }
 // Денежные ключи (для раздела «Доход»): spend, любые стоимостные и CPC/CPM.
-const WS_MONEY_KEYS = new Set(['spend', 'cpc', 'cpm', 'cac', 'revenue', 'arppu', 'ltv']);
+const WS_MONEY_KEYS = new Set(['spend', 'spend_vat', 'cpc', 'cpm', 'cac', 'revenue', 'arppu', 'ltv']);
 function isMoneyKey(k) { return WS_MONEY_KEYS.has(k) || k.startsWith('cost'); }
 
 // Аккуратные линейные иконки разделов (без эмодзи — чище и профессиональнее).
