@@ -3648,8 +3648,7 @@ function getJgglContractorOverrideRows(projId) {
 }
 
 /** Применяет override к одной платформе JGGL ('ios' / 'android'): на общих датах
- *  заменяет spend строками свода по этой ОС, новые даты добавляет. Прочие метрики
- *  дня (показы/клики/цели) из base сохраняются. base схлопывается по дате. */
+ *  заменяет spend и юзеров (qregs) сводом по этой ОС. Показы/клики из CSV. */
 function applyJgglContractorOverrideOS(projId, os, rows) {
   const ov = getJgglContractorOverrideRows(projId).filter(r => r.os === os);
   if (!ov.length) return rows;
@@ -3671,11 +3670,20 @@ function applyJgglContractorOverrideOS(projId, os, rows) {
     if (day && day.length) {
       // Итог дня берём из таблицы контрагентов, разносим по строкам
       // пропорционально их спенду — доли гео сохраняются.
-      const sum = day.reduce((a, r) => a + (Number(r.spend) || 0), 0);
-      if (sum > 0) {
-        day.forEach(r => { r.spend = Math.round((Number(r.spend) || 0) / sum * o.spend * 100) / 100; });
+      const spendSum = day.reduce((a, r) => a + (Number(r.spend) || 0), 0);
+      if (spendSum > 0) {
+        day.forEach(r => { r.spend = Math.round((Number(r.spend) || 0) / spendSum * o.spend * 100) / 100; });
       } else {
         day[0].spend = o.spend;
+      }
+      const qTarget = Number(o.qregs) || 0;
+      if (qTarget > 0) {
+        const qsum = day.reduce((a, r) => a + (Number(r.qregs) || 0), 0);
+        if (qsum > 0) {
+          day.forEach(r => { r.qregs = Math.round((Number(r.qregs) || 0) / qsum * qTarget); });
+        } else {
+          day[0].qregs = qTarget;
+        }
       }
     } else {
       const nr = { date: o.date, dateStr: o.dateStr, spend: o.spend, qregs: o.qregs || 0 };
@@ -5366,11 +5374,31 @@ function jgglCombinedRows(proj) {
   return sources.filter(s => isJgglPlatformLabel(s.label)).flatMap(s => s.rows || []);
 }
 
-function jgglGeoUnitRows(proj, periodRows) {
-  let rows = periodRows?.length ? periodRows : jgglCombinedRows(proj);
-  if (isJgglOnTotalTab(proj) && getJgglOsFilter(proj.id)) {
-    rows = filterRowsByJgglOs(proj, rows);
+/** Строки разрезов/гео для текущего листа: iOS и Android — только эта ОС, не свод «Общее». */
+function jgglViewDimRows(proj, pack, periodFallback) {
+  if (!isJgglProject(proj)) return periodFallback || [];
+  const sources = normalizeCacheData(pack)?.sources || [];
+  const dateKeys = new Set(
+    (periodFallback || []).map(r => r.dateStr || (r.date ? fmtDateStr(r.date) : '')).filter(Boolean)
+  );
+  const inPeriod = (rows) => {
+    if (!dateKeys.size) return selectPeriodRows(rows || [], currentMonth);
+    return (rows || []).filter(r => dateKeys.has(r.dateStr || (r.date ? fmtDateStr(r.date) : '')));
+  };
+  if (!isJgglOnTotalTab(proj)) {
+    const src = sources[getSourceIdx(proj.id, { sources })];
+    return inPeriod(src?.rows || []);
   }
+  let rows = periodFallback?.length ? periodFallback : inPeriod(jgglCombinedRows(proj));
+  if (getJgglOsFilter(proj.id)) rows = filterRowsByJgglOs(proj, rows);
+  return rows || [];
+}
+
+function jgglGeoUnitRows(proj, periodRows) {
+  const pack = cache[proj?.id];
+  let rows = isJgglProject(proj)
+    ? jgglViewDimRows(proj, pack, periodRows)
+    : (periodRows?.length ? periodRows : jgglCombinedRows(proj));
   const curSrc = getProjectDim(proj.id, 'source');
   const srcFb = dimFallback(proj, 'source');
   if (curSrc) rows = rows.filter(r => rowSource(r, srcFb) === curSrc);
@@ -10828,12 +10856,13 @@ function renderProjectDetail(projId) {
     if (!monthPartitioned) html += renderSheetSwitcher(pack, projId, currentMonth);
     // Разрезы считаем на нескленных строках (в viewRows день уже один).
     const dimRows = selectPeriodRows(selectProjectRowsDim(p, pack), currentMonth);
-    html += renderGeoFilter(p, dimRows);
+    const viewDimRows = isJgglProject(p) ? jgglViewDimRows(p, pack, dimRows) : dimRows;
+    html += renderGeoFilter(p, viewDimRows);
     html += renderPlanFilter(p);
     const osFilter = isJgglProject(p) && isJgglOnTotalTab(p) ? getJgglOsFilter(p.id) : '';
     let bodyRows;
     if (hasActiveDim(p) || osFilter) {
-      let work = dimRows;
+      let work = viewDimRows;
       if (hasActiveDim(p)) work = filterRowsByDims(p, work);
       if (osFilter) work = filterRowsByJgglOs(p, work);
       bodyRows = aggregateRowsByDate(work);
