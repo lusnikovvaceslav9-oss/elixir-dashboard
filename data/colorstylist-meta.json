@@ -1,16 +1,16 @@
 {
-  "generated_at": "2026-08-25T22:15:43+00:00",
+  "generated_at": "2026-08-25T23:16:38+00:00",
   "anchor": "2026-07-31",
   "until": "2026-08-26",
   "window_start": "2026-08-17",
   "trial_attribution": "appmetrica_purchase_success",
   "ai_spend": {
     "provider": "polza",
-    "total": 12064.37,
-    "generations": 8451,
+    "total": 12064.62,
+    "generations": 8452,
     "by_kind": {
       "images": 10927.4,
-      "chat": 1136.97
+      "chat": 1137.22
     },
     "by_key": [
       {
@@ -20,14 +20,14 @@
       },
       {
         "label": "style-emergency",
-        "total": 7738.79,
-        "generations": 3503
+        "total": 7739.04,
+        "generations": 3504
       }
     ],
     "keys_used": 2,
     "per_install": 7.77,
     "per_trial": 95.0,
-    "total_burn": 46945.74
+    "total_burn": 46958.27
   },
   "trial_days": 3,
   "trial_lag_days": 3,
@@ -62,8 +62,8 @@
   },
   "unit_economics": {
     "revenue_total": 4581,
-    "spend_total": 34881.37,
-    "active_users": 1656,
+    "spend_total": 34893.65,
+    "active_users": 1657,
     "active_payers": 14,
     "plus_active_users": 33,
     "trial_cancellations": 5,
@@ -73,7 +73,7 @@
       "2026-08-25": 1
     },
     "renewals": 10,
-    "arpu": 2.77,
+    "arpu": 2.76,
     "arppu": 327.21,
     "ltv": 560.93,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
@@ -110,7 +110,7 @@
         "id": "aha_color",
         "label": "Aha: цветотип",
         "formula_label": "color_type_reveal / install",
-        "value_pct": 85.45,
+        "value_pct": 85.51,
         "primary": true,
         "accent": false,
         "note": null
@@ -148,7 +148,7 @@
         "id": "color_type",
         "label": "Цветотип",
         "event": "color_type_done",
-        "value_pct": 89.5
+        "value_pct": 89.57
       },
       {
         "id": "hair",
@@ -185,7 +185,7 @@
       {
         "id": "ai_fail_rate",
         "label": "AI fail rate",
-        "value_pct": 24.28
+        "value_pct": 24.29
       }
     ]
   },
