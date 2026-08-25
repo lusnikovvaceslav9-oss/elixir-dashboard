@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-25T03:39:57+00:00",
+  "generated_at": "2026-08-25T04:28:40+00:00",
   "anchor": "2026-07-31",
   "until": "2026-08-25",
   "window_start": "2026-08-16",
@@ -27,7 +27,7 @@
     "keys_used": 2,
     "per_install": 7.99,
     "per_trial": 100.49,
-    "total_burn": 44847.24
+    "total_burn": 44896.16
   },
   "trial_days": 3,
   "trial_lag_days": 3,
@@ -62,8 +62,8 @@
   },
   "unit_economics": {
     "revenue_total": 4183,
-    "spend_total": 32888.79,
-    "active_users": 1599,
+    "spend_total": 32937.71,
+    "active_users": 1600,
     "active_payers": 12,
     "plus_active_users": 30,
     "trial_cancellations": 5,
@@ -72,7 +72,7 @@
       "2026-08-24": 4
     },
     "renewals": 8,
-    "arpu": 2.62,
+    "arpu": 2.61,
     "arppu": 348.58,
     "ltv": 580.97,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
@@ -109,7 +109,7 @@
         "id": "aha_color",
         "label": "Aha: цветотип",
         "formula_label": "color_type_reveal / install",
-        "value_pct": 85.77,
+        "value_pct": 85.84,
         "primary": true,
         "accent": false,
         "note": null
@@ -127,7 +127,7 @@
         "id": "paywall_cta",
         "label": "CTA пейволла",
         "formula_label": "purchase_tap / paywall_view",
-        "value_pct": 30.53,
+        "value_pct": 30.5,
         "primary": false,
         "accent": true,
         "note": null
@@ -147,7 +147,7 @@
         "id": "color_type",
         "label": "Цветотип",
         "event": "color_type_done",
-        "value_pct": 89.65
+        "value_pct": 89.71
       },
       {
         "id": "hair",
