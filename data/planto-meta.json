@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-08-26T18:50:14+00:00",
+  "generated_at": "2026-08-26T21:28:11+00:00",
   "anchor": "2026-06-05",
-  "until": "2026-08-26",
-  "window_start": "2026-08-17",
+  "until": "2026-08-27",
+  "window_start": "2026-08-18",
   "trial_attribution": "appmetrica_trial_started",
   "ai_spend": null,
   "trial_days": 7,
@@ -28,18 +28,18 @@
     "product": "appmetrica_reporting"
   },
   "errors": [],
-  "days": 83,
+  "days": 84,
   "reconcile_diff": {
     "trials_total_old_csv": 335,
-    "trials_total_new": 335,
-    "delta": 0
+    "trials_total_new": 337,
+    "delta": 2
   },
   "unit_economics": {
     "revenue_total": 146223,
-    "spend_total": 336749.75,
-    "active_users": 15531,
+    "spend_total": 337149.85,
+    "active_users": 15550,
     "active_payers": 73,
-    "plus_active_users": 147,
+    "plus_active_users": 149,
     "trial_cancellations": 17,
     "trial_cancellations_by_day": {
       "2026-08-20": 1,
@@ -50,13 +50,13 @@
       "2026-08-26": 5
     },
     "renewals": 42,
-    "arpu": 9.41,
+    "arpu": 9.4,
     "arppu": 2003.05,
     "ltv": 3155.49,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
     "roas_d7": 45.6,
     "roas_d14": 39.8,
-    "roas_d30": 32.4
+    "roas_d30": 38.7
   },
   "roas_config": {
     "revenue_source": "actual",
@@ -68,15 +68,15 @@
     "predict_horizon_days": 180
   },
   "product": {
-    "garden_activation_pct": 29.3,
+    "garden_activation_pct": 29.31,
     "garden_avg_plants": 1.95,
     "garden_depth_icp_pct": null,
-    "paywall_cta_pct": 40.05,
-    "care_engagement_pct": 4.9,
+    "paywall_cta_pct": 40.06,
+    "care_engagement_pct": 4.89,
     "feature_activation": {
-      "scan_pct": 31.93,
+      "scan_pct": 31.95,
       "watering_pct": 2.87,
-      "ai_pct": 24.95
+      "ai_pct": 24.99
     },
     "retention": {
       "d1": null,
@@ -386,7 +386,8 @@
     "2026-08-23": 2490,
     "2026-08-24": 399,
     "2026-08-25": 12753,
-    "2026-08-26": 798
+    "2026-08-26": 798,
+    "2026-08-27": 0
   },
   "paid_net_by_cohort_day": {
     "2026-05-29": 2490,
@@ -435,7 +436,7 @@
     "2026-08-25": 2793,
     "2026-08-26": 798
   },
-  "trials_sb_crosscheck_total": 292,
+  "trials_sb_crosscheck_total": 294,
   "trials_sb_crosscheck_by_day": {
     "2026-06-07": 1,
     "2026-06-08": 1,
@@ -511,9 +512,9 @@
     "2026-08-23": 7,
     "2026-08-24": 9,
     "2026-08-25": 15,
-    "2026-08-26": 6
+    "2026-08-26": 8
   },
-  "trials_am_crosscheck_total": 335,
+  "trials_am_crosscheck_total": 337,
   "trials_am_crosscheck_by_day": {
     "2026-06-05": 2,
     "2026-06-07": 1,
@@ -590,13 +591,13 @@
     "2026-08-23": 7,
     "2026-08-24": 9,
     "2026-08-25": 19,
-    "2026-08-26": 7
+    "2026-08-26": 9
   },
   "trials_crosscheck_yesterday": {
-    "day": "2026-08-25",
-    "appmetrica": 19,
-    "supabase": 15,
-    "dashboard": 19,
+    "day": "2026-08-26",
+    "appmetrica": 9,
+    "supabase": 8,
+    "dashboard": 9,
     "note": "В дашборде trials = AppMetrica trial_started (события ym:ce:allEvents, как колонка «События» в UI). RuStore — сверка оплат."
   }
 }
