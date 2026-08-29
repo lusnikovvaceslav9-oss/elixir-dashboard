@@ -1,84 +1,84 @@
 {
-  "generated_at": "2026-08-29T02:36:21+00:00",
+  "generated_at": "2026-08-29T09:33:33+00:00",
   "anchor": "2026-06-05",
   "until": "2026-08-29",
   "product": {
     "from": "2026-06-05",
     "to": "2026-08-29",
-    "installs": 15582,
-    "active_users": 15804,
+    "installs": 15638,
+    "active_users": 15864,
     "events": {
       "plant_added": {
-        "users": 4568,
-        "events": 8991,
-        "vs_install_pct": 29.32,
+        "users": 4582,
+        "events": 9048,
+        "vs_install_pct": 29.3,
         "avg_per_user": 1.97
       },
       "paywall_shown": {
-        "users": 12024,
-        "events": 20529,
-        "vs_install_pct": 77.17,
+        "users": 12075,
+        "events": 20618,
+        "vs_install_pct": 77.22,
         "avg_per_user": 1.71
       },
       "paywall_cta_clicked": {
-        "users": 4835,
-        "events": 6978,
-        "vs_install_pct": 31.03,
-        "avg_per_user": 1.44
+        "users": 4855,
+        "events": 7018,
+        "vs_install_pct": 31.05,
+        "avg_per_user": 1.45
       },
       "user_score5": {
-        "users": 780,
-        "events": 783,
-        "vs_install_pct": 5.01,
+        "users": 782,
+        "events": 785,
+        "vs_install_pct": 5.0,
         "avg_per_user": 1.0
       },
       "chat_message_sent": {
-        "users": 491,
-        "events": 1106,
+        "users": 493,
+        "events": 1119,
         "vs_install_pct": 3.15,
-        "avg_per_user": 2.25
+        "avg_per_user": 2.27
       },
       "watering_configured": {
-        "users": 462,
-        "events": 1056,
-        "vs_install_pct": 2.96,
-        "avg_per_user": 2.29
+        "users": 464,
+        "events": 1058,
+        "vs_install_pct": 2.97,
+        "avg_per_user": 2.28
       },
       "watering_marked": {
-        "users": 193,
-        "events": 1720,
-        "vs_install_pct": 1.24,
-        "avg_per_user": 8.91
+        "users": 196,
+        "events": 1727,
+        "vs_install_pct": 1.25,
+        "avg_per_user": 8.81
       },
       "ai_route": {
-        "users": 3913,
-        "events": 28875,
-        "vs_install_pct": 25.11,
-        "avg_per_user": 7.38
+        "users": 3940,
+        "events": 29105,
+        "vs_install_pct": 25.2,
+        "avg_per_user": 7.39
       },
       "scan_success": {
-        "users": 4979,
-        "events": 15575,
-        "vs_install_pct": 31.95,
+        "users": 5006,
+        "events": 15673,
+        "vs_install_pct": 32.01,
         "avg_per_user": 3.13
       },
       "user_activated": {
-        "users": 13018,
-        "events": 17516,
-        "vs_install_pct": 83.55,
+        "users": 13073,
+        "events": 17592,
+        "vs_install_pct": 83.6,
         "avg_per_user": 1.35
       }
     },
-    "garden_activation_pct": 29.32,
+    "garden_activation_pct": 29.3,
     "garden_avg_plants": 1.97,
     "garden_depth_icp_pct": null,
     "paywall_cta_pct": 40.21,
-    "care_engagement_pct": 5.01,
-    "chat_per_plant_pct": 10.75,
+    "care_engagement_pct": 5.0,
+    "chat_per_plant_pct": 10.76,
     "feature_activation": {
-      "scan_pct": 31.95,
-      "watering_pct": 2.96,
-      "ai_pct": 25.11
+      "scan_pct": 32.01,
+      "watering_pct": 2.97,
+      "ai_pct": 25.2
     },
     "retention": {
       "d1": null,
@@ -90,22 +90,22 @@
   },
   "unit_economics": {
     "revenue_total": 151203,
-    "spend_total": 345647.91,
-    "active_users": 15804,
+    "spend_total": 346126.85,
+    "active_users": 15864,
     "active_payers": 75,
-    "plus_active_users": 159,
-    "trial_cancellations": 17,
+    "plus_active_users": 163,
+    "trial_cancellations": 19,
     "trial_cancellations_by_day": {
       "2026-08-23": 3,
       "2026-08-24": 2,
       "2026-08-25": 3,
-      "2026-08-26": 5,
+      "2026-08-26": 3,
       "2026-08-27": 2,
       "2026-08-28": 1,
-      "2026-08-29": 1
+      "2026-08-29": 5
     },
     "renewals": 43,
-    "arpu": 9.57,
+    "arpu": 9.53,
     "arppu": 2016.04,
     "ltv": 3171.9,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
