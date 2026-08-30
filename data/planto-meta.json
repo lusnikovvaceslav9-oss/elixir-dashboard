@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-08-30T18:15:25+00:00",
+  "generated_at": "2026-08-30T21:44:13+00:00",
   "anchor": "2026-06-05",
-  "until": "2026-08-30",
-  "window_start": "2026-08-21",
+  "until": "2026-08-31",
+  "window_start": "2026-08-22",
   "trial_attribution": "appmetrica_trial_started",
   "ai_spend": null,
   "trial_days": 7,
@@ -28,16 +28,16 @@
     "product": "appmetrica_reporting"
   },
   "errors": [],
-  "days": 87,
+  "days": 88,
   "reconcile_diff": {
-    "trials_total_old_csv": 365,
+    "trials_total_old_csv": 366,
     "trials_total_new": 366,
-    "delta": 1
+    "delta": 0
   },
   "unit_economics": {
     "revenue_total": 161163,
-    "spend_total": 353151.08,
-    "active_users": 16023,
+    "spend_total": 353388.69,
+    "active_users": 16032,
     "active_payers": 79,
     "plus_active_users": 162,
     "trial_cancellations": 17,
@@ -51,7 +51,7 @@
       "2026-08-30": 1
     },
     "renewals": 47,
-    "arpu": 10.06,
+    "arpu": 10.05,
     "arppu": 2040.04,
     "ltv": 3253.73,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
@@ -72,12 +72,12 @@
     "garden_activation_pct": 29.31,
     "garden_avg_plants": 2.0,
     "garden_depth_icp_pct": null,
-    "paywall_cta_pct": 40.28,
-    "care_engagement_pct": 5.05,
+    "paywall_cta_pct": 40.25,
+    "care_engagement_pct": 5.06,
     "feature_activation": {
-      "scan_pct": 32.01,
+      "scan_pct": 32.0,
       "watering_pct": 3.0,
-      "ai_pct": 25.26
+      "ai_pct": 25.25
     },
     "retention": {
       "d1": null,
@@ -411,7 +411,8 @@
     "2026-08-27": 2490,
     "2026-08-28": 2889,
     "2026-08-29": 2490,
-    "2026-08-30": 8268
+    "2026-08-30": 8268,
+    "2026-08-31": 0
   },
   "paid_net_by_cohort_day": {
     "2026-05-29": 2490,
@@ -630,10 +631,10 @@
     "2026-08-30": 5
   },
   "trials_crosscheck_yesterday": {
-    "day": "2026-08-29",
-    "appmetrica": 7,
-    "supabase": 7,
-    "dashboard": 7,
+    "day": "2026-08-30",
+    "appmetrica": 5,
+    "supabase": 5,
+    "dashboard": 5,
     "note": "В дашборде trials = AppMetrica trial_started (события ym:ce:allEvents, как колонка «События» в UI). RuStore — сверка оплат."
   }
 }
