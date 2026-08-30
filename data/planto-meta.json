@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-30T08:40:25+00:00",
+  "generated_at": "2026-08-30T14:05:24+00:00",
   "anchor": "2026-06-05",
   "until": "2026-08-30",
   "window_start": "2026-08-21",
@@ -30,16 +30,16 @@
   "errors": [],
   "days": 87,
   "reconcile_diff": {
-    "trials_total_old_csv": 361,
-    "trials_total_new": 362,
-    "delta": 1
+    "trials_total_old_csv": 362,
+    "trials_total_new": 365,
+    "delta": 3
   },
   "unit_economics": {
-    "revenue_total": 158673,
-    "spend_total": 351763.6,
-    "active_users": 15968,
-    "active_payers": 78,
-    "plus_active_users": 160,
+    "revenue_total": 161163,
+    "spend_total": 352779.94,
+    "active_users": 15997,
+    "active_payers": 79,
+    "plus_active_users": 163,
     "trial_cancellations": 17,
     "trial_cancellations_by_day": {
       "2026-08-24": 2,
@@ -50,10 +50,10 @@
       "2026-08-29": 7,
       "2026-08-30": 1
     },
-    "renewals": 46,
-    "arpu": 9.94,
-    "arppu": 2034.27,
-    "ltv": 3233.97,
+    "renewals": 47,
+    "arpu": 10.07,
+    "arppu": 2040.04,
+    "ltv": 3253.73,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
     "roas_d7": 45.8,
     "roas_d14": 45.5,
@@ -69,15 +69,15 @@
     "predict_horizon_days": 180
   },
   "product": {
-    "garden_activation_pct": 29.32,
-    "garden_avg_plants": 1.98,
+    "garden_activation_pct": 29.33,
+    "garden_avg_plants": 1.99,
     "garden_depth_icp_pct": null,
-    "paywall_cta_pct": 40.24,
-    "care_engagement_pct": 5.05,
+    "paywall_cta_pct": 40.26,
+    "care_engagement_pct": 5.06,
     "feature_activation": {
-      "scan_pct": 31.99,
-      "watering_pct": 3.0,
-      "ai_pct": 25.22
+      "scan_pct": 32.01,
+      "watering_pct": 3.01,
+      "ai_pct": 25.25
     },
     "retention": {
       "d1": null,
@@ -93,8 +93,8 @@
   },
   "payments_by_plan": {
     "yearly": {
-      "count": 61,
-      "rub": 151890
+      "count": 62,
+      "rub": 154380
     },
     "monthly": {
       "count": 17,
@@ -105,8 +105,8 @@
       "rub": 0
     },
     "total": {
-      "count": 78,
-      "rub": 158673
+      "count": 79,
+      "rub": 161163
     }
   },
   "payments_by_plan_by_day": {
@@ -276,8 +276,8 @@
         "rub": 2490
       },
       "2026-08-30": {
-        "count": 2,
-        "rub": 4980
+        "count": 3,
+        "rub": 7470
       }
     },
     "monthly": {
@@ -411,7 +411,7 @@
     "2026-08-27": 2490,
     "2026-08-28": 2889,
     "2026-08-29": 2490,
-    "2026-08-30": 5778
+    "2026-08-30": 8268
   },
   "paid_net_by_cohort_day": {
     "2026-05-29": 2490,
@@ -457,14 +457,14 @@
     "2026-08-20": 2490,
     "2026-08-21": 2490,
     "2026-08-22": 3288,
-    "2026-08-23": 4980,
+    "2026-08-23": 7470,
     "2026-08-24": 399,
     "2026-08-25": 1995,
     "2026-08-26": 798,
     "2026-08-28": 399,
     "2026-08-30": 798
   },
-  "trials_sb_crosscheck_total": 313,
+  "trials_sb_crosscheck_total": 316,
   "trials_sb_crosscheck_by_day": {
     "2026-06-07": 1,
     "2026-06-08": 1,
@@ -544,9 +544,9 @@
     "2026-08-27": 7,
     "2026-08-28": 8,
     "2026-08-29": 7,
-    "2026-08-30": 1
+    "2026-08-30": 4
   },
-  "trials_am_crosscheck_total": 362,
+  "trials_am_crosscheck_total": 365,
   "trials_am_crosscheck_by_day": {
     "2026-06-05": 2,
     "2026-06-07": 1,
@@ -627,7 +627,7 @@
     "2026-08-27": 8,
     "2026-08-28": 9,
     "2026-08-29": 7,
-    "2026-08-30": 1
+    "2026-08-30": 4
   },
   "trials_crosscheck_yesterday": {
     "day": "2026-08-29",
