@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-29T22:54:27+00:00",
+  "generated_at": "2026-08-30T00:52:38+00:00",
   "anchor": "2026-07-31",
   "until": "2026-08-30",
   "window_start": "2026-08-21",
@@ -27,7 +27,7 @@
     "keys_used": 2,
     "per_install": 7.19,
     "per_trial": 71.17,
-    "total_burn": 52327.6
+    "total_burn": 52359.89
   },
   "trial_days": 3,
   "trial_lag_days": 3,
@@ -56,13 +56,13 @@
   "errors": [],
   "days": 31,
   "reconcile_diff": {
-    "trials_total_old_csv": 175,
+    "trials_total_old_csv": 177,
     "trials_total_new": 177,
-    "delta": 2
+    "delta": 0
   },
   "unit_economics": {
     "revenue_total": 4581,
-    "spend_total": 39730.95,
+    "spend_total": 39763.24,
     "active_users": 1867,
     "active_payers": 15,
     "plus_active_users": 42,
@@ -185,7 +185,7 @@
       {
         "id": "ai_fail_rate",
         "label": "AI fail rate",
-        "value_pct": 23.03
+        "value_pct": 23.01
       }
     ]
   },
