@@ -8076,7 +8076,7 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
     const bits = [`триал ${trialDays}д только на неделе 199 ₽`];
     if (graceDays != null) bits.push(`грейс ${graceDays}д`);
     if (holdDays != null) bits.push(`холд ${holdDays}д`);
-    trialsDesc = bits.join(' · ') + '. Месяц 399 ₽ и год 2490 ₽ — без триала.';
+    trialsDesc = bits.join(' · ') + '. Месяц 399 ₽; год 2 490 ₽ или 3 490 ₽ (SKU v2 с 31.07).';
     trialsHint = `триал → week`;
   }
   const productSubtitle = product?.subtitle

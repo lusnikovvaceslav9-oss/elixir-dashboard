@@ -32,6 +32,8 @@ from supabase import (
     bills_breakdown,
     bills_by_plan_by_day,
     set_plan_prices,
+    set_sku_prices,
+    set_bill_cohort_from_activated_at,
     set_trial_config,
     bills_by_cohort_day,
     bills_by_day,
@@ -128,6 +130,8 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
     secrets = load_secrets(work_dir)
     # Цены тарифов и лаг триала по тарифу (CS: week 3д; Planto: yearly 7д).
     set_plan_prices(cfg.get("plans"))
+    set_sku_prices(cfg.get("sku_prices"))
+    set_bill_cohort_from_activated_at(bool(cfg.get("bill_cohort_from_activated_at")))
     set_trial_config(cfg)
     anchor = date.fromisoformat(cfg.get("anchor") or default_anchor().isoformat())
     until = datetime.now(ZoneInfo("Europe/Moscow")).date()
@@ -205,7 +209,8 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
     proj_id = cfg.get("id") or ""
     product_needles = cfg.get("product_code_includes") or None
     trials_source = str(cfg.get("trials_source") or "").strip().lower()
-    direct_campaign_ids = fetch_admin_campaign_ids(proj_id) or cfg.get("direct_campaign_ids") or None
+    cfg_ids = [str(c).strip() for c in (cfg.get("direct_campaign_ids") or []) if str(c).strip()]
+    direct_campaign_ids = cfg_ids or fetch_admin_campaign_ids(proj_id)
     direct_exclude_ids: list[str] | None = None
     direct_name_includes = cfg.get("direct_campaign_name_includes") or None
     if direct_campaign_ids:
@@ -307,7 +312,7 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
         try:
             # Daily fb/sold/paid_net = по календарному дню оплаты (как RuStore «7 дней»).
             # Когорты ниже — отдельно по cohort_day (yearly: оплата − lag).
-            bills_list = fetch_bills(db_url, anchor, until)
+            bills_list = fetch_bills(db_url, anchor, until, product_needles)
             bills = bills_by_day(bills_list)
             sold = sold_by_day(bills_list)
             paid_by_pay_day = paid_net_by_pay_day(bills_list)

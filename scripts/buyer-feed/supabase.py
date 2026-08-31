@@ -48,8 +48,12 @@ def plan_of(product_code: str | None) -> str:
     return "monthly"
 
 
-# Цены задаются проектом (config.plans): у Planto и ColorStylist они разные.
+# Цены задаются проектом (config.plans + config.sku_prices).
 PLAN_PRICES = {"weekly": 0, "monthly": MONTHLY_PRICE, "yearly": YEARLY_PRICE}
+SKU_PRICES: dict[str, int] = {}
+# Planto: когорта = календарный день activated_at, счёт года = старт + lag.
+# Не last_event − lag: last_event ползёт на ретраях RuStore.
+BILL_COHORT_FROM_ACTIVATED_AT = False
 
 # Лаг триала по тарифу: когортный день оплаты = pay_date − lag.
 # ColorStylist: триал только на week (3д). Planto: триал на yearly (7д).
@@ -66,6 +70,32 @@ def set_plan_prices(plans: dict | None) -> None:
                 PLAN_PRICES[key] = int(v)
             except (TypeError, ValueError):
                 pass
+
+
+def set_sku_prices(mapping: dict | None) -> None:
+    SKU_PRICES.clear()
+    if not mapping:
+        return
+    for key, raw in mapping.items():
+        code = str(key or "").strip()
+        if not code:
+            continue
+        try:
+            SKU_PRICES[code] = int(raw)
+        except (TypeError, ValueError):
+            continue
+
+
+def set_bill_cohort_from_activated_at(enabled: bool) -> None:
+    global BILL_COHORT_FROM_ACTIVATED_AT
+    BILL_COHORT_FROM_ACTIVATED_AT = bool(enabled)
+
+
+def amount_for_sku(product_code: str | None) -> int:
+    code = str(product_code or "").strip()
+    if code in SKU_PRICES:
+        return int(SKU_PRICES[code])
+    return int(PLAN_PRICES.get(plan_of(code), MONTHLY_PRICE))
 
 
 def set_trial_config(cfg: dict | None) -> None:
@@ -141,14 +171,17 @@ def derive_trial_start(
         return start_day
 
     if period in ("MAIN", "GRACE"):
-        # Месячная MAIN — сразу платная, не триал; не считаем стартом триала.
-        if for_daily or not _is_yearly(product_code):
-            return None
-        # Годовая MAIN = сконвертированный триал. С activated_at — точный старт,
-        # иначе оценка last_event − 7 дней (лаг годового триала).
-        if activated_at is not None:
-            return start_day
-        return _to_msk_date(last_event_time) - timedelta(days=YEARLY_TRIAL_LAG_DAYS)
+        # Годовая MAIN = сконвертированный триал. Только activated_at — last_event ползёт.
+        if _is_yearly(product_code):
+            if activated_at is not None:
+                return _to_msk_date(activated_at)
+            if last_event_time is None:
+                return None
+            return _to_msk_date(last_event_time) - timedelta(days=YEARLY_TRIAL_LAG_DAYS)
+        # Месяц: триала нет, activated_at = старт оплаты (входит в «старты» когорты).
+        if plan_of(product_code) == "monthly" and activated_at is not None:
+            return _to_msk_date(activated_at)
+        return None
 
     return None
 
@@ -290,20 +323,12 @@ def fetch_trials_by_day(db_url: str, date_since: date, date_until: date) -> dict
     return trials_by_day_from_starts(starts)
 
 
-# ── Bills (успешные списания) из состояния подписок ──────────────────────────
-# Билл = подписка дошла до period='MAIN' и status='ACTIVE' (списание прошло).
-# MAIN CLOSED (возврат/чарджбэк) сюда НЕ попадает → возвраты отсекаются сами.
-# Годовой (2490) — конвертированный триал; месячный (399) — прямая покупка.
-#
-# ИЗВЕСТНОЕ ОГРАНИЧЕНИЕ: rustore_subscription_entitlements — это снимок ТЕКУЩЕГО
-# состояния (одна строка на purchase_id), а не журнал списаний. derive_bill берёт
-# last_event_time этой строки как дату оплаты, поэтому на подписке с несколькими
-# продлениями (месячная, несколько ребиллов) считается ровно 1 билл, а не N —
-# и его дата «плывёт» вперёд при каждом новом ребилле (пересчёт задним числом
-# при каждом прогоне). Правильный фикс — брать дату/сумму списания из отдельного
-# журнала событий/вебхуков RuStore (если он есть в БД), а не из entitlements.
-# На момент правки такой таблицы в схеме не подтверждено — исправить здесь без
-# риска сломать почасовой фид нельзя; см. обсуждение в чате.
+# ── Bills (успешные списания) из entitlements ────────────────────────────────
+# Касса = каталожная цена SKU × факт списания, до комиссии RuStore.
+# Когорта Planto = день activated_at (MSK). Счёт года в консоли = старт + 7д.
+# Не last_event − 7: last_event ползёт на ретраях.
+# MAIN + HOLD/TERMINATED после денег — входит. HOLD без списания (не MAIN) — нет.
+# Возврат: год CLOSED вскоре после первого счёта.
 
 
 @dataclass(frozen=True)
@@ -312,8 +337,30 @@ class Bill:
     purchase_id: str
     plan: str  # 'yearly' | 'monthly' | 'weekly'
     amount: int
-    pay_date: date  # день списания (last_event_time, MSK)
-    cohort_day: date  # день когорты (тариф с триалом: pay_date − lag)
+    pay_date: date  # ожидаемый/первый счёт (год: activated_at + lag)
+    cohort_day: date  # неделя набора: activated_at
+    product_code: str = ""
+
+
+def _is_refund_closed(
+    *,
+    plan: str,
+    status: str | None,
+    event_type: str | None,
+    last_event_time: datetime | None,
+    first_invoice: date,
+) -> bool:
+    status_u = (status or "").upper()
+    event_u = (event_type or "").upper()
+    if event_u in ("REFUNDED", "REFUND", "CHARGEBACK"):
+        return True
+    if status_u != "CLOSED":
+        return False
+    if not last_event_time:
+        return plan == "yearly"
+    closed = _to_msk_date(last_event_time)
+    # Год закрылся вскоре после списания → деньги уехали.
+    return closed <= first_invoice + timedelta(days=14)
 
 
 def derive_bill(
@@ -323,21 +370,47 @@ def derive_bill(
     product_code: str | None,
     last_event_time: datetime | None,
     activated_at: datetime | None,
+    period: str | None = None,
+    status: str | None = None,
+    event_type: str | None = None,
 ) -> Bill | None:
-    charge = last_event_time or activated_at
-    if charge is None:
-        return None
-    pay_date = _to_msk_date(charge)
     plan = plan_of(product_code)
+    if plan == "weekly" and int(PLAN_PRICES.get("weekly") or 0) <= 0:
+        return None
+    amount = amount_for_sku(product_code)
     lag = trial_lag_for_plan(plan)
-    cohort_day = pay_date - timedelta(days=lag) if lag else pay_date
+
+    if BILL_COHORT_FROM_ACTIVATED_AT:
+        if activated_at is None:
+            return None
+        start = _to_msk_date(activated_at)
+        pay_date = start + timedelta(days=lag) if lag else start
+        cohort_day = start
+    else:
+        charge = last_event_time or activated_at
+        if charge is None:
+            return None
+        pay_date = _to_msk_date(charge)
+        cohort_day = pay_date - timedelta(days=lag) if lag else pay_date
+        start = cohort_day
+
+    if _is_refund_closed(
+        plan=plan,
+        status=status,
+        event_type=event_type,
+        last_event_time=last_event_time,
+        first_invoice=pay_date,
+    ):
+        return None
+
     return Bill(
         user_id=str(user_id),
         purchase_id=str(purchase_id),
         plan=plan,
-        amount=PLAN_PRICES.get(plan, MONTHLY_PRICE),
+        amount=amount,
         pay_date=pay_date,
         cohort_day=cohort_day,
+        product_code=str(product_code or ""),
     )
 
 
@@ -345,34 +418,57 @@ _BILLS_SQL = """
     SELECT purchase_id,
            user_id::text,
            product_code,
+           period,
+           status,
            last_subscription_event_type,
            last_event_time,
            activated_at
     FROM rustore_subscription_entitlements
     WHERE period = 'MAIN'
-      AND status = 'ACTIVE'
-      AND coalesce(last_event_time, activated_at) IS NOT NULL;
+      AND coalesce(activated_at, last_event_time) IS NOT NULL;
 """
 
 
-def fetch_bills(db_url: str, date_since: date, date_until: date) -> list[Bill]:
-    """Успешные списания (MAIN ACTIVE), отфильтрованные по дате оплаты в диапазоне."""
+def fetch_bills(
+    db_url: str,
+    date_since: date,
+    date_until: date,
+    product_code_includes: list[str] | None = None,
+) -> list[Bill]:
+    """Первые успешные списания MAIN. Статус не только ACTIVE: оборванный
+    уже оплаченный месяц тоже касса. Фильтр дат — когорта (activated_at) или счёт."""
     rows = _fetch_generic(db_url, _BILLS_SQL)
     bills: list[Bill] = []
-    for purchase_id, user_id, product_code, _ev, last_event_time, activated_at in rows:
+    for (
+        purchase_id,
+        user_id,
+        product_code,
+        period,
+        status,
+        event_type,
+        last_event_time,
+        activated_at,
+    ) in rows:
+        if not _product_matches(product_code, product_code_includes):
+            continue
         bill = derive_bill(
             purchase_id=purchase_id,
             user_id=user_id,
             product_code=product_code,
             last_event_time=last_event_time,
             activated_at=activated_at,
+            period=period,
+            status=status,
+            event_type=event_type,
         )
         if bill is None:
             continue
-        if bill.pay_date < date_since or bill.pay_date > date_until:
+        in_cohort = date_since <= bill.cohort_day <= date_until
+        in_invoice = date_since <= bill.pay_date <= date_until
+        if not in_cohort and not in_invoice:
             continue
         bills.append(bill)
-    return sorted(bills, key=lambda b: (b.pay_date, b.user_id))
+    return sorted(bills, key=lambda b: (b.cohort_day, b.user_id))
 
 
 def bills_by_day(bills: list[Bill]) -> dict[str, int]:

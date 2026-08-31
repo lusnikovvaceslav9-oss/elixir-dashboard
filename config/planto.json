@@ -12,9 +12,11 @@
   "mature_cohort_days": 30,
   "predict_horizon_days": 180,
   "direct_client_login": "doxmediagroup",
+  "direct_campaign_ids": ["712911530", "713740072"],
   "direct_campaign_name_includes": ["planto", "планто"],
-  "product_code_includes": ["planto", "yearly"],
+  "product_code_includes": ["planto"],
   "trials_source": "supabase",
+  "bill_cohort_from_activated_at": true,
   "appmetrica_application_id": "6305902",
   "payments_csv": "data/rustore-payments.csv",
   "daily_csv": "data/planto-daily.csv",
@@ -24,5 +26,10 @@
 
   "trial_days": 7,
   "plans": { "month": 399, "year": 2490 },
+  "sku_prices": {
+    "planto_plus_yearly_v2": 3490,
+    "planto_plus_yearly": 2490,
+    "planto_plus_monthly": 399
+  },
   "sold_label": "yearly"
 }
