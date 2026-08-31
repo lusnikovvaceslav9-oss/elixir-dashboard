@@ -183,10 +183,12 @@ def derive_trial_start(
             return _to_msk_date(activated_at)
         return None
 
-    # HOLD/PAUSED/CLOSED/TERMINATED без MAIN: старт всё ещё activated_at
-    # (два года W2 без списания + оборванный уже оплаченный месяц).
+    # HOLD/PAUSED/CLOSED/TERMINATED: старт = activated_at; если вебхук его
+    # не заполнил (оборванный месяц W2) — last_event, иначе строка пропадает.
     if activated_at is not None:
         return _to_msk_date(activated_at)
+    if plan_of(product_code) == "monthly" and start_time is not None:
+        return start_day
 
     return None
 
@@ -401,9 +403,12 @@ def derive_bill(
     lag = trial_lag_for_plan(plan)
 
     if BILL_COHORT_FROM_ACTIVATED_AT:
-        if activated_at is None:
+        start_src = activated_at
+        if start_src is None and plan == "monthly":
+            start_src = last_event_time
+        if start_src is None:
             return None
-        start = _to_msk_date(activated_at)
+        start = _to_msk_date(start_src)
         pay_date = start + timedelta(days=lag) if lag else start
         cohort_day = start
     else:
