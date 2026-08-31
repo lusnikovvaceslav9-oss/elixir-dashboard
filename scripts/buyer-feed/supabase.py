@@ -183,6 +183,11 @@ def derive_trial_start(
             return _to_msk_date(activated_at)
         return None
 
+    # HOLD/PAUSED без MAIN: старт триала всё ещё activated_at (в 37 стартов W2 входят
+    # два года, которые так и не списались).
+    if activated_at is not None and period in ("HOLD", "PAUSED", "TERMINATED"):
+        return _to_msk_date(activated_at)
+
     return None
 
 
@@ -198,7 +203,7 @@ _ENTITLEMENTS_SQL = """
     FROM rustore_subscription_entitlements
     WHERE user_id IS NOT NULL
       AND period IS NOT NULL
-      AND period IN ('TRIAL', 'MAIN', 'GRACE', 'CLOSED')
+      AND period IN ('TRIAL', 'MAIN', 'GRACE', 'CLOSED', 'HOLD', 'PAUSED', 'TERMINATED')
       AND coalesce(activated_at, last_event_time) IS NOT NULL;
 """
 
@@ -436,7 +441,10 @@ _BILLS_SQL = """
         period = 'MAIN'
         OR (
           product_code ILIKE '%month%'
-          AND upper(coalesce(status, '')) IN ('TERMINATED', 'HOLD', 'PAUSED', 'CLOSED')
+          AND upper(coalesce(status, '')) IN (
+            'TERMINATED', 'HOLD', 'PAUSED', 'CLOSED',
+            'INACTIVE', 'EXPIRED', 'CANCELLED', 'CANCELED'
+          )
         )
       );
 """
