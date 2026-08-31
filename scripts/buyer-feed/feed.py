@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import hashlib
+from collections import Counter
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from pathlib import Path
@@ -39,6 +40,7 @@ from supabase import (
     bills_by_day,
     fetch_bills,
     fetch_trial_cancellations_by_day,
+    fetch_new_trial_starts,
     fetch_trial_starts,
     fetch_unit_economics_snapshot,
     paid_net_by_cohort_day,
@@ -153,7 +155,7 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
     installs: dict[str, int] = {}
     trials: dict[str, int] = {}
     trials_am_crosscheck: dict[str, int] = {}
-    trial_starts = []
+    trial_starts = None
     bills: dict[str, int] = {}
     sold: dict[str, int] = {}
     paid_by_cohort_day: dict[str, int] = {}
@@ -326,6 +328,20 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
                 f"  Supabase bills: {len(bills_list)} charges "
                 f"(daily = pay_date · cohort lag for yearly/week trial)"
             )
+            w2s, w2e = date(2026, 8, 8), date(2026, 8, 14)
+            w2_bills = [b for b in bills_list if w2s <= b.cohort_day <= w2e]
+            sku_n = Counter(f"{b.product_code}:{b.amount}" for b in w2_bills)
+            print(
+                f"  W2 8–14 bills: {len(w2_bills)} · {sum(b.amount for b in w2_bills)} ₽ · "
+                + ", ".join(f"{k}×{v}" for k, v in sorted(sku_n.items()))
+            )
+            if trial_starts:
+                w2_starts = [
+                    t for t in trial_starts
+                    if w2s <= t.trial_start <= w2e
+                ]
+                pids = {str(t.purchase_id or t.user_id) for t in w2_starts}
+                print(f"  W2 8–14 trial_starts: {len(pids)} purchase_id")
         except Exception as exc:
             errors.append(f"supabase_bills: {exc}")
             print(f"  Supabase bills failed: {exc}")
@@ -526,7 +542,7 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
         paid_by_cohort_day=paid_by_cohort_day,
         sold_by_cohort_day=sold_by_cohort_day_map,
         bills_by_cohort_day=bills_cohort or bills,
-        trial_starts=trial_starts or None,
+        trial_starts=trial_starts,
         trials_am_by_day=trials_am_crosscheck or None,
     )
     cohort_path.parent.mkdir(parents=True, exist_ok=True)

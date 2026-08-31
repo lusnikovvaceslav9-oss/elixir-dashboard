@@ -183,9 +183,9 @@ def derive_trial_start(
             return _to_msk_date(activated_at)
         return None
 
-    # HOLD/PAUSED без MAIN: старт триала всё ещё activated_at (в 37 стартов W2 входят
-    # два года, которые так и не списались).
-    if activated_at is not None and period in ("HOLD", "PAUSED", "TERMINATED"):
+    # HOLD/PAUSED/CLOSED/TERMINATED без MAIN: старт всё ещё activated_at
+    # (два года W2 без списания + оборванный уже оплаченный месяц).
+    if activated_at is not None:
         return _to_msk_date(activated_at)
 
     return None
@@ -202,8 +202,6 @@ _ENTITLEMENTS_SQL = """
            activated_at
     FROM rustore_subscription_entitlements
     WHERE user_id IS NOT NULL
-      AND period IS NOT NULL
-      AND period IN ('TRIAL', 'MAIN', 'GRACE', 'CLOSED', 'HOLD', 'PAUSED', 'TERMINATED')
       AND coalesce(activated_at, last_event_time) IS NOT NULL;
 """
 
@@ -366,10 +364,13 @@ def _is_refund_closed(
     event_u = (event_type or "").upper()
     if event_u in ("REFUNDED", "REFUND", "CHARGEBACK"):
         return True
+    # Месяц, который уже списали и потом оборвали, — не возврат.
+    if plan != "yearly":
+        return False
     if status_u != "CLOSED":
         return False
     if not last_event_time:
-        return plan == "yearly"
+        return True
     closed = _to_msk_date(last_event_time)
     # Год закрылся вскоре после списания → деньги уехали.
     return closed <= first_invoice + timedelta(days=14)
@@ -388,6 +389,13 @@ def derive_bill(
 ) -> Bill | None:
     plan = plan_of(product_code)
     if plan == "weekly" and int(PLAN_PRICES.get("weekly") or 0) <= 0:
+        return None
+    period_u = (period or "").upper()
+    # Год в кассе только после MAIN. HOLD/GRACE без списания — нет.
+    if plan == "yearly" and period_u != "MAIN":
+        return None
+    # У месяца триала нет: TRIAL не касса. Любой другой период после денег — да.
+    if plan == "monthly" and period_u == "TRIAL":
         return None
     amount = amount_for_sku(product_code)
     lag = trial_lag_for_plan(plan)
@@ -441,10 +449,8 @@ _BILLS_SQL = """
         period = 'MAIN'
         OR (
           product_code ILIKE '%month%'
-          AND upper(coalesce(status, '')) IN (
-            'TERMINATED', 'HOLD', 'PAUSED', 'CLOSED',
-            'INACTIVE', 'EXPIRED', 'CANCELLED', 'CANCELED'
-          )
+          AND product_code NOT ILIKE '%year%'
+          AND coalesce(period, '') NOT IN ('TRIAL')
         )
       );
 """
