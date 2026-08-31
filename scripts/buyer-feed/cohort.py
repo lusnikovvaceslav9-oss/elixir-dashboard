@@ -126,21 +126,20 @@ def fmt_checkpoint(d: date) -> str:
 
 
 def count_trial_starts_in_bucket(trial_starts: list, start: date, end: date) -> int:
-    """Distinct user_id with trial_start in [start, end]."""
-    best: dict[str, date] = {}
+    """Distinct purchase (fallback user) with trial_start in [start, end]."""
+    seen: set[str] = set()
     for row in trial_starts:
-        uid = getattr(row, "user_id", None) or row.get("user_id")
-        ts = getattr(row, "trial_start", None) or row.get("trial_start")
-        if not uid or not ts:
+        uid = getattr(row, "purchase_id", None) or (row.get("purchase_id") if isinstance(row, dict) else None)
+        user = getattr(row, "user_id", None) or (row.get("user_id") if isinstance(row, dict) else None)
+        ts = getattr(row, "trial_start", None) or (row.get("trial_start") if isinstance(row, dict) else None)
+        if not ts:
             continue
         if isinstance(ts, str):
             ts = parse_day(ts)
-        if ts is None:
+        if ts is None or not (start <= ts <= end):
             continue
-        prev = best.get(uid)
-        if prev is None or ts < prev:
-            best[uid] = ts
-    return sum(1 for ts in best.values() if start <= ts <= end)
+        seen.add(str(uid or user))
+    return len(seen)
 
 
 def _sum_metric_in_bucket(by_day: dict[str, int] | None, start: date, end: date) -> int:

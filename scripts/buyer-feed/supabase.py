@@ -302,9 +302,16 @@ def dedupe_trial_starts_by_user(starts: list[TrialStart]) -> list[TrialStart]:
 
 
 def trials_by_day_from_starts(starts: list[TrialStart]) -> dict[str, int]:
+    """Один purchase_id в день — не схлопывать разные SKU одного user_id."""
+    seen: set[tuple[str, str]] = set()
     out: dict[str, int] = {}
-    for row in dedupe_trial_starts_by_user(starts):
+    for row in starts:
+        pid = str(row.purchase_id or row.user_id)
         key = row.trial_start.isoformat()
+        sig = (key, pid)
+        if sig in seen:
+            continue
+        seen.add(sig)
         out[key] = out.get(key, 0) + 1
     return dict(sorted(out.items()))
 
@@ -424,8 +431,14 @@ _BILLS_SQL = """
            last_event_time,
            activated_at
     FROM rustore_subscription_entitlements
-    WHERE period = 'MAIN'
-      AND coalesce(activated_at, last_event_time) IS NOT NULL;
+    WHERE coalesce(activated_at, last_event_time) IS NOT NULL
+      AND (
+        period = 'MAIN'
+        OR (
+          product_code ILIKE '%month%'
+          AND upper(coalesce(status, '')) IN ('TERMINATED', 'HOLD', 'PAUSED', 'CLOSED')
+        )
+      );
 """
 
 
