@@ -170,6 +170,13 @@ _ENTITLEMENTS_SQL = """
 """
 
 
+def _product_matches(product_code: str | None, needles: list[str] | None) -> bool:
+    if not needles:
+        return True
+    code = (product_code or "").lower()
+    return any(n.lower() in code for n in needles if n)
+
+
 def _fetch_rows(db_url: str) -> list[tuple]:
     try:
         import psycopg2
@@ -187,6 +194,7 @@ def _rows_to_starts(
     date_until: date,
     *,
     for_daily: bool,
+    product_code_includes: list[str] | None = None,
 ) -> list[TrialStart]:
     starts: list[TrialStart] = []
     for (
@@ -199,6 +207,8 @@ def _rows_to_starts(
         last_event_time,
         activated_at,
     ) in rows:
+        if not _product_matches(product_code, product_code_includes):
+            continue
         trial_start = derive_trial_start(
             period=period,
             product_code=product_code,
@@ -222,14 +232,30 @@ def _rows_to_starts(
     return starts
 
 
-def fetch_trial_starts(db_url: str, date_since: date, date_until: date) -> list[TrialStart]:
+def fetch_trial_starts(
+    db_url: str,
+    date_since: date,
+    date_until: date,
+    product_code_includes: list[str] | None = None,
+) -> list[TrialStart]:
     """Cohort attribution: TRIAL starts + yearly MAIN/GRACE backdated by 7d."""
-    return _rows_to_starts(_fetch_rows(db_url), date_since, date_until, for_daily=False)
+    return _rows_to_starts(
+        _fetch_rows(db_url), date_since, date_until, for_daily=False,
+        product_code_includes=product_code_includes,
+    )
 
 
-def fetch_new_trial_starts(db_url: str, date_since: date, date_until: date) -> list[TrialStart]:
+def fetch_new_trial_starts(
+    db_url: str,
+    date_since: date,
+    date_until: date,
+    product_code_includes: list[str] | None = None,
+) -> list[TrialStart]:
     """Daily column: новые триалы (ACTIVATED / CLIENT_SYNC / CANCELLED autorenew), без CLOSED и MAIN."""
-    return _rows_to_starts(_fetch_rows(db_url), date_since, date_until, for_daily=True)
+    return _rows_to_starts(
+        _fetch_rows(db_url), date_since, date_until, for_daily=True,
+        product_code_includes=product_code_includes,
+    )
 
 
 def dedupe_trial_starts_by_user(starts: list[TrialStart]) -> list[TrialStart]:

@@ -6662,7 +6662,7 @@ function isCohortEarly(r) {
 function enrichCohortRow(r) {
   const spend = Number(r.spend) || 0;
   const inst = Number(r.installs_am) || 0;
-  const trials = Number(r.trials_am != null ? r.trials_am : r.trials_sb) || 0;
+  const trials = Number(r.trials_sb != null ? r.trials_sb : r.trials_am) || 0;
   const sold = Number(r.sold) || 0;
   const bills = Number(r.bills != null ? r.bills : sold) || 0;
   const paid = Number(r.paid_net) || 0;
@@ -6711,7 +6711,7 @@ function renderPlantoCohortSection(monthKey) {
   let rows = visible.map(r => {
     const pnlText = formatCohortPnl(r);
     const pnlCls = isCohortEarly(r) ? 'pnl-early' : (r.pnl != null && r.pnl >= 0 ? 'pnl-pos' : 'pnl-neg');
-    const trials = r.trials_am != null ? r.trials_am : r.trials_sb;
+    const trials = r.trials_sb != null ? r.trials_sb : r.trials_am;
     const bills = r.bills != null ? r.bills : (r.sold || 0);
     return `<tr>
       <td><strong>${escHtml(r.cohort)}</strong></td>
@@ -6731,7 +6731,7 @@ function renderPlantoCohortSection(monthKey) {
   }).join('');
   const tSpend = sumCohortRows(visible, 'spend');
   const tInst = sumCohortRows(visible, 'installs_am');
-  const tTrials = sumCohortRows(visible, 'trials_am') || sumCohortRows(visible, 'trials_sb');
+  const tTrials = sumCohortRows(visible, 'trials_sb') || sumCohortRows(visible, 'trials_am');
   const tSold = sumCohortRows(visible, 'sold');
   const tBills = sumCohortRows(visible, 'bills') || tSold;
   const tPaid = sumCohortRows(visible, 'paid_net');
@@ -6741,12 +6741,19 @@ function renderPlantoCohortSection(monthKey) {
   const tCrPaid = tTrials ? (tBills / tTrials * 100) : null;
   const tCac = tBills ? tSpend / tBills : null;
   const tRoas = tSpend ? (tPaid / tSpend * 100) : null;
+  const tCpi = tInst ? tSpend / tInst : null;
+  const tCpt = tTrials ? tSpend / tTrials : null;
   rows += `<tr class="total-row">
     <td><strong>Итого${monthKey ? ' · ' + escHtml(formatMonthKey(monthKey)) : ''}</strong></td>
     <td>${fmtRub(tSpend)}</td>
     <td>${fmtN(tInst)}</td>
     <td>${fmtN(tTrials)}</td>
     <td>${fmtN(tBills)}</td>
+    <td>${tCpi != null ? fmtRub(tCpi) : '—'}</td>
+    <td>${tCpt != null ? fmtRub(tCpt) : '—'}</td>
+    <td>${tCrInst != null ? fmtPct(tCrInst) : '—'}</td>
+    <td>${tCrPaid != null ? fmtPct(tCrPaid) : '—'}</td>
+    <td>${tCac != null ? fmtRub(tCac) : '—'}</td>
     <td>${tRoas != null ? fmtPct(tRoas) : '—'}</td>
     <td>${fmtRub(tPaid)}</td>
     <td>${fmtRub(maturePnl)}${immature ? ` (+${immature} рано)` : ''}</td>
