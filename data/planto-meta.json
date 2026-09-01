@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-01T21:38:08+00:00",
+  "generated_at": "2026-09-01T23:40:42+00:00",
   "anchor": "2026-06-05",
   "until": "2026-09-02",
   "window_start": "2026-08-24",
@@ -36,10 +36,10 @@
   },
   "unit_economics": {
     "revenue_total": 185996,
-    "spend_total": 344394.21,
-    "active_users": 16284,
+    "spend_total": 344459.55,
+    "active_users": 16287,
     "active_payers": 85,
-    "plus_active_users": 162,
+    "plus_active_users": 161,
     "trial_cancellations": 20,
     "trial_cancellations_by_day": {
       "2026-08-26": 1,
@@ -76,7 +76,7 @@
     "feature_activation": {
       "scan_pct": 31.95,
       "watering_pct": 3.03,
-      "ai_pct": 25.31
+      "ai_pct": 25.32
     },
     "retention": {
       "d1": null,
@@ -640,5 +640,6 @@
     "supabase": 6,
     "dashboard": 6,
     "note": "В дашборде trials = Supabase (distinct users). AppMetrica trial_started — кроссчек (события ym:ce:allEvents)."
-  }
+  },
+  "spend_today_estimated": true
 }
