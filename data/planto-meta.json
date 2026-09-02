@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-02T01:58:14+00:00",
+  "generated_at": "2026-09-02T06:46:00+00:00",
   "anchor": "2026-06-05",
   "until": "2026-09-02",
   "window_start": "2026-08-24",
@@ -35,25 +35,24 @@
     "delta": 0
   },
   "unit_economics": {
-    "revenue_total": 185996,
-    "spend_total": 344446.5,
-    "active_users": 16296,
-    "active_payers": 85,
-    "plus_active_users": 161,
+    "revenue_total": 188486,
+    "spend_total": 345280.94,
+    "active_users": 16310,
+    "active_payers": 86,
+    "plus_active_users": 159,
     "trial_cancellations": 21,
     "trial_cancellations_by_day": {
-      "2026-08-26": 1,
       "2026-08-27": 2,
       "2026-08-29": 4,
       "2026-08-30": 1,
       "2026-08-31": 4,
-      "2026-09-01": 8,
-      "2026-09-02": 1
+      "2026-09-01": 7,
+      "2026-09-02": 3
     },
     "renewals": 47,
-    "arpu": 11.41,
-    "arppu": 2188.19,
-    "ltv": 3398.13,
+    "arpu": 11.56,
+    "arppu": 2191.7,
+    "ltv": 3389.49,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
     "roas_d7": 49.5,
     "roas_d14": 50.7,
@@ -69,15 +68,15 @@
     "predict_horizon_days": 180
   },
   "product": {
-    "garden_activation_pct": 29.24,
+    "garden_activation_pct": 29.23,
     "garden_avg_plants": 2.01,
     "garden_depth_icp_pct": null,
-    "paywall_cta_pct": 40.32,
+    "paywall_cta_pct": 40.34,
     "care_engagement_pct": 5.12,
     "feature_activation": {
-      "scan_pct": 31.96,
-      "watering_pct": 3.04,
-      "ai_pct": 25.33
+      "scan_pct": 31.94,
+      "watering_pct": 3.03,
+      "ai_pct": 25.32
     },
     "retention": {
       "d1": null,
@@ -93,8 +92,8 @@
   },
   "payments_by_plan": {
     "yearly": {
-      "count": 58,
-      "rub": 176420
+      "count": 59,
+      "rub": 178910
     },
     "monthly": {
       "count": 24,
@@ -105,8 +104,8 @@
       "rub": 0
     },
     "total": {
-      "count": 82,
-      "rub": 185996
+      "count": 83,
+      "rub": 188486
     }
   },
   "payments_by_plan_by_day": {
@@ -250,6 +249,10 @@
       "2026-09-01": {
         "count": 5,
         "rub": 17450
+      },
+      "2026-09-02": {
+        "count": 1,
+        "rub": 2490
       }
     },
     "monthly": {
@@ -418,7 +421,7 @@
     "2026-08-30": 10470,
     "2026-08-31": 3490,
     "2026-09-01": 17849,
-    "2026-09-02": 0
+    "2026-09-02": 2490
   },
   "paid_net_by_cohort_day": {
     "2026-06-25": 399,
@@ -461,7 +464,7 @@
     "2026-08-23": 10470,
     "2026-08-24": 3889,
     "2026-08-25": 19844,
-    "2026-08-26": 399,
+    "2026-08-26": 2889,
     "2026-08-28": 399,
     "2026-09-01": 399
   },
