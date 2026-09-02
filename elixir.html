@@ -6643,6 +6643,24 @@ function cohortRowMonthKey(r) {
   return s.length >= 7 ? s.slice(0, 7) : '';
 }
 
+function cohortOverlapsDateFilter(r) {
+  if (!dateFilter) return true;
+  const start = r.start || '';
+  const end = r.end || start;
+  return !!start && start <= dateFilter.end && end >= dateFilter.start;
+}
+
+function syncMonthFromDateFilter() {
+  if (!dateFilter) return;
+  const ms = String(dateFilter.start || '').slice(0, 7);
+  const me = String(dateFilter.end || '').slice(0, 7);
+  if (ms.length === 7 && ms === me) {
+    currentMonth = ms;
+    monthUserChosen = true;
+    if (view && view !== 'overview' && view !== 'library') tileMonths[view] = ms;
+  }
+}
+
 function sumCohortRows(rows, key, fb = 0) {
   return rows.reduce((a, r) => a + (Number(r[key]) || fb), 0);
 }
@@ -6699,13 +6717,19 @@ function renderPlantoCohortSection(monthKey) {
   const meta = feedMeta();
   const updated = meta?.generated_at ? new Date(meta.generated_at).toLocaleString('ru-RU') : '';
   const allRows = c.rows.map(enrichCohortRow);
-  const visible = monthKey
-    ? allRows.filter(r => cohortRowMonthKey(r) === monthKey)
-    : allRows;
+  // Календарь важнее выбранного месяца: иначе «04.08–31.08» показывает Сен,
+  // потому что currentMonth сам прыгает на последний месяц с данными.
+  let visible = allRows.filter(cohortOverlapsDateFilter);
+  if (!dateFilter && monthKey) {
+    visible = visible.filter(r => cohortRowMonthKey(r) === monthKey);
+  }
+  const periodTitle = dateFilter
+    ? dateFilterLabel()
+    : (monthKey ? formatMonthKey(monthKey) : '');
   if (!visible.length) {
     return `<div class="cohort-card">
-      <div class="card-title">Когорты${monthKey ? ' — ' + escHtml(formatMonthKey(monthKey)) : ''}</div>
-      <div class="cohort-meta">Нет корзин за этот месяц · якорь ${escHtml(c.anchor || '2026-06-05')}</div>
+      <div class="card-title">Когорты${periodTitle ? ' — ' + escHtml(periodTitle) : ''}</div>
+      <div class="cohort-meta">Нет корзин за этот период · якорь ${escHtml(c.anchor || '2026-06-05')}</div>
     </div>`;
   }
   let rows = visible.map(r => {
@@ -6738,13 +6762,20 @@ function renderPlantoCohortSection(monthKey) {
   const maturePnl = visible.filter(r => r.mature && r.pnl != null).reduce((a, r) => a + r.pnl, 0);
   const immature = visible.filter(r => !r.mature).length;
   const tCrInst = tInst ? (tTrials / tInst * 100) : null;
-  const tCrPaid = tTrials ? (tBills / tTrials * 100) : null;
+  const matureRows = visible.filter(r => r.mature);
+  const mTrials = sumCohortRows(matureRows, 'trials_sb') || sumCohortRows(matureRows, 'trials_am');
+  const mBills = sumCohortRows(matureRows, 'bills') || sumCohortRows(matureRows, 'sold');
+  const mSpend = sumCohortRows(matureRows, 'spend');
+  const mPaid = sumCohortRows(matureRows, 'paid_net');
+  const tCrPaid = mTrials ? (mBills / mTrials * 100) : null;
   const tCac = tBills ? tSpend / tBills : null;
-  const tRoas = tSpend ? (tPaid / tSpend * 100) : null;
+  const tRoas = mSpend ? (mPaid / mSpend * 100) : null;
   const tCpi = tInst ? tSpend / tInst : null;
   const tCpt = tTrials ? tSpend / tTrials : null;
+  const allEarly = !matureRows.length;
+  const footerLabel = dateFilter ? dateFilterLabel() : (monthKey ? formatMonthKey(monthKey) : '');
   rows += `<tr class="total-row">
-    <td><strong>Итого${monthKey ? ' · ' + escHtml(formatMonthKey(monthKey)) : ''}</strong></td>
+    <td><strong>Итого${footerLabel ? ' · ' + escHtml(footerLabel) : ''}</strong></td>
     <td>${fmtRub(tSpend)}</td>
     <td>${fmtN(tInst)}</td>
     <td>${fmtN(tTrials)}</td>
@@ -6752,18 +6783,18 @@ function renderPlantoCohortSection(monthKey) {
     <td>${tCpi != null ? fmtRub(tCpi) : '—'}</td>
     <td>${tCpt != null ? fmtRub(tCpt) : '—'}</td>
     <td>${tCrInst != null ? fmtPct(tCrInst) : '—'}</td>
-    <td>${tCrPaid != null ? fmtPct(tCrPaid) : '—'}</td>
+    <td>${allEarly ? 'рано' : (tCrPaid != null ? fmtPct(tCrPaid) : '—')}</td>
     <td>${tCac != null ? fmtRub(tCac) : '—'}</td>
-    <td>${tRoas != null ? fmtPct(tRoas) : '—'}</td>
+    <td>${allEarly ? 'рано' : (tRoas != null ? fmtPct(tRoas) : '—')}</td>
     <td>${fmtRub(tPaid)}</td>
-    <td>${fmtRub(maturePnl)}${immature ? ` (+${immature} рано)` : ''}</td>
+    <td>${allEarly ? `Рано${immature ? ` · ${immature}` : ''}` : `${fmtRub(maturePnl)}${immature ? ` (+${immature} рано)` : ''}`}</td>
   </tr>`;
   const attr = 'Установки — AppMetrica · Триалы — Supabase · Trial→Paid и ROAS — только зрелые когорты';
-  const monthHint = monthKey && allRows.length > visible.length
-    ? ` · ${formatMonthKey(monthKey)} (${visible.length} из ${allRows.length})`
+  const monthHint = allRows.length > visible.length
+    ? ` · ${periodTitle} (${visible.length} из ${allRows.length})`
     : '';
-  const title = monthKey
-    ? `Когорты — ${formatMonthKey(monthKey)}`
+  const title = periodTitle
+    ? `Когорты — ${periodTitle}`
     : `Когорты (от ${c.anchor || '2026-06-05'})`;
   return `<div class="cohort-card">
     <div class="card-title">${escHtml(title)}</div>
@@ -9736,6 +9767,7 @@ function applyDateFilter() {
   const e = document.getElementById('df-end')?.value;
   if (!s || !e) return;
   dateFilter = s <= e ? { start: s, end: e } : { start: e, end: s };
+  syncMonthFromDateFilter();
   renderContent();
 }
 function clearDateFilter() {
@@ -9750,6 +9782,7 @@ function setDateAll() {
   const max = endEl.max || endEl.value;
   if (!min || !max) return;
   dateFilter = { start: min, end: max };
+  syncMonthFromDateFilter();
   renderContent();
 }
 function setDatePreset(days) {
@@ -9764,6 +9797,7 @@ function setDatePreset(days) {
   let sIso = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
   if (startEl.min && sIso < startEl.min) sIso = startEl.min;
   dateFilter = { start: sIso, end: maxIso };
+  syncMonthFromDateFilter();
   renderContent();
 }
 
@@ -10832,9 +10866,9 @@ function renderProjectDetail(projId) {
   const pack = normalizeCacheData(data);
   const months = getMonths(data, p);
   // По умолчанию — последний месяц с данными. Сохранённый/устаревший месяц
-  // (напр. июль, когда уже есть август) уважаем только если пользователь сам
-  // выбрал его в этой сессии; иначе всегда показываем свежий месяц.
-  if (!currentMonth || !months.includes(currentMonth) || !monthUserChosen) {
+  // уважаем, если пользователь выбрал его или если стоит календарный фильтр
+  // (иначе «Показать 04.08–31.08» перетирается сентябрём на каждом рендере).
+  if (!dateFilter && (!currentMonth || !months.includes(currentMonth) || !monthUserChosen)) {
     currentMonth = months[months.length - 1] || null;
   }
   if (pack && pack !== 'loading' && pack !== null && currentMonth) {
