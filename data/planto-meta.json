@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-09-02T19:05:44+00:00",
+  "generated_at": "2026-09-02T22:09:20+00:00",
   "anchor": "2026-06-05",
-  "until": "2026-09-02",
-  "window_start": "2026-08-24",
+  "until": "2026-09-03",
+  "window_start": "2026-08-25",
   "trial_attribution": "supabase_trial_start",
   "ai_spend": null,
   "trial_days": 7,
@@ -28,16 +28,16 @@
     "product": "appmetrica_reporting"
   },
   "errors": [],
-  "days": 90,
+  "days": 91,
   "reconcile_diff": {
     "trials_total_old_csv": 388,
-    "trials_total_new": 388,
-    "delta": 0
+    "trials_total_new": 389,
+    "delta": 1
   },
   "unit_economics": {
     "revenue_total": 188885,
-    "spend_total": 348630.45,
-    "active_users": 16392,
+    "spend_total": 349013.96,
+    "active_users": 16410,
     "active_payers": 86,
     "plus_active_users": 161,
     "trial_cancellations": 24,
@@ -50,7 +50,7 @@
       "2026-09-02": 8
     },
     "renewals": 46,
-    "arpu": 11.52,
+    "arpu": 11.51,
     "arppu": 2196.34,
     "ltv": 3371.13,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
@@ -68,15 +68,15 @@
     "predict_horizon_days": 180
   },
   "product": {
-    "garden_activation_pct": 29.31,
+    "garden_activation_pct": 29.28,
     "garden_avg_plants": 2.02,
     "garden_depth_icp_pct": null,
     "paywall_cta_pct": 40.42,
-    "care_engagement_pct": 5.18,
+    "care_engagement_pct": 5.2,
     "feature_activation": {
-      "scan_pct": 32.02,
-      "watering_pct": 3.08,
-      "ai_pct": 25.42
+      "scan_pct": 32.0,
+      "watering_pct": 3.1,
+      "ai_pct": 25.41
     },
     "retention": {
       "d1": null,
@@ -425,7 +425,8 @@
     "2026-08-30": 10470,
     "2026-08-31": 3490,
     "2026-09-01": 17849,
-    "2026-09-02": 2889
+    "2026-09-02": 2889,
+    "2026-09-03": 0
   },
   "paid_net_by_cohort_day": {
     "2026-06-25": 399,
@@ -473,7 +474,7 @@
     "2026-09-01": 399,
     "2026-09-02": 399
   },
-  "trials_sb_crosscheck_total": 388,
+  "trials_sb_crosscheck_total": 389,
   "trials_sb_crosscheck_by_day": {
     "2026-06-07": 1,
     "2026-06-08": 1,
@@ -557,7 +558,8 @@
     "2026-08-30": 5,
     "2026-08-31": 5,
     "2026-09-01": 6,
-    "2026-09-02": 8
+    "2026-09-02": 8,
+    "2026-09-03": 1
   },
   "trials_am_crosscheck_total": 386,
   "trials_am_crosscheck_by_day": {
@@ -646,10 +648,10 @@
     "2026-09-02": 8
   },
   "trials_crosscheck_yesterday": {
-    "day": "2026-09-01",
-    "appmetrica": 7,
-    "supabase": 6,
-    "dashboard": 6,
+    "day": "2026-09-02",
+    "appmetrica": 8,
+    "supabase": 8,
+    "dashboard": 8,
     "note": "В дашборде trials = Supabase (distinct users). AppMetrica trial_started — кроссчек (события ym:ce:allEvents)."
   }
 }
