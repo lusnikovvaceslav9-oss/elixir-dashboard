@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-03T06:38:27+00:00",
+  "generated_at": "2026-09-03T11:50:32+00:00",
   "anchor": "2026-07-31",
   "until": "2026-09-03",
   "window_start": "2026-08-25",
@@ -25,9 +25,9 @@
       }
     ],
     "keys_used": 2,
-    "per_install": 6.66,
-    "per_trial": 59.86,
-    "total_burn": 60644.83
+    "per_install": 6.62,
+    "per_trial": 59.32,
+    "total_burn": 61167.33
   },
   "trial_days": 3,
   "trial_lag_days": 3,
@@ -56,27 +56,26 @@
   "errors": [],
   "days": 35,
   "reconcile_diff": {
-    "trials_total_old_csv": 218,
-    "trials_total_new": 220,
+    "trials_total_old_csv": 220,
+    "trials_total_new": 222,
     "delta": 2
   },
   "unit_economics": {
-    "revenue_total": 11252,
-    "spend_total": 47475.67,
-    "active_users": 2101,
+    "revenue_total": 11451,
+    "spend_total": 47998.17,
+    "active_users": 2115,
     "active_payers": 24,
-    "plus_active_users": 43,
-    "trial_cancellations": 8,
+    "plus_active_users": 40,
+    "trial_cancellations": 6,
     "trial_cancellations_by_day": {
-      "2026-08-31": 3,
-      "2026-09-01": 1,
+      "2026-08-31": 1,
       "2026-09-02": 1,
-      "2026-09-03": 3
+      "2026-09-03": 4
     },
-    "renewals": 13,
-    "arpu": 5.36,
-    "arppu": 468.83,
-    "ltv": 722.78,
+    "renewals": 14,
+    "arpu": 5.41,
+    "arppu": 477.12,
+    "ltv": 755.44,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
     "roas_d7": 4.2,
     "roas_d14": 3.4,
@@ -111,7 +110,7 @@
         "id": "aha_color",
         "label": "Aha: цветотип",
         "formula_label": "color_type_reveal / install",
-        "value_pct": 85.93,
+        "value_pct": 85.97,
         "primary": true,
         "accent": false,
         "note": null
@@ -129,7 +128,7 @@
         "id": "paywall_cta",
         "label": "CTA пейволла",
         "formula_label": "purchase_tap / paywall_view",
-        "value_pct": 33.5,
+        "value_pct": 33.65,
         "primary": false,
         "accent": true,
         "note": null
@@ -138,7 +137,7 @@
         "id": "engagement_hair",
         "label": "Вовлечение (hair)",
         "formula_label": "hair_look / install",
-        "value_pct": 40.89,
+        "value_pct": 40.93,
         "primary": false,
         "accent": false,
         "note": null
@@ -149,44 +148,44 @@
         "id": "color_type",
         "label": "Цветотип",
         "event": "color_type_done",
-        "value_pct": 89.52
+        "value_pct": 89.64
       },
       {
         "id": "hair",
         "label": "Волосы",
         "event": "hair_look_generated",
-        "value_pct": 40.89
+        "value_pct": 40.93
       },
       {
         "id": "outfit",
         "label": "Образы",
         "event": "outfit_generated",
-        "value_pct": 20.65
+        "value_pct": 20.66
       },
       {
         "id": "makeup",
         "label": "Макияж",
         "event": "makeup_generated",
-        "value_pct": 21.15
+        "value_pct": 21.17
       },
       {
         "id": "chat",
         "label": "Чат",
         "event": "chat_reply",
-        "value_pct": 25.15
+        "value_pct": 25.14
       },
       {
         "id": "fitting",
         "label": "Примерочная",
         "event": "fitting_done",
-        "value_pct": 10.22
+        "value_pct": 10.21
       }
     ],
     "quality": [
       {
         "id": "ai_fail_rate",
         "label": "AI fail rate",
-        "value_pct": 22.42
+        "value_pct": 22.38
       }
     ]
   },
@@ -200,12 +199,12 @@
       "rub": 2394
     },
     "weekly": {
-      "count": 32,
-      "rub": 6368
+      "count": 33,
+      "rub": 6567
     },
     "total": {
-      "count": 39,
-      "rub": 11252
+      "count": 40,
+      "rub": 11451
     }
   },
   "payments_by_plan_by_day": {
@@ -233,8 +232,12 @@
         "rub": 399
       },
       "2026-09-02": {
-        "count": 2,
-        "rub": 798
+        "count": 1,
+        "rub": 399
+      },
+      "2026-09-03": {
+        "count": 1,
+        "rub": 399
       }
     },
     "weekly": {
@@ -275,12 +278,12 @@
         "rub": 1194
       },
       "2026-09-02": {
-        "count": 5,
-        "rub": 995
+        "count": 4,
+        "rub": 796
       },
       "2026-09-03": {
-        "count": 5,
-        "rub": 995
+        "count": 7,
+        "rub": 1393
       }
     }
   },
@@ -318,8 +321,8 @@
     "2026-08-30": 398,
     "2026-08-31": 996,
     "2026-09-01": 4083,
-    "2026-09-02": 1793,
-    "2026-09-03": 995
+    "2026-09-02": 1195,
+    "2026-09-03": 1792
   },
   "paid_net_by_cohort_day": {
     "2026-08-05": 399,
@@ -332,12 +335,13 @@
     "2026-08-27": 398,
     "2026-08-28": 597,
     "2026-08-29": 1593,
-    "2026-08-30": 995,
-    "2026-08-31": 1394,
+    "2026-08-30": 796,
+    "2026-08-31": 1792,
     "2026-09-01": 2889,
-    "2026-09-02": 798
+    "2026-09-02": 399,
+    "2026-09-03": 399
   },
-  "trials_sb_crosscheck_total": 73,
+  "trials_sb_crosscheck_total": 74,
   "trials_sb_crosscheck_by_day": {
     "2026-08-11": 3,
     "2026-08-12": 2,
@@ -357,12 +361,12 @@
     "2026-08-28": 1,
     "2026-08-29": 2,
     "2026-08-30": 4,
-    "2026-08-31": 6,
+    "2026-08-31": 5,
     "2026-09-01": 4,
     "2026-09-02": 6,
-    "2026-09-03": 1
+    "2026-09-03": 3
   },
-  "trials_am_crosscheck_total": 220,
+  "trials_am_crosscheck_total": 222,
   "trials_am_crosscheck_by_day": {
     "2026-07-31": 1,
     "2026-08-04": 3,
@@ -393,7 +397,7 @@
     "2026-08-31": 14,
     "2026-09-01": 8,
     "2026-09-02": 10,
-    "2026-09-03": 2
+    "2026-09-03": 4
   },
   "trials_crosscheck_yesterday": {
     "day": "2026-09-02",
