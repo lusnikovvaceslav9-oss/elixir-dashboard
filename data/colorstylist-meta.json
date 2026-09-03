@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-03T15:23:57+00:00",
+  "generated_at": "2026-09-03T18:59:01+00:00",
   "anchor": "2026-07-31",
   "until": "2026-09-03",
   "window_start": "2026-08-25",
@@ -25,9 +25,9 @@
       }
     ],
     "keys_used": 2,
-    "per_install": 6.59,
+    "per_install": 6.56,
     "per_trial": 57.76,
-    "total_burn": 61343.19
+    "total_burn": 61518.17
   },
   "trial_days": 3,
   "trial_lag_days": 3,
@@ -56,24 +56,23 @@
   "errors": [],
   "days": 35,
   "reconcile_diff": {
-    "trials_total_old_csv": 222,
+    "trials_total_old_csv": 228,
     "trials_total_new": 228,
-    "delta": 6
+    "delta": 0
   },
   "unit_economics": {
     "revenue_total": 11451,
-    "spend_total": 48174.03,
-    "active_users": 2125,
+    "spend_total": 48349.01,
+    "active_users": 2132,
     "active_payers": 24,
-    "plus_active_users": 41,
-    "trial_cancellations": 6,
+    "plus_active_users": 40,
+    "trial_cancellations": 5,
     "trial_cancellations_by_day": {
-      "2026-08-31": 1,
       "2026-09-02": 1,
       "2026-09-03": 4
     },
     "renewals": 12,
-    "arpu": 5.39,
+    "arpu": 5.37,
     "arppu": 477.12,
     "ltv": 715.68,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
@@ -110,7 +109,7 @@
         "id": "aha_color",
         "label": "Aha: цветотип",
         "formula_label": "color_type_reveal / install",
-        "value_pct": 85.89,
+        "value_pct": 85.9,
         "primary": true,
         "accent": false,
         "note": null
@@ -128,7 +127,7 @@
         "id": "paywall_cta",
         "label": "CTA пейволла",
         "formula_label": "purchase_tap / paywall_view",
-        "value_pct": 33.67,
+        "value_pct": 33.55,
         "primary": false,
         "accent": true,
         "note": null
@@ -137,7 +136,7 @@
         "id": "engagement_hair",
         "label": "Вовлечение (hair)",
         "formula_label": "hair_look / install",
-        "value_pct": 40.82,
+        "value_pct": 40.81,
         "primary": false,
         "accent": false,
         "note": null
@@ -148,25 +147,25 @@
         "id": "color_type",
         "label": "Цветотип",
         "event": "color_type_done",
-        "value_pct": 89.49
+        "value_pct": 89.44
       },
       {
         "id": "hair",
         "label": "Волосы",
         "event": "hair_look_generated",
-        "value_pct": 40.82
+        "value_pct": 40.81
       },
       {
         "id": "outfit",
         "label": "Образы",
         "event": "outfit_generated",
-        "value_pct": 20.61
+        "value_pct": 20.63
       },
       {
         "id": "makeup",
         "label": "Макияж",
         "event": "makeup_generated",
-        "value_pct": 21.16
+        "value_pct": 21.18
       },
       {
         "id": "chat",
@@ -178,14 +177,14 @@
         "id": "fitting",
         "label": "Примерочная",
         "event": "fitting_done",
-        "value_pct": 10.21
+        "value_pct": 10.16
       }
     ],
     "quality": [
       {
         "id": "ai_fail_rate",
         "label": "AI fail rate",
-        "value_pct": 22.4
+        "value_pct": 22.37
       }
     ]
   },
@@ -274,16 +273,16 @@
         "rub": 597
       },
       "2026-09-01": {
-        "count": 6,
-        "rub": 1194
+        "count": 5,
+        "rub": 995
       },
       "2026-09-02": {
         "count": 3,
         "rub": 597
       },
       "2026-09-03": {
-        "count": 8,
-        "rub": 1592
+        "count": 9,
+        "rub": 1791
       }
     }
   },
@@ -320,9 +319,9 @@
     "2026-08-29": 1195,
     "2026-08-30": 398,
     "2026-08-31": 996,
-    "2026-09-01": 4083,
+    "2026-09-01": 3884,
     "2026-09-02": 996,
-    "2026-09-03": 1991
+    "2026-09-03": 2190
   },
   "paid_net_by_cohort_day": {
     "2026-08-05": 399,
@@ -334,9 +333,9 @@
     "2026-08-26": 796,
     "2026-08-27": 398,
     "2026-08-28": 597,
-    "2026-08-29": 1593,
+    "2026-08-29": 1394,
     "2026-08-30": 597,
-    "2026-08-31": 1991,
+    "2026-08-31": 2190,
     "2026-09-01": 2889,
     "2026-09-02": 399,
     "2026-09-03": 399
