@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-03T10:22:46+00:00",
+  "generated_at": "2026-09-03T14:49:11+00:00",
   "anchor": "2026-06-05",
   "until": "2026-09-03",
   "window_start": "2026-08-25",
@@ -30,28 +30,28 @@
   "errors": [],
   "days": 91,
   "reconcile_diff": {
-    "trials_total_old_csv": 390,
-    "trials_total_new": 394,
-    "delta": 4
+    "trials_total_old_csv": 394,
+    "trials_total_new": 395,
+    "delta": 1
   },
   "unit_economics": {
     "revenue_total": 188885,
-    "spend_total": 351389.66,
-    "active_users": 16477,
+    "spend_total": 351953.8,
+    "active_users": 16503,
     "active_payers": 86,
     "plus_active_users": 160,
-    "trial_cancellations": 23,
+    "trial_cancellations": 22,
     "trial_cancellations_by_day": {
       "2026-08-27": 1,
       "2026-08-29": 4,
       "2026-08-30": 1,
-      "2026-08-31": 3,
+      "2026-08-31": 2,
       "2026-09-01": 5,
       "2026-09-02": 8,
       "2026-09-03": 1
     },
     "renewals": 46,
-    "arpu": 11.46,
+    "arpu": 11.45,
     "arppu": 2196.34,
     "ltv": 3371.13,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
@@ -69,15 +69,15 @@
     "predict_horizon_days": 180
   },
   "product": {
-    "garden_activation_pct": 29.28,
+    "garden_activation_pct": 29.3,
     "garden_avg_plants": 2.02,
     "garden_depth_icp_pct": null,
     "paywall_cta_pct": 40.43,
-    "care_engagement_pct": 5.23,
+    "care_engagement_pct": 5.22,
     "feature_activation": {
-      "scan_pct": 31.99,
+      "scan_pct": 32.0,
       "watering_pct": 3.12,
-      "ai_pct": 25.44
+      "ai_pct": 25.47
     },
     "retention": {
       "d1": null,
@@ -475,7 +475,7 @@
     "2026-09-01": 399,
     "2026-09-02": 399
   },
-  "trials_sb_crosscheck_total": 394,
+  "trials_sb_crosscheck_total": 395,
   "trials_sb_crosscheck_by_day": {
     "2026-06-07": 1,
     "2026-06-08": 1,
@@ -560,9 +560,9 @@
     "2026-08-31": 5,
     "2026-09-01": 6,
     "2026-09-02": 8,
-    "2026-09-03": 6
+    "2026-09-03": 7
   },
-  "trials_am_crosscheck_total": 392,
+  "trials_am_crosscheck_total": 393,
   "trials_am_crosscheck_by_day": {
     "2026-06-05": 2,
     "2026-06-07": 1,
@@ -647,7 +647,7 @@
     "2026-08-31": 5,
     "2026-09-01": 7,
     "2026-09-02": 8,
-    "2026-09-03": 6
+    "2026-09-03": 7
   },
   "trials_crosscheck_yesterday": {
     "day": "2026-09-02",
