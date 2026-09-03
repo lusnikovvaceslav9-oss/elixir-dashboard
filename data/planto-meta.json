@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-03T00:51:37+00:00",
+  "generated_at": "2026-09-03T05:20:59+00:00",
   "anchor": "2026-06-05",
   "until": "2026-09-03",
   "window_start": "2026-08-25",
@@ -31,13 +31,13 @@
   "days": 91,
   "reconcile_diff": {
     "trials_total_old_csv": 389,
-    "trials_total_new": 389,
-    "delta": 0
+    "trials_total_new": 390,
+    "delta": 1
   },
   "unit_economics": {
     "revenue_total": 188885,
-    "spend_total": 349060.33,
-    "active_users": 16414,
+    "spend_total": 349900.57,
+    "active_users": 16430,
     "active_payers": 86,
     "plus_active_users": 161,
     "trial_cancellations": 25,
@@ -51,7 +51,7 @@
       "2026-09-03": 1
     },
     "renewals": 46,
-    "arpu": 11.51,
+    "arpu": 11.5,
     "arppu": 2196.34,
     "ltv": 3371.13,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
@@ -72,11 +72,11 @@
     "garden_activation_pct": 29.25,
     "garden_avg_plants": 2.02,
     "garden_depth_icp_pct": null,
-    "paywall_cta_pct": 40.43,
-    "care_engagement_pct": 5.2,
+    "paywall_cta_pct": 40.44,
+    "care_engagement_pct": 5.21,
     "feature_activation": {
-      "scan_pct": 31.97,
-      "watering_pct": 3.1,
+      "scan_pct": 31.96,
+      "watering_pct": 3.09,
       "ai_pct": 25.39
     },
     "retention": {
@@ -475,7 +475,7 @@
     "2026-09-01": 399,
     "2026-09-02": 399
   },
-  "trials_sb_crosscheck_total": 389,
+  "trials_sb_crosscheck_total": 390,
   "trials_sb_crosscheck_by_day": {
     "2026-06-07": 1,
     "2026-06-08": 1,
@@ -560,9 +560,9 @@
     "2026-08-31": 5,
     "2026-09-01": 6,
     "2026-09-02": 8,
-    "2026-09-03": 1
+    "2026-09-03": 2
   },
-  "trials_am_crosscheck_total": 387,
+  "trials_am_crosscheck_total": 388,
   "trials_am_crosscheck_by_day": {
     "2026-06-05": 2,
     "2026-06-07": 1,
@@ -647,7 +647,7 @@
     "2026-08-31": 5,
     "2026-09-01": 7,
     "2026-09-02": 8,
-    "2026-09-03": 1
+    "2026-09-03": 2
   },
   "trials_crosscheck_yesterday": {
     "day": "2026-09-02",
