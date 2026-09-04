@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-09-04T18:42:41+00:00",
+  "generated_at": "2026-09-04T23:34:18+00:00",
   "anchor": "2026-06-05",
-  "until": "2026-09-04",
-  "window_start": "2026-08-26",
+  "until": "2026-09-05",
+  "window_start": "2026-08-27",
   "trial_attribution": "supabase_trial_start",
   "ai_spend": null,
   "trial_days": 7,
@@ -28,7 +28,7 @@
     "product": "appmetrica_reporting"
   },
   "errors": [],
-  "days": 92,
+  "days": 93,
   "reconcile_diff": {
     "trials_total_old_csv": 403,
     "trials_total_new": 403,
@@ -36,21 +36,21 @@
   },
   "unit_economics": {
     "revenue_total": 196663,
-    "spend_total": 356241.65,
-    "active_users": 16630,
+    "spend_total": 356953.86,
+    "active_users": 16641,
     "active_payers": 90,
     "plus_active_users": 159,
-    "trial_cancellations": 20,
+    "trial_cancellations": 22,
     "trial_cancellations_by_day": {
       "2026-08-29": 3,
       "2026-08-31": 1,
       "2026-09-01": 3,
       "2026-09-02": 7,
       "2026-09-03": 3,
-      "2026-09-04": 3
+      "2026-09-04": 5
     },
     "renewals": 49,
-    "arpu": 11.83,
+    "arpu": 11.82,
     "arppu": 2185.14,
     "ltv": 3374.83,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
@@ -68,13 +68,13 @@
     "predict_horizon_days": 180
   },
   "product": {
-    "garden_activation_pct": 29.34,
+    "garden_activation_pct": 29.33,
     "garden_avg_plants": 2.04,
     "garden_depth_icp_pct": null,
     "paywall_cta_pct": 40.55,
     "care_engagement_pct": 5.32,
     "feature_activation": {
-      "scan_pct": 32.03,
+      "scan_pct": 32.02,
       "watering_pct": 3.15,
       "ai_pct": 25.55
     },
@@ -435,7 +435,8 @@
     "2026-09-01": 14359,
     "2026-09-02": 2889,
     "2026-09-03": 0,
-    "2026-09-04": 11268
+    "2026-09-04": 11268,
+    "2026-09-05": 0
   },
   "paid_net_by_cohort_day": {
     "2026-06-25": 399,
@@ -661,10 +662,10 @@
     "2026-09-04": 5
   },
   "trials_crosscheck_yesterday": {
-    "day": "2026-09-03",
-    "appmetrica": 9,
-    "supabase": 9,
-    "dashboard": 9,
+    "day": "2026-09-04",
+    "appmetrica": 5,
+    "supabase": 6,
+    "dashboard": 6,
     "note": "В дашборде trials = Supabase (distinct users). AppMetrica trial_started — кроссчек (события ym:ce:allEvents)."
   }
 }
