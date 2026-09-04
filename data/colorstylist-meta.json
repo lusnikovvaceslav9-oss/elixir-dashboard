@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-03T23:38:43+00:00",
+  "generated_at": "2026-09-04T01:43:04+00:00",
   "anchor": "2026-07-31",
   "until": "2026-09-04",
   "window_start": "2026-08-26",
@@ -25,9 +25,9 @@
       }
     ],
     "keys_used": 2,
-    "per_install": 6.59,
+    "per_install": 6.58,
     "per_trial": 58.09,
-    "total_burn": 61712.91
+    "total_burn": 61744.47
   },
   "trial_days": 3,
   "trial_lag_days": 3,
@@ -62,8 +62,8 @@
   },
   "unit_economics": {
     "revenue_total": 11650,
-    "spend_total": 48469.18,
-    "active_users": 2136,
+    "spend_total": 48500.74,
+    "active_users": 2137,
     "active_payers": 24,
     "plus_active_users": 38,
     "trial_cancellations": 5,
@@ -127,7 +127,7 @@
         "id": "paywall_cta",
         "label": "CTA пейволла",
         "formula_label": "purchase_tap / paywall_view",
-        "value_pct": 33.55,
+        "value_pct": 33.6,
         "primary": false,
         "accent": true,
         "note": null
@@ -136,7 +136,7 @@
         "id": "engagement_hair",
         "label": "Вовлечение (hair)",
         "formula_label": "hair_look / install",
-        "value_pct": 40.88,
+        "value_pct": 40.9,
         "primary": false,
         "accent": false,
         "note": null
@@ -153,25 +153,25 @@
         "id": "hair",
         "label": "Волосы",
         "event": "hair_look_generated",
-        "value_pct": 40.88
+        "value_pct": 40.9
       },
       {
         "id": "outfit",
         "label": "Образы",
         "event": "outfit_generated",
-        "value_pct": 20.64
+        "value_pct": 20.68
       },
       {
         "id": "makeup",
         "label": "Макияж",
         "event": "makeup_generated",
-        "value_pct": 21.23
+        "value_pct": 21.22
       },
       {
         "id": "chat",
         "label": "Чат",
         "event": "chat_reply",
-        "value_pct": 25.11
+        "value_pct": 25.15
       },
       {
         "id": "fitting",
@@ -184,7 +184,7 @@
       {
         "id": "ai_fail_rate",
         "label": "AI fail rate",
-        "value_pct": 22.37
+        "value_pct": 22.36
       }
     ]
   },
