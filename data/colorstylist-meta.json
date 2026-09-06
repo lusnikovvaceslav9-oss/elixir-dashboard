@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-06T09:50:45+00:00",
+  "generated_at": "2026-09-06T13:17:00+00:00",
   "anchor": "2026-07-31",
   "until": "2026-09-06",
   "window_start": "2026-08-28",
@@ -25,9 +25,9 @@
       }
     ],
     "keys_used": 2,
-    "per_install": 6.47,
-    "per_trial": 56.38,
-    "total_burn": 63863.06
+    "per_install": 6.45,
+    "per_trial": 55.91,
+    "total_burn": 63933.63
   },
   "trial_days": 3,
   "trial_lag_days": 3,
@@ -57,25 +57,25 @@
   "days": 38,
   "reconcile_diff": {
     "trials_total_old_csv": 238,
-    "trials_total_new": 238,
-    "delta": 0
+    "trials_total_new": 240,
+    "delta": 2
   },
   "unit_economics": {
     "revenue_total": 11650,
-    "spend_total": 50443.92,
-    "active_users": 2200,
+    "spend_total": 50514.49,
+    "active_users": 2207,
     "active_payers": 23,
-    "plus_active_users": 37,
+    "plus_active_users": 38,
     "trial_cancellations": 1,
     "trial_cancellations_by_day": {
       "2026-09-04": 1
     },
-    "renewals": 13,
-    "arpu": 5.3,
+    "renewals": 14,
+    "arpu": 5.28,
     "arppu": 506.52,
-    "ltv": 792.81,
+    "ltv": 814.84,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
-    "roas_d7": 5.1,
+    "roas_d7": 4.6,
     "roas_d14": 2.8,
     "roas_d30": 0.0
   },
@@ -135,7 +135,7 @@
         "id": "engagement_hair",
         "label": "Вовлечение (hair)",
         "formula_label": "hair_look / install",
-        "value_pct": 40.74,
+        "value_pct": 40.85,
         "primary": false,
         "accent": false,
         "note": null
@@ -146,44 +146,44 @@
         "id": "color_type",
         "label": "Цветотип",
         "event": "color_type_done",
-        "value_pct": 89.63
+        "value_pct": 89.62
       },
       {
         "id": "hair",
         "label": "Волосы",
         "event": "hair_look_generated",
-        "value_pct": 40.74
+        "value_pct": 40.85
       },
       {
         "id": "outfit",
         "label": "Образы",
         "event": "outfit_generated",
-        "value_pct": 21.02
+        "value_pct": 21.0
       },
       {
         "id": "makeup",
         "label": "Макияж",
         "event": "makeup_generated",
-        "value_pct": 21.17
+        "value_pct": 21.14
       },
       {
         "id": "chat",
         "label": "Чат",
         "event": "chat_reply",
-        "value_pct": 25.46
+        "value_pct": 25.42
       },
       {
         "id": "fitting",
         "label": "Примерочная",
         "event": "fitting_done",
-        "value_pct": 10.61
+        "value_pct": 10.62
       }
     ],
     "quality": [
       {
         "id": "ai_fail_rate",
         "label": "AI fail rate",
-        "value_pct": 22.23
+        "value_pct": 22.2
       }
     ]
   },
@@ -268,8 +268,8 @@
         "rub": 199
       },
       "2026-08-31": {
-        "count": 2,
-        "rub": 398
+        "count": 1,
+        "rub": 199
       },
       "2026-09-01": {
         "count": 5,
@@ -292,8 +292,8 @@
         "rub": 1194
       },
       "2026-09-06": {
-        "count": 1,
-        "rub": 199
+        "count": 2,
+        "rub": 398
       }
     }
   },
@@ -329,13 +329,13 @@
     "2026-08-28": 199,
     "2026-08-29": 598,
     "2026-08-30": 199,
-    "2026-08-31": 797,
+    "2026-08-31": 598,
     "2026-09-01": 995,
     "2026-09-02": 797,
     "2026-09-03": 1991,
     "2026-09-04": 3287,
     "2026-09-05": 1593,
-    "2026-09-06": 199
+    "2026-09-06": 398
   },
   "paid_net_by_cohort_day": {
     "2026-08-13": 199,
@@ -345,13 +345,13 @@
     "2026-08-25": 199,
     "2026-08-26": 199,
     "2026-08-27": 199,
-    "2026-08-28": 398,
+    "2026-08-28": 199,
     "2026-08-29": 1394,
     "2026-08-30": 398,
     "2026-08-31": 1991,
     "2026-09-01": 398,
     "2026-09-02": 1593,
-    "2026-09-03": 598,
+    "2026-09-03": 797,
     "2026-09-04": 2889,
     "2026-09-05": 399
   },
@@ -378,11 +378,12 @@
     "2026-08-31": 5,
     "2026-09-01": 3,
     "2026-09-02": 5,
-    "2026-09-03": 5,
+    "2026-09-03": 4,
     "2026-09-04": 4,
-    "2026-09-05": 4
+    "2026-09-05": 4,
+    "2026-09-06": 1
   },
-  "trials_am_crosscheck_total": 238,
+  "trials_am_crosscheck_total": 240,
   "trials_am_crosscheck_by_day": {
     "2026-07-31": 1,
     "2026-08-04": 3,
@@ -415,7 +416,8 @@
     "2026-09-02": 10,
     "2026-09-03": 10,
     "2026-09-04": 6,
-    "2026-09-05": 4
+    "2026-09-05": 4,
+    "2026-09-06": 2
   },
   "trials_crosscheck_yesterday": {
     "day": "2026-09-05",
