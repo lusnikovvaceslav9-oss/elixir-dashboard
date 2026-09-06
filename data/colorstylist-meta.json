@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-06T18:45:00+00:00",
+  "generated_at": "2026-09-06T21:24:53+00:00",
   "anchor": "2026-07-31",
   "until": "2026-09-06",
   "window_start": "2026-08-28",
@@ -66,12 +66,14 @@
     "active_users": 2228,
     "active_payers": 22,
     "plus_active_users": 39,
-    "trial_cancellations": 0,
-    "trial_cancellations_by_day": {},
-    "renewals": 15,
+    "trial_cancellations": 1,
+    "trial_cancellations_by_day": {
+      "2026-09-06": 1
+    },
+    "renewals": 14,
     "arpu": 5.23,
     "arppu": 529.55,
-    "ltv": 890.61,
+    "ltv": 866.54,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
     "roas_d7": 4.1,
     "roas_d14": 2.8,
@@ -124,7 +126,7 @@
         "id": "paywall_cta",
         "label": "CTA пейволла",
         "formula_label": "purchase_tap / paywall_view",
-        "value_pct": 33.95,
+        "value_pct": 33.97,
         "primary": false,
         "accent": true,
         "note": null
@@ -133,7 +135,7 @@
         "id": "engagement_hair",
         "label": "Вовлечение (hair)",
         "formula_label": "hair_look / install",
-        "value_pct": 40.67,
+        "value_pct": 40.71,
         "primary": false,
         "accent": false,
         "note": null
@@ -150,7 +152,7 @@
         "id": "hair",
         "label": "Волосы",
         "event": "hair_look_generated",
-        "value_pct": 40.67
+        "value_pct": 40.71
       },
       {
         "id": "outfit",
@@ -162,7 +164,7 @@
         "id": "makeup",
         "label": "Макияж",
         "event": "makeup_generated",
-        "value_pct": 21.1
+        "value_pct": 21.14
       },
       {
         "id": "chat",
@@ -282,12 +284,12 @@
         "rub": 199
       },
       "2026-09-05": {
-        "count": 6,
-        "rub": 1194
+        "count": 5,
+        "rub": 995
       },
       "2026-09-06": {
-        "count": 4,
-        "rub": 796
+        "count": 5,
+        "rub": 995
       }
     }
   },
@@ -328,8 +330,8 @@
     "2026-09-02": 797,
     "2026-09-03": 1991,
     "2026-09-04": 3088,
-    "2026-09-05": 1593,
-    "2026-09-06": 796
+    "2026-09-05": 1394,
+    "2026-09-06": 995
   },
   "paid_net_by_cohort_day": {
     "2026-08-13": 199,
@@ -343,8 +345,8 @@
     "2026-08-30": 398,
     "2026-08-31": 1991,
     "2026-09-01": 199,
-    "2026-09-02": 1593,
-    "2026-09-03": 1195,
+    "2026-09-02": 1394,
+    "2026-09-03": 1394,
     "2026-09-04": 2889,
     "2026-09-05": 399
   },
