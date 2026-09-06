@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-06T00:21:35+00:00",
+  "generated_at": "2026-09-06T05:16:45+00:00",
   "anchor": "2026-07-31",
   "until": "2026-09-06",
   "window_start": "2026-08-28",
@@ -25,9 +25,9 @@
       }
     ],
     "keys_used": 2,
-    "per_install": 6.45,
+    "per_install": 6.44,
     "per_trial": 56.38,
-    "total_burn": 63596.92
+    "total_burn": 63717.9
   },
   "trial_days": 3,
   "trial_lag_days": 3,
@@ -62,21 +62,20 @@
   },
   "unit_economics": {
     "revenue_total": 11650,
-    "spend_total": 50177.78,
-    "active_users": 2208,
+    "spend_total": 50298.76,
+    "active_users": 2211,
     "active_payers": 23,
-    "plus_active_users": 40,
-    "trial_cancellations": 2,
+    "plus_active_users": 38,
+    "trial_cancellations": 1,
     "trial_cancellations_by_day": {
-      "2026-09-03": 1,
       "2026-09-04": 1
     },
     "renewals": 13,
-    "arpu": 5.28,
+    "arpu": 5.27,
     "arppu": 506.52,
     "ltv": 792.81,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
-    "roas_d7": 5.6,
+    "roas_d7": 5.1,
     "roas_d14": 2.8,
     "roas_d30": 0.0
   },
@@ -109,7 +108,7 @@
         "id": "aha_color",
         "label": "Aha: цветотип",
         "formula_label": "color_type_reveal / install",
-        "value_pct": 86.3,
+        "value_pct": 86.22,
         "primary": true,
         "accent": false,
         "note": null
@@ -127,7 +126,7 @@
         "id": "paywall_cta",
         "label": "CTA пейволла",
         "formula_label": "purchase_tap / paywall_view",
-        "value_pct": 33.84,
+        "value_pct": 33.82,
         "primary": false,
         "accent": true,
         "note": null
@@ -136,7 +135,7 @@
         "id": "engagement_hair",
         "label": "Вовлечение (hair)",
         "formula_label": "hair_look / install",
-        "value_pct": 40.62,
+        "value_pct": 40.57,
         "primary": false,
         "accent": false,
         "note": null
@@ -147,44 +146,44 @@
         "id": "color_type",
         "label": "Цветотип",
         "event": "color_type_done",
-        "value_pct": 89.71
+        "value_pct": 89.63
       },
       {
         "id": "hair",
         "label": "Волосы",
         "event": "hair_look_generated",
-        "value_pct": 40.62
+        "value_pct": 40.57
       },
       {
         "id": "outfit",
         "label": "Образы",
         "event": "outfit_generated",
-        "value_pct": 20.96
+        "value_pct": 20.93
       },
       {
         "id": "makeup",
         "label": "Макияж",
         "event": "makeup_generated",
-        "value_pct": 21.11
+        "value_pct": 21.08
       },
       {
         "id": "chat",
         "label": "Чат",
         "event": "chat_reply",
-        "value_pct": 25.38
+        "value_pct": 25.35
       },
       {
         "id": "fitting",
         "label": "Примерочная",
         "event": "fitting_done",
-        "value_pct": 10.48
+        "value_pct": 10.51
       }
     ],
     "quality": [
       {
         "id": "ai_fail_rate",
         "label": "AI fail rate",
-        "value_pct": 22.2
+        "value_pct": 22.22
       }
     ]
   },
@@ -265,8 +264,8 @@
         "rub": 199
       },
       "2026-08-30": {
-        "count": 2,
-        "rub": 398
+        "count": 1,
+        "rub": 199
       },
       "2026-08-31": {
         "count": 2,
@@ -291,6 +290,10 @@
       "2026-09-05": {
         "count": 6,
         "rub": 1194
+      },
+      "2026-09-06": {
+        "count": 1,
+        "rub": 199
       }
     }
   },
@@ -325,14 +328,14 @@
     "2026-08-27": 0,
     "2026-08-28": 199,
     "2026-08-29": 598,
-    "2026-08-30": 398,
+    "2026-08-30": 199,
     "2026-08-31": 797,
     "2026-09-01": 995,
     "2026-09-02": 797,
     "2026-09-03": 1991,
     "2026-09-04": 3287,
     "2026-09-05": 1593,
-    "2026-09-06": 0
+    "2026-09-06": 199
   },
   "paid_net_by_cohort_day": {
     "2026-08-13": 199,
@@ -341,14 +344,14 @@
     "2026-08-23": 199,
     "2026-08-25": 199,
     "2026-08-26": 199,
-    "2026-08-27": 398,
+    "2026-08-27": 199,
     "2026-08-28": 398,
     "2026-08-29": 1394,
     "2026-08-30": 398,
     "2026-08-31": 1991,
     "2026-09-01": 398,
     "2026-09-02": 1593,
-    "2026-09-03": 399,
+    "2026-09-03": 598,
     "2026-09-04": 2889,
     "2026-09-05": 399
   },
