@@ -35,6 +35,7 @@ from supabase import (
     set_plan_prices,
     set_sku_prices,
     set_bill_cohort_from_activated_at,
+    set_cash_from,
     set_trial_config,
     bills_by_cohort_day,
     bills_by_day,
@@ -45,6 +46,7 @@ from supabase import (
     fetch_unit_economics_snapshot,
     paid_net_by_cohort_day,
     paid_net_by_pay_day,
+    rebill_stats,
     sold_by_cohort_day,
     sold_by_day,
     trials_by_day_from_starts,
@@ -134,6 +136,7 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
     set_plan_prices(cfg.get("plans"))
     set_sku_prices(cfg.get("sku_prices"))
     set_bill_cohort_from_activated_at(bool(cfg.get("bill_cohort_from_activated_at")))
+    set_cash_from(cfg.get("cash_from"))
     set_trial_config(cfg)
     anchor = date.fromisoformat(cfg.get("anchor") or default_anchor().isoformat())
     until = datetime.now(ZoneInfo("Europe/Moscow")).date()
@@ -160,10 +163,12 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
     sold: dict[str, int] = {}
     paid_by_cohort_day: dict[str, int] = {}
     paid_by_pay_day: dict[str, int] = {}
+    rebill_by_pay_day: dict[str, int] = {}
     sold_by_cohort_day_map: dict[str, int] = {}
     bills_by_plan: dict[str, dict[str, int]] | None = None
     bills_by_plan_day: dict[str, dict[str, dict[str, int]]] | None = None
     bills_cohort: dict[str, int] = {}
+    cash: dict | None = None
     trial_cancels_by_day: dict[str, int] = {}
     unit_snap: dict | None = None
     product_metrics: dict | None = None
@@ -318,15 +323,19 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
             bills = bills_by_day(bills_list)
             sold = sold_by_day(bills_list)
             paid_by_pay_day = paid_net_by_pay_day(bills_list)
+            rebill_by_pay_day = paid_net_by_pay_day(
+                [b for b in bills_list if b.kind == "rebill"]
+            )
             paid_by_cohort_day = paid_net_by_cohort_day(bills_list)
             sold_by_cohort_day_map = sold_by_cohort_day(bills_list)
             bills_cohort = bills_by_cohort_day(bills_list)
             bills_by_plan = bills_breakdown(bills_list)
             bills_by_plan_day = bills_by_plan_by_day(bills_list)
+            cash = rebill_stats(bills_list)
             sources["bills"] = "supabase_main_active_pay_day"
             print(
-                f"  Supabase bills: {len(bills_list)} charges "
-                f"(daily = pay_date · cohort lag for yearly/week trial)"
+                f"  Supabase bills: {cash['first_count']} first + {cash['week_events']} week rebills "
+                f"({cash['first_rub']} + {cash['rub']} = {cash['total_rub']} ₽)"
             )
             w2s, w2e = date(2026, 8, 8), date(2026, 8, 14)
             w2_bills = [b for b in bills_list if w2s <= b.cohort_day <= w2e]
@@ -449,16 +458,19 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
         filled_bills = dict(bills)
         filled_sold = dict(sold)
         filled_paid = dict(paid_by_pay_day)
+        filled_rebill = dict(rebill_by_pay_day)
         d = anchor
         while d <= until:
             key = d.isoformat()
             filled_bills.setdefault(key, 0)
             filled_sold.setdefault(key, 0)
             filled_paid.setdefault(key, 0)
+            filled_rebill.setdefault(key, 0)
             d += timedelta(days=1)
         bills = filled_bills
         sold = filled_sold
         paid_by_pay_day = filled_paid
+        rebill_by_pay_day = filled_rebill
 
     # Polza (ИИ) — фактический burn по ключам ColorStylist (Style + Style-emergency).
     # Необязательный источник: нет ключа или упал запрос — фид без polza_spend.
@@ -483,7 +495,11 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
             print(f"  Polza warning: {errors[-1]}")
         try:
             polza_summary = fetch_polza_spend_by_day_multi(polza_keys, anchor, until)
-            polza_by_day = polza_summary.get("by_day") or {}
+            polza_by_day = dict(polza_summary.get("by_day") or {})
+            d = anchor
+            while d <= until:
+                polza_by_day.setdefault(d.isoformat(), 0.0)
+                d += timedelta(days=1)
             sources["polza_spend"] = "polza_api"
             by_key = polza_summary.get("by_key") or []
             keys_note = ", ".join(
@@ -514,6 +530,7 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
         impressions=full_impressions,
         polza_spend=polza_by_day,
         paid_net=paid_by_pay_day or paid_by_cohort_day,
+        rebill_net=rebill_by_pay_day,
         anchor=anchor,
         until=until,
     )
@@ -551,8 +568,12 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
 
     installs_total = sum(int(v.get("installs") or 0) for v in merged.values())
     spend_total = sum(float(v.get("spend") or 0) for v in merged.values())
-    revenue_total = int((bills_by_plan or {}).get("total", {}).get("rub") or cohort["totals"].get("paid_net") or 0)
-    paid_count = int((bills_by_plan or {}).get("total", {}).get("count") or cohort["totals"].get("sold") or 0)
+    if cash:
+        revenue_total = int(cash.get("total_rub") or 0)
+        paid_count = int(cash.get("first_count") or 0)
+    else:
+        revenue_total = int((bills_by_plan or {}).get("total", {}).get("rub") or cohort["totals"].get("paid_net") or 0)
+        paid_count = int((bills_by_plan or {}).get("total", {}).get("count") or cohort["totals"].get("sold") or 0)
 
     if am_token:
         try:
@@ -647,7 +668,9 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
         } if polza_summary else None,
         "trial_days": int(cfg.get("trial_days") or cfg.get("trial_lag_days") or 7),
         "trial_lag_days": int(cfg.get("trial_lag_days") or 7),
+        "trial_event": trial_event,
         "trial_plan": cfg.get("trial_plan"),
+        "cash_from": cfg.get("cash_from"),
         "grace_days": cfg.get("grace_days"),
         "hold_days": cfg.get("hold_days"),
         "sold_label": cfg.get("sold_label"),
@@ -686,6 +709,20 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
             "quality": (product_metrics or {}).get("quality"),
         } if product_metrics else None,
     }
+    if cash:
+        meta["rebills"] = {
+            "week_events": cash["week_events"],
+            "rub": cash["rub"],
+            "users_ge1": cash["users_ge1"],
+            "max": cash["max"],
+        }
+        meta["cash_period"] = {
+            "from": cfg.get("cash_from") or anchor.isoformat(),
+            "until": until.isoformat(),
+            "first": cash["first_rub"],
+            "rebills": cash["rub"],
+            "total": cash["total_rub"],
+        }
     if bills_by_plan:
         meta["payments_by_plan"] = bills_by_plan
     if bills_by_plan_day:

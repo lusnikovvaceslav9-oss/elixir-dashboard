@@ -4856,6 +4856,8 @@ function findPlantoColumns(headerRow) {
     soldCol: findCol(headers, ['sold', 'продан', 'pay_submit'], ['cost', 'цена', '/']),
     fbCol: findCol(headers, ['fb', 'view_pay'], ['cost', 'цена', '/', 'trial']),
     paidNetCol: findCol(headers, ['paid_net', 'revenue', 'доход', 'выручка'], ['cost', 'цена', '/', 'arpu', 'roas']),
+    rebillNetCol: headers.findIndex(h => h === 'rebill_net'),
+    polzaCol: headers.findIndex(h => h === 'polza_spend' || h === 'polza'),
     purchaseCol: findCol(headers, ['purchase'], ['cost', 'цена', '/']),
     contactInfoCol: findCol(headers, ['contact_info'], ['cost', 'цена', '/']),
     formSubmitCol: findCol(headers, ['form_submit'], ['cost', 'цена', '/']),
@@ -4885,6 +4887,8 @@ function parsePlantoRows(rows) {
     };
     if (cols.regsCol >= 0) obj.regs = parseNum(r[cols.regsCol]);
     if (cols.paidNetCol >= 0) obj.paid_net = parseNum(r[cols.paidNetCol]);
+    if (cols.rebillNetCol >= 0) obj.rebill_net = parseNum(r[cols.rebillNetCol]);
+    if (cols.polzaCol >= 0) obj.polza_spend = parseNum(r[cols.polzaCol]);
     if (cols.purchaseCol >= 0) obj.purchase = parseNum(r[cols.purchaseCol]);
     if (cols.contactInfoCol >= 0) obj.contact_info = parseNum(r[cols.contactInfoCol]);
     if (cols.formSubmitCol >= 0) obj.form_submit = parseNum(r[cols.formSubmitCol]);
@@ -7677,8 +7681,8 @@ function metricsFromTileRows(proj, rows, subHint) {
       { key: 'today_spend_vat', label: 'Спенд +22% НДС', value: fmtMoney(spend * 1.22, cur), live: true, sub: 'с НДС' },
       { key: 'today_installs', label: 'Установки', value: fmtInt(installs), live: true, sub: subHint || 'за день' },
       { key: 'today_cpi', label: 'CPI', value: cpi != null ? fmtMoney(cpi, cur) : '—', accent: true, live: true, sub: 'цена установки' },
-      { key: 'today_trials', label: 'Триалы', value: fmtInt(trials), live: true, sub: 'старты' },
-      { key: 'today_cpt', label: 'CPT', value: cpt != null ? fmtMoney(cpt, cur) : '—', accent: true, live: true, sub: 'цена триала' },
+      { key: 'today_trials', label: 'Триалы', value: fmtInt(trials), live: true, sub: trialMetricSub(proj, 'старты') },
+      { key: 'today_cpt', label: 'CPT', value: cpt != null ? fmtMoney(cpt, cur) : '—', accent: true, live: true, sub: trialMetricSub(proj, 'цена триала') },
       { key: 'today_bills', label: 'Оплаты', value: fmtInt(bills), live: true, sub: sold ? `из них ${soldLabel}: ${fmtInt(sold)}` : 'bills' },
       { key: 'today_cac', label: 'CAC', value: cac != null ? fmtMoney(cac, cur) : '—', accent: true, live: true, sub: 'spend / оплаты' },
     ];
@@ -7805,6 +7809,21 @@ function getMatureCohortMetrics(monthKey) {
   };
 }
 
+function trialMetricSub(proj, fallback) {
+  const meta = feedMeta(proj?.id) || {};
+  const src = String(meta.sources?.trials || '');
+  const ev = String(meta.trial_event || '');
+  if (src.includes('purchase_success') || ev === 'purchase_success') return 'AM purchase_success';
+  if (src.includes('supabase')) return 'RuStore entitlements';
+  return fallback || 'старты';
+}
+
+function getPeriodCash(rows) {
+  const kassa = (rows || []).reduce((a, r) => a + (Number(r.paid_net) || 0), 0);
+  const rebills = (rows || []).reduce((a, r) => a + (Number(r.rebill_net) || 0), 0);
+  return { first: kassa - rebills, rebills, kassa };
+}
+
 function getPlantoUnitEconomics(projId) {
   return feedProduct(projId)?.unit_economics || feedMeta(projId)?.unit_economics || null;
 }
@@ -7863,8 +7882,8 @@ function renderPlantoTodayBlock(proj, allRows) {
     plantoKpiCell('Спенд +22% НДС', fmtMoney(spend * 1.22, cur), { sub: 'с НДС' }),
     plantoKpiCell('Установки', fmtInt(installs), { sub: 'за день' }),
     plantoKpiCell('CPI', cpi != null ? fmtMoney(cpi, cur) : '—', { accent: true, sub: 'цена установки' }),
-    plantoKpiCell('Триалы', fmtInt(trials), { sub: cr != null ? `CR ${fmtPct(cr)}` : 'старты за день' }),
-    plantoKpiCell('CPT', cpt != null ? fmtMoney(cpt, cur) : '—', { accent: true, sub: 'цена триала' }),
+    plantoKpiCell('Триалы', fmtInt(trials), { sub: cr != null ? `CR ${fmtPct(cr)} · ${trialMetricSub(proj)}` : trialMetricSub(proj, 'старты за день') }),
+    plantoKpiCell('CPT', cpt != null ? fmtMoney(cpt, cur) : '—', { accent: true, sub: trialMetricSub(proj, 'цена триала') }),
     plantoKpiCell('Оплаты', fmtInt(bills), {
       sub: sold
         ? `из них yearly: ${fmtInt(sold)}`
@@ -7944,11 +7963,12 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
   const cpc = (hasAds && clicks) ? (sp / clicks) : null;
   // CAC = spend / bills (fb). sold — только yearly-подмножество, не знаменатель.
   const cac = fb ? (sp / fb) : null;
-  const roasD7 = mature?.roasD7 != null
-    ? mature.roasD7
-    : (sp && paidNet != null ? (paidNet / sp * 100) : null);
+  const periodRoas = (sp && paidNet != null) ? (paidNet / sp * 100) : null;
+  const roasD7 = periodRoas;
   const roasD14 = unit?.roas_d14 ?? mature?.roasD14 ?? null;
   const roasD30 = unit?.roas_d30 ?? mature?.roasD30 ?? null;
+  const polzaPeriod = sum(rows, 'polza_spend');
+  const burnPeriod = sp + polzaPeriod;
 
   const acquisition = [
     plantoKpiCell('Расход', fmtMoney(sp, cur), { primary: true, sub: 'рекламный spend' }),
@@ -7972,8 +7992,8 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
   ].join('');
 
   const trialsBlock = [
-    plantoKpiCell('Старты триала', fmtInt(tr), { primary: true, sub: 'начали пробный период' }),
-    plantoKpiCell('CPT', cpt != null ? fmtMoney(cpt, cur) : '—', { accent: true, sub: 'стоимость триала' }),
+    plantoKpiCell('Старты триала', fmtInt(tr), { primary: true, sub: trialMetricSub(proj, 'начали пробный период') }),
+    plantoKpiCell('CPT', cpt != null ? fmtMoney(cpt, cur) : '—', { accent: true, sub: trialMetricSub(proj, 'стоимость триала') }),
     plantoKpiCell('Install → Trial', installToTrial != null ? fmtPct(installToTrial) : '—', {
       sub: 'конверсия в триал',
       bar: installToTrial != null ? { pct: Math.min(installToTrial * 12, 100) } : null,
@@ -7995,28 +8015,25 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
     }),
   ].join('');
 
-  // Полный burn = реклама + ИИ (Polza). Показываем только когда ключ настроен и
-  // спенд реально пришёл — иначе не засоряем блок пустыми карточками.
-  const ai = feedMeta(proj?.id)?.ai_spend;
-  const aiCards = ai?.total != null ? [
-    plantoKpiCell('AI spend (Polza)', fmtMoney(ai.total, cur), {
-      sub: ai.generations ? `${fmtInt(ai.generations)} генераций` : 'списания по ключам',
+  const aiMeta = feedMeta(proj?.id)?.ai_spend;
+  const hasPolza = polzaPeriod > 0 || aiMeta?.total != null;
+  const cash = getPeriodCash(rows);
+  const aiCards = hasPolza ? [
+    plantoKpiCell('AI spend (Polza)', fmtMoney(polzaPeriod, cur), {
+      sub: 'за период' + (aiMeta?.total != null && Math.abs(aiMeta.total - polzaPeriod) > 1
+        ? ` · всё время ${fmtMoney(aiMeta.total, cur)}` : ''),
     }),
-    ai.total_burn != null
-      ? plantoKpiCell('Total burn', fmtMoney(ai.total_burn, cur), { accent: true, sub: 'реклама + ИИ' })
-      : '',
-    ai.per_install != null
-      ? plantoKpiCell('AI / install', fmtMoney(ai.per_install, cur), { sub: 'ИИ на установку' })
-      : '',
-    ai.per_trial != null
-      ? plantoKpiCell('AI / trial', fmtMoney(ai.per_trial, cur), { sub: 'ИИ на триал' })
-      : '',
+    plantoKpiCell('Total burn', fmtMoney(burnPeriod, cur), {
+      accent: true,
+      sub: 'реклама + ИИ за период' + (aiMeta?.total_burn != null && Math.abs(aiMeta.total_burn - burnPeriod) > 1
+        ? ` · всё время ${fmtMoney(aiMeta.total_burn, cur)}` : ''),
+    }),
   ].join('') : '';
 
   const soldLabel = feedMeta(proj?.id)?.sold_label || 'yearly';
   const byPlan = feedMeta(proj?.id)?.payments_by_plan;
   const planLabel = PLAN_FILTER_OPTS.find(p => p.id === activePlan)?.label;
-  let billsSub = 'новые + ребиллы';
+  let billsSub = 'первые MAIN';
   if (activePlan && planLabel) {
     const priceKey = { weekly: 'week', monthly: 'month', yearly: 'year' }[activePlan];
     const price = feedMeta(proj?.id)?.plans?.[priceKey];
@@ -8036,9 +8053,16 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
       primary: true,
       sub: billsSub,
     }),
-    plantoKpiCell('Доход', paidNet != null ? fmtMoney(paidNet, cur) : '—', {
+    plantoKpiCell('Доход first', fmtMoney(cash.first, cur), {
       primary: true,
-      sub: activePlan ? 'за период · выбранный тариф' : 'за период · по дням',
+      sub: 'первые MAIN за период',
+    }),
+    cash.rebills
+      ? plantoKpiCell('Ребиллы', fmtMoney(cash.rebills, cur), { sub: 'недельные продления' })
+      : '',
+    plantoKpiCell('Касса', fmtMoney(cash.kassa, cur), {
+      primary: true,
+      sub: activePlan ? 'first + ребиллы · тариф' : 'first + ребиллы · период',
     }),
     aiCards,
     plantoKpiCell('CAC', cac != null ? fmtMoney(cac, cur) : '—', { accent: true, sub: 'spend / оплаты' }),
@@ -8051,17 +8075,17 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
     unit?.ltv != null
       ? plantoKpiCell('LTV', fmtMoneyOrDash(unit.ltv, cur), { accent: true, sub: 'оценка с учётом ребиллов' })
       : plantoKpiCell('LTV', 'нет данных', { pending: true, sub: 'нужна кривая ребиллов' }),
-    plantoKpiCell('ROAS D7', roasD7 != null ? fmtPct(roasD7) : '—', {
+    plantoKpiCell('ROAS', roasD7 != null ? fmtPct(roasD7) : '—', {
       accent: true,
       tone: roasD7 != null && roasD7 >= 100 ? 'good' : (roasD7 != null && roasD7 < 40 ? 'warn' : ''),
-      sub: 'окупаемость к 7 дню',
+      sub: 'касса / spend за период',
       bar: roasD7 != null ? { pct: Math.min(roasD7, 100), warn: roasD7 < 40 } : null,
     }),
     roasD14 != null
-      ? plantoKpiCell('ROAS D14', fmtPct(roasD14), { sub: 'зрелые корзины ≥14 дн.' })
+      ? plantoKpiCell('ROAS D14', fmtPct(roasD14), { sub: 'всё время · когорты ≥14 дн.' })
       : plantoKpiCell('ROAS D14', 'рано', { pending: true, sub: 'мало зрелых когорт' }),
     roasD30 != null
-      ? plantoKpiCell('ROAS D30', fmtPct(roasD30), { sub: 'зрелые корзины ≥30 дн.' })
+      ? plantoKpiCell('ROAS D30', fmtPct(roasD30), { sub: 'всё время · когорты ≥30 дн.' })
       : plantoKpiCell('ROAS D30', 'рано', { pending: true, sub: 'мало зрелых когорт' }),
   ].join('');
 
@@ -9408,34 +9432,35 @@ function renderBudgetCard(proj, allData, compact) {
 function renderTileIncome(proj) {
   const cur = proj?.currency || '₽';
   const rows = enrichRowsWithDailyRevenue(proj, getPlantoDailyRows(proj?.id));
-  const periodRev = getPlantoPaidNetForRows(rows, proj?.id);
-  const rev = Math.round(periodRev != null ? periodRev : (feedMeta(proj?.id)?.unit_economics?.revenue_total || 0));
-  return `<div class="tile-income"><span class="tile-income-label">Доход</span><span class="tile-income-value">${fmtMoney(rev, cur)}</span></div>`;
+  const cash = getPeriodCash(rows);
+  const periodRev = cash.kassa || getPlantoPaidNetForRows(rows, proj?.id);
+  const rev = Math.round(periodRev != null ? periodRev : (feedMeta(proj?.id)?.cash_period?.total || feedMeta(proj?.id)?.unit_economics?.revenue_total || 0));
+  return `<div class="tile-income"><span class="tile-income-label">Касса</span><span class="tile-income-value">${fmtMoney(rev, cur)}</span></div>`;
 }
 
-// Карточка дохода: за выбранный период (сумма paid_net по дням), не только all-time total.
+// Карточка дохода: first + ребиллы + касса за выбранный период.
 function renderGlobalIncomeCard(proj, rows) {
   const cur = proj?.currency || '₽';
   const meta = feedMeta(proj?.id);
   const enriched = enrichRowsWithDailyRevenue(proj, rows || getPlantoDailyRows(proj?.id));
-  const periodRev = getPlantoPaidNetForRows(enriched, proj?.id);
-  const allTime = Math.round(meta?.unit_economics?.revenue_total || 0);
-  const rev = Math.round(periodRev != null ? periodRev : allTime);
-  const fmt = fmtMoney(rev, cur);
-  const label = proj?.name || AUTO_FEED_URLS[proj?.id]?.name || 'Доход';
-  const updated = meta?.generated_at ? new Date(meta.generated_at).toLocaleString('ru-RU') : '';
+  const cash = getPeriodCash(enriched);
+  const allTime = meta?.cash_period || null;
+  const allKassa = Math.round(allTime?.total || meta?.unit_economics?.revenue_total || 0);
   const days = enriched?.length || 0;
+  const cashFrom = meta?.cash_from || allTime?.from;
   const periodHint = days
-    ? `по дню оплаты · ${days} дн.${allTime && Math.abs(allTime - rev) > 1 ? ` · всё время ${fmtMoney(allTime, cur)}` : ''}`
-    : 'весь срез · по дню оплаты';
+    ? `по дню оплаты · ${days} дн.${cashFrom ? ` · касса с ${cashFrom}` : ''}`
+    : (cashFrom ? `касса с ${cashFrom}` : 'весь срез · по дню оплаты');
   return `<div class="analytics-card income-card">
-    <div class="analytics-card-title">Доход · ${escHtml(label)}</div>
-    <div class="income-total-box"><span class="income-total-value">${fmt}</span></div>
+    <div class="analytics-card-title">Касса · ${escHtml(proj?.name || AUTO_FEED_URLS[proj?.id]?.name || 'Доход')}</div>
+    <div class="income-total-box"><span class="income-total-value">${fmtMoney(cash.kassa, cur)}</span></div>
     <div class="income-breakdown">
-      <span class="income-chip"><i class="income-chip-dot"></i>Период&nbsp;<b>${fmt}</b></span>
-      ${allTime && Math.abs(allTime - rev) > 1 ? `<span class="income-chip">Всё время&nbsp;<b>${fmtMoney(allTime, cur)}</b></span>` : ''}
+      <span class="income-chip"><i class="income-chip-dot"></i>First&nbsp;<b>${fmtMoney(cash.first, cur)}</b></span>
+      <span class="income-chip">Ребиллы&nbsp;<b>${fmtMoney(cash.rebills, cur)}</b></span>
+      <span class="income-chip">Период&nbsp;<b>${fmtMoney(cash.kassa, cur)}</b></span>
+      ${allKassa && Math.abs(allKassa - cash.kassa) > 1 ? `<span class="income-chip">Всё время&nbsp;<b>${fmtMoney(allKassa, cur)}</b></span>` : ''}
     </div>
-    <div class="budget-hint">${escHtml(periodHint)}${updated ? ` · данные на ${escHtml(updated)}` : ''}</div>
+    <div class="budget-hint">${escHtml(periodHint)}${meta?.generated_at ? ` · данные на ${escHtml(new Date(meta.generated_at).toLocaleString('ru-RU'))}` : ''}</div>
   </div>`;
 }
 
@@ -10856,31 +10881,37 @@ document.addEventListener('click', () => {
   document.querySelectorAll('.info-wrap.open').forEach(w => w.classList.remove('open'));
 });
 
-/** Доп. карточки выручки для full-тира (Planto/ColorStylist unit_economics + AI spend). */
-function renderRevenueExtras(proj) {
+/** Доп. карточки выручки: только выбранный период, all-time — подписью. */
+function renderRevenueExtras(proj, rows) {
   if (getProjectTier(proj) !== 'full') return '';
   const meta = feedMeta(proj?.id);
   const ue = meta?.unit_economics;
-  if (!ue && !(meta?.ai_spend?.total != null)) return '';
+  const periodRows = enrichRowsWithDailyRevenue(proj, rows || getPlantoDailyRows(proj?.id));
+  const cash = getPeriodCash(periodRows);
+  const spend = sum(periodRows, 'spend');
+  const polza = sum(periodRows, 'polza_spend');
+  const burn = spend + polza;
+  const periodRoas = spend ? (cash.kassa / spend * 100) : null;
+  if (!ue && !(meta?.ai_spend?.total != null) && !periodRows.length) return '';
   const cur = proj.currency || '₽';
   const LTV_INFO = 'Косвенно — значение не измерено по факту, а рассчитано косвенным способом. LTV здесь оценивается от ARPPU с поправкой на ребиллы (ARPPU × (1 + renewals/payers)), потому что полной кривой повторных списаний пока нет. Как только накопим фактические ребиллы, заменим на измеренный LTV.';
-  const cards = [];
+  const allCash = meta?.cash_period;
+  const cards = [
+    { label: 'Доход first', value: fmtMoney(cash.first, cur), accent: false, sub: 'период' },
+    { label: 'Ребиллы', value: fmtMoney(cash.rebills, cur), accent: false, sub: 'неделя' },
+    { label: 'Касса', value: fmtMoney(cash.kassa, cur), accent: true, sub: allCash?.total != null && Math.abs(allCash.total - cash.kassa) > 1 ? `всё время ${fmtMoney(allCash.total, cur)}` : 'first + ребиллы' },
+    { label: 'ROAS периода', value: periodRoas != null ? fmtPct(periodRoas) : '—', accent: true, sub: 'касса / spend' },
+  ];
   if (ue) {
     cards.push(
-      { label: 'Выручка всего', value: fmtMoney(ue.revenue_total, cur), accent: false },
-      { label: 'ARPPU', value: fmtMoney(ue.arppu, cur), accent: true },
-      { label: 'LTV (косвенно)', value: fmtMoney(ue.ltv, cur), accent: true, info: LTV_INFO },
-      { label: 'ROAS D7', value: ue.roas_d7 != null ? ue.roas_d7 + '%' : '—', accent: true },
-      { label: 'ROAS D30', value: ue.roas_d30 != null ? ue.roas_d30 + '%' : '—', accent: true },
+      { label: 'ARPPU', value: fmtMoney(ue.arppu, cur), accent: true, sub: 'всё время' },
+      { label: 'LTV (косвенно)', value: fmtMoney(ue.ltv, cur), accent: true, info: LTV_INFO, sub: 'всё время' },
     );
   }
-  const ai = meta?.ai_spend;
-  if (ai?.total != null) {
+  if (polza > 0 || meta?.ai_spend?.total != null) {
     cards.push(
-      { label: 'AI spend (Polza)', value: fmtMoney(ai.total, cur), accent: false, sub: ai.generations ? `${fmtInt(ai.generations)} ген.` : '' },
-      { label: 'Total burn', value: fmtMoney(ai.total_burn != null ? ai.total_burn : ai.total, cur), accent: true, sub: 'реклама + ИИ' },
-      { label: 'AI / install', value: ai.per_install != null ? fmtMoney(ai.per_install, cur) : '—', accent: false },
-      { label: 'AI / trial', value: ai.per_trial != null ? fmtMoney(ai.per_trial, cur) : '—', accent: false },
+      { label: 'AI spend (Polza)', value: fmtMoney(polza, cur), accent: false, sub: 'за период' },
+      { label: 'Total burn', value: fmtMoney(burn, cur), accent: true, sub: 'реклама + ИИ за период' },
     );
   }
   if (!cards.length) return '';
@@ -10943,7 +10974,7 @@ function renderWorkspaceBody(p, srcProj, rows, monthKey, titleSuffix = '', opts 
       dayRows = aggregateRowsByDate(dayRows);
     }
     const keys = section.keys.length ? section.keys : getSummaryMetricKeys(srcProj, dayRows);
-    if (getProjectTier(srcProj) === 'full') html += renderRevenueExtras(srcProj);
+    if (getProjectTier(srcProj) === 'full') html += renderRevenueExtras(srcProj, dayRows);
     if (keys.length) html += renderWorkspaceKpis(srcProj, dayRows, keys);
     const CHART_PREF = ['spend', 'revenue', 'installs', 'trials', 'regs', 'qregs', 'purchase', 'purchases', 'clicks', 'impressions', 'fb'];
     const chartKeys = CHART_PREF.filter(k => keys.includes(k) && wsChartableKey(k));
@@ -10971,7 +11002,7 @@ function renderWorkspaceBody(p, srcProj, rows, monthKey, titleSuffix = '', opts 
     html += renderPlantoMetricBlocks(p, rows, monthKey);
   } else {
     // Реклама / Пользователи / Воронка / Доход — узкий срез колонок как раньше
-    if (section.id === 'revenue') html += renderRevenueExtras(srcProj);
+    if (section.id === 'revenue') html += renderRevenueExtras(srcProj, rows);
     html += renderWorkspaceKpis(srcProj, rows, section.keys);
     const chartKeys = section.keys.filter(wsChartableKey);
     if (rows.length && chartKeys.length) {

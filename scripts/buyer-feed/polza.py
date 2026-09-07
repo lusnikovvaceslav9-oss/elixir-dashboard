@@ -19,7 +19,7 @@ import json
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 API_BASE = "https://polza.ai/api/v1"
@@ -110,19 +110,37 @@ def _row_kind(row: dict) -> str:
     return "chat"
 
 
-def fetch_polza_spend_by_day(
+def _pagination_total_pages(data) -> int | None:
+    if not isinstance(data, dict):
+        return None
+    for nest in (data, data.get("meta"), data.get("pagination"), data.get("pageInfo")):
+        if not isinstance(nest, dict):
+            continue
+        for k in ("totalPages", "total_pages", "pages"):
+            v = nest.get(k)
+            if v is None:
+                continue
+            try:
+                n = int(v)
+            except (TypeError, ValueError):
+                continue
+            if n > 0:
+                return n
+    return None
+
+
+def _fetch_polza_range(
     api_key: str,
     date_since: date,
     date_until: date,
-    page_limit: int = 50,
+    page_limit: int,
 ) -> dict:
-    """→ {"by_day": {iso: rub}, "by_kind": {...}, "generations": n, "total": rub}."""
     by_day: dict[str, float] = {}
     by_kind: dict[str, float] = {"images": 0.0, "chat": 0.0}
     count = 0
     page = 1
-    # API: limit 1–100; фильтры dateFrom / dateTo (ISO 8601).
     per_page = 100
+    total_pages = None
     while page <= page_limit:
         try:
             data = _get(
@@ -141,6 +159,8 @@ def fetch_polza_spend_by_day(
             if page == 1:
                 raise RuntimeError(f"polza history: {exc}") from exc
             break
+        if total_pages is None:
+            total_pages = _pagination_total_pages(data)
         rows = data if isinstance(data, list) else (
             data.get("data")
             or data.get("items")
@@ -163,6 +183,8 @@ def fetch_polza_spend_by_day(
             kind = _row_kind(row)
             by_kind[kind] = round(by_kind.get(kind, 0.0) + cost, 2)
             count += 1
+        if total_pages and page >= total_pages:
+            break
         if len(rows) < per_page:
             break
         page += 1
@@ -172,6 +194,28 @@ def fetch_polza_spend_by_day(
         "generations": count,
         "total": round(sum(by_day.values()), 2),
     }
+
+
+def fetch_polza_spend_by_day(
+    api_key: str,
+    date_since: date,
+    date_until: date,
+    page_limit: int = 200,
+    chunk_days: int = 7,
+) -> dict:
+    """→ {"by_day": {iso: rub}, "by_kind": {...}, "generations": n, "total": rub}.
+
+    История режется неделями: иначе page_limit×100 обрезает Style на ~5k генераций.
+    """
+    parts: list[dict] = []
+    d = date_since
+    while d <= date_until:
+        e = min(d + timedelta(days=chunk_days - 1), date_until)
+        parts.append(_fetch_polza_range(api_key, d, e, page_limit))
+        d = e + timedelta(days=1)
+    if len(parts) == 1:
+        return parts[0]
+    return _merge_polza_summaries(parts)
 
 
 def _merge_polza_summaries(parts: list[dict]) -> dict:
@@ -203,7 +247,7 @@ def fetch_polza_spend_by_day_multi(
     api_keys: list[tuple[str, str]],
     date_since: date,
     date_until: date,
-    page_limit: int = 50,
+    page_limit: int = 200,
 ) -> dict:
     """Суммирует spend по нескольким ключам (Style + Style-emergency).
 

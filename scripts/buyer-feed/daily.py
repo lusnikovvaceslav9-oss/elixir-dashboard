@@ -16,6 +16,7 @@ CSV_HEADERS = (
     "sold",
     "fb",
     "paid_net",
+    "rebill_net",
     "clicks",
     "impressions",
 )
@@ -87,7 +88,9 @@ def load_daily_csv(path: Path) -> dict[str, dict]:
                 "trials": _int_field(row, "trials", "Trials", "trial"),
                 "sold": _int_field(row, "sold", "Sold", "sold_trials"),
                 "fb": _int_field(row, "fb", "FB", "bills", "Bills"),
+                "polza_spend": _float_field(row, "polza_spend"),
                 "paid_net": _int_field(row, "paid_net", "revenue", "Revenue", "доход", "выручка"),
+                "rebill_net": _int_field(row, "rebill_net"),
                 "clicks": _int_field(row, "clicks", "Clicks", "click"),
                 "impressions": _int_field(row, "impressions", "Impressions", "impression"),
             }
@@ -111,6 +114,7 @@ def write_daily_csv(path: Path, daily: dict[str, dict]) -> None:
                     "sold": int(r.get("sold") or 0),
                     "fb": int(r.get("fb") or 0),
                     "paid_net": int(r.get("paid_net") or 0),
+                    "rebill_net": int(r.get("rebill_net") or 0),
                     "clicks": int(r.get("clicks") or 0),
                     "impressions": int(r.get("impressions") or 0),
                 }
@@ -131,12 +135,14 @@ def merge_daily(
     impressions: dict[str, int] | None = None,
     polza_spend: dict[str, float] | None = None,
     paid_net: dict[str, int] | None = None,
+    rebill_net: dict[str, int] | None = None,
 ) -> dict[str, dict]:
     polza_spend = polza_spend or {}
     sold = sold or {}
     clicks = clicks or {}
     impressions = impressions or {}
     paid_net = paid_net or {}
+    rebill_net = rebill_net or {}
     merged = dict(existing)
     d = anchor
     while d <= until:
@@ -152,6 +158,7 @@ def merge_daily(
                 "sold": 0,
                 "fb": 0,
                 "paid_net": 0,
+                "rebill_net": 0,
                 "clicks": 0,
                 "impressions": 0,
             },
@@ -175,6 +182,8 @@ def merge_daily(
             prev["fb"] = bills[key]
         if key in paid_net:
             prev["paid_net"] = int(paid_net[key] or 0)
+        if key in rebill_net:
+            prev["rebill_net"] = int(rebill_net[key] or 0)
         if key in clicks:
             prev["clicks"] = clicks[key]
         if key in impressions:
@@ -184,6 +193,7 @@ def merge_daily(
         prev.setdefault("impressions", 0)
         prev.setdefault("polza_spend", 0)
         prev.setdefault("paid_net", 0)
+        prev.setdefault("rebill_net", 0)
         merged[key] = prev
         d = date.fromordinal(d.toordinal() + 1)
     return merged

@@ -54,6 +54,8 @@ SKU_PRICES: dict[str, int] = {}
 # Planto: когорта = календарный день activated_at, счёт года = старт + lag.
 # Не last_event − lag: last_event ползёт на ретраях RuStore.
 BILL_COHORT_FROM_ACTIVATED_AT = False
+# Касса с этой даты (MSK). ColorStylist: 2026-08-01 — чек 31.07 не в first.
+CASH_FROM: date | None = None
 
 # Лаг триала по тарифу: когортный день оплаты = pay_date − lag.
 # ColorStylist: триал только на week (3д). Planto: триал на yearly (7д).
@@ -89,6 +91,21 @@ def set_sku_prices(mapping: dict | None) -> None:
 def set_bill_cohort_from_activated_at(enabled: bool) -> None:
     global BILL_COHORT_FROM_ACTIVATED_AT
     BILL_COHORT_FROM_ACTIVATED_AT = bool(enabled)
+
+
+def set_cash_from(raw) -> None:
+    """Нижняя граница кассы по pay_date (MSK). None / пусто — без отсечки."""
+    global CASH_FROM
+    CASH_FROM = None
+    if raw is None or raw == "":
+        return
+    if isinstance(raw, date):
+        CASH_FROM = raw
+        return
+    try:
+        CASH_FROM = date.fromisoformat(str(raw).strip()[:10])
+    except ValueError:
+        CASH_FROM = None
 
 
 def amount_for_sku(product_code: str | None) -> int:
@@ -352,6 +369,7 @@ class Bill:
     pay_date: date  # ожидаемый/первый счёт (год: activated_at + lag)
     cohort_day: date  # неделя набора: activated_at
     product_code: str = ""
+    kind: str = "first"  # first | rebill
 
 
 def _is_refund_closed(
@@ -436,7 +454,50 @@ def derive_bill(
         pay_date=pay_date,
         cohort_day=cohort_day,
         product_code=str(product_code or ""),
+        kind="first",
     )
+
+
+def expand_weekly_rebills(
+    bill: Bill,
+    *,
+    last_event_time: datetime | None,
+    activated_at: datetime | None,
+    until: date,
+) -> list[Bill]:
+    """Недельные MAIN: first + extra каждые 7 дней после триала.
+
+    n_extra = floor((last_event − activated − lag) / 7), без дня первого счёта.
+    Месячные/годовые не разворачиваем.
+    """
+    if bill.plan != "weekly" or int(bill.amount or 0) <= 0:
+        return [bill]
+    if activated_at is None or last_event_time is None:
+        return [bill]
+    act = _to_msk_date(activated_at)
+    last = _to_msk_date(last_event_time)
+    lag = trial_lag_for_plan("weekly")
+    n_extra = (last - act - timedelta(days=lag)).days // 7
+    if n_extra < 1:
+        return [bill]
+    out = [bill]
+    for k in range(1, n_extra + 1):
+        d = bill.pay_date + timedelta(days=7 * k)
+        if d > until:
+            break
+        out.append(
+            Bill(
+                user_id=bill.user_id,
+                purchase_id=bill.purchase_id,
+                plan=bill.plan,
+                amount=bill.amount,
+                pay_date=d,
+                cohort_day=bill.cohort_day,
+                product_code=bill.product_code,
+                kind="rebill",
+            )
+        )
+    return out
 
 
 _BILLS_SQL = """
@@ -495,27 +556,60 @@ def fetch_bills(
         )
         if bill is None:
             continue
-        in_cohort = date_since <= bill.cohort_day <= date_until
-        in_invoice = date_since <= bill.pay_date <= date_until
-        if not in_cohort and not in_invoice:
-            continue
-        bills.append(bill)
-    return sorted(bills, key=lambda b: (b.cohort_day, b.user_id))
+        for item in expand_weekly_rebills(
+            bill,
+            last_event_time=last_event_time,
+            activated_at=activated_at,
+            until=date_until,
+        ):
+            if CASH_FROM and item.pay_date < CASH_FROM:
+                continue
+            in_cohort = date_since <= item.cohort_day <= date_until
+            in_invoice = date_since <= item.pay_date <= date_until
+            if not in_cohort and not in_invoice:
+                continue
+            bills.append(item)
+    return sorted(bills, key=lambda b: (b.cohort_day, b.user_id, b.pay_date, b.kind))
+
+
+def first_bills(bills: list[Bill]) -> list[Bill]:
+    return [b for b in bills if (b.kind or "first") != "rebill"]
+
+
+def rebill_bills(bills: list[Bill]) -> list[Bill]:
+    return [b for b in bills if b.kind == "rebill"]
+
+
+def rebill_stats(bills: list[Bill]) -> dict:
+    extras = rebill_bills(bills)
+    firsts = first_bills(bills)
+    by_pid: dict[str, int] = {}
+    for b in extras:
+        by_pid[b.purchase_id] = by_pid.get(b.purchase_id, 0) + 1
+    return {
+        "week_events": len(extras),
+        "rub": sum(int(b.amount or 0) for b in extras),
+        "users_ge1": len(by_pid),
+        "max": max(by_pid.values()) if by_pid else 0,
+        "first_count": len(firsts),
+        "first_rub": sum(int(b.amount or 0) for b in firsts),
+        "total_rub": sum(int(b.amount or 0) for b in bills),
+    }
 
 
 def bills_by_day(bills: list[Bill]) -> dict[str, int]:
-    """Все успешные списания (годовые + месячные) по дню оплаты."""
+    """Первые успешные списания по дню оплаты (ребиллы не в CAC/fb)."""
     out: dict[str, int] = {}
-    for b in bills:
+    for b in first_bills(bills):
         key = b.pay_date.isoformat()
         out[key] = out.get(key, 0) + 1
     return dict(sorted(out.items()))
 
 
 def bills_by_cohort_day(bills: list[Bill]) -> dict[str, int]:
-    """Списания по дню когорты: yearly = оплата − 7д (старт триала), monthly = день оплаты."""
+    """Первые списания по дню когорты: yearly = оплата − 7д (старт триала), monthly = день оплаты."""
     out: dict[str, int] = {}
-    for b in bills:
+    for b in first_bills(bills):
         key = b.cohort_day.isoformat()
         out[key] = out.get(key, 0) + 1
     return dict(sorted(out.items()))
@@ -524,7 +618,7 @@ def bills_by_cohort_day(bills: list[Bill]) -> dict[str, int]:
 def sold_by_day(bills: list[Bill]) -> dict[str, int]:
     """Проданные триалы (годовая конверсия) по дню оплаты. Месячные не в счёт."""
     out: dict[str, int] = {}
-    for b in bills:
+    for b in first_bills(bills):
         if b.plan != "yearly":
             continue
         key = b.pay_date.isoformat()
@@ -535,7 +629,7 @@ def sold_by_day(bills: list[Bill]) -> dict[str, int]:
 def sold_by_cohort_day(bills: list[Bill]) -> dict[str, int]:
     """Годовые конверсии, отнесённые к дню когорты (оплата − 7д)."""
     out: dict[str, int] = {}
-    for b in bills:
+    for b in first_bills(bills):
         if b.plan != "yearly":
             continue
         key = b.cohort_day.isoformat()
@@ -562,7 +656,8 @@ def paid_net_by_pay_day(bills: list[Bill]) -> dict[str, int]:
 
 
 def bills_breakdown(bills: list[Bill]) -> dict[str, dict[str, int]]:
-    """Разбивка биллов по тарифам: count + rub (недельные больше не сливаются с месячными)."""
+    """Разбивка первых списаний по тарифам (ребиллы — отдельно в meta.rebills)."""
+    bills = first_bills(bills)
     out: dict[str, dict[str, int]] = {
         "yearly": {"count": 0, "rub": 0},
         "monthly": {"count": 0, "rub": 0},
