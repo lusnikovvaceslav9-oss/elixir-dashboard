@@ -1,33 +1,33 @@
 {
-  "generated_at": "2026-09-07T11:56:16+00:00",
+  "generated_at": "2026-09-07T12:39:48+00:00",
   "anchor": "2026-07-31",
   "until": "2026-09-07",
   "window_start": "2026-08-29",
   "trial_attribution": "appmetrica_purchase_success",
   "ai_spend": {
     "provider": "polza",
-    "total": 21409.23,
-    "generations": 14819,
+    "total": 26747.47,
+    "generations": 19197,
     "by_kind": {
-      "images": 19258.1,
-      "chat": 2151.13
+      "images": 23753.7,
+      "chat": 2993.77
     },
     "by_key": [
       {
         "label": "style",
-        "total": 13757.19,
-        "generations": 11207
+        "total": 17409.8,
+        "generations": 14781
       },
       {
         "label": "style-emergency",
-        "total": 7652.04,
-        "generations": 3612
+        "total": 9337.67,
+        "generations": 4416
       }
     ],
     "keys_used": 2,
-    "per_install": 9.91,
-    "per_trial": 87.74,
-    "total_burn": 74226.46
+    "per_install": 12.38,
+    "per_trial": 109.62,
+    "total_burn": 79564.7
   },
   "trial_days": 3,
   "trial_lag_days": 3,
@@ -164,7 +164,7 @@
         "id": "makeup",
         "label": "Макияж",
         "event": "makeup_generated",
-        "value_pct": 20.87
+        "value_pct": 20.92
       },
       {
         "id": "chat",
@@ -183,7 +183,7 @@
       {
         "id": "ai_fail_rate",
         "label": "AI fail rate",
-        "value_pct": 22.26
+        "value_pct": 22.25
       }
     ]
   },

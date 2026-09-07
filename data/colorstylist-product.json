@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-07T11:56:16+00:00",
+  "generated_at": "2026-09-07T12:39:48+00:00",
   "anchor": "2026-07-31",
   "until": "2026-09-07",
   "product": {
@@ -18,13 +18,13 @@
       },
       "ai_request": {
         "users": 2037,
-        "events": 22134,
+        "events": 22152,
         "vs_install_pct": 94.26,
         "avg_per_user": 10.87
       },
       "chat_reply": {
         "users": 547,
-        "events": 1433,
+        "events": 1435,
         "vs_install_pct": 25.31,
         "avg_per_user": 2.62
       },
@@ -48,14 +48,14 @@
       },
       "hair_look_generated": {
         "users": 878,
-        "events": 3212,
+        "events": 3215,
         "vs_install_pct": 40.63,
         "avg_per_user": 3.66
       },
       "makeup_generated": {
-        "users": 451,
-        "events": 1257,
-        "vs_install_pct": 20.87,
+        "users": 452,
+        "events": 1260,
+        "vs_install_pct": 20.92,
         "avg_per_user": 2.79
       },
       "outfit_generated": {
@@ -138,7 +138,7 @@
         "id": "makeup",
         "label": "Макияж",
         "event": "makeup_generated",
-        "value_pct": 20.87
+        "value_pct": 20.92
       },
       {
         "id": "chat",
@@ -157,7 +157,7 @@
       {
         "id": "ai_fail_rate",
         "label": "AI fail rate",
-        "value_pct": 22.26
+        "value_pct": 22.25
       }
     ],
     "retention": {
