@@ -16,11 +16,11 @@ from zoneinfo import ZoneInfo
 
 
 CSV_HEADERS = (
-    "date", "spend", "installs", "trials", "sold", "fb", "purchase",
+    "date", "spend", "installs", "regs", "trials", "sold", "fb", "purchase",
     "contact_info", "form_submit", "contact_sent", "clicks", "impressions",
 )
 METRIKA_KEYS = (
-    "installs", "trials", "sold", "fb", "purchase",
+    "installs", "regs", "trials", "sold", "fb", "purchase",
     "contact_info", "form_submit", "contact_sent",
 )
 DIRECT_KEYS = ("spend", "clicks", "impressions")

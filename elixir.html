@@ -4860,6 +4860,7 @@ function findPlantoColumns(headerRow) {
     contactInfoCol: findCol(headers, ['contact_info'], ['cost', 'цена', '/']),
     formSubmitCol: findCol(headers, ['form_submit'], ['cost', 'цена', '/']),
     contactSentCol: findCol(headers, ['contact_sent'], ['cost', 'цена', '/']),
+    regsCol: headers.findIndex(h => h === 'regs' || h === 'reg'),
     clicksCol: findCol(headers, ['click', 'клик'], ['ctr', 'цена', 'cpc', 'ср.']),
     impressionsCol: findCol(headers, ['impression', 'impress', 'показ', 'imps'], ['доля', 'share', '%']),
   };
@@ -4882,6 +4883,7 @@ function parsePlantoRows(rows) {
       sold: cols.soldCol >= 0 ? parseNum(r[cols.soldCol]) : 0,
       fb: cols.fbCol >= 0 ? parseNum(r[cols.fbCol]) : 0,
     };
+    if (cols.regsCol >= 0) obj.regs = parseNum(r[cols.regsCol]);
     if (cols.paidNetCol >= 0) obj.paid_net = parseNum(r[cols.paidNetCol]);
     if (cols.purchaseCol >= 0) obj.purchase = parseNum(r[cols.purchaseCol]);
     if (cols.contactInfoCol >= 0) obj.contact_info = parseNum(r[cols.contactInfoCol]);
@@ -7627,7 +7629,7 @@ function tilePeriodHasIso(proj, data, iso) {
 }
 
 function metricsFromTileRows(proj, rows, subHint) {
-  if (isHuppProject(proj) && rows.length === 1) {
+  if (isHuppProject(proj) && rows.length === 1 && proj.id !== 'pled' && proj.id !== 'ursoul') {
     const r = rows[0];
     const cur = proj.currency || '₽';
     const spend = r.spend || 0;
@@ -8168,6 +8170,61 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
   </div>`;
 }
 
+function getHuppGoals(proj) {
+  const goals = getProjectRoasMeta(proj)?.goals;
+  return Array.isArray(goals) ? goals.filter(g => g && g.csv) : [];
+}
+
+function huppGoalCountLabel(goal) {
+  if (!goal) return '';
+  if (goal.csv === 'regs' || goal.key === 'signup') return 'Регистрации';
+  return goal.label || goal.key || goal.csv;
+}
+
+function huppGoalCostLabel(goal) {
+  if (goal?.csv === 'regs' || goal?.key === 'signup') return 'Cost / рега';
+  return 'Cost / ' + huppGoalCountLabel(goal);
+}
+
+function catalogForHuppProject(proj) {
+  const goals = getHuppGoals(proj);
+  if (!goals.length) return METRIC_CATALOG.hupp;
+  const base = [
+    { key: 'spend', label: 'Spend', accent: false },
+    { key: 'impressions', label: 'Показы', accent: false },
+    { key: 'clicks', label: 'Клики', accent: false },
+    { key: 'cpc', label: 'CPC', accent: true },
+    { key: 'cpm', label: 'CPM', accent: true },
+    { key: 'ctr', label: 'CTR', accent: false },
+    { key: 'installs', label: 'Визиты', accent: false },
+    { key: 'cost_install', label: 'Cost / визит', accent: true },
+  ];
+  const extras = [];
+  goals.forEach(g => {
+    const field = g.csv;
+    extras.push({ key: field, label: huppGoalCountLabel(g), accent: false });
+    extras.push({
+      key: field === 'regs' ? 'cost_reg' : `cost_${field}`,
+      label: huppGoalCostLabel(g),
+      accent: true,
+    });
+  });
+  return [...base, ...extras];
+}
+
+function countFieldForCostKey(key, type) {
+  if (key === 'cost_install') return 'installs';
+  if (key === 'cost_trial') return 'trials';
+  if (key === 'cost_reg') return 'regs';
+  if (key === 'cost_qreg') return 'qregs';
+  if (key === 'cost_sold') return 'sold';
+  if (key === 'cost_fb') return 'fb';
+  if (key === 'cost_app') return 'contact_sent';
+  if (key === 'cost_purchase') return (type === 'hupp' || type === 'kelpie') ? 'purchase' : 'purchases';
+  if (String(key || '').startsWith('cost_')) return key.slice(5);
+  return null;
+}
+
 const METRIC_CATALOG = {
   planto: [
     { key: 'spend', label: 'Spend', accent: false },
@@ -8290,7 +8347,7 @@ function computeMetricValue(key, type, rows, cur) {
     case 'trials': return fmtInt(tr);
     case 'sold': return fmtInt(sold);
     case 'fb': return fmtInt(fb);
-    case 'regs': return fmtInt(regLikeCount(rows));
+    case 'regs': return fmtInt(sum(rows, 'regs') || (type === 'hupp' ? 0 : regLikeCount(rows)));
     case 'qregs': return fmtInt(regLikeCount(rows));
     case 'purchases': return fmtInt(sum(rows, 'purchases'));
     case 'purchase': return fmtInt(sum(rows, 'purchase'));
@@ -8302,7 +8359,7 @@ function computeMetricValue(key, type, rows, cur) {
     case 'cost_install': return ins ? fmtMoney(sp / ins, cur) : '—';
     case 'cost_trial': return tr ? fmtMoney(sp / tr, cur) : '—';
     case 'cost_reg': {
-      const v = regLikeCount(rows);
+      const v = sum(rows, 'regs') || (type === 'hupp' ? 0 : regLikeCount(rows));
       return v ? fmtMoney(sp / v, cur) : '—';
     }
     case 'cost_purchase': {
@@ -8337,7 +8394,15 @@ function computeMetricValue(key, type, rows, cur) {
       const rg = sum(rows, 'regs'), qg = sum(rows, 'qregs');
       return rg ? ((qg / rg * 100).toFixed(1) + '%') : '—';
     }
-    default: return '—';
+    default: {
+      if (String(key || '').startsWith('cost_')) {
+        const f = countFieldForCostKey(key, type);
+        const v = f ? sum(rows, f) : 0;
+        return v ? fmtMoney(sp / v, cur) : '—';
+      }
+      if (key && rows.some(r => key in r)) return fmtInt(sum(rows, key));
+      return '—';
+    }
   }
 }
 
@@ -8466,6 +8531,10 @@ function isMetricRelevant(key, rows) {
   }[key];
   if (key === 'conv_rate') return rows.some(r => 'regs' in r && 'qregs' in r);
   if (key === 'cost_purchase') return rows.some(r => 'purchase' in r || 'purchases' in r);
+  if (String(key || '').startsWith('cost_')) {
+    const f = countFieldForCostKey(key, 'hupp');
+    return f ? rows.some(r => f in r) : true;
+  }
   if (key === 'cr_install_trial') return rows.some(r => 'installs' in r && 'trials' in r);
   if (key === 'cr_trial_paid') return rows.some(r => 'trials' in r && ('sold' in r || 'fb' in r));
   if (key === 'cac') return rows.some(r => 'sold' in r || 'fb' in r);
@@ -8479,6 +8548,9 @@ function isMetricRelevant(key, rows) {
 function getMetricsCatalogForProj(proj, rows) {
   const type = getEffectiveType(proj, rows);
   let catalog = METRIC_CATALOG[type] || METRIC_CATALOG.generic;
+  if (type === 'hupp' && isHuppProject(proj) && getHuppGoals(proj).length) {
+    catalog = catalogForHuppProject(proj);
+  }
   // sold_label — подпись yearly-подмножества (не переименовывает Оплаты/fb).
   const soldLabel = feedMeta(proj?.id)?.sold_label;
   if (soldLabel && type === 'planto') {
@@ -8527,7 +8599,11 @@ function getMetrics(proj, rows) {
     const allowed = new Set(getPlantoMetricKeys(getPlantoView(proj.id), rows));
     config = config.filter(m => allowed.has(m.key));
   }
-  const GREEN_HUPP = new Set(['spend', 'purchase', 'cost_purchase']);
+  const GREEN_HUPP = p.id === 'pled'
+    ? new Set(['spend', 'regs', 'cost_reg'])
+    : p.id === 'ursoul'
+      ? new Set(['spend', 'trials', 'cost_trial', 'purchase', 'cost_purchase'])
+      : new Set(['spend', 'purchase', 'cost_purchase']);
   const GREEN_KELPIE = new Set(['spend', 'sold', 'cost_sold']);
   return config.map(m => ({
       label: m.label,
@@ -8603,6 +8679,31 @@ function getTableConfig(proj, rows) {
       );
     }
     pushCol('installs', 'Visits', r => fmtInt(r.installs), rs => fmtInt(sum(rs, 'installs')));
+    const huppGoals = type === 'hupp' ? getHuppGoals(p) : [];
+    if (huppGoals.length) {
+      if (hasSpend) {
+        pushCol(
+          'cost_install',
+          'Cost / визит',
+          r => r.installs ? fmtMoney(r.spend / r.installs, cur) : '—',
+          rs => { const sp = sum(rs, 'spend'), n = sum(rs, 'installs'); return n ? fmtMoney(sp / n, cur) : '—'; },
+        );
+      }
+      huppGoals.forEach(g => {
+        const field = g.csv;
+        const label = huppGoalCountLabel(g);
+        pushCol(field, label, r => fmtInt(r[field] || 0), rs => fmtInt(sum(rs, field)));
+        if (hasSpend) {
+          const costKey = field === 'regs' ? 'cost_reg' : `cost_${field}`;
+          pushCol(
+            costKey,
+            huppGoalCostLabel(g),
+            r => r[field] ? fmtMoney(r.spend / r[field], cur) : '—',
+            rs => { const sp = sum(rs, 'spend'), n = sum(rs, field); return n ? fmtMoney(sp / n, cur) : '—'; },
+          );
+        }
+      });
+    } else {
     pushCol('trials', 'Reach pay', r => fmtInt(r.trials), rs => fmtInt(sum(rs, 'trials')));
     pushCol('fb', 'View pay', r => fmtInt(r.fb), rs => fmtInt(sum(rs, 'fb')));
     pushCol('sold', 'Pay submit', r => fmtInt(r.sold), rs => fmtInt(sum(rs, 'sold')));
@@ -8615,11 +8716,14 @@ function getTableConfig(proj, rows) {
         rs => { const sp = sum(rs, 'spend'), pu = sum(rs, 'purchase'); return pu ? fmtMoney(sp / pu, cur) : '—'; },
       );
     }
+    }
+    if (!huppGoals.length) {
     if (type !== 'kelpie') {
       pushCol('contact_info', 'Contact info', r => fmtInt(r.contact_info), rs => fmtInt(sum(rs, 'contact_info')));
       pushCol('form_submit', 'Form submit', r => fmtInt(r.form_submit), rs => fmtInt(sum(rs, 'form_submit')));
     }
     pushCol('contact_sent', type === 'kelpie' ? 'App Store' : 'Contact sent', r => fmtInt(r.contact_sent), rs => fmtInt(sum(rs, 'contact_sent')));
+    }
     tbl = {
       headers,
       row: (r) => rowCells.map(fn => fn(r)),
@@ -10306,7 +10410,11 @@ function computeProxyProductRoas(proj, cfg) {
   const totals = meta?.totals || {};
   const funnel = (Array.isArray(cfg.funnel) && cfg.funnel.length) ? cfg.funnel : ['reach_pay', 'pay_submit', 'purchase'];
   const endpointKey = funnel[funnel.length - 1];
-  const colOf = k => HUPP_FUNNEL_KEY_TO_COL[k] || k;
+  const colOf = k => {
+    const g = (getHuppGoals(proj) || []).find(x => x.key === k);
+    if (g?.csv) return g.csv;
+    return HUPP_FUNNEL_KEY_TO_COL[k] || k;
+  };
   const funnelCounts = funnel.map(k => ({ key: k, col: colOf(k), count: Number(totals[colOf(k)]) || 0 }));
   const purchases = Number(totals[colOf(endpointKey)]) || 0;
   const avgCheck = Number(cfg.assumed_avg_check) || 0;
