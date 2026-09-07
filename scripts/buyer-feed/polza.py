@@ -11,6 +11,8 @@ total_burn = direct_spend + polza_spend. Тянем историю генера�
 API: https://polza.ai/docs/api-reference/history/generations
   GET /v1/history/generations?page=&limit=&dateFrom=&dateTo=
   limit: 1–100
+  dateFrom/dateTo — ISO 8601 datetime (не голая дата: иначе dateTo = полночь UTC
+  и из каждого чанка выпадает последний календарный день + вечер МСК).
 """
 
 from __future__ import annotations
@@ -29,7 +31,7 @@ MSK = ZoneInfo("Europe/Moscow")
 def _get(path: str, api_key: str, params: dict | None = None, timeout: int = 60):
     url = f"{API_BASE}{path}"
     if params:
-        qs = "&".join(f"{k}={urllib.parse.quote(str(v))}" for k, v in params.items())
+        qs = urllib.parse.urlencode(params, quote_via=urllib.parse.quote)
         url = f"{url}?{qs}"
     req = urllib.request.Request(
         url,
@@ -61,10 +63,21 @@ def fetch_balance(api_key: str) -> float | None:
     return None
 
 
+def _msk_start(d: date) -> datetime:
+    return datetime(d.year, d.month, d.day, tzinfo=MSK)
+
+
+def _iso_msk(d: date, *, end_exclusive: bool = False) -> str:
+    dt = _msk_start(d)
+    if end_exclusive:
+        dt = dt + timedelta(days=1)
+    return dt.isoformat()
+
+
 def _row_dt(row: dict) -> date | None:
     """Дата генерации в МСК. Форматы у API плавают — пробуем известные поля."""
     raw = None
-    for k in ("createdAt", "created_at", "date", "timestamp", "created"):
+    for k in ("createdAt", "created_at", "completedAt", "date", "timestamp", "created"):
         if row.get(k) is not None and row.get(k) != "":
             raw = row[k]
             break
@@ -86,15 +99,19 @@ def _row_dt(row: dict) -> date | None:
 
 
 def _row_cost(row: dict) -> float:
-    for k in ("clientCost", "cost", "price", "amount", "total", "cost_rub", "sum"):
+    """Первое ненулевое поле. clientCost=0 при живом cost не должен занулять строку."""
+    best = 0.0
+    for k in ("cost", "clientCost", "price", "amount", "total", "cost_rub", "sum"):
         v = row.get(k)
         if v is None or v == "":
             continue
         try:
-            return float(v)
+            n = float(v)
         except (TypeError, ValueError):
             continue
-    return 0.0
+        if n > best:
+            best = n
+    return best
 
 
 def _row_kind(row: dict) -> str:
@@ -110,23 +127,51 @@ def _row_kind(row: dict) -> str:
     return "chat"
 
 
-def _pagination_total_pages(data) -> int | None:
+def _pagination_meta(data) -> tuple[int | None, int | None]:
+    """→ (totalPages, totalItems)."""
     if not isinstance(data, dict):
-        return None
+        return None, None
+    pages = None
+    total = None
     for nest in (data, data.get("meta"), data.get("pagination"), data.get("pageInfo")):
         if not isinstance(nest, dict):
             continue
-        for k in ("totalPages", "total_pages", "pages"):
-            v = nest.get(k)
-            if v is None:
-                continue
-            try:
-                n = int(v)
-            except (TypeError, ValueError):
-                continue
-            if n > 0:
-                return n
-    return None
+        if pages is None:
+            for k in ("totalPages", "total_pages", "pages"):
+                v = nest.get(k)
+                if v is None:
+                    continue
+                try:
+                    n = int(v)
+                except (TypeError, ValueError):
+                    continue
+                if n > 0:
+                    pages = n
+                    break
+        if total is None:
+            for k in ("total", "totalItems", "total_items", "count"):
+                if k in nest and nest.get(k) is not None and k not in ("totalPages",):
+                    try:
+                        total = int(nest[k])
+                    except (TypeError, ValueError):
+                        continue
+                    break
+    return pages, total
+
+
+def _extract_rows(data) -> list:
+    if isinstance(data, list):
+        return data
+    if not isinstance(data, dict):
+        return []
+    rows = (
+        data.get("items")
+        or data.get("data")
+        or data.get("generations")
+        or data.get("results")
+        or []
+    )
+    return rows if isinstance(rows, list) else []
 
 
 def _fetch_polza_range(
@@ -134,13 +179,20 @@ def _fetch_polza_range(
     date_since: date,
     date_until: date,
     page_limit: int,
+    seen_ids: set[str] | None = None,
 ) -> dict:
     by_day: dict[str, float] = {}
     by_kind: dict[str, float] = {"images": 0.0, "chat": 0.0}
     count = 0
+    skipped_cost = 0
     page = 1
     per_page = 100
     total_pages = None
+    truncated = False
+    seen_ids = seen_ids if seen_ids is not None else set()
+    date_from = _iso_msk(date_since)
+    date_to = _iso_msk(date_until, end_exclusive=True)
+
     while page <= page_limit:
         try:
             data = _get(
@@ -149,8 +201,8 @@ def _fetch_polza_range(
                 {
                     "page": page,
                     "limit": per_page,
-                    "dateFrom": date_since.isoformat(),
-                    "dateTo": date_until.isoformat(),
+                    "dateFrom": date_from,
+                    "dateTo": date_to,
                     "sortBy": "createdAt",
                     "sortOrder": "asc",
                 },
@@ -160,24 +212,24 @@ def _fetch_polza_range(
                 raise RuntimeError(f"polza history: {exc}") from exc
             break
         if total_pages is None:
-            total_pages = _pagination_total_pages(data)
-        rows = data if isinstance(data, list) else (
-            data.get("data")
-            or data.get("items")
-            or data.get("generations")
-            or data.get("results")
-            or []
-        )
+            total_pages, _ = _pagination_meta(data)
+        rows = _extract_rows(data)
         if not rows:
             break
         for row in rows:
             if not isinstance(row, dict):
                 continue
+            gid = str(row.get("id") or "").strip()
+            if gid and gid in seen_ids:
+                continue
+            if gid:
+                seen_ids.add(gid)
             d = _row_dt(row)
             if not d or d < date_since or d > date_until:
                 continue
             cost = _row_cost(row)
-            if not cost:
+            if cost <= 0:
+                skipped_cost += 1
                 continue
             by_day[d.isoformat()] = round(by_day.get(d.isoformat(), 0.0) + cost, 2)
             kind = _row_kind(row)
@@ -188,10 +240,16 @@ def _fetch_polza_range(
         if len(rows) < per_page:
             break
         page += 1
+    else:
+        truncated = True
+
     return {
         "by_day": by_day,
         "by_kind": by_kind,
         "generations": count,
+        "skipped_zero_cost": skipped_cost,
+        "truncated": truncated,
+        "pages_fetched": min(page, page_limit),
         "total": round(sum(by_day.values()), 2),
     }
 
@@ -201,39 +259,63 @@ def fetch_polza_spend_by_day(
     date_since: date,
     date_until: date,
     page_limit: int = 200,
-    chunk_days: int = 7,
+    chunk_days: int = 3,
 ) -> dict:
     """→ {"by_day": {iso: rub}, "by_kind": {...}, "generations": n, "total": rub}.
 
-    История режется неделями: иначе page_limit×100 обрезает Style на ~5k генераций.
+    Режем короткими чанками с datetime МСК. Чанки стыкуются вплотную
+    (dateTo exclusive = начало следующего дня), id дедуплицируются.
     """
-    parts: list[dict] = []
+    by_day: dict[str, float] = {}
+    by_kind: dict[str, float] = {"images": 0.0, "chat": 0.0}
+    generations = 0
+    skipped = 0
+    truncated = False
+    seen: set[str] = set()
     d = date_since
     while d <= date_until:
         e = min(d + timedelta(days=chunk_days - 1), date_until)
-        parts.append(_fetch_polza_range(api_key, d, e, page_limit))
+        part = _fetch_polza_range(api_key, d, e, page_limit, seen_ids=seen)
+        generations += int(part.get("generations") or 0)
+        skipped += int(part.get("skipped_zero_cost") or 0)
+        truncated = truncated or bool(part.get("truncated"))
+        for day, rub in (part.get("by_day") or {}).items():
+            by_day[day] = round(by_day.get(day, 0.0) + float(rub or 0), 2)
+        for kind, rub in (part.get("by_kind") or {}).items():
+            by_kind[kind] = round(by_kind.get(kind, 0.0) + float(rub or 0), 2)
         d = e + timedelta(days=1)
-    if len(parts) == 1:
-        return parts[0]
-    return _merge_polza_summaries(parts)
+    out = {
+        "by_day": by_day,
+        "by_kind": by_kind,
+        "generations": generations,
+        "skipped_zero_cost": skipped,
+        "total": round(sum(by_day.values()), 2),
+    }
+    if truncated:
+        out["truncated"] = True
+    return out
 
 
 def _merge_polza_summaries(parts: list[dict]) -> dict:
     by_day: dict[str, float] = {}
     by_kind: dict[str, float] = {"images": 0.0, "chat": 0.0}
     generations = 0
+    skipped = 0
     by_key: list[dict] = []
+    truncated = False
     for part in parts:
         label = part.get("key_label") or "key"
         total = float(part.get("total") or 0)
         gens = int(part.get("generations") or 0)
         by_key.append({"label": label, "total": total, "generations": gens})
         generations += gens
+        skipped += int(part.get("skipped_zero_cost") or 0)
+        truncated = truncated or bool(part.get("truncated"))
         for day, rub in (part.get("by_day") or {}).items():
             by_day[day] = round(by_day.get(day, 0.0) + float(rub or 0), 2)
         for kind, rub in (part.get("by_kind") or {}).items():
             by_kind[kind] = round(by_kind.get(kind, 0.0) + float(rub or 0), 2)
-    return {
+    out = {
         "by_day": by_day,
         "by_kind": by_kind,
         "generations": generations,
@@ -241,6 +323,11 @@ def _merge_polza_summaries(parts: list[dict]) -> dict:
         "by_key": by_key,
         "keys_used": len(parts),
     }
+    if skipped:
+        out["skipped_zero_cost"] = skipped
+    if truncated:
+        out["truncated"] = True
+    return out
 
 
 def fetch_polza_spend_by_day_multi(

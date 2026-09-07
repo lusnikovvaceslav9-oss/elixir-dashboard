@@ -511,7 +511,10 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
                 f"({polza_summary.get('generations')} ген., "
                 f"{polza_summary.get('keys_used')} ключ.) · {polza_summary.get('by_kind')}"
                 + (f" · [{keys_note}]" if keys_note else "")
+                + (" · TRUNCATED" if polza_summary.get("truncated") else "")
             )
+            if polza_summary.get("truncated"):
+                errors.append("polza: history truncated — increase page_limit or shrink chunks")
             for warn in polza_summary.get("errors") or []:
                 errors.append(f"polza partial: {warn}")
                 print(f"  Polza partial: {warn}")
