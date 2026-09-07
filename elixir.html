@@ -1466,6 +1466,20 @@ const HUPP_FEEDS = {
     name: 'Издания',
     icon: '📰',
   },
+  pled: {
+    daily: 'data/pled-daily.csv',
+    meta: 'data/pled-meta.json',
+    start: '',
+    name: 'Плед',
+    icon: '🧶',
+  },
+  ursoul: {
+    daily: 'data/ursoul-daily.csv',
+    meta: 'data/ursoul-meta.json',
+    start: '',
+    name: '4ursoul',
+    icon: '🔮',
+  },
 };
 function huppFeedOf(proj) {
   const id = String(proj?.id || '').toLowerCase();
@@ -1515,6 +1529,7 @@ const AUTO_FEED_URLS = {
 function isAutoFeedId(id) { return Object.prototype.hasOwnProperty.call(AUTO_FEED_URLS, id); }
 let lastPlantoFeedRefresh = null; // { ok, fresh, message, at }
 let huppMetaCache = null;
+let huppMetaByProject = {};
 let lastHuppFeedRefresh = null;
 let workerConfigCache = null;
 
@@ -1528,6 +1543,10 @@ const DEFAULT_PROJECTS = [
     urls: [HUPP_DATA_URL], dataSource: 'csv' },
   { id: 'izdaniya', name: 'Издания',     icon: '📰', currency: '₽', type: 'hupp', status: 'run',
     urls: ['data/izdaniya-daily.csv'], dataSource: 'csv' },
+  { id: 'pled',     name: 'Плед',        icon: '🧶', currency: '₽', type: 'hupp', status: 'run',
+    urls: ['data/pled-daily.csv'], dataSource: 'csv' },
+  { id: 'ursoul',   name: '4ursoul',     icon: '🔮', currency: '₽', type: 'hupp', status: 'run',
+    urls: ['data/ursoul-daily.csv'], dataSource: 'csv' },
   { id: 'kelpie',   name: 'Kelpie',      icon: '🌊', currency: '$', type: 'kelpie', status: 'run',
     urls: [KELPIE_DATA_URL], dataSource: 'csv' },
   { id: 'quadcode', name: 'Quadcode AI', icon: '💻', currency: '$', type: 'quadcode', status: 'run',
@@ -5914,6 +5933,7 @@ function isLocalDashboard() {
 
 let plantoFeedRef = PLANTO_GH_BRANCH;
 let huppFeedRef = PLANTO_GH_BRANCH;
+let huppFeedRefByProject = {};
 let kelpieFeedRef = PLANTO_GH_BRANCH;
 
 async function refreshGitFeedRef(path, setter, label) {
@@ -5949,7 +5969,13 @@ async function refreshPlantoFeedRef() {
 }
 
 async function refreshHuppFeedRef() {
-  await refreshGitFeedRef('data/hupp-meta.json', sha => { huppFeedRef = sha; }, 'Hupp');
+  await Promise.allSettled(Object.entries(HUPP_FEEDS).map(([id, f]) => {
+    if (!f.meta) return Promise.resolve();
+    return refreshGitFeedRef(f.meta, sha => {
+      huppFeedRefByProject[id] = sha;
+      if (id === 'hupp') huppFeedRef = sha;
+    }, f.name || id);
+  }));
 }
 
 async function refreshKelpieFeedRef() {
@@ -5977,10 +6003,20 @@ function resolvePlantoFeedUrl(localPath) {
   return `https://raw.githubusercontent.com/${PLANTO_GH_REPO}/${feedRefFor(feedProjectForPath(rel))}/${rel}`;
 }
 
+function huppFeedIdForPath(rel) {
+  const path = String(rel || '');
+  for (const [id, f] of Object.entries(HUPP_FEEDS)) {
+    if ([f.daily, f.meta, f.start].some(u => u && path.endsWith(String(u).split('/').pop()))) return id;
+  }
+  return 'hupp';
+}
+
 function resolveHuppFeedUrl(localPath) {
   if (isLocalDashboard()) return localPath;
   const rel = String(localPath || '').replace(/^\//, '');
-  return `https://raw.githubusercontent.com/${PLANTO_GH_REPO}/${huppFeedRef}/${rel}`;
+  const id = huppFeedIdForPath(rel);
+  const ref = huppFeedRefByProject[id] || huppFeedRef;
+  return `https://raw.githubusercontent.com/${PLANTO_GH_REPO}/${ref}/${rel}`;
 }
 
 function bustFeedUrl(url) {
@@ -6410,9 +6446,11 @@ function fetchPlantoMeta(projId = 'planto') { return fetchFeedJson(AUTO_FEED_URL
 function fetchPlantoProduct(projId = 'planto') { return fetchFeedJson(AUTO_FEED_URLS[projId].product); }
 function fetchPlantoCohort(projId = 'planto') { return fetchFeedJson(AUTO_FEED_URLS[projId].cohort); }
 
-async function fetchHuppMeta() {
+async function fetchHuppMeta(projId = 'hupp') {
+  const feed = HUPP_FEEDS[projId] || HUPP_FEEDS.hupp;
+  if (!feed?.meta) return null;
   try {
-    const resp = await fetch(bustFeedUrl(resolveHuppFeedUrl(HUPP_META_URL)), { cache: 'no-store' });
+    const resp = await fetch(bustFeedUrl(resolveHuppFeedUrl(feed.meta)), { cache: 'no-store' });
     if (!resp.ok) return null;
     return await resp.json();
   } catch (e) { return null; }
@@ -6826,7 +6864,13 @@ async function loadAll() {
   } catch (e) {
     console.warn('Hupp seed skipped:', e.message || e);
   }
-  const feedJobs = [fetchHuppMeta().then(m => { huppMetaCache = m; })];
+  const feedJobs = Object.keys(HUPP_FEEDS).map(id =>
+    fetchHuppMeta(id).then(m => {
+      if (!m) return;
+      huppMetaByProject[id] = m;
+      if (id === 'hupp') huppMetaCache = m;
+    })
+  );
   Object.keys(AUTO_FEED_URLS).forEach(fid => {
     feedJobs.push(fetchPlantoMeta(fid).then(m => { feedOf(fid).meta = m; }));
     feedJobs.push(fetchPlantoCohort(fid).then(m => { feedOf(fid).cohort = m; }));
@@ -10134,13 +10178,19 @@ function switchSource(idx) {
 const ROAS_CONFIG_FALLBACK = {
   planto: { revenue_source: 'actual', ltv_metric: 'arppu', fixed_ltv_value: null, mature_cohort_days: 30, predict_horizon_days: 180 },
   hupp:   { revenue_source: 'proxy_events', ltv_metric: 'fixed', assumed_avg_check: 499, funnel: ['reach_pay', 'pay_submit', 'purchase'], predict_horizon_days: 180 },
+  pled:   { revenue_source: 'proxy_events', ltv_metric: 'fixed', assumed_avg_check: null, funnel: ['signup', 'pay_start', 'purchase'], predict_horizon_days: 180 },
+  ursoul: { revenue_source: 'proxy_events', ltv_metric: 'fixed', assumed_avg_check: null, funnel: ['start_quiz', 'pay_start', 'pay_success'], predict_horizon_days: 180 },
 };
 // Цель воронки Hupp (config.funnel key) → колонка в данных
-const HUPP_FUNNEL_KEY_TO_COL = { reach_pay: 'trials', view_pay: 'fb', pay_submit: 'sold', purchase: 'purchase' };
+const HUPP_FUNNEL_KEY_TO_COL = {
+  reach_pay: 'trials', view_pay: 'fb', pay_submit: 'sold', purchase: 'purchase',
+  signup: 'trials', pay_start: 'sold', activate: 'fb',
+  start_quiz: 'trials', quiz_complete: 'fb', pay_success: 'purchase',
+};
 
 function getProjectRoasMeta(proj) {
   if (isPlantoAutoFeed(proj)) return feedMeta(proj.id);
-  if (isHuppProject(proj)) return huppMetaCache;
+  if (isHuppProject(proj)) return huppMetaByProject[proj.id] || (proj.id === 'hupp' ? huppMetaCache : null);
   return null;
 }
 

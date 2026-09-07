@@ -1,0 +1,99 @@
+{
+  "generated_at": "2026-09-07T14:02:39+07:00",
+  "project": "pled",
+  "anchor": "2026-08-25",
+  "until": "2026-09-07",
+  "metric_map": {
+    "trials": "signup",
+    "fb": "activate",
+    "sold": "pay_start",
+    "purchase": "purchase",
+    "contact_sent": "quality",
+    "contact_info": "contact_info",
+    "form_submit": "form_submit",
+    "installs": "metrika_visits",
+    "spend": "direct_api",
+    "clicks": "direct_api",
+    "impressions": "direct_api"
+  },
+  "goals": [
+    {
+      "id": "604982355",
+      "key": "signup",
+      "label": "Зарегистрировалась",
+      "csv": "trials"
+    },
+    {
+      "id": "604546609",
+      "key": "activate",
+      "label": "Активировалась",
+      "csv": "fb"
+    },
+    {
+      "id": "604546899",
+      "key": "pay_start",
+      "label": "Начала оплату",
+      "csv": "sold"
+    },
+    {
+      "id": "604547011",
+      "key": "purchase",
+      "label": "Оплатила",
+      "csv": "purchase"
+    },
+    {
+      "id": "604546766",
+      "key": "quality",
+      "label": "Качественная",
+      "csv": "contact_sent"
+    },
+    {
+      "id": "605201282",
+      "key": "contact_info",
+      "label": "Автоцель: заполнил контактные данные",
+      "csv": "contact_info"
+    },
+    {
+      "id": "608548716",
+      "key": "form_submit",
+      "label": "Автоцель: отправка формы",
+      "csv": "form_submit"
+    }
+  ],
+  "sources": {
+    "metrika": "counter_112141146",
+    "spend": "direct_api",
+    "clicks": "direct_api",
+    "impressions": "direct_api"
+  },
+  "errors": [],
+  "days": 14,
+  "totals": {
+    "spend": 2798.18,
+    "installs": 1451.0,
+    "trials": 15.0,
+    "sold": 3.0,
+    "fb": 11.0,
+    "purchase": 0.0,
+    "contact_info": 29.0,
+    "form_submit": 9.0,
+    "contact_sent": 0.0,
+    "clicks": 1506.0,
+    "impressions": 20047.0
+  },
+  "metrika_counter_id": "112141146",
+  "direct_source": "direct_api",
+  "roas_config": {
+    "revenue_source": "proxy_events",
+    "ltv_metric": "fixed",
+    "fixed_ltv_value": null,
+    "assumed_avg_check": null,
+    "funnel": [
+      "signup",
+      "pay_start",
+      "purchase"
+    ],
+    "mature_cohort_days": null,
+    "predict_horizon_days": 180
+  }
+}

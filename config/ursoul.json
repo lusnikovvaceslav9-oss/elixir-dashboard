@@ -1,0 +1,26 @@
+{
+  "id": "ursoul",
+  "name": "4ursoul",
+  "site": "https://4ursoul.ru",
+  "anchor": "2026-09-04",
+  "currency": "RUB",
+  "revenue_source": "proxy_events",
+  "ltv_metric": "fixed",
+  "assumed_avg_check": null,
+  "funnel": ["start_quiz", "pay_start", "pay_success"],
+  "predict_horizon_days": 180,
+  "direct_client_login": "doxmediagroup",
+  "direct_campaign_ids": ["714149571"],
+  "metrika_counter_id": "112293328",
+  "goals": [
+    {"id": "608860294", "key": "start_quiz", "label": "start_quiz", "csv": "trials"},
+    {"id": "608860297", "key": "quiz_complete", "label": "quiz_complete", "csv": "fb"},
+    {"id": "608860351", "key": "pay_start", "label": "pay_start", "csv": "sold"},
+    {"id": "608860354", "key": "pay_success", "label": "pay_success", "csv": "purchase"},
+    {"id": "608860301", "key": "free_answer", "label": "Посмотрел бесплатный ответ", "csv": "contact_sent"},
+    {"id": "609675928", "key": "contact_info", "label": "Автоцель: клик по email", "csv": "contact_info"},
+    {"id": "608866134", "key": "form_submit", "label": "Автоцель: отправка формы", "csv": "form_submit"}
+  ],
+  "daily_csv": "data/ursoul-daily.csv",
+  "meta_json": "data/ursoul-meta.json"
+}

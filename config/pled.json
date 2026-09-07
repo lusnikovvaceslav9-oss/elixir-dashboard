@@ -1,0 +1,26 @@
+{
+  "id": "pled",
+  "name": "Плед",
+  "site": "https://plaidassist.com",
+  "anchor": "2026-08-25",
+  "currency": "RUB",
+  "revenue_source": "proxy_events",
+  "ltv_metric": "fixed",
+  "assumed_avg_check": null,
+  "funnel": ["signup", "pay_start", "purchase"],
+  "predict_horizon_days": 180,
+  "direct_client_login": "doxmediagroup",
+  "direct_campaign_ids": ["714042732"],
+  "metrika_counter_id": "112141146",
+  "goals": [
+    {"id": "604982355", "key": "signup", "label": "Зарегистрировалась", "csv": "trials"},
+    {"id": "604546609", "key": "activate", "label": "Активировалась", "csv": "fb"},
+    {"id": "604546899", "key": "pay_start", "label": "Начала оплату", "csv": "sold"},
+    {"id": "604547011", "key": "purchase", "label": "Оплатила", "csv": "purchase"},
+    {"id": "604546766", "key": "quality", "label": "Качественная", "csv": "contact_sent"},
+    {"id": "605201282", "key": "contact_info", "label": "Автоцель: заполнил контактные данные", "csv": "contact_info"},
+    {"id": "608548716", "key": "form_submit", "label": "Автоцель: отправка формы", "csv": "form_submit"}
+  ],
+  "daily_csv": "data/pled-daily.csv",
+  "meta_json": "data/pled-meta.json"
+}

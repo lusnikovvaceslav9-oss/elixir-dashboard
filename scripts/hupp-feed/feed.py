@@ -161,9 +161,10 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
             os.environ.get(f"{prefix}_METRIKA_COUNTER_ID")
             or config["metrika_counter_id"]
         )
+    goals = list(config.get("goals") or [])
     if metrika_token:
         try:
-            metrika = _fetch_metrika(metrika_token, counter_id, anchor, until, config["goals"])
+            metrika = _fetch_metrika(metrika_token, counter_id, anchor, until, goals)
             for day, values in metrika.items():
                 prev = rows.setdefault(day, {})
                 for key in METRIKA_KEYS:
@@ -183,13 +184,21 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
         or os.environ.get("HUPP_DIRECT_OAUTH_TOKEN")
         or os.environ.get("DIRECT_OAUTH_TOKEN")
     )
-    client_login = (
-        os.environ.get(f"{prefix}_DIRECT_CLIENT_LOGIN")
-        or os.environ.get("HUPP_DIRECT_CLIENT_LOGIN")
-        or config.get("direct_client_login")
-        or os.environ.get("DIRECT_CLIENT_LOGIN")
-        or ""
-    )
+    if project_id != "hupp":
+        client_login = (
+            os.environ.get(f"{prefix}_DIRECT_CLIENT_LOGIN")
+            or config.get("direct_client_login")
+            or os.environ.get("HUPP_DIRECT_CLIENT_LOGIN")
+            or os.environ.get("DIRECT_CLIENT_LOGIN")
+            or ""
+        )
+    else:
+        client_login = (
+            os.environ.get("HUPP_DIRECT_CLIENT_LOGIN")
+            or config.get("direct_client_login")
+            or os.environ.get("DIRECT_CLIENT_LOGIN")
+            or ""
+        )
     campaign_ids = [str(c) for c in (config.get("direct_campaign_ids") or [])] or None
     if direct_token and client_login:
         try:
@@ -251,13 +260,13 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
         "project": project_id,
         "anchor": anchor.isoformat(),
         "until": until.isoformat(),
-        "metric_map": {goal["csv"]: goal["key"] for goal in config["goals"]} | {
+        "metric_map": {goal["csv"]: goal["key"] for goal in goals} | {
             "installs": "metrika_visits",
             "spend": sources.get("spend", "direct_csv_upload"),
             "clicks": sources.get("clicks", "direct_csv_upload"),
             "impressions": sources.get("impressions", "direct_csv_upload"),
         },
-        "goals": config["goals"],
+        "goals": goals,
         "sources": sources,
         "errors": errors,
         "days": len(rows),

@@ -1,0 +1,99 @@
+{
+  "generated_at": "2026-09-07T14:02:44+07:00",
+  "project": "ursoul",
+  "anchor": "2026-09-04",
+  "until": "2026-09-07",
+  "metric_map": {
+    "trials": "start_quiz",
+    "fb": "quiz_complete",
+    "sold": "pay_start",
+    "purchase": "pay_success",
+    "contact_sent": "free_answer",
+    "contact_info": "contact_info",
+    "form_submit": "form_submit",
+    "installs": "metrika_visits",
+    "spend": "direct_api",
+    "clicks": "direct_api",
+    "impressions": "direct_api"
+  },
+  "goals": [
+    {
+      "id": "608860294",
+      "key": "start_quiz",
+      "label": "start_quiz",
+      "csv": "trials"
+    },
+    {
+      "id": "608860297",
+      "key": "quiz_complete",
+      "label": "quiz_complete",
+      "csv": "fb"
+    },
+    {
+      "id": "608860351",
+      "key": "pay_start",
+      "label": "pay_start",
+      "csv": "sold"
+    },
+    {
+      "id": "608860354",
+      "key": "pay_success",
+      "label": "pay_success",
+      "csv": "purchase"
+    },
+    {
+      "id": "608860301",
+      "key": "free_answer",
+      "label": "Посмотрел бесплатный ответ",
+      "csv": "contact_sent"
+    },
+    {
+      "id": "609675928",
+      "key": "contact_info",
+      "label": "Автоцель: клик по email",
+      "csv": "contact_info"
+    },
+    {
+      "id": "608866134",
+      "key": "form_submit",
+      "label": "Автоцель: отправка формы",
+      "csv": "form_submit"
+    }
+  ],
+  "sources": {
+    "metrika": "counter_112293328",
+    "spend": "direct_api",
+    "clicks": "direct_api",
+    "impressions": "direct_api"
+  },
+  "errors": [],
+  "days": 4,
+  "totals": {
+    "spend": 1851.75,
+    "installs": 372.0,
+    "trials": 79.0,
+    "sold": 12.0,
+    "fb": 23.0,
+    "purchase": 0.0,
+    "contact_info": 0.0,
+    "form_submit": 98.0,
+    "contact_sent": 23.0,
+    "clicks": 378.0,
+    "impressions": 12103.0
+  },
+  "metrika_counter_id": "112293328",
+  "direct_source": "direct_api",
+  "roas_config": {
+    "revenue_source": "proxy_events",
+    "ltv_metric": "fixed",
+    "fixed_ltv_value": null,
+    "assumed_avg_check": null,
+    "funnel": [
+      "start_quiz",
+      "pay_start",
+      "pay_success"
+    ],
+    "mature_cohort_days": null,
+    "predict_horizon_days": 180
+  }
+}
