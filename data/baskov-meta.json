@@ -1,0 +1,55 @@
+{
+  "generated_at": "2026-09-08T16:04:15+07:00",
+  "project": "baskov",
+  "anchor": "2026-09-08",
+  "until": "2026-09-08",
+  "metric_map": {
+    "trials": "subscribe",
+    "installs": "metrika_visits",
+    "spend": "direct_csv_upload",
+    "clicks": "direct_csv_upload",
+    "impressions": "direct_csv_upload"
+  },
+  "goals": [
+    {
+      "id": "",
+      "key": "subscribe",
+      "label": "Подписки",
+      "csv": "trials"
+    }
+  ],
+  "sources": {
+    "spend": "direct_csv_upload",
+    "clicks": "direct_csv_upload",
+    "impressions": "direct_csv_upload"
+  },
+  "errors": [],
+  "days": 1,
+  "totals": {
+    "spend": 0.0,
+    "installs": 0.0,
+    "regs": 0.0,
+    "trials": 0.0,
+    "sold": 0.0,
+    "fb": 0.0,
+    "purchase": 0.0,
+    "contact_info": 0.0,
+    "form_submit": 0.0,
+    "contact_sent": 0.0,
+    "clicks": 0.0,
+    "impressions": 0.0
+  },
+  "metrika_counter_id": "",
+  "direct_source": "direct_csv_upload",
+  "roas_config": {
+    "revenue_source": "proxy_events",
+    "ltv_metric": "fixed",
+    "fixed_ltv_value": null,
+    "assumed_avg_check": null,
+    "funnel": [
+      "subscribe"
+    ],
+    "mature_cohort_days": null,
+    "predict_horizon_days": 180
+  }
+}

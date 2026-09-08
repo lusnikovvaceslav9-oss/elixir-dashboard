@@ -1480,6 +1480,13 @@ const HUPP_FEEDS = {
     name: '4ursoul',
     icon: '🔮',
   },
+  baskov: {
+    daily: 'data/baskov-daily.csv',
+    meta: 'data/baskov-meta.json',
+    start: '',
+    name: 'Baskov',
+    icon: '✈️',
+  },
 };
 function huppFeedOf(proj) {
   const id = String(proj?.id || '').toLowerCase();
@@ -1547,6 +1554,8 @@ const DEFAULT_PROJECTS = [
     urls: ['data/pled-daily.csv'], dataSource: 'csv' },
   { id: 'ursoul',   name: '4ursoul',     icon: '🔮', currency: '₽', type: 'hupp', status: 'run',
     urls: ['data/ursoul-daily.csv'], dataSource: 'csv' },
+  { id: 'baskov',   name: 'Baskov',      icon: '✈️', currency: '₽', type: 'hupp', status: 'run',
+    urls: ['data/baskov-daily.csv'], dataSource: 'csv' },
   { id: 'kelpie',   name: 'Kelpie',      icon: '🌊', currency: '$', type: 'kelpie', status: 'run',
     urls: [KELPIE_DATA_URL], dataSource: 'csv' },
   { id: 'quadcode', name: 'Quadcode AI', icon: '💻', currency: '$', type: 'quadcode', status: 'run',
@@ -1746,7 +1755,7 @@ let isEditMode = false;
 let discoveredTabsCache = { add: [], edit: [] };
 let sheetPreviewCache = { headers: [], type: 'generic', rowCount: 0 };
 
-const EMOJI_OPTIONS = ['📊','📡','🌱','💻','🚀','📱','💰','🎯','⚡','🔥','📈','🎮','🛒','💎','🌍','✨','🌊'];
+const EMOJI_OPTIONS = ['📊','📡','🌱','💻','🚀','📱','💰','🎯','⚡','🔥','📈','🎮','🛒','💎','🌍','✨','🌊','✈️'];
 const TYPE_TEMPLATES = [
   { id: 'streamfi', icon: '📡', name: 'StreamFi / UA', desc: 'Спенд + целевые действия / регистрации' },
   { id: 'campaign', icon: '🎯', name: 'Campaign / Ads', desc: 'Reg, Spend, Impressions, Clicks, CPC, CPM' },
@@ -7633,7 +7642,7 @@ function tilePeriodHasIso(proj, data, iso) {
 }
 
 function metricsFromTileRows(proj, rows, subHint) {
-  if (isHuppProject(proj) && rows.length === 1 && proj.id !== 'pled' && proj.id !== 'ursoul') {
+  if (isHuppProject(proj) && rows.length === 1 && proj.id !== 'pled' && proj.id !== 'ursoul' && proj.id !== 'baskov') {
     const r = rows[0];
     const cur = proj.currency || '₽';
     const spend = r.spend || 0;
@@ -7744,7 +7753,7 @@ function getOverviewDailyMetrics(proj, data) {
   const subHint = multi ? 'за период' : 'за день';
   let note = label;
   if (isHuppProject(proj) && !multi) {
-    note = `${label} · Direct + Метрика`;
+    note = proj.id === 'baskov' ? `${label} · Direct + TgTrack` : `${label} · Direct + Метрика`;
   }
   if ((proj?.id === 'planto' || isPlantoAutoFeed(proj)) && period.mode === 'today') {
     const estimated = !!feedMeta(proj?.id)?.spend_today_estimated;
@@ -8194,19 +8203,27 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
   </div>`;
 }
 
+const HUPP_GOALS_FALLBACK = {
+  baskov: [{ id: '', key: 'subscribe', label: 'Подписки', csv: 'trials' }],
+};
+
 function getHuppGoals(proj) {
   const goals = getProjectRoasMeta(proj)?.goals;
-  return Array.isArray(goals) ? goals.filter(g => g && g.csv) : [];
+  if (Array.isArray(goals) && goals.length) return goals.filter(g => g && g.csv);
+  const fallback = HUPP_GOALS_FALLBACK[proj?.id];
+  return Array.isArray(fallback) ? fallback.filter(g => g && g.csv) : [];
 }
 
 function huppGoalCountLabel(goal) {
   if (!goal) return '';
   if (goal.csv === 'regs' || goal.key === 'signup') return 'Регистрации';
+  if (goal.key === 'subscribe' || /подписк/i.test(goal.label || '')) return 'Подписки';
   return goal.label || goal.key || goal.csv;
 }
 
 function huppGoalCostLabel(goal) {
   if (goal?.csv === 'regs' || goal?.key === 'signup') return 'Cost / рега';
+  if (goal?.key === 'subscribe' || /подписк/i.test(goal?.label || '')) return 'CPS';
   return 'Cost / ' + huppGoalCountLabel(goal);
 }
 
@@ -8627,7 +8644,9 @@ function getMetrics(proj, rows) {
     ? new Set(['spend', 'regs', 'cost_reg'])
     : p.id === 'ursoul'
       ? new Set(['spend', 'trials', 'cost_trial', 'purchase', 'cost_purchase'])
-      : new Set(['spend', 'purchase', 'cost_purchase']);
+      : p.id === 'baskov'
+        ? new Set(['spend', 'trials', 'cost_trial'])
+        : new Set(['spend', 'purchase', 'cost_purchase']);
   const GREEN_KELPIE = new Set(['spend', 'sold', 'cost_sold']);
   return config.map(m => ({
       label: m.label,
@@ -10309,12 +10328,14 @@ const ROAS_CONFIG_FALLBACK = {
   hupp:   { revenue_source: 'proxy_events', ltv_metric: 'fixed', assumed_avg_check: 499, funnel: ['reach_pay', 'pay_submit', 'purchase'], predict_horizon_days: 180 },
   pled:   { revenue_source: 'proxy_events', ltv_metric: 'fixed', assumed_avg_check: null, funnel: ['signup', 'pay_start', 'purchase'], predict_horizon_days: 180 },
   ursoul: { revenue_source: 'proxy_events', ltv_metric: 'fixed', assumed_avg_check: null, funnel: ['start_quiz', 'pay_start', 'pay_success'], predict_horizon_days: 180 },
+  baskov: { revenue_source: 'proxy_events', ltv_metric: 'fixed', assumed_avg_check: null, funnel: ['subscribe'], predict_horizon_days: 180 },
 };
 // Цель воронки Hupp (config.funnel key) → колонка в данных
 const HUPP_FUNNEL_KEY_TO_COL = {
   reach_pay: 'trials', view_pay: 'fb', pay_submit: 'sold', purchase: 'purchase',
   signup: 'trials', pay_start: 'sold', activate: 'fb',
   start_quiz: 'trials', quiz_complete: 'fb', pay_success: 'purchase',
+  subscribe: 'trials',
 };
 
 function getProjectRoasMeta(proj) {

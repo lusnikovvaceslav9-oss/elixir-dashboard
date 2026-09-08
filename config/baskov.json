@@ -1,0 +1,21 @@
+{
+  "id": "baskov",
+  "name": "Baskov",
+  "site": "https://t.me/dmitri_baskov",
+  "landing": "https://tg-landing-six.vercel.app/",
+  "anchor": "2026-09-08",
+  "currency": "RUB",
+  "revenue_source": "proxy_events",
+  "ltv_metric": "fixed",
+  "assumed_avg_check": null,
+  "funnel": ["subscribe"],
+  "predict_horizon_days": 180,
+  "direct_client_login": "doxmediagroup",
+  "direct_campaign_ids": [],
+  "metrika_counter_id": "",
+  "goals": [
+    {"id": "", "key": "subscribe", "label": "Подписки", "csv": "trials"}
+  ],
+  "daily_csv": "data/baskov-daily.csv",
+  "meta_json": "data/baskov-meta.json"
+}
