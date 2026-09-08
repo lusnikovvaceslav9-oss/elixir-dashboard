@@ -162,10 +162,9 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
             or config["metrika_counter_id"]
         )
     goals = list(config.get("goals") or [])
-    metrika_goals = [g for g in goals if str(g.get("id") or "").strip()]
-    if metrika_token and counter_id:
+    if metrika_token:
         try:
-            metrika = _fetch_metrika(metrika_token, counter_id, anchor, until, metrika_goals)
+            metrika = _fetch_metrika(metrika_token, counter_id, anchor, until, goals)
             for day, values in metrika.items():
                 prev = rows.setdefault(day, {})
                 for key in METRIKA_KEYS:
@@ -176,8 +175,6 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
         except Exception as error:
             errors.append(f"metrika: {error}")
             print(f"  Metrika failed: {error}")
-    elif not counter_id:
-        print("  Metrika skipped: no counter id")
     else:
         errors.append("metrika: HUPP_METRIKA_OAUTH_TOKEN missing")
 
@@ -202,15 +199,8 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
             or os.environ.get("DIRECT_CLIENT_LOGIN")
             or ""
         )
-    campaign_ids_raw = config.get("direct_campaign_ids")
-    skip_direct = isinstance(campaign_ids_raw, list) and len(campaign_ids_raw) == 0
-    campaign_ids = [str(c) for c in (campaign_ids_raw or [])] or None
-    if skip_direct:
-        print("  Direct skipped: no campaign ids (CSV upload)")
-        sources["spend"] = "direct_csv_upload"
-        sources["clicks"] = "direct_csv_upload"
-        sources["impressions"] = "direct_csv_upload"
-    elif direct_token and client_login:
+    campaign_ids = [str(c) for c in (config.get("direct_campaign_ids") or [])] or None
+    if direct_token and client_login:
         try:
             buyer = work_dir / "scripts" / "buyer-feed"
             if str(buyer) not in sys.path:
