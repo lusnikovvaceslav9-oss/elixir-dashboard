@@ -1,33 +1,33 @@
 {
-  "generated_at": "2026-09-09T05:32:41+00:00",
+  "generated_at": "2026-09-09T10:19:37+00:00",
   "anchor": "2026-07-31",
   "until": "2026-09-09",
   "window_start": "2026-08-31",
   "trial_attribution": "appmetrica_purchase_success",
   "ai_spend": {
     "provider": "polza",
-    "total": 28270.29,
-    "generations": 20132,
+    "total": 28669.67,
+    "generations": 20345,
     "by_kind": {
-      "images": 25129.7,
-      "chat": 3140.59
+      "images": 25503.8,
+      "chat": 3165.87
     },
     "by_key": [
       {
         "label": "style",
-        "total": 18481.26,
-        "generations": 15521
+        "total": 18753.49,
+        "generations": 15675
       },
       {
         "label": "style-emergency",
-        "total": 9789.03,
-        "generations": 4611
+        "total": 9916.18,
+        "generations": 4670
       }
     ],
     "keys_used": 2,
-    "per_install": 12.62,
-    "per_trial": 109.57,
-    "total_burn": 83633.33
+    "per_install": 12.67,
+    "per_trial": 109.43,
+    "total_burn": 84951.24
   },
   "trial_days": 3,
   "trial_lag_days": 3,
@@ -59,21 +59,22 @@
   "days": 41,
   "reconcile_diff": {
     "trials_total_old_csv": 258,
-    "trials_total_new": 258,
-    "delta": 0
+    "trials_total_new": 262,
+    "delta": 4
   },
   "unit_economics": {
     "revenue_total": 21600,
-    "spend_total": 55363.04,
-    "active_users": 2378,
+    "spend_total": 56281.57,
+    "active_users": 2400,
     "active_payers": 25,
-    "plus_active_users": 44,
-    "trial_cancellations": 1,
+    "plus_active_users": 48,
+    "trial_cancellations": 2,
     "trial_cancellations_by_day": {
-      "2026-09-08": 1
+      "2026-09-08": 1,
+      "2026-09-09": 1
     },
     "renewals": 16,
-    "arpu": 9.08,
+    "arpu": 9.0,
     "arppu": 864.0,
     "ltv": 1416.96,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
@@ -110,7 +111,7 @@
         "id": "aha_color",
         "label": "Aha: цветотип",
         "formula_label": "color_type_reveal / install",
-        "value_pct": 86.34,
+        "value_pct": 86.21,
         "primary": true,
         "accent": false,
         "note": null
@@ -128,7 +129,7 @@
         "id": "paywall_cta",
         "label": "CTA пейволла",
         "formula_label": "purchase_tap / paywall_view",
-        "value_pct": 33.85,
+        "value_pct": 33.84,
         "primary": false,
         "accent": true,
         "note": null
@@ -137,7 +138,7 @@
         "id": "engagement_hair",
         "label": "Вовлечение (hair)",
         "formula_label": "hair_look / install",
-        "value_pct": 40.54,
+        "value_pct": 40.43,
         "primary": false,
         "accent": false,
         "note": null
@@ -148,13 +149,13 @@
         "id": "color_type",
         "label": "Цветотип",
         "event": "color_type_done",
-        "value_pct": 89.64
+        "value_pct": 89.53
       },
       {
         "id": "hair",
         "label": "Волосы",
         "event": "hair_look_generated",
-        "value_pct": 40.54
+        "value_pct": 40.43
       },
       {
         "id": "outfit",
@@ -166,26 +167,26 @@
         "id": "makeup",
         "label": "Макияж",
         "event": "makeup_generated",
-        "value_pct": 20.89
+        "value_pct": 20.72
       },
       {
         "id": "chat",
         "label": "Чат",
         "event": "chat_reply",
-        "value_pct": 25.4
+        "value_pct": 25.36
       },
       {
         "id": "fitting",
         "label": "Примерочная",
         "event": "fitting_done",
-        "value_pct": 10.45
+        "value_pct": 10.34
       }
     ],
     "quality": [
       {
         "id": "ai_fail_rate",
         "label": "AI fail rate",
-        "value_pct": 22.35
+        "value_pct": 22.51
       }
     ]
   },
@@ -429,7 +430,7 @@
     "2026-09-05": 398,
     "2026-09-09": 399
   },
-  "trials_sb_crosscheck_total": 87,
+  "trials_sb_crosscheck_total": 91,
   "trials_sb_crosscheck_by_day": {
     "2026-08-11": 3,
     "2026-08-12": 2,
@@ -458,9 +459,9 @@
     "2026-09-06": 3,
     "2026-09-07": 2,
     "2026-09-08": 6,
-    "2026-09-09": 1
+    "2026-09-09": 5
   },
-  "trials_am_crosscheck_total": 258,
+  "trials_am_crosscheck_total": 262,
   "trials_am_crosscheck_by_day": {
     "2026-07-31": 1,
     "2026-08-04": 3,
@@ -497,7 +498,7 @@
     "2026-09-06": 2,
     "2026-09-07": 4,
     "2026-09-08": 12,
-    "2026-09-09": 2
+    "2026-09-09": 6
   },
   "trials_crosscheck_yesterday": {
     "day": "2026-09-08",
