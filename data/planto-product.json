@@ -1,84 +1,84 @@
 {
-  "generated_at": "2026-09-09T10:23:03+00:00",
+  "generated_at": "2026-09-09T14:55:08+00:00",
   "anchor": "2026-06-05",
   "until": "2026-09-09",
   "product": {
     "from": "2026-06-05",
     "to": "2026-09-09",
-    "installs": 16947,
-    "active_users": 17182,
+    "installs": 16975,
+    "active_users": 17208,
     "events": {
       "plant_added": {
-        "users": 4979,
-        "events": 10333,
-        "vs_install_pct": 29.38,
+        "users": 4989,
+        "events": 10360,
+        "vs_install_pct": 29.39,
         "avg_per_user": 2.08
       },
       "paywall_shown": {
-        "users": 13102,
-        "events": 22776,
+        "users": 13123,
+        "events": 22832,
         "vs_install_pct": 77.31,
         "avg_per_user": 1.74
       },
       "paywall_cta_clicked": {
-        "users": 5334,
-        "events": 7760,
-        "vs_install_pct": 31.47,
-        "avg_per_user": 1.45
+        "users": 5341,
+        "events": 7773,
+        "vs_install_pct": 31.46,
+        "avg_per_user": 1.46
       },
       "user_score5": {
-        "users": 933,
-        "events": 940,
+        "users": 936,
+        "events": 943,
         "vs_install_pct": 5.51,
         "avg_per_user": 1.01
       },
       "chat_message_sent": {
-        "users": 573,
-        "events": 1412,
+        "users": 574,
+        "events": 1417,
         "vs_install_pct": 3.38,
-        "avg_per_user": 2.46
+        "avg_per_user": 2.47
       },
       "watering_configured": {
-        "users": 558,
-        "events": 1360,
-        "vs_install_pct": 3.29,
-        "avg_per_user": 2.44
+        "users": 561,
+        "events": 1372,
+        "vs_install_pct": 3.3,
+        "avg_per_user": 2.45
       },
       "watering_marked": {
         "users": 251,
-        "events": 2287,
+        "events": 2289,
         "vs_install_pct": 1.48,
-        "avg_per_user": 9.11
+        "avg_per_user": 9.12
       },
       "ai_route": {
-        "users": 4379,
-        "events": 33972,
-        "vs_install_pct": 25.84,
+        "users": 4389,
+        "events": 34071,
+        "vs_install_pct": 25.86,
         "avg_per_user": 7.76
       },
       "scan_success": {
-        "users": 5443,
-        "events": 17631,
+        "users": 5453,
+        "events": 17674,
         "vs_install_pct": 32.12,
         "avg_per_user": 3.24
       },
       "user_activated": {
-        "users": 14267,
-        "events": 19204,
+        "users": 14292,
+        "events": 19236,
         "vs_install_pct": 84.19,
         "avg_per_user": 1.35
       }
     },
-    "garden_activation_pct": 29.38,
+    "garden_activation_pct": 29.39,
     "garden_avg_plants": 2.08,
     "garden_depth_icp_pct": null,
-    "paywall_cta_pct": 40.71,
+    "paywall_cta_pct": 40.7,
     "care_engagement_pct": 5.51,
     "chat_per_plant_pct": 11.51,
     "feature_activation": {
       "scan_pct": 32.12,
-      "watering_pct": 3.29,
-      "ai_pct": 25.84
+      "watering_pct": 3.3,
+      "ai_pct": 25.86
     },
     "retention": {
       "d1": null,
@@ -89,28 +89,27 @@
     "errors": []
   },
   "unit_economics": {
-    "revenue_total": 221689,
-    "spend_total": 375054.84,
-    "active_users": 17182,
-    "active_payers": 101,
-    "plus_active_users": 164,
-    "trial_cancellations": 21,
+    "revenue_total": 218199,
+    "spend_total": 375679.68,
+    "active_users": 17208,
+    "active_payers": 100,
+    "plus_active_users": 162,
+    "trial_cancellations": 19,
     "trial_cancellations_by_day": {
-      "2026-09-02": 1,
       "2026-09-03": 2,
       "2026-09-04": 3,
       "2026-09-05": 2,
-      "2026-09-06": 4,
+      "2026-09-06": 2,
       "2026-09-07": 3,
       "2026-09-08": 3,
-      "2026-09-09": 3
+      "2026-09-09": 4
     },
     "renewals": 55,
-    "arpu": 12.9,
-    "arppu": 2194.94,
-    "ltv": 3390.2,
+    "arpu": 12.68,
+    "arppu": 2181.99,
+    "ltv": 3382.08,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
-    "roas_d7": 62.1,
+    "roas_d7": 61.0,
     "roas_d14": 49.5,
     "roas_d30": 36.4
   }
