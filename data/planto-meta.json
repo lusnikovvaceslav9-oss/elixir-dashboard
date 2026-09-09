@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-09-09T14:55:08+00:00",
+  "generated_at": "2026-09-09T21:23:02+00:00",
   "anchor": "2026-06-05",
-  "until": "2026-09-09",
-  "window_start": "2026-08-31",
+  "until": "2026-09-10",
+  "window_start": "2026-09-01",
   "trial_attribution": "supabase_trial_start",
   "ai_spend": null,
   "trial_days": 7,
@@ -30,19 +30,19 @@
     "product": "appmetrica_reporting"
   },
   "errors": [],
-  "days": 97,
+  "days": 98,
   "reconcile_diff": {
-    "trials_total_old_csv": 432,
+    "trials_total_old_csv": 434,
     "trials_total_new": 434,
-    "delta": 2
+    "delta": 0
   },
   "unit_economics": {
-    "revenue_total": 218199,
-    "spend_total": 375679.68,
-    "active_users": 17208,
-    "active_payers": 100,
+    "revenue_total": 221689,
+    "spend_total": 376508.98,
+    "active_users": 17226,
+    "active_payers": 101,
     "plus_active_users": 162,
-    "trial_cancellations": 19,
+    "trial_cancellations": 20,
     "trial_cancellations_by_day": {
       "2026-09-03": 2,
       "2026-09-04": 3,
@@ -50,14 +50,14 @@
       "2026-09-06": 2,
       "2026-09-07": 3,
       "2026-09-08": 3,
-      "2026-09-09": 4
+      "2026-09-09": 5
     },
-    "renewals": 55,
-    "arpu": 12.68,
-    "arppu": 2181.99,
-    "ltv": 3382.08,
+    "renewals": 56,
+    "arpu": 12.87,
+    "arppu": 2194.94,
+    "ltv": 3411.94,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
-    "roas_d7": 61.0,
+    "roas_d7": 62.1,
     "roas_d14": 49.5,
     "roas_d30": 36.4
   },
@@ -71,14 +71,14 @@
     "predict_horizon_days": 180
   },
   "product": {
-    "garden_activation_pct": 29.39,
+    "garden_activation_pct": 29.38,
     "garden_avg_plants": 2.08,
     "garden_depth_icp_pct": null,
     "paywall_cta_pct": 40.7,
-    "care_engagement_pct": 5.51,
+    "care_engagement_pct": 5.54,
     "feature_activation": {
       "scan_pct": 32.12,
-      "watering_pct": 3.3,
+      "watering_pct": 3.31,
       "ai_pct": 25.86
     },
     "retention": {
@@ -101,15 +101,15 @@
   },
   "cash_period": {
     "from": "2026-06-05",
-    "until": "2026-09-09",
-    "first": 218199,
+    "until": "2026-09-10",
+    "first": 221689,
     "rebills": 0,
-    "total": 218199
+    "total": 221689
   },
   "payments_by_plan": {
     "yearly": {
-      "count": 67,
-      "rub": 205830
+      "count": 68,
+      "rub": 209320
     },
     "monthly": {
       "count": 31,
@@ -120,8 +120,8 @@
       "rub": 0
     },
     "total": {
-      "count": 98,
-      "rub": 218199
+      "count": 99,
+      "rub": 221689
     }
   },
   "payments_by_plan_by_day": {
@@ -267,8 +267,8 @@
         "rub": 10470
       },
       "2026-09-02": {
-        "count": 1,
-        "rub": 2490
+        "count": 2,
+        "rub": 5980
       },
       "2026-09-03": {
         "count": 1,
@@ -481,14 +481,15 @@
     "2026-08-30": 10470,
     "2026-08-31": 3490,
     "2026-09-01": 10869,
-    "2026-09-02": 2889,
+    "2026-09-02": 6379,
     "2026-09-03": 3490,
     "2026-09-04": 13758,
     "2026-09-05": 3490,
     "2026-09-06": 7379,
     "2026-09-07": 399,
     "2026-09-08": 4288,
-    "2026-09-09": 3490
+    "2026-09-09": 3490,
+    "2026-09-10": 0
   },
   "paid_net_by_cohort_day": {
     "2026-06-25": 399,
@@ -531,7 +532,7 @@
     "2026-08-23": 10470,
     "2026-08-24": 3889,
     "2026-08-25": 12864,
-    "2026-08-26": 2889,
+    "2026-08-26": 6379,
     "2026-08-27": 3490,
     "2026-08-28": 13359,
     "2026-08-29": 3490,
@@ -636,7 +637,7 @@
     "2026-09-08": 6,
     "2026-09-09": 3
   },
-  "trials_am_crosscheck_total": 427,
+  "trials_am_crosscheck_total": 428,
   "trials_am_crosscheck_by_day": {
     "2026-06-05": 2,
     "2026-06-07": 1,
@@ -727,13 +728,13 @@
     "2026-09-06": 7,
     "2026-09-07": 3,
     "2026-09-08": 6,
-    "2026-09-09": 2
+    "2026-09-09": 3
   },
   "trials_crosscheck_yesterday": {
-    "day": "2026-09-08",
-    "appmetrica": 6,
-    "supabase": 6,
-    "dashboard": 6,
+    "day": "2026-09-09",
+    "appmetrica": 3,
+    "supabase": 3,
+    "dashboard": 3,
     "note": "В дашборде trials = Supabase (distinct users). AppMetrica trial_started — кроссчек (события ym:ce:allEvents)."
   }
 }
