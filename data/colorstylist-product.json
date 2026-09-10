@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-09-09T23:41:10+00:00",
+  "generated_at": "2026-09-10T01:50:23+00:00",
   "anchor": "2026-07-31",
   "until": "2026-09-10",
   "product": {
     "from": "2026-07-31",
     "to": "2026-09-10",
-    "installs": 2299,
+    "installs": 2300,
     "active_users": 2437,
     "count_mode": "unique_devices",
     "subtitle": "Дошёл ли пользователь до ценности — цветотип, пейволл, фичи.",
@@ -13,31 +13,31 @@
       "ai_fail": {
         "users": 992,
         "events": 5457,
-        "vs_install_pct": 43.15,
+        "vs_install_pct": 43.13,
         "avg_per_user": 5.5
       },
       "ai_request": {
         "users": 2170,
         "events": 24044,
-        "vs_install_pct": 94.39,
+        "vs_install_pct": 94.35,
         "avg_per_user": 11.08
       },
       "chat_reply": {
         "users": 581,
         "events": 1536,
-        "vs_install_pct": 25.27,
+        "vs_install_pct": 25.26,
         "avg_per_user": 2.64
       },
       "color_type_done": {
         "users": 2060,
         "events": 2938,
-        "vs_install_pct": 89.6,
+        "vs_install_pct": 89.57,
         "avg_per_user": 1.43
       },
       "color_type_reveal_view": {
         "users": 1986,
         "events": 3027,
-        "vs_install_pct": 86.39,
+        "vs_install_pct": 86.35,
         "avg_per_user": 1.52
       },
       "fitting_done": {
@@ -49,7 +49,7 @@
       "hair_look_generated": {
         "users": 931,
         "events": 3469,
-        "vs_install_pct": 40.5,
+        "vs_install_pct": 40.48,
         "avg_per_user": 3.73
       },
       "makeup_generated": {
@@ -61,19 +61,19 @@
       "outfit_generated": {
         "users": 491,
         "events": 1426,
-        "vs_install_pct": 21.36,
+        "vs_install_pct": 21.35,
         "avg_per_user": 2.9
       },
       "paywall_view": {
         "users": 1606,
         "events": 4175,
-        "vs_install_pct": 69.86,
+        "vs_install_pct": 69.83,
         "avg_per_user": 2.6
       },
       "purchase_tap": {
         "users": 550,
         "events": 916,
-        "vs_install_pct": 23.92,
+        "vs_install_pct": 23.91,
         "avg_per_user": 1.67
       }
     },
@@ -82,7 +82,7 @@
         "id": "aha_color",
         "label": "Aha: цветотип",
         "formula_label": "color_type_reveal / install",
-        "value_pct": 86.39,
+        "value_pct": 86.35,
         "primary": true,
         "accent": false,
         "note": null
@@ -109,7 +109,7 @@
         "id": "engagement_hair",
         "label": "Вовлечение (hair)",
         "formula_label": "hair_look / install",
-        "value_pct": 40.5,
+        "value_pct": 40.48,
         "primary": false,
         "accent": false,
         "note": null
@@ -120,19 +120,19 @@
         "id": "color_type",
         "label": "Цветотип",
         "event": "color_type_done",
-        "value_pct": 89.6
+        "value_pct": 89.57
       },
       {
         "id": "hair",
         "label": "Волосы",
         "event": "hair_look_generated",
-        "value_pct": 40.5
+        "value_pct": 40.48
       },
       {
         "id": "outfit",
         "label": "Образы",
         "event": "outfit_generated",
-        "value_pct": 21.36
+        "value_pct": 21.35
       },
       {
         "id": "makeup",
@@ -144,7 +144,7 @@
         "id": "chat",
         "label": "Чат",
         "event": "chat_reply",
-        "value_pct": 25.27
+        "value_pct": 25.26
       },
       {
         "id": "fitting",
@@ -169,7 +169,7 @@
     "errors": []
   },
   "unit_economics": {
-    "revenue_total": 22197,
+    "revenue_total": 22396,
     "spend_total": 57279.97,
     "active_users": 2437,
     "active_payers": 26,
@@ -179,12 +179,12 @@
       "2026-09-08": 1,
       "2026-09-09": 4
     },
-    "renewals": 17,
-    "arpu": 9.11,
-    "arppu": 853.73,
-    "ltv": 1411.94,
+    "renewals": 18,
+    "arpu": 9.19,
+    "arppu": 861.38,
+    "ltv": 1457.72,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
-    "roas_d7": 46.8,
+    "roas_d7": 47.3,
     "roas_d14": 39.6,
     "roas_d30": 11.2
   }
