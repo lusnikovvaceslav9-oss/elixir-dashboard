@@ -1,33 +1,33 @@
 {
-  "generated_at": "2026-09-10T23:33:26+00:00",
+  "generated_at": "2026-09-11T01:48:54+00:00",
   "anchor": "2026-07-31",
   "until": "2026-09-11",
   "window_start": "2026-09-02",
   "trial_attribution": "appmetrica_purchase_success",
   "ai_spend": {
     "provider": "polza",
-    "total": 29934.53,
-    "generations": 21180,
+    "total": 29963.81,
+    "generations": 21198,
     "by_kind": {
-      "images": 26636.4,
-      "chat": 3298.13
+      "images": 26663.3,
+      "chat": 3300.51
     },
     "by_key": [
       {
         "label": "style",
-        "total": 19647.14,
-        "generations": 16300
+        "total": 19666.95,
+        "generations": 16313
       },
       {
         "label": "style-emergency",
-        "total": 10287.39,
-        "generations": 4880
+        "total": 10296.86,
+        "generations": 4885
       }
     ],
     "keys_used": 2,
-    "per_install": 12.76,
-    "per_trial": 106.53,
-    "total_burn": 88537.91
+    "per_install": 12.77,
+    "per_trial": 106.63,
+    "total_burn": 88567.19
   },
   "trial_days": 3,
   "trial_lag_days": 3,
@@ -58,9 +58,9 @@
   "errors": [],
   "days": 43,
   "reconcile_diff": {
-    "trials_total_old_csv": 280,
+    "trials_total_old_csv": 281,
     "trials_total_new": 281,
-    "delta": 1
+    "delta": 0
   },
   "unit_economics": {
     "revenue_total": 22396,
@@ -187,7 +187,7 @@
       {
         "id": "ai_fail_rate",
         "label": "AI fail rate",
-        "value_pct": 22.63
+        "value_pct": 22.64
       }
     ]
   },
