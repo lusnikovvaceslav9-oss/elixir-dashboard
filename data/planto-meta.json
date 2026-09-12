@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-09-12T18:52:39+00:00",
+  "generated_at": "2026-09-12T21:06:53+00:00",
   "anchor": "2026-06-05",
-  "until": "2026-09-12",
-  "window_start": "2026-09-03",
+  "until": "2026-09-13",
+  "window_start": "2026-09-04",
   "trial_attribution": "supabase_trial_start",
   "ai_spend": null,
   "trial_days": 7,
@@ -30,7 +30,7 @@
     "product": "appmetrica_reporting"
   },
   "errors": [],
-  "days": 100,
+  "days": 101,
   "reconcile_diff": {
     "trials_total_old_csv": 444,
     "trials_total_new": 444,
@@ -38,8 +38,8 @@
   },
   "unit_economics": {
     "revenue_total": 235649,
-    "spend_total": 385487.67,
-    "active_users": 17527,
+    "spend_total": 385765.18,
+    "active_users": 17534,
     "active_payers": 105,
     "plus_active_users": 155,
     "trial_cancellations": 13,
@@ -59,7 +59,7 @@
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
     "roas_d7": 63.1,
     "roas_d14": 62.3,
-    "roas_d30": 36.4
+    "roas_d30": 50.7
   },
   "roas_config": {
     "revenue_source": "actual",
@@ -79,7 +79,7 @@
     "feature_activation": {
       "scan_pct": 32.04,
       "watering_pct": 3.35,
-      "ai_pct": 25.92
+      "ai_pct": 25.93
     },
     "retention": {
       "d1": null,
@@ -101,7 +101,7 @@
   },
   "cash_period": {
     "from": "2026-06-05",
-    "until": "2026-09-12",
+    "until": "2026-09-13",
     "first": 235649,
     "rebills": 0,
     "total": 235649
@@ -503,7 +503,8 @@
     "2026-09-09": 3490,
     "2026-09-10": 6980,
     "2026-09-11": 0,
-    "2026-09-12": 3490
+    "2026-09-12": 3490,
+    "2026-09-13": 0
   },
   "paid_net_by_cohort_day": {
     "2026-06-25": 399,
@@ -754,10 +755,10 @@
     "2026-09-12": 1
   },
   "trials_crosscheck_yesterday": {
-    "day": "2026-09-11",
-    "appmetrica": 4,
-    "supabase": 4,
-    "dashboard": 4,
+    "day": "2026-09-12",
+    "appmetrica": 1,
+    "supabase": 2,
+    "dashboard": 2,
     "note": "В дашборде trials = Supabase (distinct users). AppMetrica trial_started — кроссчек (события ym:ce:allEvents)."
   }
 }
