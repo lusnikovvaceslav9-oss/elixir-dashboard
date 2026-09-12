@@ -1,22 +1,22 @@
 {
-  "generated_at": "2026-09-11T23:42:40+00:00",
+  "generated_at": "2026-09-12T01:54:52+00:00",
   "anchor": "2026-07-31",
   "until": "2026-09-12",
   "window_start": "2026-09-03",
   "trial_attribution": "appmetrica_purchase_success",
   "ai_spend": {
     "provider": "polza",
-    "total": 30655.86,
-    "generations": 21634,
+    "total": 30656.15,
+    "generations": 21635,
     "by_kind": {
       "images": 27288.3,
-      "chat": 3367.56
+      "chat": 3367.85
     },
     "by_key": [
       {
         "label": "style",
-        "total": 19982.3,
-        "generations": 16539
+        "total": 19982.59,
+        "generations": 16540
       },
       {
         "label": "style-emergency",
@@ -26,8 +26,8 @@
     ],
     "keys_used": 2,
     "per_install": 12.88,
-    "per_trial": 107.56,
-    "total_burn": 90250.79
+    "per_trial": 107.57,
+    "total_burn": 90272.06
   },
   "trial_days": 3,
   "trial_lag_days": 3,
@@ -64,14 +64,13 @@
   },
   "unit_economics": {
     "revenue_total": 24386,
-    "spend_total": 59594.93,
+    "spend_total": 59615.91,
     "active_users": 2519,
     "active_payers": 30,
     "plus_active_users": 57,
-    "trial_cancellations": 5,
+    "trial_cancellations": 4,
     "trial_cancellations_by_day": {
-      "2026-09-09": 4,
-      "2026-09-10": 1
+      "2026-09-09": 4
     },
     "renewals": 20,
     "arpu": 9.68,
