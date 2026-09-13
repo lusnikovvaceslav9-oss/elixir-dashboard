@@ -1,22 +1,22 @@
 {
-  "generated_at": "2026-09-13T16:47:53+00:00",
+  "generated_at": "2026-09-13T19:07:43+00:00",
   "anchor": "2026-07-31",
   "until": "2026-09-13",
   "window_start": "2026-09-04",
   "trial_attribution": "appmetrica_purchase_success",
   "ai_spend": {
     "provider": "polza",
-    "total": 31508.72,
-    "generations": 22185,
+    "total": 31524.3,
+    "generations": 22192,
     "by_kind": {
-      "images": 28051.8,
-      "chat": 3456.92
+      "images": 28066.8,
+      "chat": 3457.5
     },
     "by_key": [
       {
         "label": "style",
-        "total": 20512.89,
-        "generations": 16903
+        "total": 20528.47,
+        "generations": 16910
       },
       {
         "label": "style-emergency",
@@ -26,8 +26,8 @@
     ],
     "keys_used": 2,
     "per_install": 12.98,
-    "per_trial": 108.28,
-    "total_burn": 92005.28
+    "per_trial": 108.33,
+    "total_burn": 92020.86
   },
   "trial_days": 3,
   "trial_lag_days": 3,
@@ -65,7 +65,7 @@
   "unit_economics": {
     "revenue_total": 25580,
     "spend_total": 60496.56,
-    "active_users": 2569,
+    "active_users": 2570,
     "active_payers": 31,
     "plus_active_users": 52,
     "trial_cancellations": 3,
@@ -73,10 +73,10 @@
       "2026-09-12": 1,
       "2026-09-13": 2
     },
-    "renewals": 23,
-    "arpu": 9.96,
+    "renewals": 22,
+    "arpu": 9.95,
     "arppu": 825.16,
-    "ltv": 1437.38,
+    "ltv": 1410.76,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
     "roas_d7": 51.0,
     "roas_d14": 44.6,
@@ -186,7 +186,7 @@
       {
         "id": "ai_fail_rate",
         "label": "AI fail rate",
-        "value_pct": 22.26
+        "value_pct": 22.28
       }
     ]
   },

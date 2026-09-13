@@ -1,24 +1,24 @@
 {
-  "generated_at": "2026-09-13T16:47:53+00:00",
+  "generated_at": "2026-09-13T19:07:43+00:00",
   "anchor": "2026-07-31",
   "until": "2026-09-13",
   "product": {
     "from": "2026-07-31",
     "to": "2026-09-13",
     "installs": 2428,
-    "active_users": 2569,
+    "active_users": 2570,
     "count_mode": "unique_devices",
     "subtitle": "Дошёл ли пользователь до ценности — цветотип, пейволл, фичи.",
     "events": {
       "ai_fail": {
-        "users": 1057,
-        "events": 5740,
-        "vs_install_pct": 43.53,
+        "users": 1058,
+        "events": 5745,
+        "vs_install_pct": 43.57,
         "avg_per_user": 5.43
       },
       "ai_request": {
         "users": 2290,
-        "events": 25782,
+        "events": 25791,
         "vs_install_pct": 94.32,
         "avg_per_user": 11.26
       },
@@ -30,7 +30,7 @@
       },
       "color_type_done": {
         "users": 2177,
-        "events": 3103,
+        "events": 3104,
         "vs_install_pct": 89.66,
         "avg_per_user": 1.43
       },
@@ -48,7 +48,7 @@
       },
       "hair_look_generated": {
         "users": 998,
-        "events": 3781,
+        "events": 3783,
         "vs_install_pct": 41.1,
         "avg_per_user": 3.79
       },
@@ -157,7 +157,7 @@
       {
         "id": "ai_fail_rate",
         "label": "AI fail rate",
-        "value_pct": 22.26
+        "value_pct": 22.28
       }
     ],
     "retention": {
@@ -171,7 +171,7 @@
   "unit_economics": {
     "revenue_total": 25580,
     "spend_total": 60496.56,
-    "active_users": 2569,
+    "active_users": 2570,
     "active_payers": 31,
     "plus_active_users": 52,
     "trial_cancellations": 3,
@@ -179,10 +179,10 @@
       "2026-09-12": 1,
       "2026-09-13": 2
     },
-    "renewals": 23,
-    "arpu": 9.96,
+    "renewals": 22,
+    "arpu": 9.95,
     "arppu": 825.16,
-    "ltv": 1437.38,
+    "ltv": 1410.76,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
     "roas_d7": 51.0,
     "roas_d14": 44.6,
