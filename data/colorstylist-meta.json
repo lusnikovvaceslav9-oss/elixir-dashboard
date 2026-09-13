@@ -1,33 +1,33 @@
 {
-  "generated_at": "2026-09-13T21:57:03+00:00",
+  "generated_at": "2026-09-13T23:48:20+00:00",
   "anchor": "2026-07-31",
   "until": "2026-09-14",
   "window_start": "2026-09-05",
   "trial_attribution": "appmetrica_purchase_success",
   "ai_spend": {
     "provider": "polza",
-    "total": 31536.85,
-    "generations": 22207,
+    "total": 31539.31,
+    "generations": 22217,
     "by_kind": {
       "images": 28075.8,
-      "chat": 3461.05
+      "chat": 3463.51
     },
     "by_key": [
       {
         "label": "style",
-        "total": 20540.63,
-        "generations": 16924
+        "total": 20541.73,
+        "generations": 16929
       },
       {
         "label": "style-emergency",
-        "total": 10996.22,
-        "generations": 5283
+        "total": 10997.58,
+        "generations": 5288
       }
     ],
     "keys_used": 2,
     "per_install": 12.97,
-    "per_trial": 108.37,
-    "total_burn": 92033.41
+    "per_trial": 108.38,
+    "total_burn": 92317.06
   },
   "trial_days": 3,
   "trial_lag_days": 3,
@@ -64,7 +64,7 @@
   },
   "unit_economics": {
     "revenue_total": 25779,
-    "spend_total": 60496.56,
+    "spend_total": 60777.75,
     "active_users": 2572,
     "active_payers": 32,
     "plus_active_users": 52,
@@ -186,7 +186,7 @@
       {
         "id": "ai_fail_rate",
         "label": "AI fail rate",
-        "value_pct": 22.28
+        "value_pct": 22.29
       }
     ]
   },
