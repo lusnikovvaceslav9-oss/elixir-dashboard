@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-13T02:03:14+00:00",
+  "generated_at": "2026-09-13T07:46:31+00:00",
   "anchor": "2026-06-05",
   "until": "2026-09-13",
   "window_start": "2026-09-04",
@@ -33,29 +33,30 @@
   "days": 101,
   "reconcile_diff": {
     "trials_total_old_csv": 444,
-    "trials_total_new": 444,
-    "delta": 0
+    "trials_total_new": 445,
+    "delta": 1
   },
   "unit_economics": {
-    "revenue_total": 235649,
-    "spend_total": 385961.45,
-    "active_users": 17545,
-    "active_payers": 105,
-    "plus_active_users": 155,
+    "revenue_total": 239139,
+    "spend_total": 387482.74,
+    "active_users": 17586,
+    "active_payers": 106,
+    "plus_active_users": 154,
     "trial_cancellations": 13,
     "trial_cancellations_by_day": {
       "2026-09-06": 2,
       "2026-09-07": 2,
       "2026-09-08": 1,
       "2026-09-09": 1,
-      "2026-09-10": 4,
+      "2026-09-10": 3,
       "2026-09-11": 1,
-      "2026-09-12": 2
+      "2026-09-12": 2,
+      "2026-09-13": 1
     },
-    "renewals": 60,
-    "arpu": 13.43,
-    "arppu": 2244.28,
-    "ltv": 3526.73,
+    "renewals": 61,
+    "arpu": 13.6,
+    "arppu": 2256.03,
+    "ltv": 3554.31,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
     "roas_d7": 63.1,
     "roas_d14": 62.3,
@@ -74,12 +75,12 @@
     "garden_activation_pct": 29.36,
     "garden_avg_plants": 2.09,
     "garden_depth_icp_pct": null,
-    "paywall_cta_pct": 40.77,
+    "paywall_cta_pct": 40.74,
     "care_engagement_pct": 5.59,
     "feature_activation": {
-      "scan_pct": 32.03,
-      "watering_pct": 3.35,
-      "ai_pct": 25.92
+      "scan_pct": 32.02,
+      "watering_pct": 3.36,
+      "ai_pct": 25.93
     },
     "retention": {
       "d1": null,
@@ -102,14 +103,14 @@
   "cash_period": {
     "from": "2026-06-05",
     "until": "2026-09-13",
-    "first": 235649,
+    "first": 239139,
     "rebills": 0,
-    "total": 235649
+    "total": 239139
   },
   "payments_by_plan": {
     "yearly": {
-      "count": 72,
-      "rub": 223280
+      "count": 73,
+      "rub": 226770
     },
     "monthly": {
       "count": 31,
@@ -120,8 +121,8 @@
       "rub": 0
     },
     "total": {
-      "count": 103,
-      "rub": 235649
+      "count": 104,
+      "rub": 239139
     }
   },
   "payments_by_plan_by_day": {
@@ -303,6 +304,10 @@
         "rub": 6980
       },
       "2026-09-12": {
+        "count": 1,
+        "rub": 3490
+      },
+      "2026-09-13": {
         "count": 1,
         "rub": 3490
       }
@@ -504,7 +509,7 @@
     "2026-09-10": 6980,
     "2026-09-11": 0,
     "2026-09-12": 3490,
-    "2026-09-13": 0
+    "2026-09-13": 3490
   },
   "paid_net_by_cohort_day": {
     "2026-06-25": 399,
@@ -558,11 +563,11 @@
     "2026-09-03": 6980,
     "2026-09-04": 798,
     "2026-09-05": 3490,
-    "2026-09-06": 399,
+    "2026-09-06": 3889,
     "2026-09-07": 399,
     "2026-09-08": 798
   },
-  "trials_sb_crosscheck_total": 444,
+  "trials_sb_crosscheck_total": 445,
   "trials_sb_crosscheck_by_day": {
     "2026-06-07": 1,
     "2026-06-08": 1,
@@ -656,9 +661,10 @@
     "2026-09-09": 3,
     "2026-09-10": 4,
     "2026-09-11": 4,
-    "2026-09-12": 2
+    "2026-09-12": 2,
+    "2026-09-13": 1
   },
-  "trials_am_crosscheck_total": 437,
+  "trials_am_crosscheck_total": 438,
   "trials_am_crosscheck_by_day": {
     "2026-06-05": 2,
     "2026-06-07": 1,
@@ -752,7 +758,8 @@
     "2026-09-09": 3,
     "2026-09-10": 4,
     "2026-09-11": 4,
-    "2026-09-12": 1
+    "2026-09-12": 1,
+    "2026-09-13": 1
   },
   "trials_crosscheck_yesterday": {
     "day": "2026-09-12",
