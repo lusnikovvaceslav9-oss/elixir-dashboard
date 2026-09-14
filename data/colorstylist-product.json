@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-14T09:15:22+00:00",
+  "generated_at": "2026-09-14T09:21:27+00:00",
   "anchor": "2026-07-31",
   "until": "2026-09-14",
   "product": {
@@ -12,15 +12,15 @@
     "events": {
       "ai_fail": {
         "users": 1073,
-        "events": 5807,
+        "events": 5808,
         "vs_install_pct": 43.46,
         "avg_per_user": 5.41
       },
       "ai_request": {
         "users": 2324,
-        "events": 26363,
+        "events": 26369,
         "vs_install_pct": 94.13,
-        "avg_per_user": 11.34
+        "avg_per_user": 11.35
       },
       "chat_reply": {
         "users": 622,
@@ -47,15 +47,15 @@
         "avg_per_user": 1.92
       },
       "hair_look_generated": {
-        "users": 1016,
-        "events": 3857,
-        "vs_install_pct": 41.15,
-        "avg_per_user": 3.8
+        "users": 1017,
+        "events": 3858,
+        "vs_install_pct": 41.19,
+        "avg_per_user": 3.79
       },
       "makeup_generated": {
-        "users": 513,
-        "events": 1489,
-        "vs_install_pct": 20.78,
+        "users": 514,
+        "events": 1492,
+        "vs_install_pct": 20.82,
         "avg_per_user": 2.9
       },
       "outfit_generated": {
@@ -66,7 +66,7 @@
       },
       "paywall_view": {
         "users": 1737,
-        "events": 4560,
+        "events": 4562,
         "vs_install_pct": 70.35,
         "avg_per_user": 2.63
       },
@@ -109,7 +109,7 @@
         "id": "engagement_hair",
         "label": "Вовлечение (hair)",
         "formula_label": "hair_look / install",
-        "value_pct": 41.15,
+        "value_pct": 41.19,
         "primary": false,
         "accent": false,
         "note": null
@@ -126,7 +126,7 @@
         "id": "hair",
         "label": "Волосы",
         "event": "hair_look_generated",
-        "value_pct": 41.15
+        "value_pct": 41.19
       },
       {
         "id": "outfit",
@@ -138,7 +138,7 @@
         "id": "makeup",
         "label": "Макияж",
         "event": "makeup_generated",
-        "value_pct": 20.78
+        "value_pct": 20.82
       },
       {
         "id": "chat",
@@ -170,7 +170,7 @@
   },
   "unit_economics": {
     "revenue_total": 27970,
-    "spend_total": 62140.95,
+    "spend_total": 62170.98,
     "active_users": 2610,
     "active_payers": 35,
     "plus_active_users": 56,
