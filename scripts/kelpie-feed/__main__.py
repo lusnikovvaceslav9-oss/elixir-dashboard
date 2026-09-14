@@ -11,7 +11,7 @@ from feed import run_feed
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Update Kelpie feed (PostHog funnel)")
+    parser = argparse.ArgumentParser(description="Update Kelpie feed (kelpie-dash spend + funnel)")
     parser.add_argument("--work-dir", type=Path, default=Path.cwd())
     parser.add_argument("--config", type=Path, default=Path("config/kelpie.json"))
     args = parser.parse_args()

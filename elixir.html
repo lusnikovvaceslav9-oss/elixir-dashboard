@@ -6250,7 +6250,8 @@ async function fetchProject(proj) {
     ]);
     let metaRows = collectKelpieMetaRows(proj);
     const feed = kelpieFeedOf(proj) || KELPIE_FEEDS.kelpie;
-    if (!metaRows.length && feed.spendSeed) {
+    const funnelHasSpend = (funnelRows || []).some(r => (Number(r.spend) || 0) > 0);
+    if (!metaRows.length && feed.spendSeed && !funnelHasSpend) {
       try {
         const text = await Promise.race([
           fetchWithFallback(feed.spendSeed),
@@ -6273,7 +6274,7 @@ async function fetchProject(proj) {
     return {
       sources: [{
         id: 'csv',
-        label: 'PostHog + Meta Ads',
+        label: funnelHasSpend ? 'Kelpie dash' : 'PostHog + Meta Ads',
         url: feed.daily,
         rows,
         sheetColumns: [

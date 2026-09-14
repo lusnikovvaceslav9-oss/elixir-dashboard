@@ -1,23 +1,25 @@
 {
-  "generated_at": "2026-09-14T01:17:30.131223+00:00",
+  "generated_at": "2026-09-14T04:03:19.007251+00:00",
   "project": "kelpie",
   "anchor": "2026-08-21",
   "until": "2026-09-14",
   "timezone": "Europe/Moscow",
-  "source": "posthog",
+  "source": "kelpie-dash",
+  "kelpie_dash_url": "https://kelpie-dash.vercel.app",
   "website": "kelpiemoney.com",
   "kpi": "Checkout Lead",
   "metric_map": {
-    "installs": "posthog_visitors",
-    "trials": "quiz_started",
-    "fb": "quiz_complete",
-    "sold": "checkout_lead",
-    "purchase": "gift_email",
-    "contact_sent": "app_store_click",
-    "spend": "meta_csv_upload",
-    "clicks": "meta_csv_upload",
-    "impressions": "meta_csv_upload"
+    "installs": "kelpie_dash_visitors",
+    "trials": "kelpie_dash_quiz_start",
+    "fb": "kelpie_dash_quiz_complete",
+    "sold": "kelpie_dash_checkout",
+    "purchase": "kelpie_dash_gift",
+    "contact_sent": "kelpie_dash_appstore",
+    "spend": "kelpie_dash_meta_spend",
+    "clicks": "kelpie_dash_meta_clicks",
+    "impressions": null
   },
   "days": 25,
+  "spend_total": 2825.22,
   "errors": []
 }
