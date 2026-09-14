@@ -7233,7 +7233,16 @@ function renderPlantoBreakdownCard(proj, rows) {
     const pay = meta?.payments_by_plan;
     const plans = meta?.plans || {};
     const curPlan = getPlanFilter(proj.id);
-    const payHtml = pay && pay.total?.count
+    const sku = meta?.payments_by_sku;
+    const skuEntries = sku ? Object.entries(sku).filter(([, c]) => (Number(c.main) || 0) || (Number(c.trial) || 0)) : [];
+    const skuHtml = skuEntries.length
+      ? `<div class="income-chips-row">` +
+        skuEntries.sort((a, b) => Number(b[1].rub || 0) - Number(a[1].rub || 0) || String(a[0]).localeCompare(b[0])).map(([code, cell]) =>
+          `<span class="income-chip" title="${escHtml(code)}">${fmtInt(cell.price)} ₽ · ${fmtInt(cell.main || 0)} MAIN / ${fmtInt(cell.trial || 0)} trial</span>`
+        ).join('') +
+        `</div>`
+      : '';
+    const payHtml = skuHtml || (pay && pay.total?.count
       ? `<div class="income-chips-row">` +
         `<button type="button" class="income-chip btn${curPlan === 'yearly' ? ' active' : ''}" onclick="setPlanFilter('${escHtml(proj.id)}','yearly')">Год ${plans.year != null ? fmtInt(plans.year) + ' ₽' : ''}&nbsp;<b>${pay.yearly?.count || 0}</b>&nbsp;· ${fmtInt(pay.yearly?.rub || 0)} ₽</button>` +
         `<button type="button" class="income-chip btn${curPlan === 'monthly' ? ' active' : ''}" onclick="setPlanFilter('${escHtml(proj.id)}','monthly')">Месяц ${plans.month != null ? fmtInt(plans.month) + ' ₽' : ''}&nbsp;<b>${pay.monthly?.count || 0}</b>&nbsp;· ${fmtInt(pay.monthly?.rub || 0)} ₽</button>` +
@@ -7242,7 +7251,7 @@ function renderPlantoBreakdownCard(proj, rows) {
           : '') +
         `<button type="button" class="income-chip btn${!curPlan ? ' active' : ''}" onclick="setPlanFilter('${escHtml(proj.id)}','')">Все&nbsp;<b>${fmtInt(pay.total.rub || 0)} ₽</b></button>` +
         `</div>`
-      : '';
+      : '');
     return `<div class="analytics-card planto-breakdown-card">
       <div class="analytics-card-title">Auto feed <span class="feed-badge">live</span></div>
       ${payHtml}${refreshHint}${warnHtml}
@@ -7813,8 +7822,6 @@ function getMatureCohortMetrics(monthKey) {
 function trialMetricSub(proj, fallback) {
   const meta = feedMeta(proj?.id) || {};
   const src = String(meta.sources?.trials || '');
-  const ev = String(meta.trial_event || '');
-  if (src.includes('purchase_success') || ev === 'purchase_success') return 'AM purchase_success';
   if (src.includes('supabase')) return 'RuStore entitlements';
   return fallback || 'старты';
 }
@@ -9460,6 +9467,9 @@ function renderGlobalIncomeCard(proj, rows) {
       <span class="income-chip">Ребиллы&nbsp;<b>${fmtMoney(cash.rebills, cur)}</b></span>
       <span class="income-chip">Период&nbsp;<b>${fmtMoney(cash.kassa, cur)}</b></span>
       ${allKassa && Math.abs(allKassa - cash.kassa) > 1 ? `<span class="income-chip">Всё время&nbsp;<b>${fmtMoney(allKassa, cur)}</b></span>` : ''}
+      ${Object.entries(meta?.payments_by_sku || {}).filter(([, c]) => (Number(c.main) || 0) || (Number(c.trial) || 0)).sort((a, b) => Number(b[1].rub || 0) - Number(a[1].rub || 0)).map(([code, cell]) =>
+        `<span class="income-chip" title="${escHtml(code)}">${fmtInt(cell.price)} ₽ · ${fmtInt(cell.main || 0)} MAIN / ${fmtInt(cell.trial || 0)} trial</span>`
+      ).join('')}
     </div>
     <div class="budget-hint">${escHtml(periodHint)}${meta?.generated_at ? ` · данные на ${escHtml(new Date(meta.generated_at).toLocaleString('ru-RU'))}` : ''}</div>
   </div>`;

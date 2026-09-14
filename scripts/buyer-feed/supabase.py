@@ -20,6 +20,14 @@ class TrialStart:
     user_id: str
     purchase_id: str
     trial_start: date
+    product_code: str = ""
+
+
+@dataclass(frozen=True)
+class SkuOffer:
+    period: str  # weekly | monthly | yearly
+    price: int
+    trial_days: int
 
 
 def _to_msk_date(ts: datetime) -> date:
@@ -41,6 +49,9 @@ def _is_weekly(product_code: str | None) -> bool:
 def plan_of(product_code: str | None) -> str:
     """weekly / monthly / yearly. Раньше было бинарно (год vs «всё остальное»),
     из-за чего недельная подписка (premium_week) считалась месячной."""
+    offer = sku_offer(product_code)
+    if offer:
+        return offer.period
     if _is_yearly(product_code):
         return "yearly"
     if _is_weekly(product_code):
@@ -51,6 +62,8 @@ def plan_of(product_code: str | None) -> str:
 # Цены задаются проектом (config.plans + config.sku_prices).
 PLAN_PRICES = {"weekly": 0, "monthly": MONTHLY_PRICE, "yearly": YEARLY_PRICE}
 SKU_PRICES: dict[str, int] = {}
+SKU_CATALOG: dict[str, SkuOffer] = {}
+UNKNOWN_SKUS: list[str] = []
 # Planto: когорта = календарный день activated_at, счёт года = старт + lag.
 # Не last_event − lag: last_event ползёт на ретраях RuStore.
 BILL_COHORT_FROM_ACTIVATED_AT = False
@@ -72,6 +85,84 @@ def set_plan_prices(plans: dict | None) -> None:
                 PLAN_PRICES[key] = int(v)
             except (TypeError, ValueError):
                 pass
+
+
+def _normalize_offer_period(raw: str | None) -> str:
+    p = str(raw or "").strip().lower()
+    if p in ("week", "weekly", "7d"):
+        return "weekly"
+    if p in ("year", "yearly"):
+        return "yearly"
+    return "monthly"
+
+
+def _int_or_zero(raw) -> int:
+    if raw is None or raw == "":
+        return 0
+    try:
+        return max(0, int(raw))
+    except (TypeError, ValueError):
+        return 0
+
+
+def set_sku_catalog(mapping: dict[str, SkuOffer] | None) -> None:
+    SKU_CATALOG.clear()
+    UNKNOWN_SKUS.clear()
+    if not mapping:
+        return
+    SKU_CATALOG.update(mapping)
+
+
+def sku_offer(product_code: str | None) -> SkuOffer | None:
+    return SKU_CATALOG.get(str(product_code or "").strip())
+
+
+def catalog_active() -> bool:
+    return bool(SKU_CATALOG)
+
+
+def pop_unknown_skus() -> list[str]:
+    out = sorted({c for c in UNKNOWN_SKUS if c})
+    UNKNOWN_SKUS.clear()
+    return out
+
+
+def catalog_dump() -> dict[str, dict]:
+    return {
+        code: {"period": o.period, "price": o.price, "trial_days": o.trial_days}
+        for code, o in sorted(SKU_CATALOG.items())
+    }
+
+
+_PAYWALL_OFFERS_SQL = """
+    SELECT period, product_id, product_id_b,
+           price_rub, price_rub_b,
+           trial_days, trial_days_b
+    FROM paywall_offers
+    WHERE active
+      AND store IN ('all', 'rustore');
+"""
+
+
+def fetch_paywall_offers(db_url: str) -> dict[str, SkuOffer]:
+    """Live SKU catalog: product_id and product_id_b each get their own price/trial."""
+    rows = _fetch_generic(db_url, _PAYWALL_OFFERS_SQL)
+    out: dict[str, SkuOffer] = {}
+    for period, pid, pid_b, price, price_b, trial, trial_b in rows:
+        plan = _normalize_offer_period(period)
+        code = str(pid or "").strip()
+        if code:
+            out[code] = SkuOffer(period=plan, price=_int_or_zero(price), trial_days=_int_or_zero(trial))
+        code_b = str(pid_b or "").strip()
+        if code_b:
+            price_old = price_b if price_b is not None else price
+            trial_old = trial_b if trial_b is not None else trial
+            out[code_b] = SkuOffer(
+                period=plan,
+                price=_int_or_zero(price_old),
+                trial_days=_int_or_zero(trial_old),
+            )
+    return out
 
 
 def set_sku_prices(mapping: dict | None) -> None:
@@ -108,11 +199,25 @@ def set_cash_from(raw) -> None:
         CASH_FROM = None
 
 
-def amount_for_sku(product_code: str | None) -> int:
+def amount_for_sku(product_code: str | None) -> int | None:
     code = str(product_code or "").strip()
+    offer = sku_offer(code)
+    if offer:
+        return int(offer.price)
+    if catalog_active():
+        return None
     if code in SKU_PRICES:
         return int(SKU_PRICES[code])
     return int(PLAN_PRICES.get(plan_of(code), MONTHLY_PRICE))
+
+
+def trial_days_for_sku(product_code: str | None) -> int:
+    offer = sku_offer(product_code)
+    if offer:
+        return int(offer.trial_days or 0)
+    if catalog_active():
+        return 0
+    return trial_lag_for_plan(plan_of(product_code))
 
 
 def set_trial_config(cfg: dict | None) -> None:
@@ -161,7 +266,7 @@ def derive_trial_start(
     """Trial start date (MSK).
 
     Prefers activated_at (stable activation date), falls back to last_event_time.
-    for_daily=True — только новые старты триала в этот день.
+    Catalog mode (paywall_offers): CPT = TRIAL or MAIN/GRACE у SKU с trial_days>0.
     """
     period = (period or "").upper()
     status = (status or "").upper()
@@ -169,7 +274,16 @@ def derive_trial_start(
     start_time = activated_at or last_event_time
     if start_time is None:
         return None
-    start_day = _to_msk_date(start_time)
+    start_day = _to_msk_date(activated_at) if activated_at is not None else _to_msk_date(start_time)
+
+    if catalog_active():
+        offer = sku_offer(product_code)
+        has_trial_sku = bool(offer and offer.trial_days > 0)
+        if period == "TRIAL":
+            return start_day
+        if period in ("MAIN", "GRACE") and has_trial_sku:
+            return start_day
+        return None
 
     if period == "TRIAL":
         # activated_at — надёжный старт, берём как есть (в т.ч. для закрытых).
@@ -282,6 +396,7 @@ def _rows_to_starts(
                 user_id=str(user_id),
                 purchase_id=str(purchase_id),
                 trial_start=trial_start,
+                product_code=str(product_code or ""),
             )
         )
     return starts
@@ -314,13 +429,18 @@ def fetch_new_trial_starts(
 
 
 def dedupe_trial_starts_by_user(starts: list[TrialStart]) -> list[TrialStart]:
-    """One trial per user — earliest start wins."""
+    """One trial per user_id (fallback purchase_id) — earliest start wins."""
     best: dict[str, TrialStart] = {}
     for row in starts:
-        prev = best.get(row.user_id)
+        key = str(row.user_id or row.purchase_id)
+        prev = best.get(key)
         if prev is None or row.trial_start < prev.trial_start:
-            best[row.user_id] = row
-    return sorted(best.values(), key=lambda r: (r.trial_start, r.user_id))
+            best[key] = row
+    return sorted(best.values(), key=lambda r: (r.trial_start, key_user(r)))
+
+
+def key_user(row: TrialStart) -> str:
+    return str(row.user_id or row.purchase_id)
 
 
 def trials_by_day_from_starts(starts: list[TrialStart]) -> dict[str, int]:
@@ -408,17 +528,28 @@ def derive_bill(
     event_type: str | None = None,
 ) -> Bill | None:
     plan = plan_of(product_code)
-    if plan == "weekly" and int(PLAN_PRICES.get("weekly") or 0) <= 0:
-        return None
     period_u = (period or "").upper()
-    # Год в кассе только после MAIN. HOLD/GRACE без списания — нет.
-    if plan == "yearly" and period_u != "MAIN":
-        return None
-    # У месяца триала нет: TRIAL не касса. Любой другой период после денег — да.
-    if plan == "monthly" and period_u == "TRIAL":
-        return None
-    amount = amount_for_sku(product_code)
-    lag = trial_lag_for_plan(plan)
+    if catalog_active():
+        amount = amount_for_sku(product_code)
+        if amount is None:
+            code = str(product_code or "").strip()
+            if code:
+                UNKNOWN_SKUS.append(code)
+            return None
+        if period_u != "MAIN":
+            return None
+        lag = trial_days_for_sku(product_code)
+    else:
+        if plan == "weekly" and int(PLAN_PRICES.get("weekly") or 0) <= 0:
+            return None
+        # Год в кассе только после MAIN. HOLD/GRACE без списания — нет.
+        if plan == "yearly" and period_u != "MAIN":
+            return None
+        # У месяца триала нет: TRIAL не касса. Любой другой период после денег — да.
+        if plan == "monthly" and period_u == "TRIAL":
+            return None
+        amount = amount_for_sku(product_code) or 0
+        lag = trial_lag_for_plan(plan)
 
     if BILL_COHORT_FROM_ACTIVATED_AT:
         start_src = activated_at
@@ -450,12 +581,50 @@ def derive_bill(
         user_id=str(user_id),
         purchase_id=str(purchase_id),
         plan=plan,
-        amount=amount,
+        amount=int(amount),
         pay_date=pay_date,
         cohort_day=cohort_day,
         product_code=str(product_code or ""),
         kind="first",
     )
+
+
+def _add_calendar_months(d: date, months: int) -> date:
+    month = d.month - 1 + months
+    year = d.year + month // 12
+    month = month % 12 + 1
+    import calendar
+    day = min(d.day, calendar.monthrange(year, month)[1])
+    return date(year, month, day)
+
+
+def _n_period_steps(first_pay: date, last: date, plan: str) -> int:
+    """Полные шаги тарифа между first_pay и last, без дня first."""
+    if last <= first_pay:
+        return 0
+    if plan == "weekly":
+        return (last - first_pay).days // 7
+    if plan == "monthly":
+        n = (last.year - first_pay.year) * 12 + (last.month - first_pay.month)
+        if last.day < first_pay.day:
+            n -= 1
+        return max(0, n)
+    if plan == "yearly":
+        n = last.year - first_pay.year
+        if (last.month, last.day) < (first_pay.month, first_pay.day):
+            n -= 1
+        return max(0, n)
+    return 0
+
+
+def _step_pay_date(first_pay: date, k: int, plan: str) -> date:
+    if plan == "weekly":
+        return first_pay + timedelta(days=7 * k)
+    if plan == "monthly":
+        return _add_calendar_months(first_pay, k)
+    if plan == "yearly":
+        return _add_calendar_months(first_pay, 12 * k)
+    return first_pay + timedelta(days=7 * k)
 
 
 def expand_weekly_rebills(
@@ -465,24 +634,18 @@ def expand_weekly_rebills(
     activated_at: datetime | None,
     until: date,
 ) -> list[Bill]:
-    """Недельные MAIN: first + extra каждые 7 дней после триала.
-
-    n_extra = floor((last_event − activated − lag) / 7), без дня первого счёта.
-    Месячные/годовые не разворачиваем.
-    """
-    if bill.plan != "weekly" or int(bill.amount or 0) <= 0:
+    """First MAIN + extra списания по шагу тарифа (неделя 7д / месяц / год)."""
+    if int(bill.amount or 0) <= 0:
         return [bill]
-    if activated_at is None or last_event_time is None:
+    if last_event_time is None:
         return [bill]
-    act = _to_msk_date(activated_at)
     last = _to_msk_date(last_event_time)
-    lag = trial_lag_for_plan("weekly")
-    n_extra = (last - act - timedelta(days=lag)).days // 7
+    n_extra = _n_period_steps(bill.pay_date, last, bill.plan)
     if n_extra < 1:
         return [bill]
     out = [bill]
     for k in range(1, n_extra + 1):
-        d = bill.pay_date + timedelta(days=7 * k)
+        d = _step_pay_date(bill.pay_date, k, bill.plan)
         if d > until:
             break
         out.append(
@@ -595,6 +758,53 @@ def rebill_stats(bills: list[Bill]) -> dict:
         "first_rub": sum(int(b.amount or 0) for b in firsts),
         "total_rub": sum(int(b.amount or 0) for b in bills),
     }
+
+
+def sku_chip_breakdown(
+    bills: list[Bill],
+    trial_starts: list[TrialStart] | None = None,
+) -> dict[str, dict[str, int | str]]:
+    """Чипы кассы: MAIN × цена SKU и отдельно число триалов этого SKU."""
+    out: dict[str, dict[str, int | str]] = {}
+    for code, offer in SKU_CATALOG.items():
+        out[code] = {
+            "period": offer.period,
+            "price": offer.price,
+            "trial_days": offer.trial_days,
+            "main": 0,
+            "trial": 0,
+            "rub": 0,
+        }
+    for b in first_bills(bills):
+        code = str(b.product_code or "").strip() or b.plan
+        cell = out.setdefault(code, {
+            "period": b.plan,
+            "price": int(b.amount or 0),
+            "trial_days": 0,
+            "main": 0,
+            "trial": 0,
+            "rub": 0,
+        })
+        cell["main"] = int(cell["main"]) + 1
+        cell["rub"] = int(cell["rub"]) + int(b.amount or 0)
+    seen: set[tuple[str, str]] = set()
+    for row in trial_starts or []:
+        code = str(getattr(row, "product_code", "") or "")
+        uid = str(row.user_id or row.purchase_id)
+        sig = (code, uid)
+        if sig in seen:
+            continue
+        seen.add(sig)
+        cell = out.setdefault(code, {
+            "period": plan_of(code),
+            "price": int(amount_for_sku(code) or 0),
+            "trial_days": trial_days_for_sku(code),
+            "main": 0,
+            "trial": 0,
+            "rub": 0,
+        })
+        cell["trial"] = int(cell["trial"]) + 1
+    return {k: v for k, v in out.items() if int(v["main"]) or int(v["trial"])}
 
 
 def bills_by_day(bills: list[Bill]) -> dict[str, int]:

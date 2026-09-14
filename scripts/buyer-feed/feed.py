@@ -32,11 +32,18 @@ from secrets import load_secrets, polza_api_keys
 from supabase import (
     bills_breakdown,
     bills_by_plan_by_day,
+    catalog_dump,
+    dedupe_trial_starts_by_user,
+    fetch_paywall_offers,
+    first_bills,
+    pop_unknown_skus,
     set_plan_prices,
+    set_sku_catalog,
     set_sku_prices,
     set_bill_cohort_from_activated_at,
     set_cash_from,
     set_trial_config,
+    sku_chip_breakdown,
     bills_by_cohort_day,
     bills_by_day,
     fetch_bills,
@@ -167,6 +174,8 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
     sold_by_cohort_day_map: dict[str, int] = {}
     bills_by_plan: dict[str, dict[str, int]] | None = None
     bills_by_plan_day: dict[str, dict[str, dict[str, int]]] | None = None
+    bills_list: list = []
+    sku_chips: dict | None = None
     bills_cohort: dict[str, int] = {}
     cash: dict | None = None
     trial_cancels_by_day: dict[str, int] = {}
@@ -251,9 +260,8 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
 
     am_token = secrets.get("APPMETRICA_OAUTH_TOKEN")
     app_id = secrets.get("APPMETRICA_APPLICATION_ID") or cfg.get("appmetrica_application_id") or "6305902"
-    # Событие начала триала различается по приложениям: Planto шлёт trial_started,
-    # ColorStylist — purchase_success (подписка premium_week с 3-дневным триалом).
-    trial_event = cfg.get("trial_event") or "trial_started"
+    # AM — только кроссчек. CPT в дашборде при trials_source=supabase из entitlements.
+    trial_event = cfg.get("trials_am_event") or cfg.get("trial_event") or "trial_started"
     trials_sb_crosscheck: dict[str, int] = {}
     # Отдельный флаг успеха запроса — пустой словарь (0 трайлов за окно) не должен
     # выглядеть как сбой AppMetrica и триггерить fallback на Supabase.
@@ -289,29 +297,47 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
     db_url = secrets.get("SUPABASE_DB_URL")
     if db_url:
         try:
+            offers = fetch_paywall_offers(db_url)
+            set_sku_catalog(offers)
+            if offers:
+                sources["sku_catalog"] = "paywall_offers"
+                print(
+                    "  SKU catalog: "
+                    + ", ".join(
+                        f"{code} {o['price']}₽/{o['trial_days']}d"
+                        for code, o in catalog_dump().items()
+                    )
+                )
+        except Exception as exc:
+            set_sku_catalog(None)
+            print(f"  paywall_offers skipped: {exc}")
+        try:
             # Когорты: distinct users + yearly MAIN, отнесённые к старту триала.
             # Daily: только новые старты (без backdate MAIN) — как «v2».
             trial_starts = fetch_trial_starts(db_url, anchor, until, product_needles)
             daily_starts = fetch_new_trial_starts(db_url, anchor, until, product_needles)
+            if catalog_dump():
+                trial_starts = dedupe_trial_starts_by_user(trial_starts)
+                daily_starts = dedupe_trial_starts_by_user(daily_starts)
             trials_sb_crosscheck = trials_by_day_from_starts(daily_starts)
             prefer_sb = trials_source == "supabase" or (
                 not trials_am_fetch_ok and bool(trials_sb_crosscheck)
             )
-            if prefer_sb and (trial_starts or trials_sb_crosscheck):
+            if prefer_sb:
                 trials = trials_sb_crosscheck
                 sources["trials"] = "supabase_trial_start"
             print(
-                f"  Supabase trials (crosscheck): {sum(trials_sb_crosscheck.values())} · "
+                f"  Supabase trials: {sum(trials_sb_crosscheck.values())} · "
                 f"{len(trials_sb_crosscheck)} days"
             )
-            if trials and trials_sb_crosscheck:
+            if trials_am_crosscheck and trials_sb_crosscheck:
                 yday = (until - timedelta(days=1)).isoformat()
-                am_y = int(trials.get(yday) or 0)
+                am_y = int(trials_am_crosscheck.get(yday) or 0)
                 sb_y = int(trials_sb_crosscheck.get(yday) or 0)
                 if am_y or sb_y:
                     print(
-                        f"  Trials {yday}: dashboard/AM={am_y} · "
-                        f"RuStore={sb_y} · delta={am_y - sb_y:+d}"
+                        f"  Trials {yday}: dashboard={sb_y} · "
+                        f"AM {trial_event}={am_y} · delta={sb_y - am_y:+d}"
                     )
         except Exception as exc:
             errors.append(f"supabase: {exc}")
@@ -332,6 +358,11 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
             bills_by_plan = bills_breakdown(bills_list)
             bills_by_plan_day = bills_by_plan_by_day(bills_list)
             cash = rebill_stats(bills_list)
+            sku_chips = sku_chip_breakdown(bills_list, trial_starts) if catalog_dump() else None
+            unknown = pop_unknown_skus()
+            if unknown:
+                errors.append("unknown_sku: " + ", ".join(unknown))
+                print(f"  Unknown SKU (skipped cash): {', '.join(unknown)}")
             sources["bills"] = "supabase_main_active_pay_day"
             print(
                 f"  Supabase bills: {cash['first_count']} first + {cash['week_events']} week rebills "
@@ -436,6 +467,9 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
         try:
             trial_starts = fetch_trial_starts(db_url, anchor, until, product_needles)
             daily_starts = fetch_new_trial_starts(db_url, anchor, until, product_needles)
+            if catalog_dump():
+                trial_starts = dedupe_trial_starts_by_user(trial_starts)
+                daily_starts = dedupe_trial_starts_by_user(daily_starts)
             full_trials = trials_by_day_from_starts(daily_starts)
         except Exception:
             full_trials = trials
@@ -671,7 +705,7 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
         } if polza_summary else None,
         "trial_days": int(cfg.get("trial_days") or cfg.get("trial_lag_days") or 7),
         "trial_lag_days": int(cfg.get("trial_lag_days") or 7),
-        "trial_event": trial_event,
+        "trials_am_event": trial_event,
         "trial_plan": cfg.get("trial_plan"),
         "cash_from": cfg.get("cash_from"),
         "grace_days": cfg.get("grace_days"),
@@ -730,6 +764,11 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
         meta["payments_by_plan"] = bills_by_plan
     if bills_by_plan_day:
         meta["payments_by_plan_by_day"] = bills_by_plan_day
+    cat = catalog_dump()
+    if cat:
+        meta["sku_catalog"] = cat
+    if sku_chips:
+        meta["payments_by_sku"] = sku_chips
     # Календарный доход по дням оплаты (совпадает с RuStore «7 дней»).
     paid_day_src = paid_by_pay_day or paid_by_cohort_day
     if paid_day_src:
@@ -753,12 +792,44 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
         "supabase": int(trials_sb_crosscheck.get(yday) or 0),
         "dashboard": int((merged.get(yday) or {}).get("trials") or 0),
         "note": (
-            "В дашборде trials = Supabase (distinct users). "
-            f"AppMetrica {trial_event} — кроссчек (события ym:ce:allEvents)."
+            "В дашборде trials = RuStore entitlements (уникальный user_id)."
             if sources.get("trials") == "supabase_trial_start"
-            else f"В дашборде trials = AppMetrica {trial_event} (события ym:ce:allEvents). RuStore — сверка."
+            else f"В дашборде trials = AppMetrica {trial_event}."
         ),
     }
+    def _sum_range(mp: dict, start: date, end: date) -> float:
+        total = 0.0
+        d = start
+        while d <= end:
+            total += float(mp.get(d.isoformat()) or 0)
+            d += timedelta(days=1)
+        return total
+
+    w_a, w_b = date(2026, 9, 7), date(2026, 9, 13)
+    w2_a, w2_b = date(2026, 8, 1), date(2026, 9, 13)
+    w3_a, w3_b = date(2026, 9, 7), date(2026, 9, 10)
+    for label, a, b in (("07–13.09", w_a, w_b), ("01.08–13.09", w2_a, w2_b), ("07–10.09", w3_a, w3_b)):
+        sp = _sum_range(full_spend, a, b)
+        tr = int(_sum_range(full_trials, a, b))
+        cpt = round(sp / tr) if tr else None
+        print(f"  CPT {label}: spend={sp:.2f} · trials={tr} · CPT={cpt}")
+    if bills_list:
+        closed = date(2026, 9, 13)
+        firsts = [
+            b for b in first_bills(bills_list)
+            if date(2026, 8, 1) <= b.pay_date <= closed
+        ]
+        by_sku: dict[str, list[int]] = {}
+        for b in firsts:
+            by_sku.setdefault(b.product_code, []).append(int(b.amount or 0))
+        print(
+            "  Cash firsts 01.08–13.09: "
+            + f"{len(firsts)} / {sum(int(b.amount or 0) for b in firsts)} ₽ · "
+            + ", ".join(
+                f"{k} {len(v)}×{v[0] if v else 0}"
+                for k, v in sorted(by_sku.items())
+            )
+        )
     if spend_today_estimated:
         meta["spend_today_estimated"] = True
     meta_path.parent.mkdir(parents=True, exist_ok=True)
