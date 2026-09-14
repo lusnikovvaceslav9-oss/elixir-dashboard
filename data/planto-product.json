@@ -1,29 +1,29 @@
 {
-  "generated_at": "2026-09-14T20:03:03+00:00",
+  "generated_at": "2026-09-14T23:36:32+00:00",
   "anchor": "2026-06-05",
-  "until": "2026-09-14",
+  "until": "2026-09-15",
   "product": {
     "from": "2026-06-05",
-    "to": "2026-09-14",
-    "installs": 17495,
-    "active_users": 17737,
+    "to": "2026-09-15",
+    "installs": 17503,
+    "active_users": 0,
     "events": {
       "plant_added": {
-        "users": 5134,
-        "events": 10793,
-        "vs_install_pct": 29.35,
+        "users": 5136,
+        "events": 10795,
+        "vs_install_pct": 29.34,
         "avg_per_user": 2.1
       },
       "paywall_shown": {
-        "users": 13519,
-        "events": 23732,
-        "vs_install_pct": 77.27,
+        "users": 13522,
+        "events": 23738,
+        "vs_install_pct": 77.26,
         "avg_per_user": 1.76
       },
       "paywall_cta_clicked": {
         "users": 5516,
-        "events": 8030,
-        "vs_install_pct": 31.53,
+        "events": 8031,
+        "vs_install_pct": 31.51,
         "avg_per_user": 1.46
       },
       "user_score5": {
@@ -46,39 +46,39 @@
       },
       "watering_marked": {
         "users": 266,
-        "events": 2470,
+        "events": 2471,
         "vs_install_pct": 1.52,
         "avg_per_user": 9.29
       },
       "ai_route": {
-        "users": 4548,
-        "events": 35719,
-        "vs_install_pct": 26.0,
+        "users": 4549,
+        "events": 35722,
+        "vs_install_pct": 25.99,
         "avg_per_user": 7.85
       },
       "scan_success": {
         "users": 5602,
-        "events": 18333,
-        "vs_install_pct": 32.02,
+        "events": 18334,
+        "vs_install_pct": 32.01,
         "avg_per_user": 3.27
       },
       "user_activated": {
-        "users": 14773,
-        "events": 19880,
+        "users": 14779,
+        "events": 19887,
         "vs_install_pct": 84.44,
         "avg_per_user": 1.35
       }
     },
-    "garden_activation_pct": 29.35,
+    "garden_activation_pct": 29.34,
     "garden_avg_plants": 2.1,
     "garden_depth_icp_pct": null,
-    "paywall_cta_pct": 40.8,
+    "paywall_cta_pct": 40.79,
     "care_engagement_pct": 5.6,
-    "chat_per_plant_pct": 11.61,
+    "chat_per_plant_pct": 11.6,
     "feature_activation": {
-      "scan_pct": 32.02,
+      "scan_pct": 32.01,
       "watering_pct": 3.37,
-      "ai_pct": 26.0
+      "ai_pct": 25.99
     },
     "retention": {
       "d1": null,
@@ -86,12 +86,14 @@
       "d7": null,
       "note": "AppMetrica Reporting API не отдаёт D1/D3/D7 без Logs/Retention export"
     },
-    "errors": []
+    "errors": [
+      "active_users: AppMetrica HTTP 400: {\"errors\":[{\"error_type\":\"query_error\",\"message\":\"Query is too complicated. Please reduce the date interval or sampling.\"}],\"code\":400,\"message\":\"Query is too complicated. Please reduce the date interval or sampling.\"}"
+    ]
   },
   "unit_economics": {
     "revenue_total": 243129,
-    "spend_total": 391483.18,
-    "active_users": 17737,
+    "spend_total": 391664.12,
+    "active_users": 0,
     "active_payers": 106,
     "plus_active_users": 153,
     "trial_cancellations": 11,
@@ -104,7 +106,7 @@
       "2026-09-14": 2
     },
     "renewals": 61,
-    "arpu": 13.71,
+    "arpu": null,
     "arppu": 2293.67,
     "ltv": 3613.61,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
