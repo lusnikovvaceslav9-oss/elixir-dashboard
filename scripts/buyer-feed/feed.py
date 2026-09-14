@@ -317,8 +317,7 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
             trial_starts = fetch_trial_starts(db_url, anchor, until, product_needles)
             daily_starts = fetch_new_trial_starts(db_url, anchor, until, product_needles)
             if catalog_dump():
-                # Один список на daily и когорты: MAIN/CLOSED с trial_days тоже старты.
-                trial_starts = dedupe_trial_starts_by_user(trial_starts)
+                trial_starts = dedupe_trial_starts_by_user(list(trial_starts) + list(daily_starts))
                 daily_starts = trial_starts
             trials_sb_crosscheck = trials_by_day_from_starts(daily_starts)
             prefer_sb = trials_source == "supabase" or (
@@ -469,7 +468,7 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
             trial_starts = fetch_trial_starts(db_url, anchor, until, product_needles)
             daily_starts = fetch_new_trial_starts(db_url, anchor, until, product_needles)
             if catalog_dump():
-                trial_starts = dedupe_trial_starts_by_user(trial_starts)
+                trial_starts = dedupe_trial_starts_by_user(list(trial_starts) + list(daily_starts))
                 daily_starts = trial_starts
             full_trials = trials_by_day_from_starts(daily_starts)
         except Exception:
