@@ -126,7 +126,7 @@ def fmt_checkpoint(d: date) -> str:
 
 
 def count_trial_starts_in_bucket(trial_starts: list, start: date, end: date) -> int:
-    """Distinct purchase (fallback user) with trial_start in [start, end]."""
+    """Distinct user (fallback purchase) with trial_start in [start, end]."""
     seen: set[str] = set()
     for row in trial_starts:
         uid = getattr(row, "purchase_id", None) or (row.get("purchase_id") if isinstance(row, dict) else None)
@@ -138,7 +138,7 @@ def count_trial_starts_in_bucket(trial_starts: list, start: date, end: date) -> 
             ts = parse_day(ts)
         if ts is None or not (start <= ts <= end):
             continue
-        seen.add(str(uid or user))
+        seen.add(str(user or uid))
     return len(seen)
 
 

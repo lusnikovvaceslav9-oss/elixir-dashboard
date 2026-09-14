@@ -317,8 +317,9 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
             trial_starts = fetch_trial_starts(db_url, anchor, until, product_needles)
             daily_starts = fetch_new_trial_starts(db_url, anchor, until, product_needles)
             if catalog_dump():
+                # Один список на daily и когорты: MAIN/CLOSED с trial_days тоже старты.
                 trial_starts = dedupe_trial_starts_by_user(trial_starts)
-                daily_starts = dedupe_trial_starts_by_user(daily_starts)
+                daily_starts = trial_starts
             trials_sb_crosscheck = trials_by_day_from_starts(daily_starts)
             prefer_sb = trials_source == "supabase" or (
                 not trials_am_fetch_ok and bool(trials_sb_crosscheck)
@@ -469,7 +470,7 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
             daily_starts = fetch_new_trial_starts(db_url, anchor, until, product_needles)
             if catalog_dump():
                 trial_starts = dedupe_trial_starts_by_user(trial_starts)
-                daily_starts = dedupe_trial_starts_by_user(daily_starts)
+                daily_starts = trial_starts
             full_trials = trials_by_day_from_starts(daily_starts)
         except Exception:
             full_trials = trials
@@ -808,7 +809,8 @@ def run_feed(work_dir: Path, config_path: Path | None = None) -> int:
     w_a, w_b = date(2026, 9, 7), date(2026, 9, 13)
     w2_a, w2_b = date(2026, 8, 1), date(2026, 9, 13)
     w3_a, w3_b = date(2026, 9, 7), date(2026, 9, 10)
-    for label, a, b in (("07–13.09", w_a, w_b), ("01.08–13.09", w2_a, w2_b), ("07–10.09", w3_a, w3_b)):
+    w4_a, w4_b = date(2026, 8, 4), date(2026, 8, 10)
+    for label, a, b in (("07–13.09", w_a, w_b), ("01.08–13.09", w2_a, w2_b), ("07–10.09", w3_a, w3_b), ("04–10.08", w4_a, w4_b)):
         sp = _sum_range(full_spend, a, b)
         tr = int(_sum_range(full_trials, a, b))
         cpt = round(sp / tr) if tr else None

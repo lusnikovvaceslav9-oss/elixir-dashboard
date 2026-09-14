@@ -7102,7 +7102,8 @@ function projectHasPlanFilter(proj) {
   const meta = feedMeta(proj?.id);
   const plans = meta?.plans || {};
   const pay = meta?.payments_by_plan;
-  return !!(plans.week || plans.month || plans.year || pay?.weekly || pay?.monthly || pay?.yearly);
+  const sku = meta?.payments_by_sku || meta?.sku_catalog;
+  return !!(plans.week || plans.month || plans.year || pay?.weekly || pay?.monthly || pay?.yearly || (sku && Object.keys(sku).length));
 }
 
 function applyPlanFilterToRows(proj, rows) {
@@ -7160,37 +7161,51 @@ function renderPlanFilter(proj) {
   const plans = meta.plans || {};
   const pay = meta.payments_by_plan || {};
   const cur = getPlanFilter(proj.id);
-  const trialPlan = String(meta.trial_plan || '').toLowerCase();
-  const trialDays = Number(meta.trial_days) || 0;
-  const grace = meta.grace_days != null ? Number(meta.grace_days) : null;
-  const hold = meta.hold_days != null ? Number(meta.hold_days) : null;
-  const chips = PLAN_FILTER_OPTS.map(opt => {
+  const skuEntries = skuChipEntries(meta);
+  const catalog = meta.sku_catalog || {};
+  const chips = skuEntries.length
+    ? skuEntries.map(([code, cell]) => {
+        const trialMark = Number(cell.trial_days) > 0 ? ` · триал ${fmtInt(cell.trial_days)}д` : '';
+        return `<span class="geo-chip" title="${escHtml(code)}"><span class="geo-chip-name">${escHtml(skuChipText(cell))}</span><span class="geo-chip-val">${escHtml(trialMark.replace(/^ · /, '') || '')}</span></span>`;
+      }).join('')
+    : PLAN_FILTER_OPTS.map(opt => {
     const price = plans[opt.priceKey];
     const cnt = pay[opt.metaKey]?.count;
     const pricePart = price != null ? ` ${fmtInt(price)} ₽` : '';
     const cntPart = cnt != null ? ` · ${fmtInt(cnt)}` : '';
-    const trialMark = (trialPlan === 'week' || trialPlan === 'weekly') && opt.id === 'weekly' && trialDays
-      ? ` · триал ${trialDays}д`
-      : '';
+    const trialMark = '';
     return `<button type="button" class="geo-chip${cur === opt.id ? ' active' : ''}" onclick="setPlanFilter('${escHtml(proj.id)}','${opt.id}')">
       <span class="geo-chip-name">${escHtml(opt.label)}${escHtml(pricePart)}</span>
       <span class="geo-chip-val">${escHtml(String(cntPart + trialMark).replace(/^ · /, '') || '—')}</span>
     </button>`;
   }).join('');
-  let hint = 'Фильтр оплат по тарифу · CAC = spend / оплаты выбранного плана';
-  if (trialPlan === 'week' || trialPlan === 'weekly') {
-    const parts = [`триал ${trialDays || 3}д только на неделе`];
+  let hint = skuEntries.length
+    ? 'Чип = SKU из paywall_offers · MAIN / trial без склейки недели 199 и 399'
+    : 'Фильтр оплат по тарифу · CAC = spend / оплаты выбранного плана';
+  if (!skuEntries.length && (String(meta.trial_plan || '').toLowerCase() === 'week' || String(meta.trial_plan || '').toLowerCase() === 'weekly')) {
+    const grace = meta.grace_days != null ? Number(meta.grace_days) : null;
+    const hold = meta.hold_days != null ? Number(meta.hold_days) : null;
+    const parts = [];
     if (grace != null) parts.push(`грейс ${grace}д`);
     if (hold != null) parts.push(`холд ${hold}д`);
-    hint += ` · ${parts.join(' · ')}`;
+    if (parts.length) hint += ` · ${parts.join(' · ')}`;
+  }
+  if (Object.keys(catalog).some(k => Number(catalog[k]?.trial_days) > 0)) {
+    const bits = Object.entries(catalog)
+      .filter(([, o]) => Number(o.trial_days) > 0)
+      .map(([code, o]) => `${code} ${o.trial_days}д`);
+    if (bits.length && skuEntries.length) hint += ` · триал: ${bits.join(', ')}`;
   }
   if (cur && !meta.payments_by_plan_by_day?.[cur]) {
     hint += ' · по дням появится после обновления feed';
   }
+  const allBtn = skuEntries.length
+    ? ''
+    : `<button type="button" class="geo-chip${cur ? '' : ' active'}" onclick="setPlanFilter('${escHtml(proj.id)}','')">Все</button>`;
   return `<div class="geo-filter">
     <div class="geo-filter-head">
-      <span class="geo-filter-label">Подписка</span>
-      <button type="button" class="geo-chip${cur ? '' : ' active'}" onclick="setPlanFilter('${escHtml(proj.id)}','')">Все</button>
+      <span class="geo-filter-label">${skuEntries.length ? 'SKU' : 'Подписка'}</span>
+      ${allBtn}
       ${chips}
     </div>
     <div class="geo-filter-hint">${escHtml(hint)}</div>
@@ -7233,12 +7248,10 @@ function renderPlantoBreakdownCard(proj, rows) {
     const pay = meta?.payments_by_plan;
     const plans = meta?.plans || {};
     const curPlan = getPlanFilter(proj.id);
-    const sku = meta?.payments_by_sku;
-    const skuEntries = sku ? Object.entries(sku).filter(([, c]) => (Number(c.main) || 0) || (Number(c.trial) || 0)) : [];
-    const skuHtml = skuEntries.length
+    const skuHtml = skuChipEntries(meta).length
       ? `<div class="income-chips-row">` +
-        skuEntries.sort((a, b) => Number(b[1].rub || 0) - Number(a[1].rub || 0) || String(a[0]).localeCompare(b[0])).map(([code, cell]) =>
-          `<span class="income-chip" title="${escHtml(code)}">${fmtInt(cell.price)} ₽ · ${fmtInt(cell.main || 0)} MAIN / ${fmtInt(cell.trial || 0)} trial</span>`
+        skuChipEntries(meta).map(([code, cell]) =>
+          `<span class="income-chip" title="${escHtml(code)}">${escHtml(skuChipText(cell))}</span>`
         ).join('') +
         `</div>`
       : '';
@@ -7826,6 +7839,38 @@ function trialMetricSub(proj, fallback) {
   return fallback || 'старты';
 }
 
+function skuPeriodLabel(period) {
+  const p = String(period || '').toLowerCase();
+  if (p === 'weekly' || p === 'week') return 'неделя';
+  if (p === 'yearly' || p === 'year') return 'год';
+  if (p === 'monthly' || p === 'month') return 'месяц';
+  return p || 'тариф';
+}
+
+function skuChipText(cell) {
+  const price = fmtInt(cell.price);
+  const period = skuPeriodLabel(cell.period);
+  return `${price} ₽ · ${period} · MAIN ${fmtInt(cell.main || 0)} / trial ${fmtInt(cell.trial || 0)}`;
+}
+
+function skuChipEntries(meta) {
+  const sku = meta?.payments_by_sku;
+  if (!sku) return [];
+  return Object.entries(sku)
+    .filter(([, c]) => (Number(c.main) || 0) || (Number(c.trial) || 0))
+    .sort((a, b) => Number(b[1].rub || 0) - Number(a[1].rub || 0) || String(a[0]).localeCompare(b[0]));
+}
+
+function allTimeRoas(proj) {
+  const meta = feedMeta(proj?.id) || {};
+  const ue = meta.unit_economics || {};
+  const spend = Number(ue.spend_total);
+  const cash = Number(meta.cash_period?.total != null ? meta.cash_period.total : ue.revenue_total);
+  const sp = Number.isFinite(spend) && spend > 0 ? spend : sum(getPlantoDailyRows(proj?.id), 'spend');
+  const kassa = Number.isFinite(cash) && cash > 0 ? cash : getPeriodCash(getPlantoDailyRows(proj?.id)).kassa;
+  return sp ? (kassa / sp * 100) : null;
+}
+
 function getPeriodCash(rows) {
   const kassa = (rows || []).reduce((a, r) => a + (Number(r.paid_net) || 0), 0);
   const rebills = (rows || []).reduce((a, r) => a + (Number(r.rebill_net) || 0), 0);
@@ -7961,9 +8006,7 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
   const installToTrial = ins ? (tr / ins * 100) : null;
   const trialToPaid = mature?.trialToPaid != null
     ? mature.trialToPaid
-    : (activePlan && activePlan !== 'weekly'
-      ? null  // триал только на неделе — для month/year CR не считаем
-      : (tr ? (fb / tr * 100) : null));
+    : (tr ? (fb / tr * 100) : null);
   const ctr = (hasAds && impressions) ? (clicks / impressions * 100) : null;
   const cpm = (hasAds && impressions) ? (sp / impressions * 1000) : null;
   const cpi = ins ? (sp / ins) : null;
@@ -7972,7 +8015,7 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
   // CAC = spend / bills (fb). sold — только yearly-подмножество, не знаменатель.
   const cac = fb ? (sp / fb) : null;
   const periodRoas = (sp && paidNet != null) ? (paidNet / sp * 100) : null;
-  const roasD7 = periodRoas;
+  const totalRoas = allTimeRoas(proj);
   const roasD14 = unit?.roas_d14 ?? mature?.roasD14 ?? null;
   const roasD30 = unit?.roas_d30 ?? mature?.roasD30 ?? null;
   const polzaPeriod = sum(rows, 'polza_spend');
@@ -8014,11 +8057,9 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
       : plantoKpiCell('Отмены триала', 'нет данных', { pending: true, sub: 'подтянем из Supabase' }),
     plantoKpiCell('Trial → Paid', trialToPaid != null ? fmtPct(trialToPaid) : '—', {
       accent: true,
-      sub: activePlan && activePlan !== 'weekly'
-        ? 'триал только на неделе'
-        : (mature?.trialToPaid != null
+      sub: mature?.trialToPaid != null
           ? `зрелые когорты · лаг 7+ дн.`
-          : 'по дням оплаты · когорты зреют'),
+          : 'по дням оплаты · когорты зреют',
       bar: trialToPaid != null ? { pct: Math.min(trialToPaid * 2, 100) } : null,
     }),
   ].join('');
@@ -8083,11 +8124,15 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
     unit?.ltv != null
       ? plantoKpiCell('LTV', fmtMoneyOrDash(unit.ltv, cur), { accent: true, sub: 'оценка с учётом ребиллов' })
       : plantoKpiCell('LTV', 'нет данных', { pending: true, sub: 'нужна кривая ребиллов' }),
-    plantoKpiCell('ROAS', roasD7 != null ? fmtPct(roasD7) : '—', {
+    plantoKpiCell('ROAS', totalRoas != null ? fmtPct(totalRoas) : '—', {
       accent: true,
-      tone: roasD7 != null && roasD7 >= 100 ? 'good' : (roasD7 != null && roasD7 < 40 ? 'warn' : ''),
-      sub: 'касса / spend за период',
-      bar: roasD7 != null ? { pct: Math.min(roasD7, 100), warn: roasD7 < 40 } : null,
+      tone: totalRoas != null && totalRoas >= 100 ? 'good' : (totalRoas != null && totalRoas < 40 ? 'warn' : ''),
+      sub: 'всё время · касса / spend',
+      bar: totalRoas != null ? { pct: Math.min(totalRoas, 100), warn: totalRoas < 40 } : null,
+    }),
+    plantoKpiCell('ROAS периода', periodRoas != null ? fmtPct(periodRoas) : '—', {
+      accent: true,
+      sub: 'касса / spend за выбранные дни',
     }),
     roasD14 != null
       ? plantoKpiCell('ROAS D14', fmtPct(roasD14), { sub: 'всё время · когорты ≥14 дн.' })
@@ -8179,14 +8224,18 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
   const trialPlan = String(meta?.trial_plan || '').toLowerCase();
   const graceDays = meta?.grace_days != null ? Number(meta.grace_days) : null;
   const holdDays = meta?.hold_days != null ? Number(meta.hold_days) : null;
-  let trialsDesc = `Из-за ${trialDays}-дневного триала смотрим конверсии и отмены, а не только день-в-день.`;
-  let trialsHint = `лаг ${trialLag} дн.`;
-  if (trialPlan === 'week' || trialPlan === 'weekly') {
-    const bits = [`триал ${trialDays}д только на неделе 199 ₽`];
+  const catalog = meta?.sku_catalog || {};
+  const trialSkus = Object.entries(catalog).filter(([, o]) => Number(o.trial_days) > 0);
+  let trialsDesc = trialSkus.length
+    ? ('Триал из paywall_offers: ' + trialSkus.map(([code, o]) => `${code} ${o.trial_days}д`).join(', ') + '.')
+    : `Из-за ${trialDays}-дневного триала смотрим конверсии и отмены, а не только день-в-день.`;
+  let trialsHint = trialSkus.length ? 'каталог SKU' : `лаг ${trialLag} дн.`;
+  if (!trialSkus.length && (trialPlan === 'week' || trialPlan === 'weekly')) {
+    const bits = [];
     if (graceDays != null) bits.push(`грейс ${graceDays}д`);
     if (holdDays != null) bits.push(`холд ${holdDays}д`);
-    trialsDesc = bits.join(' · ') + '. Месяц 399 ₽; год 2 490 ₽ или 3 490 ₽ (SKU v2 с 31.07).';
-    trialsHint = `триал → week`;
+    if (bits.length) trialsDesc += ' ' + bits.join(' · ') + '.';
+    trialsHint = `лаг ${trialLag} дн.`;
   }
   const productSubtitle = product?.subtitle
     || 'Дошёл ли пользователь до ценности — сад, пейволл, уход и ключевые фичи.';
@@ -9467,8 +9516,8 @@ function renderGlobalIncomeCard(proj, rows) {
       <span class="income-chip">Ребиллы&nbsp;<b>${fmtMoney(cash.rebills, cur)}</b></span>
       <span class="income-chip">Период&nbsp;<b>${fmtMoney(cash.kassa, cur)}</b></span>
       ${allKassa && Math.abs(allKassa - cash.kassa) > 1 ? `<span class="income-chip">Всё время&nbsp;<b>${fmtMoney(allKassa, cur)}</b></span>` : ''}
-      ${Object.entries(meta?.payments_by_sku || {}).filter(([, c]) => (Number(c.main) || 0) || (Number(c.trial) || 0)).sort((a, b) => Number(b[1].rub || 0) - Number(a[1].rub || 0)).map(([code, cell]) =>
-        `<span class="income-chip" title="${escHtml(code)}">${fmtInt(cell.price)} ₽ · ${fmtInt(cell.main || 0)} MAIN / ${fmtInt(cell.trial || 0)} trial</span>`
+      ${skuChipEntries(meta).map(([code, cell]) =>
+        `<span class="income-chip" title="${escHtml(code)}">${escHtml(skuChipText(cell))}</span>`
       ).join('')}
     </div>
     <div class="budget-hint">${escHtml(periodHint)}${meta?.generated_at ? ` · данные на ${escHtml(new Date(meta.generated_at).toLocaleString('ru-RU'))}` : ''}</div>
@@ -10911,6 +10960,7 @@ function renderRevenueExtras(proj, rows) {
     { label: 'Доход first', value: fmtMoney(cash.first, cur), accent: false, sub: 'период' },
     { label: 'Ребиллы', value: fmtMoney(cash.rebills, cur), accent: false, sub: 'неделя' },
     { label: 'Касса', value: fmtMoney(cash.kassa, cur), accent: true, sub: allCash?.total != null && Math.abs(allCash.total - cash.kassa) > 1 ? `всё время ${fmtMoney(allCash.total, cur)}` : 'first + ребиллы' },
+    { label: 'ROAS', value: allTimeRoas(proj) != null ? fmtPct(allTimeRoas(proj)) : '—', accent: true, sub: 'всё время' },
     { label: 'ROAS периода', value: periodRoas != null ? fmtPct(periodRoas) : '—', accent: true, sub: 'касса / spend' },
   ];
   if (ue) {

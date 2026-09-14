@@ -72,6 +72,18 @@ def test_month_main_not_in_cpt():
     assert d is None
 
 
+def test_converted_closed_week_still_cpt():
+    setup_function()
+    d = derive_trial_start(
+        period="CLOSED",
+        product_code="premium_week",
+        status="CLOSED",
+        last_event_time=_ts(2026, 8, 20),
+        activated_at=_ts(2026, 8, 5, 8),
+    )
+    assert d == date(2026, 8, 5)
+
+
 def test_hold_not_in_cpt():
     setup_function()
     d = derive_trial_start(
