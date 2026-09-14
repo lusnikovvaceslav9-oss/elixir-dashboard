@@ -279,17 +279,12 @@ def derive_trial_start(
     if catalog_active():
         offer = sku_offer(product_code)
         has_trial_sku = bool(offer and offer.trial_days > 0)
-        # HOLD/PAUSED без списания — не CPT. CLOSED/TERMINATED после триала — да:
-        # иначе первая неделя РК обнуляется, как только все сконвертились.
-        if period in ("HOLD", "PAUSED"):
-            return None
-        if period == "TRIAL" or (has_trial_sku and period in ("MAIN", "GRACE", "CLOSED", "TERMINATED", "EXPIRED")):
-            if activated_at is not None:
-                return start_day
-            lag = int(offer.trial_days) if offer else 0
-            if lag and last_event_time is not None and period in ("CLOSED", "TERMINATED", "EXPIRED"):
-                return _to_msk_date(last_event_time) - timedelta(days=lag)
+        # Живой TRIAL — всегда. Сконвертированные/закрытые weekly — только если
+        # у SKU trial_days>0 и есть activated_at (HOLD без активации не CPT).
+        if period == "TRIAL":
             return start_day
+        if has_trial_sku and activated_at is not None:
+            return _to_msk_date(activated_at)
         return None
 
     if period == "TRIAL":

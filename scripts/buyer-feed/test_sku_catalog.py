@@ -84,13 +84,24 @@ def test_converted_closed_week_still_cpt():
     assert d == date(2026, 8, 5)
 
 
-def test_hold_not_in_cpt():
+def test_hold_with_activated_at_is_cpt():
     setup_function()
     d = derive_trial_start(
         period="HOLD",
         product_code="premium_week",
         last_event_time=_ts(2026, 9, 10),
-        activated_at=_ts(2026, 9, 8),
+        activated_at=_ts(2026, 8, 6, 8),
+    )
+    assert d == date(2026, 8, 6)
+
+
+def test_hold_without_activation_not_in_cpt():
+    setup_function()
+    d = derive_trial_start(
+        period="HOLD",
+        product_code="premium_week",
+        last_event_time=_ts(2026, 8, 6, 8),
+        activated_at=None,
     )
     assert d is None
 
