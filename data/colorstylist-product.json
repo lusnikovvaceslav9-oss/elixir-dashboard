@@ -1,79 +1,79 @@
 {
-  "generated_at": "2026-09-15T01:09:57+00:00",
+  "generated_at": "2026-09-15T06:57:27+00:00",
   "anchor": "2026-07-31",
   "until": "2026-09-15",
   "product": {
     "from": "2026-07-31",
     "to": "2026-09-15",
-    "installs": 2495,
+    "installs": 2512,
     "active_users": 0,
     "count_mode": "unique_devices",
     "subtitle": "Дошёл ли пользователь до ценности — цветотип, пейволл, фичи.",
     "events": {
       "ai_fail": {
-        "users": 1087,
-        "events": 5863,
-        "vs_install_pct": 43.57,
-        "avg_per_user": 5.39
+        "users": 1095,
+        "events": 5884,
+        "vs_install_pct": 43.59,
+        "avg_per_user": 5.37
       },
       "ai_request": {
-        "users": 2351,
-        "events": 26685,
+        "users": 2367,
+        "events": 26827,
         "vs_install_pct": 94.23,
-        "avg_per_user": 11.35
+        "avg_per_user": 11.33
       },
       "chat_reply": {
-        "users": 632,
-        "events": 1741,
-        "vs_install_pct": 25.33,
-        "avg_per_user": 2.75
+        "users": 0,
+        "events": 0,
+        "vs_install_pct": null,
+        "avg_per_user": null
       },
       "color_type_done": {
-        "users": 2236,
-        "events": 3189,
-        "vs_install_pct": 89.62,
-        "avg_per_user": 1.43
+        "users": 0,
+        "events": 0,
+        "vs_install_pct": null,
+        "avg_per_user": null
       },
       "color_type_reveal_view": {
-        "users": 2161,
-        "events": 3269,
-        "vs_install_pct": 86.61,
-        "avg_per_user": 1.51
+        "users": 0,
+        "events": 0,
+        "vs_install_pct": null,
+        "avg_per_user": null
       },
       "fitting_done": {
         "users": 252,
         "events": 483,
-        "vs_install_pct": 10.1,
+        "vs_install_pct": 10.03,
         "avg_per_user": 1.92
       },
       "hair_look_generated": {
-        "users": 1028,
-        "events": 3897,
-        "vs_install_pct": 41.2,
+        "users": 1034,
+        "events": 3914,
+        "vs_install_pct": 41.16,
         "avg_per_user": 3.79
       },
       "makeup_generated": {
-        "users": 519,
-        "events": 1520,
-        "vs_install_pct": 20.8,
+        "users": 520,
+        "events": 1522,
+        "vs_install_pct": 20.7,
         "avg_per_user": 2.93
       },
       "outfit_generated": {
-        "users": 551,
-        "events": 1672,
-        "vs_install_pct": 22.08,
-        "avg_per_user": 3.03
+        "users": 555,
+        "events": 1699,
+        "vs_install_pct": 22.09,
+        "avg_per_user": 3.06
       },
       "paywall_view": {
-        "users": 1762,
-        "events": 4629,
-        "vs_install_pct": 70.62,
+        "users": 1776,
+        "events": 4664,
+        "vs_install_pct": 70.7,
         "avg_per_user": 2.63
       },
       "purchase_tap": {
-        "users": 626,
-        "events": 1032,
-        "vs_install_pct": 25.09,
+        "users": 632,
+        "events": 1045,
+        "vs_install_pct": 25.16,
         "avg_per_user": 1.65
       }
     },
@@ -82,7 +82,7 @@
         "id": "aha_color",
         "label": "Aha: цветотип",
         "formula_label": "color_type_reveal / install",
-        "value_pct": 86.61,
+        "value_pct": 0.0,
         "primary": true,
         "accent": false,
         "note": null
@@ -100,7 +100,7 @@
         "id": "paywall_cta",
         "label": "CTA пейволла",
         "formula_label": "purchase_tap / paywall_view",
-        "value_pct": 35.53,
+        "value_pct": 35.59,
         "primary": false,
         "accent": true,
         "note": null
@@ -109,7 +109,7 @@
         "id": "engagement_hair",
         "label": "Вовлечение (hair)",
         "formula_label": "hair_look / install",
-        "value_pct": 41.2,
+        "value_pct": 41.16,
         "primary": false,
         "accent": false,
         "note": null
@@ -120,44 +120,44 @@
         "id": "color_type",
         "label": "Цветотип",
         "event": "color_type_done",
-        "value_pct": 89.62
+        "value_pct": 0.0
       },
       {
         "id": "hair",
         "label": "Волосы",
         "event": "hair_look_generated",
-        "value_pct": 41.2
+        "value_pct": 41.16
       },
       {
         "id": "outfit",
         "label": "Образы",
         "event": "outfit_generated",
-        "value_pct": 22.08
+        "value_pct": 22.09
       },
       {
         "id": "makeup",
         "label": "Макияж",
         "event": "makeup_generated",
-        "value_pct": 20.8
+        "value_pct": 20.7
       },
       {
         "id": "chat",
         "label": "Чат",
         "event": "chat_reply",
-        "value_pct": 25.33
+        "value_pct": 0.0
       },
       {
         "id": "fitting",
         "label": "Примерочная",
         "event": "fitting_done",
-        "value_pct": 10.1
+        "value_pct": 10.03
       }
     ],
     "quality": [
       {
         "id": "ai_fail_rate",
         "label": "AI fail rate",
-        "value_pct": 21.97
+        "value_pct": 21.93
       }
     ],
     "retention": {
@@ -167,26 +167,29 @@
       "note": "AppMetrica Reporting API не отдаёт D1/D3/D7 без Logs/Retention export"
     },
     "errors": [
+      "chat_reply: AppMetrica HTTP 400: {\"errors\":[{\"error_type\":\"query_error\",\"message\":\"Query is too complicated. Please reduce the date interval or sampling.\"}],\"code\":400,\"message\":\"Query is too complicated. Please reduce the date interval or sampling.\"}",
+      "color_type_done: AppMetrica HTTP 400: {\"errors\":[{\"error_type\":\"query_error\",\"message\":\"Query is too complicated. Please reduce the date interval or sampling.\"}],\"code\":400,\"message\":\"Query is too complicated. Please reduce the date interval or sampling.\"}",
+      "color_type_reveal_view: AppMetrica HTTP 400: {\"errors\":[{\"error_type\":\"query_error\",\"message\":\"Query is too complicated. Please reduce the date interval or sampling.\"}],\"code\":400,\"message\":\"Query is too complicated. Please reduce the date interval or sampling.\"}",
       "active_users: AppMetrica HTTP 400: {\"errors\":[{\"error_type\":\"query_error\",\"message\":\"Query is too complicated. Please reduce the date interval or sampling.\"}],\"code\":400,\"message\":\"Query is too complicated. Please reduce the date interval or sampling.\"}"
     ]
   },
   "unit_economics": {
-    "revenue_total": 28368,
-    "spend_total": 63076.47,
+    "revenue_total": 28567,
+    "spend_total": 63766.54,
     "active_users": 0,
-    "active_payers": 36,
+    "active_payers": 35,
     "plus_active_users": 56,
     "trial_cancellations": 3,
     "trial_cancellations_by_day": {
-      "2026-09-12": 1,
-      "2026-09-13": 2
+      "2026-09-13": 2,
+      "2026-09-15": 1
     },
-    "renewals": 24,
+    "renewals": 22,
     "arpu": null,
-    "arppu": 788.0,
-    "ltv": 1313.33,
+    "arppu": 816.2,
+    "ltv": 1329.24,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
-    "roas_d7": 49.9,
+    "roas_d7": 50.3,
     "roas_d14": 54.7,
     "roas_d30": 46.3
   }
