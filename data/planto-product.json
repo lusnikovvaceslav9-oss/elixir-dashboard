@@ -1,30 +1,30 @@
 {
-  "generated_at": "2026-09-14T23:36:32+00:00",
+  "generated_at": "2026-09-15T02:27:57+00:00",
   "anchor": "2026-06-05",
   "until": "2026-09-15",
   "product": {
     "from": "2026-06-05",
     "to": "2026-09-15",
-    "installs": 17503,
+    "installs": 17508,
     "active_users": 0,
     "events": {
       "plant_added": {
-        "users": 5136,
-        "events": 10795,
-        "vs_install_pct": 29.34,
-        "avg_per_user": 2.1
+        "users": 0,
+        "events": 0,
+        "vs_install_pct": null,
+        "avg_per_user": null
       },
       "paywall_shown": {
-        "users": 13522,
-        "events": 23738,
-        "vs_install_pct": 77.26,
-        "avg_per_user": 1.76
+        "users": 0,
+        "events": 0,
+        "vs_install_pct": null,
+        "avg_per_user": null
       },
       "paywall_cta_clicked": {
-        "users": 5516,
-        "events": 8031,
-        "vs_install_pct": 31.51,
-        "avg_per_user": 1.46
+        "users": 0,
+        "events": 0,
+        "vs_install_pct": null,
+        "avg_per_user": null
       },
       "user_score5": {
         "users": 980,
@@ -35,7 +35,7 @@
       "chat_message_sent": {
         "users": 596,
         "events": 1516,
-        "vs_install_pct": 3.41,
+        "vs_install_pct": 3.4,
         "avg_per_user": 2.54
       },
       "watering_configured": {
@@ -45,40 +45,40 @@
         "avg_per_user": 2.45
       },
       "watering_marked": {
-        "users": 266,
-        "events": 2471,
-        "vs_install_pct": 1.52,
-        "avg_per_user": 9.29
+        "users": 267,
+        "events": 2475,
+        "vs_install_pct": 1.53,
+        "avg_per_user": 9.27
       },
       "ai_route": {
-        "users": 4549,
-        "events": 35722,
-        "vs_install_pct": 25.99,
-        "avg_per_user": 7.85
+        "users": 0,
+        "events": 0,
+        "vs_install_pct": null,
+        "avg_per_user": null
       },
       "scan_success": {
-        "users": 5602,
-        "events": 18334,
+        "users": 5604,
+        "events": 18339,
         "vs_install_pct": 32.01,
         "avg_per_user": 3.27
       },
       "user_activated": {
-        "users": 14779,
-        "events": 19887,
+        "users": 14784,
+        "events": 19895,
         "vs_install_pct": 84.44,
         "avg_per_user": 1.35
       }
     },
-    "garden_activation_pct": 29.34,
-    "garden_avg_plants": 2.1,
+    "garden_activation_pct": 0.0,
+    "garden_avg_plants": null,
     "garden_depth_icp_pct": null,
-    "paywall_cta_pct": 40.79,
+    "paywall_cta_pct": null,
     "care_engagement_pct": 5.6,
-    "chat_per_plant_pct": 11.6,
+    "chat_per_plant_pct": null,
     "feature_activation": {
       "scan_pct": 32.01,
       "watering_pct": 3.37,
-      "ai_pct": 25.99
+      "ai_pct": 0.0
     },
     "retention": {
       "d1": null,
@@ -87,12 +87,16 @@
       "note": "AppMetrica Reporting API не отдаёт D1/D3/D7 без Logs/Retention export"
     },
     "errors": [
+      "plant_added: AppMetrica HTTP 400: {\"errors\":[{\"error_type\":\"query_error\",\"message\":\"Query is too complicated. Please reduce the date interval or sampling.\"}],\"code\":400,\"message\":\"Query is too complicated. Please reduce the date interval or sampling.\"}",
+      "paywall_shown: AppMetrica HTTP 400: {\"errors\":[{\"error_type\":\"query_error\",\"message\":\"Query is too complicated. Please reduce the date interval or sampling.\"}],\"code\":400,\"message\":\"Query is too complicated. Please reduce the date interval or sampling.\"}",
+      "paywall_cta_clicked: AppMetrica HTTP 400: {\"errors\":[{\"error_type\":\"query_error\",\"message\":\"Query is too complicated. Please reduce the date interval or sampling.\"}],\"code\":400,\"message\":\"Query is too complicated. Please reduce the date interval or sampling.\"}",
+      "ai_route: AppMetrica HTTP 400: {\"errors\":[{\"error_type\":\"query_error\",\"message\":\"Query is too complicated. Please reduce the date interval or sampling.\"}],\"code\":400,\"message\":\"Query is too complicated. Please reduce the date interval or sampling.\"}",
       "active_users: AppMetrica HTTP 400: {\"errors\":[{\"error_type\":\"query_error\",\"message\":\"Query is too complicated. Please reduce the date interval or sampling.\"}],\"code\":400,\"message\":\"Query is too complicated. Please reduce the date interval or sampling.\"}"
     ]
   },
   "unit_economics": {
     "revenue_total": 243129,
-    "spend_total": 391664.12,
+    "spend_total": 391714.03,
     "active_users": 0,
     "active_payers": 106,
     "plus_active_users": 153,
