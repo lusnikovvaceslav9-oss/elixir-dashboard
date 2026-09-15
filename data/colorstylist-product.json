@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-09-14T23:01:49+00:00",
+  "generated_at": "2026-09-15T01:09:57+00:00",
   "anchor": "2026-07-31",
   "until": "2026-09-15",
   "product": {
     "from": "2026-07-31",
     "to": "2026-09-15",
     "installs": 2495,
-    "active_users": 2636,
+    "active_users": 0,
     "count_mode": "unique_devices",
     "subtitle": "Дошёл ли пользователь до ценности — цветотип, пейволл, фичи.",
     "events": {
@@ -18,7 +18,7 @@
       },
       "ai_request": {
         "users": 2351,
-        "events": 26684,
+        "events": 26685,
         "vs_install_pct": 94.23,
         "avg_per_user": 11.35
       },
@@ -166,12 +166,14 @@
       "d7": null,
       "note": "AppMetrica Reporting API не отдаёт D1/D3/D7 без Logs/Retention export"
     },
-    "errors": []
+    "errors": [
+      "active_users: AppMetrica HTTP 400: {\"errors\":[{\"error_type\":\"query_error\",\"message\":\"Query is too complicated. Please reduce the date interval or sampling.\"}],\"code\":400,\"message\":\"Query is too complicated. Please reduce the date interval or sampling.\"}"
+    ]
   },
   "unit_economics": {
     "revenue_total": 28368,
-    "spend_total": 63049.87,
-    "active_users": 2636,
+    "spend_total": 63076.47,
+    "active_users": 0,
     "active_payers": 36,
     "plus_active_users": 56,
     "trial_cancellations": 3,
@@ -180,7 +182,7 @@
       "2026-09-13": 2
     },
     "renewals": 24,
-    "arpu": 10.76,
+    "arpu": null,
     "arppu": 788.0,
     "ltv": 1313.33,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",

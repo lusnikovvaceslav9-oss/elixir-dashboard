@@ -1,15 +1,15 @@
 {
-  "generated_at": "2026-09-14T23:01:49+00:00",
+  "generated_at": "2026-09-15T01:09:57+00:00",
   "anchor": "2026-07-31",
   "until": "2026-09-15",
   "window_start": "2026-09-06",
   "trial_attribution": "supabase_trial_start",
   "ai_spend": {
     "provider": "polza",
-    "total": 32678.34,
-    "generations": 22980,
+    "total": 32681.34,
+    "generations": 22981,
     "by_kind": {
-      "images": 29079.3,
+      "images": 29082.3,
       "chat": 3599.04
     },
     "by_key": [
@@ -20,14 +20,14 @@
       },
       {
         "label": "style-emergency",
-        "total": 11490.65,
-        "generations": 5612
+        "total": 11493.65,
+        "generations": 5613
       }
     ],
     "keys_used": 2,
     "per_install": 13.1,
-    "per_trial": 217.86,
-    "total_burn": 95728.21
+    "per_trial": 217.88,
+    "total_burn": 95757.81
   },
   "trial_days": 3,
   "trial_lag_days": 3,
@@ -65,8 +65,8 @@
   },
   "unit_economics": {
     "revenue_total": 28368,
-    "spend_total": 63049.87,
-    "active_users": 2636,
+    "spend_total": 63076.47,
+    "active_users": 0,
     "active_payers": 36,
     "plus_active_users": 56,
     "trial_cancellations": 3,
@@ -75,7 +75,7 @@
       "2026-09-13": 2
     },
     "renewals": 24,
-    "arpu": 10.76,
+    "arpu": null,
     "arppu": 788.0,
     "ltv": 1313.33,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
