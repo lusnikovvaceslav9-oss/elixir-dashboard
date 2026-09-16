@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-16T12:00:28+00:00",
+  "generated_at": "2026-09-16T17:15:08+00:00",
   "project": "pled",
   "anchor": "2026-08-25",
   "until": "2026-09-16",
@@ -61,27 +61,26 @@
     }
   ],
   "sources": {
+    "metrika": "counter_112141146",
     "spend": "direct_api",
     "clicks": "direct_api",
     "impressions": "direct_api"
   },
-  "errors": [
-    "metrika: HTTP 400: {\"errors\":[{\"error_type\":\"query_error\",\"message\":\"Query is too complicated. Please reduce the date interval or sampling.\"}],\"code\":400,\"message\":\"Query is too complicated. Please reduce the date interval or sampling.\"}"
-  ],
+  "errors": [],
   "days": 23,
   "totals": {
-    "spend": 126115.07,
-    "installs": 10930.0,
-    "regs": 72.0,
+    "spend": 127155.76,
+    "installs": 11368.0,
+    "regs": 74.0,
     "trials": 0.0,
     "sold": 4.0,
-    "fb": 982.0,
+    "fb": 1057.0,
     "purchase": 0.0,
-    "contact_info": 134.0,
-    "form_submit": 815.0,
-    "contact_sent": 1.0,
-    "clicks": 11743.0,
-    "impressions": 548182.0
+    "contact_info": 137.0,
+    "form_submit": 889.0,
+    "contact_sent": 2.0,
+    "clicks": 11841.0,
+    "impressions": 551549.0
   },
   "metrika_counter_id": "112141146",
   "direct_source": "direct_api",
