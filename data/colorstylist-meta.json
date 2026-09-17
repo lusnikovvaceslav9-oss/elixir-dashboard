@@ -1,33 +1,33 @@
 {
-  "generated_at": "2026-09-17T20:43:47+00:00",
+  "generated_at": "2026-09-17T23:16:39+00:00",
   "anchor": "2026-07-31",
-  "until": "2026-09-17",
-  "window_start": "2026-09-08",
+  "until": "2026-09-18",
+  "window_start": "2026-09-09",
   "trial_attribution": "supabase_trial_start",
   "ai_spend": {
     "provider": "polza",
-    "total": 34648.71,
-    "generations": 24230,
+    "total": 34751.18,
+    "generations": 24302,
     "by_kind": {
-      "images": 30857.8,
-      "chat": 3790.91
+      "images": 30947.7,
+      "chat": 3803.48
     },
     "by_key": [
       {
         "label": "style",
-        "total": 22504.76,
-        "generations": 18229
+        "total": 22594.29,
+        "generations": 18293
       },
       {
         "label": "style-emergency",
-        "total": 12143.95,
-        "generations": 6001
+        "total": 12156.89,
+        "generations": 6009
       }
     ],
     "keys_used": 2,
-    "per_install": 13.02,
-    "per_trial": 212.57,
-    "total_burn": 103116.04
+    "per_install": 13.03,
+    "per_trial": 211.9,
+    "total_burn": 103296.15
   },
   "trial_days": 3,
   "trial_lag_days": 3,
@@ -57,18 +57,18 @@
     "product": "appmetrica_reporting"
   },
   "errors": [],
-  "days": 49,
+  "days": 50,
   "reconcile_diff": {
     "trials_total_old_csv": 163,
-    "trials_total_new": 163,
-    "delta": 0
+    "trials_total_new": 164,
+    "delta": 1
   },
   "unit_economics": {
     "revenue_total": 30161,
-    "spend_total": 68467.33,
-    "active_users": 2807,
+    "spend_total": 68544.97,
+    "active_users": 2811,
     "active_payers": 33,
-    "plus_active_users": 57,
+    "plus_active_users": 58,
     "trial_cancellations": 4,
     "trial_cancellations_by_day": {
       "2026-09-15": 1,
@@ -76,7 +76,7 @@
       "2026-09-17": 2
     },
     "renewals": 18,
-    "arpu": 10.74,
+    "arpu": 10.73,
     "arppu": 913.97,
     "ltv": 1412.5,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
@@ -113,7 +113,7 @@
         "id": "aha_color",
         "label": "Aha: цветотип",
         "formula_label": "color_type_reveal / install",
-        "value_pct": 86.43,
+        "value_pct": 86.36,
         "primary": true,
         "accent": false,
         "note": null
@@ -131,7 +131,7 @@
         "id": "paywall_cta",
         "label": "CTA пейволла",
         "formula_label": "purchase_tap / paywall_view",
-        "value_pct": 35.98,
+        "value_pct": 36.14,
         "primary": false,
         "accent": true,
         "note": null
@@ -140,7 +140,7 @@
         "id": "engagement_hair",
         "label": "Вовлечение (hair)",
         "formula_label": "hair_look / install",
-        "value_pct": 41.19,
+        "value_pct": 41.15,
         "primary": false,
         "accent": false,
         "note": null
@@ -151,44 +151,44 @@
         "id": "color_type",
         "label": "Цветотип",
         "event": "color_type_done",
-        "value_pct": 89.44
+        "value_pct": 89.36
       },
       {
         "id": "hair",
         "label": "Волосы",
         "event": "hair_look_generated",
-        "value_pct": 41.19
+        "value_pct": 41.15
       },
       {
         "id": "outfit",
         "label": "Образы",
         "event": "outfit_generated",
-        "value_pct": 22.1
+        "value_pct": 22.15
       },
       {
         "id": "makeup",
         "label": "Макияж",
         "event": "makeup_generated",
-        "value_pct": 20.63
+        "value_pct": 20.65
       },
       {
         "id": "chat",
         "label": "Чат",
         "event": "chat_reply",
-        "value_pct": 25.07
+        "value_pct": 25.11
       },
       {
         "id": "fitting",
         "label": "Примерочная",
         "event": "fitting_done",
-        "value_pct": 9.77
+        "value_pct": 9.78
       }
     ],
     "quality": [
       {
         "id": "ai_fail_rate",
         "label": "AI fail rate",
-        "value_pct": 21.8
+        "value_pct": 21.76
       }
     ]
   },
@@ -200,7 +200,7 @@
   },
   "cash_period": {
     "from": "2026-08-01",
-    "until": "2026-09-17",
+    "until": "2026-09-18",
     "first": 15234,
     "rebills": 14927,
     "total": 30161
@@ -449,7 +449,7 @@
       "price": 399,
       "trial_days": 3,
       "main": 2,
-      "trial": 26,
+      "trial": 27,
       "rub": 798
     },
     "premium_week": {
@@ -518,7 +518,8 @@
     "2026-09-14": 796,
     "2026-09-15": 1394,
     "2026-09-16": 796,
-    "2026-09-17": 996
+    "2026-09-17": 996,
+    "2026-09-18": 0
   },
   "paid_net_by_cohort_day": {
     "2026-07-31": 399,
@@ -554,7 +555,7 @@
     "2026-09-12": 399,
     "2026-09-14": 399
   },
-  "trials_sb_crosscheck_total": 163,
+  "trials_sb_crosscheck_total": 164,
   "trials_sb_crosscheck_by_day": {
     "2026-08-11": 5,
     "2026-08-12": 4,
@@ -591,9 +592,10 @@
     "2026-09-14": 6,
     "2026-09-15": 7,
     "2026-09-16": 3,
-    "2026-09-17": 3
+    "2026-09-17": 3,
+    "2026-09-18": 1
   },
-  "trials_am_crosscheck_total": 309,
+  "trials_am_crosscheck_total": 311,
   "trials_am_crosscheck_by_day": {
     "2026-07-31": 1,
     "2026-08-04": 3,
@@ -638,10 +640,11 @@
     "2026-09-14": 6,
     "2026-09-15": 6,
     "2026-09-16": 3,
-    "2026-09-17": 3
+    "2026-09-17": 3,
+    "2026-09-18": 2
   },
   "trials_crosscheck_yesterday": {
-    "day": "2026-09-16",
+    "day": "2026-09-17",
     "appmetrica": 3,
     "supabase": 3,
     "dashboard": 3,
