@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-19T23:48:23+00:00",
+  "generated_at": "2026-09-20T02:05:09+00:00",
   "anchor": "2026-07-31",
   "until": "2026-09-20",
   "window_start": "2026-09-11",
@@ -27,7 +27,7 @@
     "keys_used": 2,
     "per_install": 13.04,
     "per_trial": 210.27,
-    "total_burn": 105970.86
+    "total_burn": 105998.63
   },
   "trial_days": 3,
   "trial_lag_days": 3,
@@ -65,8 +65,8 @@
   },
   "unit_economics": {
     "revenue_total": 31759,
-    "spend_total": 70224.33,
-    "active_users": 2888,
+    "spend_total": 70252.1,
+    "active_users": 2889,
     "active_payers": 33,
     "plus_active_users": 58,
     "trial_cancellations": 4,
@@ -76,7 +76,7 @@
       "2026-09-19": 2
     },
     "renewals": 16,
-    "arpu": 11.0,
+    "arpu": 10.99,
     "arppu": 962.39,
     "ltv": 1429.0,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
@@ -113,7 +113,7 @@
         "id": "aha_color",
         "label": "Aha: цветотип",
         "formula_label": "color_type_reveal / install",
-        "value_pct": 86.36,
+        "value_pct": 86.32,
         "primary": true,
         "accent": false,
         "note": null
@@ -140,7 +140,7 @@
         "id": "engagement_hair",
         "label": "Вовлечение (hair)",
         "formula_label": "hair_look / install",
-        "value_pct": 40.93,
+        "value_pct": 40.92,
         "primary": false,
         "accent": false,
         "note": null
@@ -151,19 +151,19 @@
         "id": "color_type",
         "label": "Цветотип",
         "event": "color_type_done",
-        "value_pct": 89.35
+        "value_pct": 89.31
       },
       {
         "id": "hair",
         "label": "Волосы",
         "event": "hair_look_generated",
-        "value_pct": 40.93
+        "value_pct": 40.92
       },
       {
         "id": "outfit",
         "label": "Образы",
         "event": "outfit_generated",
-        "value_pct": 22.44
+        "value_pct": 22.43
       },
       {
         "id": "makeup",
@@ -175,7 +175,7 @@
         "id": "chat",
         "label": "Чат",
         "event": "chat_reply",
-        "value_pct": 25.03
+        "value_pct": 25.02
       },
       {
         "id": "fitting",
@@ -666,5 +666,6 @@
     "supabase": 3,
     "dashboard": 3,
     "note": "В дашборде trials = RuStore entitlements (уникальный user_id)."
-  }
+  },
+  "spend_today_estimated": true
 }
