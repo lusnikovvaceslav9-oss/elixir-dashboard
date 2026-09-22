@@ -1,33 +1,33 @@
 {
-  "generated_at": "2026-09-22T17:54:08+00:00",
+  "generated_at": "2026-09-22T20:42:57+00:00",
   "anchor": "2026-07-31",
   "until": "2026-09-22",
   "window_start": "2026-09-13",
   "trial_attribution": "supabase_trial_start",
   "ai_spend": {
     "provider": "polza",
-    "total": 39009.46,
-    "generations": 26828,
+    "total": 39132.24,
+    "generations": 26896,
     "by_kind": {
-      "images": 34841.5,
-      "chat": 4167.96
+      "images": 34955.4,
+      "chat": 4176.84
     },
     "by_key": [
       {
         "label": "style",
-        "total": 25540.47,
-        "generations": 20151
+        "total": 25653.97,
+        "generations": 20215
       },
       {
         "label": "style-emergency",
-        "total": 13468.99,
-        "generations": 6677
+        "total": 13478.27,
+        "generations": 6681
       }
     ],
     "keys_used": 2,
-    "per_install": 13.08,
-    "per_trial": 199.03,
-    "total_burn": 118329.4
+    "per_install": 13.09,
+    "per_trial": 199.65,
+    "total_burn": 118627.71
   },
   "trial_days": 3,
   "trial_lag_days": 3,
@@ -59,29 +59,29 @@
   "errors": [],
   "days": 54,
   "reconcile_diff": {
-    "trials_total_old_csv": 189,
+    "trials_total_old_csv": 196,
     "trials_total_new": 196,
-    "delta": 7
+    "delta": 0
   },
   "unit_economics": {
-    "revenue_total": 36142,
-    "spend_total": 79319.94,
-    "active_users": 3133,
-    "active_payers": 31,
+    "revenue_total": 37139,
+    "spend_total": 79495.47,
+    "active_users": 3139,
+    "active_payers": 32,
     "plus_active_users": 69,
-    "trial_cancellations": 12,
+    "trial_cancellations": 13,
     "trial_cancellations_by_day": {
       "2026-09-21": 3,
-      "2026-09-22": 9
+      "2026-09-22": 10
     },
-    "renewals": 13,
-    "arpu": 11.54,
-    "arppu": 1165.87,
-    "ltv": 1654.78,
+    "renewals": 14,
+    "arpu": 11.83,
+    "arppu": 1160.59,
+    "ltv": 1668.35,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
-    "roas_d7": 53.8,
-    "roas_d14": 54.8,
-    "roas_d30": 48.1
+    "roas_d7": 55.4,
+    "roas_d14": 55.2,
+    "roas_d30": 48.8
   },
   "roas_config": {
     "revenue_source": "actual",
@@ -112,7 +112,7 @@
         "id": "aha_color",
         "label": "Aha: цветотип",
         "formula_label": "color_type_reveal / install",
-        "value_pct": 86.32,
+        "value_pct": 86.35,
         "primary": true,
         "accent": false,
         "note": null
@@ -130,7 +130,7 @@
         "id": "paywall_cta",
         "label": "CTA пейволла",
         "formula_label": "purchase_tap / paywall_view",
-        "value_pct": 37.07,
+        "value_pct": 37.14,
         "primary": false,
         "accent": true,
         "note": null
@@ -139,7 +139,7 @@
         "id": "engagement_hair",
         "label": "Вовлечение (hair)",
         "formula_label": "hair_look / install",
-        "value_pct": 40.7,
+        "value_pct": 40.72,
         "primary": false,
         "accent": false,
         "note": null
@@ -150,59 +150,59 @@
         "id": "color_type",
         "label": "Цветотип",
         "event": "color_type_done",
-        "value_pct": 89.21
+        "value_pct": 89.23
       },
       {
         "id": "hair",
         "label": "Волосы",
         "event": "hair_look_generated",
-        "value_pct": 40.7
+        "value_pct": 40.72
       },
       {
         "id": "outfit",
         "label": "Образы",
         "event": "outfit_generated",
-        "value_pct": 22.49
+        "value_pct": 22.48
       },
       {
         "id": "makeup",
         "label": "Макияж",
         "event": "makeup_generated",
-        "value_pct": 20.45
+        "value_pct": 20.54
       },
       {
         "id": "chat",
         "label": "Чат",
         "event": "chat_reply",
-        "value_pct": 24.57
+        "value_pct": 24.52
       },
       {
         "id": "fitting",
         "label": "Примерочная",
         "event": "fitting_done",
-        "value_pct": 9.45
+        "value_pct": 9.43
       }
     ],
     "quality": [
       {
         "id": "ai_fail_rate",
         "label": "AI fail rate",
-        "value_pct": 21.42
+        "value_pct": 21.38
       }
     ]
   },
   "rebills": {
-    "week_events": 89,
-    "rub": 18711,
-    "users_ge1": 48,
+    "week_events": 91,
+    "rub": 19309,
+    "users_ge1": 49,
     "max": 5
   },
   "cash_period": {
     "from": "2026-08-01",
     "until": "2026-09-22",
-    "first": 17431,
-    "rebills": 18711,
-    "total": 36142
+    "first": 17830,
+    "rebills": 19309,
+    "total": 37139
   },
   "payments_by_plan": {
     "yearly": {
@@ -214,12 +214,12 @@
       "rub": 3193
     },
     "weekly": {
-      "count": 52,
-      "rub": 11748
+      "count": 53,
+      "rub": 12147
     },
     "total": {
-      "count": 60,
-      "rub": 17431
+      "count": 61,
+      "rub": 17830
     }
   },
   "payments_by_plan_by_day": {
@@ -373,12 +373,12 @@
         "rub": 995
       },
       "2026-09-15": {
-        "count": 6,
-        "rub": 1394
+        "count": 7,
+        "rub": 1793
       },
       "2026-09-22": {
-        "count": 2,
-        "rub": 598
+        "count": 4,
+        "rub": 1196
       },
       "2026-08-30": {
         "count": 3,
@@ -479,9 +479,9 @@
       "period": "weekly",
       "price": 399,
       "trial_days": 3,
-      "main": 7,
+      "main": 8,
       "trial": 59,
-      "rub": 2793
+      "rub": 3192
     },
     "premium_week": {
       "period": "weekly",
@@ -547,14 +547,14 @@
     "2026-09-12": 1194,
     "2026-09-13": 597,
     "2026-09-14": 597,
-    "2026-09-15": 1394,
+    "2026-09-15": 1793,
     "2026-09-16": 796,
     "2026-09-17": 1594,
     "2026-09-18": 2593,
     "2026-09-19": 796,
     "2026-09-20": 996,
     "2026-09-21": 996,
-    "2026-09-22": 997
+    "2026-09-22": 1595
   },
   "paid_net_by_cohort_day": {
     "2026-07-31": 399,
@@ -564,7 +564,7 @@
     "2026-08-10": 3184,
     "2026-08-11": 1194,
     "2026-08-12": 1592,
-    "2026-08-15": 995,
+    "2026-08-15": 1194,
     "2026-08-17": 1194,
     "2026-08-18": 1196,
     "2026-08-19": 1194,
@@ -585,7 +585,7 @@
     "2026-09-09": 1195,
     "2026-09-10": 398,
     "2026-09-11": 796,
-    "2026-09-12": 798,
+    "2026-09-12": 1596,
     "2026-09-14": 798,
     "2026-09-15": 798,
     "2026-09-17": 399,
