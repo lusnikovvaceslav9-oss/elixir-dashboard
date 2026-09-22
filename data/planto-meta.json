@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-09-22T19:23:33+00:00",
+  "generated_at": "2026-09-22T22:31:49+00:00",
   "anchor": "2026-06-05",
-  "until": "2026-09-22",
-  "window_start": "2026-09-13",
+  "until": "2026-09-23",
+  "window_start": "2026-09-14",
   "trial_attribution": "supabase_trial_start",
   "ai_spend": null,
   "trial_days": 7,
@@ -30,16 +30,16 @@
     "product": "appmetrica_reporting"
   },
   "errors": [],
-  "days": 110,
+  "days": 111,
   "reconcile_diff": {
-    "trials_total_old_csv": 496,
+    "trials_total_old_csv": 498,
     "trials_total_new": 498,
-    "delta": 2
+    "delta": 0
   },
   "unit_economics": {
     "revenue_total": 261776,
-    "spend_total": 419506.95,
-    "active_users": 18761,
+    "spend_total": 419912.45,
+    "active_users": 18771,
     "active_payers": 111,
     "plus_active_users": 174,
     "trial_cancellations": 12,
@@ -69,14 +69,14 @@
     "predict_horizon_days": 180
   },
   "product": {
-    "garden_activation_pct": 30.06,
+    "garden_activation_pct": 30.05,
     "garden_avg_plants": 2.15,
     "garden_depth_icp_pct": null,
-    "paywall_cta_pct": 40.39,
+    "paywall_cta_pct": 40.38,
     "care_engagement_pct": 5.91,
     "feature_activation": {
       "scan_pct": 33.2,
-      "watering_pct": 3.63,
+      "watering_pct": 3.64,
       "ai_pct": 27.51
     },
     "retention": {
@@ -99,7 +99,7 @@
   },
   "cash_period": {
     "from": "2026-06-05",
-    "until": "2026-09-22",
+    "until": "2026-09-23",
     "first": 257387,
     "rebills": 4389,
     "total": 261776
@@ -559,7 +559,8 @@
     "2026-09-19": 0,
     "2026-09-20": 3490,
     "2026-09-21": 3490,
-    "2026-09-22": 399
+    "2026-09-22": 399,
+    "2026-09-23": 0
   },
   "paid_net_by_cohort_day": {
     "2026-06-25": 399,
@@ -836,10 +837,10 @@
     "2026-09-22": 5
   },
   "trials_crosscheck_yesterday": {
-    "day": "2026-09-21",
+    "day": "2026-09-22",
     "appmetrica": 5,
-    "supabase": 4,
-    "dashboard": 4,
+    "supabase": 5,
+    "dashboard": 5,
     "note": "В дашборде trials = RuStore entitlements (уникальный user_id)."
   }
 }
