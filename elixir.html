@@ -1969,8 +1969,14 @@ function mergeCsvUploadStores(local, remote) {
       }
       const prevAt = String(prev.uploadedAt || '');
       const nextAt = String(file.uploadedAt || '');
-      const localRicher = !!(file.text && !prev.text);
-      next[id] = (localRicher || nextAt >= prevAt) ? { ...prev, ...file } : { ...file, ...prev };
+      // Облако новее — берём его целиком: сырой text старой локальной копии не должен
+      // перетирать правки, внесённые в облаке (иначе вкладка откатывает облако назад).
+      if (nextAt < prevAt) {
+        const { text, ...rest } = file;
+        next[id] = { ...rest, ...prev };
+        return;
+      }
+      next[id] = { ...prev, ...file };
     });
     // Битые Meta без text (Spend←Impressions) — выкидываем и из remote, и из local,
     // иначе union-merge после локального delete снова поднимает их из облака.
@@ -5321,8 +5327,42 @@ const DIMS = {
   source: { key: 'source', title: 'Источник', of: rowSource, label: sourceLabel, defField: 'defaultSource',
     hint: 'Facebook / Google Ads: по формату CSV (Meta vs Google) или по названию кампании (App promotion → Google). У JGGL без разметки по умолчанию Facebook.' },
   goal: { key: 'goal', title: 'Цель', of: rowGoal, label: goalLabel, defField: 'defaultGoal',
-    hint: 'Рег — кампании на регистрацию (Result indicator = complete_registration или «reg» в названии), Инстал — на установки. «Все» — общий итог, Cost / Reg считается по всему spend.' },
+    hint: 'Что считать целевым действием. Инстал — установки со всех кампаний, Рег — регистрации со всех кампаний, где они есть в выгрузке (spend тоже только этих кампаний; Google регистраций не отдаёт). «Все» — установки и регистрации рядом.' },
 };
+
+/** JGGL «Цель» — не фильтр кампаний, а выбор события: целевое действие = установка или регистрация. */
+function jgglGoalLens(proj) {
+  return isJgglProject(proj) ? getProjectDim(proj.id, 'goal') : '';
+}
+
+function applyGoalLens(proj, rows) {
+  const goal = jgglGoalLens(proj);
+  if (!goal) return rows || [];
+  if (goal === 'reg') {
+    return (rows || []).filter(r => r && 'regs' in r)
+      .map(({ regs, ...o }) => ({ ...o, qregs: Number(regs) || 0 }));
+  }
+  return (rows || []).map(r => { if (!r) return r; const { regs, ...o } = r; return o; });
+}
+
+function renderGoalLensFilter(proj, rows) {
+  const regRows = (rows || []).filter(r => r && 'regs' in r);
+  if (!regRows.length) return '';
+  const cur = getProjectDim(proj.id, 'goal');
+  const chip = (value, label, n) => `<button type="button" class="geo-chip${cur === value ? ' active' : ''}" onclick="setProjectDim('${escHtml(proj.id)}','goal','${value}')">
+      <span class="geo-chip-name">${escHtml(label)}</span>
+      <span class="geo-chip-val">${fmtInt(n)}</span>
+    </button>`;
+  return `<div class="geo-filter">
+    <div class="geo-filter-head">
+      <span class="geo-filter-label">${escHtml(DIMS.goal.title)}</span>
+      <button type="button" class="geo-chip${cur ? '' : ' active'}" onclick="setProjectDim('${escHtml(proj.id)}','goal','')">Все</button>
+      ${chip('install', GOAL_LABELS.install, sum(rows, 'qregs'))}
+      ${chip('reg', GOAL_LABELS.reg, sum(regRows, 'regs'))}
+    </div>
+    <div class="geo-filter-hint">${escHtml(DIMS.goal.hint)}</div>
+  </div>`;
+}
 
 function dimFallback(proj, dim) { return proj?.[DIMS[dim].defField] || ''; }
 
@@ -5375,11 +5415,11 @@ function filterRowsByDims(proj, rows) {
   let out = rows || [];
   for (const dim of Object.keys(DIMS)) {
     const sel = getProjectDim(proj.id, dim);
-    if (!sel) continue;
+    if (!sel || (dim === 'goal' && isJgglProject(proj))) continue;
     const fb = dimFallback(proj, dim);
     out = out.filter(r => DIMS[dim].of(r, fb) === sel);
   }
-  return out;
+  return applyGoalLens(proj, out);
 }
 function hasActiveDim(proj) {
   return Object.keys(DIMS).some(d => getProjectDim(proj.id, d));
@@ -5420,7 +5460,7 @@ function renderGeoFilter(proj, rows) {
   return renderDimFilter(proj, rows, 'geo')
     + renderJgglGeoUnitBlocks(proj, rows)
     + renderDimFilter(proj, rows, 'source')
-    + (isJgglProject(proj) ? renderDimFilter(proj, rows, 'goal') : '');
+    + (isJgglProject(proj) ? renderGoalLensFilter(proj, rows) : '');
 }
 
 /** JGGL: фильтр ОС на вкладке «Общее» (не уходим на iOS/Android — свод обновляется здесь). */
@@ -5483,9 +5523,7 @@ function jgglGeoUnitRows(proj, periodRows) {
   const curSrc = getProjectDim(proj.id, 'source');
   const srcFb = dimFallback(proj, 'source');
   if (curSrc) rows = rows.filter(r => rowSource(r, srcFb) === curSrc);
-  const curGoal = getProjectDim(proj.id, 'goal');
-  if (curGoal) rows = rows.filter(r => rowGoal(r) === curGoal);
-  return rows || [];
+  return applyGoalLens(proj, rows);
 }
 
 /** Последний день в наборе строк (по date / dateStr). */
