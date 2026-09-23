@@ -1992,7 +1992,9 @@ function uploadsForRemote(all) {
         ? deserializeUploadRows(u.rows)
         : (u.text ? parseSheet(u.text) : []);
       // Не тащим в облако строки, где Campaign = delivery status (сдвиг Source).
-      const cleanRows = rows.filter(r => !looksLikeMetaDeliveryStatus(r.campaign) && !isJgglAdsTotalName(r.campaign));
+      const jggl = isJgglProject({ id: projId });
+      const cleanRows = rows.filter(r => !looksLikeMetaDeliveryStatus(r.campaign) && !isJgglAdsTotalName(r.campaign)
+        && !(jggl && isJgglForeignCampaign(r.campaign)));
       out[projId][id] = {
         label: u.label,
         fileName: u.fileName,
@@ -2231,6 +2233,11 @@ function resolveUploadLabel(proj, selected, rows) {
 function isJgglAdsTotalName(name) {
   const s = String(name || '').trim();
   return s === '—' || s === '--' || s === '–' || s === '-' || /^total\b/i.test(s);
+}
+
+/** Чужие кампании в общих с JGGL кабинетах (16581: PillAssist) — не спенд JGGL. */
+function isJgglForeignCampaign(name) {
+  return /pillassist/i.test(String(name || ''));
 }
 
 function jgglPlatformFromName(name) {
@@ -3386,7 +3393,9 @@ function buildUploadedSource(projId, id, upload) {
   const csvRows = text.trim() ? parseCSV(text) : [sheetColumns];
   if (!sheetColumns.length) sheetColumns = (csvRows[0] || []).map(h => (h || '').trim());
   rows = (rows || []).filter(r => !isJgglAdsTotalName(r?.campaign));
-  if (isJgglProject(projects.find(x => x.id === projId))) rows = rows.map(normalizeJgglResultRow);
+  if (isJgglProject(projects.find(x => x.id === projId))) {
+    rows = rows.filter(r => !isJgglForeignCampaign(r?.campaign)).map(normalizeJgglResultRow);
+  }
   return {
     id: `upload_${id}`,
     storageId: id,
@@ -4345,7 +4354,7 @@ function rebuildJgglPlatformCsvText(originalText, platform) {
     const adset = extra.adsetCol >= 0 ? String(r[extra.adsetCol] || '').trim() : '';
     const ad = extra.adCol >= 0 ? String(r[extra.adCol] || '').trim() : '';
     const name = [campaign, adset, ad].filter(Boolean).join(' ');
-    if (!name || isJgglAdsTotalName(campaign) || isJgglAdsTotalName(name)) return;
+    if (!name || isJgglAdsTotalName(campaign) || isJgglAdsTotalName(name) || isJgglForeignCampaign(name)) return;
     const plat = jgglPlatformFromName(name);
     if (plat !== platform) return;
     out.push(r);
