@@ -2531,7 +2531,7 @@ function rowDimKey(r) {
   const geo = r?.geo || (r?.campaign ? geoFromCampaignName(r.campaign) : '');
   const src = r?.source || (r?.campaign ? sourceFromCampaignName(r.campaign) : '');
   const os = jgglRowPlatformLabel(r);
-  return `${geo}|${src}|${os}`;
+  return `${geo}|${src}|${os}|${rowGoal(r)}`;
 }
 
 /** Как aggregateRowsByDate, но НЕ смешивает разные гео/источники в одном дне.
@@ -3386,6 +3386,7 @@ function buildUploadedSource(projId, id, upload) {
   const csvRows = text.trim() ? parseCSV(text) : [sheetColumns];
   if (!sheetColumns.length) sheetColumns = (csvRows[0] || []).map(h => (h || '').trim());
   rows = (rows || []).filter(r => !isJgglAdsTotalName(r?.campaign));
+  if (isJgglProject(projects.find(x => x.id === projId))) rows = rows.map(normalizeJgglResultRow);
   return {
     id: `upload_${id}`,
     storageId: id,
@@ -4984,7 +4985,7 @@ function isAdMetricHeader(h) {
 function findRegColumn(headers) {
   for (let i = 0; i < headers.length; i++) {
     const h = (headers[i] || '').toLowerCase().trim();
-    if (isCostHeader(h) || /cost|цена|cpa|cpc|cpm/.test(h)) continue;
+    if (isCostHeader(h) || /cost|цена|cpa|cpc|cpm|value/.test(h)) continue;
     if (h === 'reg' || h === 'regs') return i;
     if (/^reg\b/.test(h) && !/^registr/.test(h)) return i;
     if (h.includes('регистрац') || h.includes('registration')) return i;
@@ -5080,6 +5081,9 @@ function findCampaignExtraColumns(headerRow) {
   if (sourceCol < 0) sourceCol = -1;
   return {
     campaignCol,
+    // Meta: что именно лежит в Results (установка / регистрация) и отдельная колонка установок.
+    indicatorCol: headers.findIndex(h => h === 'result indicator'),
+    appInstallsCol: headers.findIndex(h => h === 'mobile app installs'),
     adsetCol: findCol(headers, ['ad set name', 'ad set', 'adset', 'группу объяв', 'группа объяв'], ['budget', 'budget type', 'delivery']),
     adCol: findCol(headers, ['ad name', 'объявлен'], ['ad set', 'adset']),
     impressionsCol: findCol(headers, ['impression', 'impress', 'показ', 'imps', 'impr'], ['доля', 'share', '%', 'cost']),
@@ -5258,6 +5262,41 @@ function sourceLabel(code) {
   return SOURCE_LABELS[code] || code;
 }
 
+// ── ЦЕЛЬ КАМПАНИИ (рег / инстал) ────────────────────────────────
+const GOAL_LABELS = { reg: 'Рег', install: 'Инстал' };
+
+function goalFromResultIndicator(raw) {
+  const s = String(raw || '').toLowerCase();
+  if (/registration/.test(s)) return 'reg';
+  if (/install/.test(s)) return 'install';
+  return '';
+}
+
+function goalFromCampaignName(name) {
+  return /(^|[\s\/_\-|])reg([\s\/_\-|]|$)|registr/i.test(String(name || '')) ? 'reg' : '';
+}
+
+/** Цель строки: Result indicator из выгрузки → «reg» в названии → установки. */
+function rowGoal(r, fallback = '') {
+  if (!r) return '';
+  if (r.goal) return r.goal;
+  return goalFromCampaignName(r.campaign) || fallback || 'install';
+}
+
+function goalLabel(code) {
+  return GOAL_LABELS[code] || code || 'Без цели';
+}
+
+/** JGGL Meta: Results — событие оптимизации кампании (установка ИЛИ регистрация).
+ *  Юзеры (qregs) всегда = установки, регистрации — отдельное поле regs. */
+function normalizeJgglResultRow(r) {
+  if (!r) return r;
+  const out = { ...r };
+  if (rowGoal(out) === 'reg' && out.regs == null) out.regs = Number(out.qregs) || 0;
+  if (out.app_installs != null) out.qregs = Number(out.app_installs) || 0;
+  return out;
+}
+
 /** Источник строки: явное поле → токен в названии кампании → умолчание проекта. */
 function rowSource(r, fallback = '') {
   if (!r) return '';
@@ -5272,6 +5311,8 @@ const DIMS = {
     hint: 'Разрез берётся из выгрузки: колонка Country, иначе — гео в названии кампании. Для строк без разметки действует «гео по умолчанию» проекта.' },
   source: { key: 'source', title: 'Источник', of: rowSource, label: sourceLabel, defField: 'defaultSource',
     hint: 'Facebook / Google Ads: по формату CSV (Meta vs Google) или по названию кампании (App promotion → Google). У JGGL без разметки по умолчанию Facebook.' },
+  goal: { key: 'goal', title: 'Цель', of: rowGoal, label: goalLabel, defField: 'defaultGoal',
+    hint: 'Рег — кампании на регистрацию (Result indicator = complete_registration или «reg» в названии), Инстал — на установки. «Все» — общий итог, Cost / Reg считается по всему spend.' },
 };
 
 function dimFallback(proj, dim) { return proj?.[DIMS[dim].defField] || ''; }
@@ -5369,7 +5410,8 @@ function renderDimFilter(proj, rows, dim) {
 function renderGeoFilter(proj, rows) {
   return renderDimFilter(proj, rows, 'geo')
     + renderJgglGeoUnitBlocks(proj, rows)
-    + renderDimFilter(proj, rows, 'source');
+    + renderDimFilter(proj, rows, 'source')
+    + (isJgglProject(proj) ? renderDimFilter(proj, rows, 'goal') : '');
 }
 
 /** JGGL: фильтр ОС на вкладке «Общее» (не уходим на iOS/Android — свод обновляется здесь). */
@@ -5432,6 +5474,8 @@ function jgglGeoUnitRows(proj, periodRows) {
   const curSrc = getProjectDim(proj.id, 'source');
   const srcFb = dimFallback(proj, 'source');
   if (curSrc) rows = rows.filter(r => rowSource(r, srcFb) === curSrc);
+  const curGoal = getProjectDim(proj.id, 'goal');
+  if (curGoal) rows = rows.filter(r => rowGoal(r) === curGoal);
   return rows || [];
 }
 
@@ -5649,6 +5693,9 @@ function parseCampaignRows(rows) {
     if (adset) obj.adset = adset;
     if (ad) obj.ad = ad;
     if (rc >= 0) obj.regs = regs;
+    const goal = extra.indicatorCol >= 0 ? goalFromResultIndicator(r[extra.indicatorCol]) : '';
+    if (goal) obj.goal = goal;
+    if (extra.appInstallsCol >= 0) obj.app_installs = parseNum(r[extra.appInstallsCol]);
     // Гео: колонка страны (FB Breakdown → Country) важнее, иначе — токен из названия кампании.
     const geo = extra.geoCol >= 0
       ? normalizeGeoValue(r[extra.geoCol])
@@ -8428,7 +8475,7 @@ function computeMetricValue(key, type, rows, cur) {
     case 'trials': return fmtInt(tr);
     case 'sold': return fmtInt(sold);
     case 'fb': return fmtInt(fb);
-    case 'regs': return fmtInt(sum(rows, 'regs') || (type === 'hupp' ? 0 : regLikeCount(rows)));
+    case 'regs': return fmtInt(regsCount(rows, type));
     case 'qregs': return fmtInt(regLikeCount(rows));
     case 'purchases': return fmtInt(sum(rows, 'purchases'));
     case 'purchase': return fmtInt(sum(rows, 'purchase'));
@@ -8440,7 +8487,7 @@ function computeMetricValue(key, type, rows, cur) {
     case 'cost_install': return ins ? fmtMoney(sp / ins, cur) : '—';
     case 'cost_trial': return tr ? fmtMoney(sp / tr, cur) : '—';
     case 'cost_reg': {
-      const v = sum(rows, 'regs') || (type === 'hupp' ? 0 : regLikeCount(rows));
+      const v = regsCount(rows, type);
       return v ? fmtMoney(sp / v, cur) : '—';
     }
     case 'cost_purchase': {
@@ -8643,6 +8690,16 @@ function getMetricsCatalogForProj(proj, rows) {
   if (type === 'streamfi' && !sheetHasRegs(proj, rows)) {
     catalog = catalog.filter(m => m.key !== 'regs' && m.key !== 'conv_rate');
   }
+  if (type === 'campaign' && isJgglProject(proj)) {
+    const at = catalog.findIndex(m => m.key === 'cost_qreg');
+    const regCards = [
+      { key: 'regs', label: 'Регистрации', accent: false },
+      { key: 'cost_reg', label: 'Cost / Reg', accent: true },
+    ];
+    catalog = at >= 0
+      ? [...catalog.slice(0, at + 1), ...regCards, ...catalog.slice(at + 1)]
+      : [...catalog, ...regCards];
+  }
   if (rows?.length) {
     catalog = catalog.filter(m => isMetricRelevant(m.key, rows));
   }
@@ -8665,7 +8722,18 @@ function getProjectMetricsConfig(proj, rows) {
       };
     });
   }
-  return mergeMetricsConfig(type, proj.metrics, catalog);
+  const merged = mergeMetricsConfig(type, proj.metrics, catalog);
+  if (isJgglProject(proj)) {
+    const savedKeys = new Set((proj.metrics || []).map(m => m.key));
+    const fresh = merged.filter(m => (m.key === 'regs' || m.key === 'cost_reg') && !savedKeys.has(m.key));
+    const at = merged.findIndex(m => m.key === 'cost_qreg');
+    if (fresh.length && at >= 0) {
+      const rest = merged.filter(m => !fresh.includes(m));
+      const pos = rest.findIndex(m => m.key === 'cost_qreg') + 1;
+      return [...rest.slice(0, pos), ...fresh, ...rest.slice(pos)];
+    }
+  }
+  return merged;
 }
 
 function getMetricLabel(proj, key, fallback, rows) {
@@ -8913,8 +8981,12 @@ function getTableConfig(proj, rows) {
     };
   } else if (type === 'campaign') {
     // Колонка Campaign убрана по запросу — данные схлопываются по дате (aggregateByDate).
-    colKeys = ['date', 'spend', 'qregs', 'cost_qreg', 'impressions', 'clicks', 'cpc', 'cpm', 'ctr'];
-    const rowReg = (r) => regLikeCount([r]);
+    // JGGL: qregs = установки, регистрации — отдельные колонки (не max(qregs, regs)).
+    const hasRegs = isJgglProject(p) && (rows || []).some(r => r && 'regs' in r);
+    colKeys = ['date', 'spend', 'qregs', 'cost_qreg', ...(hasRegs ? ['regs', 'cost_reg'] : []),
+      'impressions', 'clicks', 'cpc', 'cpm', 'ctr'];
+    const rowReg = (r) => (hasRegs ? (Number(r.qregs) || 0) : regLikeCount([r]));
+    const regCells = (sp, n) => (hasRegs ? [fmtInt(n), n ? fmtMoney(sp / n, cur) : '—'] : []);
     // «—» когда метрики нет в выгрузке вообще (часть агентств шлёт FB-экспорт без
     // Link clicks / Impressions), «0» — когда она есть и реально равна нулю.
     const hasCl = (r) => r.clicks != null;
@@ -8925,19 +8997,22 @@ function getTableConfig(proj, rows) {
     tbl = {
     aggregateByDate: true,
     headers: ['Дата', `Spend (${cur})`, L('qregs','Reg'), L('cost_qreg','Cost/Reg'),
+      ...(hasRegs ? [L('regs', 'Регистрации'), L('cost_reg', 'Cost / Reg')] : []),
       L('impressions','Impressions'), L('clicks','Clicks'), L('cpc','CPC'), L('cpm','CPM'), L('ctr','CTR')],
     row: (r) => {
       const rg = rowReg(r);
       return [r.dateStr, fmtMoneyFull(r.spend,cur), fmtInt(rg),
         rg ? fmtMoney(r.spend/rg,cur) : '—',
+        ...regCells(r.spend || 0, Number(r.regs) || 0),
         hasImp(r) ? fmtInt(r.impressions) : '—',
         hasCl(r) ? fmtInt(r.clicks) : '—',
         rowCpc(r), rowCpm(r), rowCtr(r)];
     },
     total: (rows) => {
       const agg = aggregateRowsByDate(rows);
-      const sp=sum(agg,'spend'), qg=regLikeCount(agg), imp=sum(agg,'impressions'), cl=sum(agg,'clicks');
+      const sp=sum(agg,'spend'), qg=hasRegs ? sum(agg,'qregs') : regLikeCount(agg), imp=sum(agg,'impressions'), cl=sum(agg,'clicks');
       return ['Итого',fmtMoneyFull(sp,cur),fmtInt(qg),qg?fmtMoney(sp/qg,cur):'—',
+        ...regCells(sp, sum(agg, 'regs')),
         fmtInt(imp),fmtInt(cl),cl?fmtMoney(sp/cl,cur):'—',imp?fmtMoney(sp/imp*1000,cur):'—',imp?fmtPct(cl/imp*100):'—'];
     }
     };
@@ -9070,6 +9145,12 @@ function selectProjectRows(proj, pack) {
     return primary?.rows || [];
   }
   return sources.flatMap(s => s.rows || []);
+}
+
+/** Регистрации: если поле regs есть в выгрузке — только оно (0 = 0, а не подмена установками). */
+function regsCount(rows, type) {
+  if (type === 'hupp' || (rows || []).some(r => r && 'regs' in r)) return sum(rows, 'regs');
+  return regLikeCount(rows);
 }
 
 function regLikeCount(rows) {
