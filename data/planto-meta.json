@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-23T23:20:18+00:00",
+  "generated_at": "2026-09-24T02:12:48+00:00",
   "anchor": "2026-06-05",
   "until": "2026-09-24",
   "window_start": "2026-09-15",
@@ -38,8 +38,8 @@
   },
   "unit_economics": {
     "revenue_total": 266064,
-    "spend_total": 422626.86,
-    "active_users": 18860,
+    "spend_total": 422736.53,
+    "active_users": 18861,
     "active_payers": 114,
     "plus_active_users": 173,
     "trial_cancellations": 12,
@@ -68,15 +68,15 @@
     "predict_horizon_days": 180
   },
   "product": {
-    "garden_activation_pct": 30.08,
+    "garden_activation_pct": 30.07,
     "garden_avg_plants": 2.17,
     "garden_depth_icp_pct": null,
     "paywall_cta_pct": 40.4,
     "care_engagement_pct": 5.93,
     "feature_activation": {
-      "scan_pct": 33.31,
+      "scan_pct": 33.32,
       "watering_pct": 3.67,
-      "ai_pct": 27.65
+      "ai_pct": 27.66
     },
     "retention": {
       "d1": null,
@@ -849,6 +849,5 @@
     "supabase": 4,
     "dashboard": 4,
     "note": "В дашборде trials = RuStore entitlements (уникальный user_id)."
-  },
-  "spend_today_estimated": true
+  }
 }
