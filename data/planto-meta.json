@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-09-25T19:42:20+00:00",
+  "generated_at": "2026-09-25T22:57:19+00:00",
   "anchor": "2026-06-05",
-  "until": "2026-09-25",
-  "window_start": "2026-09-16",
+  "until": "2026-09-26",
+  "window_start": "2026-09-17",
   "trial_attribution": "supabase_trial_start",
   "ai_spend": null,
   "trial_days": 7,
@@ -30,18 +30,18 @@
     "product": "appmetrica_reporting"
   },
   "errors": [],
-  "days": 113,
+  "days": 114,
   "reconcile_diff": {
-    "trials_total_old_csv": 507,
-    "trials_total_new": 508,
+    "trials_total_old_csv": 508,
+    "trials_total_new": 509,
     "delta": 1
   },
   "unit_economics": {
-    "revenue_total": 284908,
-    "spend_total": 427994.71,
-    "active_users": 19006,
+    "revenue_total": 285307,
+    "spend_total": 428197.09,
+    "active_users": 19016,
     "active_payers": 116,
-    "plus_active_users": 169,
+    "plus_active_users": 170,
     "trial_cancellations": 11,
     "trial_cancellations_by_day": {
       "2026-09-21": 1,
@@ -50,13 +50,13 @@
       "2026-09-24": 1,
       "2026-09-25": 2
     },
-    "renewals": 71,
-    "arpu": 14.99,
-    "arppu": 2456.1,
-    "ltv": 3959.4,
+    "renewals": 72,
+    "arpu": 15.0,
+    "arppu": 2459.54,
+    "ltv": 3986.15,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
-    "roas_d7": 70.0,
-    "roas_d14": 69.5,
+    "roas_d7": 70.1,
+    "roas_d14": 69.6,
     "roas_d30": 52.2
   },
   "roas_config": {
@@ -69,14 +69,14 @@
     "predict_horizon_days": 180
   },
   "product": {
-    "garden_activation_pct": 30.15,
+    "garden_activation_pct": 30.14,
     "garden_avg_plants": 2.18,
     "garden_depth_icp_pct": null,
     "paywall_cta_pct": 40.34,
-    "care_engagement_pct": 5.95,
+    "care_engagement_pct": 5.94,
     "feature_activation": {
-      "scan_pct": 33.47,
-      "watering_pct": 3.69,
+      "scan_pct": 33.46,
+      "watering_pct": 3.68,
       "ai_pct": 27.85
     },
     "retention": {
@@ -92,17 +92,17 @@
     "quality": null
   },
   "rebills": {
-    "week_events": 17,
-    "rub": 6783,
-    "users_ge1": 15,
+    "week_events": 18,
+    "rub": 7182,
+    "users_ge1": 16,
     "max": 2
   },
   "cash_period": {
     "from": "2026-06-05",
-    "until": "2026-09-25",
+    "until": "2026-09-26",
     "first": 278125,
-    "rebills": 6783,
-    "total": 284908
+    "rebills": 7182,
+    "total": 285307
   },
   "payments_by_plan": {
     "yearly": {
@@ -438,6 +438,10 @@
         "count": 6,
         "rub": 2394
       },
+      "2026-09-26": {
+        "count": 1,
+        "rub": 399
+      },
       "2026-09-01": {
         "count": 1,
         "rub": 399
@@ -582,7 +586,8 @@
     "2026-09-22": 0,
     "2026-09-23": 6778,
     "2026-09-24": 3889,
-    "2026-09-25": 5884
+    "2026-09-25": 5884,
+    "2026-09-26": 399
   },
   "paid_net_by_cohort_day": {
     "2026-06-25": 399,
@@ -626,7 +631,7 @@
     "2026-08-23": 10470,
     "2026-08-24": 4288,
     "2026-08-25": 14859,
-    "2026-08-26": 6379,
+    "2026-08-26": 6778,
     "2026-08-27": 3490,
     "2026-08-28": 13359,
     "2026-08-29": 3490,
@@ -649,7 +654,7 @@
     "2026-09-23": 798,
     "2026-09-25": 399
   },
-  "trials_sb_crosscheck_total": 508,
+  "trials_sb_crosscheck_total": 509,
   "trials_sb_crosscheck_by_day": {
     "2026-06-07": 1,
     "2026-06-08": 1,
@@ -756,9 +761,10 @@
     "2026-09-22": 5,
     "2026-09-23": 4,
     "2026-09-24": 4,
-    "2026-09-25": 2
+    "2026-09-25": 2,
+    "2026-09-26": 1
   },
-  "trials_am_crosscheck_total": 496,
+  "trials_am_crosscheck_total": 497,
   "trials_am_crosscheck_by_day": {
     "2026-06-05": 2,
     "2026-06-07": 1,
@@ -865,13 +871,14 @@
     "2026-09-22": 5,
     "2026-09-23": 4,
     "2026-09-24": 4,
-    "2026-09-25": 2
+    "2026-09-25": 2,
+    "2026-09-26": 1
   },
   "trials_crosscheck_yesterday": {
-    "day": "2026-09-24",
-    "appmetrica": 4,
-    "supabase": 4,
-    "dashboard": 4,
+    "day": "2026-09-25",
+    "appmetrica": 2,
+    "supabase": 2,
+    "dashboard": 2,
     "note": "В дашборде trials = RuStore entitlements (уникальный user_id)."
   }
 }
