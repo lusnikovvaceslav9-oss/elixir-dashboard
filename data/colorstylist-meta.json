@@ -1,33 +1,33 @@
 {
-  "generated_at": "2026-09-27T09:43:49+00:00",
+  "generated_at": "2026-09-27T14:59:24+00:00",
   "anchor": "2026-07-31",
   "until": "2026-09-27",
   "window_start": "2026-09-18",
   "trial_attribution": "supabase_trial_start",
   "ai_spend": {
     "provider": "polza",
-    "total": 43772.63,
-    "generations": 29796,
+    "total": 43852.37,
+    "generations": 29855,
     "by_kind": {
-      "images": 39143.2,
-      "chat": 4629.43
+      "images": 39212.2,
+      "chat": 4640.17
     },
     "by_key": [
       {
         "label": "style",
-        "total": 28653.1,
-        "generations": 22196
+        "total": 28703.18,
+        "generations": 22237
       },
       {
         "label": "style-emergency",
-        "total": 15119.53,
-        "generations": 7600
+        "total": 15149.19,
+        "generations": 7618
       }
     ],
     "keys_used": 2,
     "per_install": 13.37,
-    "per_trial": 196.29,
-    "total_burn": 133939.68
+    "per_trial": 196.65,
+    "total_burn": 134171.4
   },
   "trial_days": 3,
   "trial_lag_days": 3,
@@ -59,31 +59,30 @@
   "errors": [],
   "days": 59,
   "reconcile_diff": {
-    "trials_total_old_csv": 221,
+    "trials_total_old_csv": 223,
     "trials_total_new": 223,
-    "delta": 2
+    "delta": 0
   },
   "unit_economics": {
-    "revenue_total": 48101,
-    "spend_total": 90167.05,
-    "active_users": 3427,
-    "active_payers": 39,
-    "plus_active_users": 59,
-    "trial_cancellations": 6,
+    "revenue_total": 48699,
+    "spend_total": 90319.03,
+    "active_users": 3432,
+    "active_payers": 38,
+    "plus_active_users": 56,
+    "trial_cancellations": 5,
     "trial_cancellations_by_day": {
-      "2026-09-24": 1,
       "2026-09-25": 1,
       "2026-09-26": 3,
       "2026-09-27": 1
     },
-    "renewals": 18,
-    "arpu": 14.04,
-    "arppu": 1233.36,
-    "ltv": 1802.6,
+    "renewals": 19,
+    "arpu": 14.19,
+    "arppu": 1281.55,
+    "ltv": 1922.32,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
-    "roas_d7": 64.6,
-    "roas_d14": 62.8,
-    "roas_d30": 58.4
+    "roas_d7": 64.9,
+    "roas_d14": 63.1,
+    "roas_d30": 58.9
   },
   "roas_config": {
     "revenue_source": "actual",
@@ -114,7 +113,7 @@
         "id": "aha_color",
         "label": "Aha: цветотип",
         "formula_label": "color_type_reveal / install",
-        "value_pct": 86.53,
+        "value_pct": 86.61,
         "primary": true,
         "accent": false,
         "note": null
@@ -132,7 +131,7 @@
         "id": "paywall_cta",
         "label": "CTA пейволла",
         "formula_label": "purchase_tap / paywall_view",
-        "value_pct": 37.13,
+        "value_pct": 37.04,
         "primary": false,
         "accent": true,
         "note": null
@@ -152,7 +151,7 @@
         "id": "color_type",
         "label": "Цветотип",
         "event": "color_type_done",
-        "value_pct": 89.28
+        "value_pct": 89.36
       },
       {
         "id": "hair",
@@ -164,7 +163,7 @@
         "id": "outfit",
         "label": "Образы",
         "event": "outfit_generated",
-        "value_pct": 23.15
+        "value_pct": 23.21
       },
       {
         "id": "makeup",
@@ -176,35 +175,35 @@
         "id": "chat",
         "label": "Чат",
         "event": "chat_reply",
-        "value_pct": 24.8
+        "value_pct": 24.86
       },
       {
         "id": "fitting",
         "label": "Примерочная",
         "event": "fitting_done",
-        "value_pct": 9.32
+        "value_pct": 9.3
       }
     ],
     "quality": [
       {
         "id": "ai_fail_rate",
         "label": "AI fail rate",
-        "value_pct": 20.84
+        "value_pct": 20.82
       }
     ]
   },
   "rebills": {
-    "week_events": 116,
-    "rub": 24884,
-    "users_ge1": 55,
+    "week_events": 118,
+    "rub": 25482,
+    "users_ge1": 56,
     "max": 6
   },
   "cash_period": {
     "from": "2026-08-01",
     "until": "2026-09-27",
     "first": 23217,
-    "rebills": 24884,
-    "total": 48101
+    "rebills": 25482,
+    "total": 48699
   },
   "payments_by_plan": {
     "yearly": {
@@ -419,8 +418,8 @@
         "rub": 1195
       },
       "2026-09-27": {
-        "count": 2,
-        "rub": 598
+        "count": 4,
+        "rub": 1196
       },
       "2026-08-31": {
         "count": 2,
@@ -589,7 +588,7 @@
     "2026-09-24": 3590,
     "2026-09-25": 1596,
     "2026-09-26": 2990,
-    "2026-09-27": 598
+    "2026-09-27": 1196
   },
   "paid_net_by_cohort_day": {
     "2026-07-31": 399,
@@ -607,7 +606,7 @@
     "2026-08-24": 398,
     "2026-08-25": 199,
     "2026-08-26": 2388,
-    "2026-08-27": 2189,
+    "2026-08-27": 2388,
     "2026-08-28": 1194,
     "2026-08-29": 597,
     "2026-08-30": 1194,
@@ -624,7 +623,7 @@
     "2026-09-12": 1596,
     "2026-09-14": 1596,
     "2026-09-15": 798,
-    "2026-09-17": 399,
+    "2026-09-17": 798,
     "2026-09-18": 1198,
     "2026-09-21": 1197,
     "2026-09-23": 1995,
