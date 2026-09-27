@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-27T00:49:58+00:00",
+  "generated_at": "2026-09-27T07:02:59+00:00",
   "project": "ursoul",
   "anchor": "2026-09-04",
   "until": "2026-09-27",
@@ -61,13 +61,12 @@
     }
   ],
   "sources": {
+    "metrika": "counter_112293328",
     "spend": "direct_api",
     "clicks": "direct_api",
     "impressions": "direct_api"
   },
-  "errors": [
-    "metrika: HTTP 400: {\"errors\":[{\"error_type\":\"query_error\",\"message\":\"Query is too complicated. Please reduce the date interval or sampling.\"}],\"code\":400,\"message\":\"Query is too complicated. Please reduce the date interval or sampling.\"}"
-  ],
+  "errors": [],
   "days": 24,
   "totals": {
     "spend": 32276.7,
