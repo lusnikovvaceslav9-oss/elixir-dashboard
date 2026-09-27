@@ -1,22 +1,22 @@
 {
-  "generated_at": "2026-09-27T00:05:51+00:00",
+  "generated_at": "2026-09-27T03:41:16+00:00",
   "anchor": "2026-07-31",
   "until": "2026-09-27",
   "window_start": "2026-09-18",
   "trial_attribution": "supabase_trial_start",
   "ai_spend": {
     "provider": "polza",
-    "total": 43666.1,
-    "generations": 29688,
+    "total": 43675.83,
+    "generations": 29694,
     "by_kind": {
-      "images": 39062.4,
-      "chat": 4603.7
+      "images": 39071.4,
+      "chat": 4604.43
     },
     "by_key": [
       {
         "label": "style",
-        "total": 28576.84,
-        "generations": 22114
+        "total": 28586.57,
+        "generations": 22120
       },
       {
         "label": "style-emergency",
@@ -25,9 +25,9 @@
       }
     ],
     "keys_used": 2,
-    "per_install": 13.39,
-    "per_trial": 197.58,
-    "total_burn": 133379.41
+    "per_install": 13.38,
+    "per_trial": 197.63,
+    "total_burn": 133408.51
   },
   "trial_days": 3,
   "trial_lag_days": 3,
@@ -65,8 +65,8 @@
   },
   "unit_economics": {
     "revenue_total": 47105,
-    "spend_total": 89713.31,
-    "active_users": 3415,
+    "spend_total": 89732.68,
+    "active_users": 3417,
     "active_payers": 39,
     "plus_active_users": 62,
     "trial_cancellations": 8,
@@ -113,7 +113,7 @@
         "id": "aha_color",
         "label": "Aha: цветотип",
         "formula_label": "color_type_reveal / install",
-        "value_pct": 86.54,
+        "value_pct": 86.55,
         "primary": true,
         "accent": false,
         "note": null
@@ -131,7 +131,7 @@
         "id": "paywall_cta",
         "label": "CTA пейволла",
         "formula_label": "purchase_tap / paywall_view",
-        "value_pct": 37.07,
+        "value_pct": 37.04,
         "primary": false,
         "accent": true,
         "note": null
@@ -140,7 +140,7 @@
         "id": "engagement_hair",
         "label": "Вовлечение (hair)",
         "formula_label": "hair_look / install",
-        "value_pct": 41.17,
+        "value_pct": 41.15,
         "primary": false,
         "accent": false,
         "note": null
@@ -151,37 +151,37 @@
         "id": "color_type",
         "label": "Цветотип",
         "event": "color_type_done",
-        "value_pct": 89.24
+        "value_pct": 89.25
       },
       {
         "id": "hair",
         "label": "Волосы",
         "event": "hair_look_generated",
-        "value_pct": 41.17
+        "value_pct": 41.15
       },
       {
         "id": "outfit",
         "label": "Образы",
         "event": "outfit_generated",
-        "value_pct": 23.24
+        "value_pct": 23.22
       },
       {
         "id": "makeup",
         "label": "Макияж",
         "event": "makeup_generated",
-        "value_pct": 20.78
+        "value_pct": 20.77
       },
       {
         "id": "chat",
         "label": "Чат",
         "event": "chat_reply",
-        "value_pct": 24.83
+        "value_pct": 24.82
       },
       {
         "id": "fitting",
         "label": "Примерочная",
         "event": "fitting_done",
-        "value_pct": 9.35
+        "value_pct": 9.34
       }
     ],
     "quality": [
