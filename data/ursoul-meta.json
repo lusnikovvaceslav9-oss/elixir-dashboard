@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-28T05:46:59+00:00",
+  "generated_at": "2026-09-28T14:24:10+00:00",
   "project": "ursoul",
   "anchor": "2026-09-04",
   "until": "2026-09-28",
@@ -66,7 +66,9 @@
     "clicks": "direct_api",
     "impressions": "direct_api"
   },
-  "errors": [],
+  "errors": [
+    "direct: 2026-09-14..2026-09-23: Direct HTTP 400: b'{\"error\":{\"error_detail\":\"\",\"request_id\":\"3446343119297361427\",\"error_code\":\"1000\",\"error_string\":\"\\xd0\\xa1\\xd0\\xb5\\xd1\\x80\\xd0\\xb2\\xd0\\xb5\\xd1\\x80 \\xd0\\xb2\\xd1\\x80\\xd0\\xb5\\xd0\\xbc\\xd0\\xb5\\xd0\\xbd\\xd0\\xbd\\xd0\\xbe \\xd0\\xbd\\xd0\\xb5\\xd0\\xb4\\xd0\\xbe\\xd1\\x81\\xd1\\x82\\xd1\\x83\\xd0\\xbf\\xd0\\xb5\\xd0\\xbd\"}}'"
+  ],
   "days": 25,
   "totals": {
     "spend": 32276.7,
