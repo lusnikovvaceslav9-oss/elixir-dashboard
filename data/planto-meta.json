@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-30T00:53:28+00:00",
+  "generated_at": "2026-09-30T06:10:07+00:00",
   "anchor": "2026-06-05",
   "until": "2026-09-30",
   "window_start": "2026-09-21",
@@ -33,13 +33,13 @@
   "days": 118,
   "reconcile_diff": {
     "trials_total_old_csv": 541,
-    "trials_total_new": 541,
-    "delta": 0
+    "trials_total_new": 542,
+    "delta": 1
   },
   "unit_economics": {
     "revenue_total": 299065,
-    "spend_total": 443055.81,
-    "active_users": 19464,
+    "spend_total": 443492.4,
+    "active_users": 19474,
     "active_payers": 120,
     "plus_active_users": 187,
     "trial_cancellations": 10,
@@ -51,7 +51,7 @@
       "2026-09-29": 1
     },
     "renewals": 76,
-    "arpu": 15.37,
+    "arpu": 15.36,
     "arppu": 2492.21,
     "ltv": 4070.61,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
@@ -69,15 +69,15 @@
     "predict_horizon_days": 180
   },
   "product": {
-    "garden_activation_pct": 30.31,
+    "garden_activation_pct": 30.33,
     "garden_avg_plants": 2.21,
     "garden_depth_icp_pct": null,
     "paywall_cta_pct": 40.3,
-    "care_engagement_pct": 6.07,
+    "care_engagement_pct": 6.08,
     "feature_activation": {
-      "scan_pct": 33.94,
+      "scan_pct": 33.96,
       "watering_pct": 3.77,
-      "ai_pct": 28.45
+      "ai_pct": 28.48
     },
     "retention": {
       "d1": null,
@@ -482,7 +482,7 @@
         "count": 2,
         "rub": 798
       },
-      "2026-09-29": {
+      "2026-09-30": {
         "count": 1,
         "rub": 399
       }
@@ -606,8 +606,8 @@
     "2026-09-26": 4288,
     "2026-09-27": 5980,
     "2026-09-28": 399,
-    "2026-09-29": 399,
-    "2026-09-30": 0
+    "2026-09-29": 0,
+    "2026-09-30": 399
   },
   "paid_net_by_cohort_day": {
     "2026-06-25": 399,
@@ -674,9 +674,9 @@
     "2026-09-19": 3490,
     "2026-09-20": 5980,
     "2026-09-23": 798,
-    "2026-09-29": 399
+    "2026-09-30": 399
   },
-  "trials_sb_crosscheck_total": 541,
+  "trials_sb_crosscheck_total": 542,
   "trials_sb_crosscheck_by_day": {
     "2026-06-07": 1,
     "2026-06-08": 1,
@@ -787,9 +787,10 @@
     "2026-09-26": 9,
     "2026-09-27": 11,
     "2026-09-28": 5,
-    "2026-09-29": 8
+    "2026-09-29": 7,
+    "2026-09-30": 2
   },
-  "trials_am_crosscheck_total": 525,
+  "trials_am_crosscheck_total": 526,
   "trials_am_crosscheck_by_day": {
     "2026-06-05": 2,
     "2026-06-07": 1,
@@ -900,13 +901,14 @@
     "2026-09-26": 8,
     "2026-09-27": 9,
     "2026-09-28": 5,
-    "2026-09-29": 7
+    "2026-09-29": 7,
+    "2026-09-30": 1
   },
   "trials_crosscheck_yesterday": {
     "day": "2026-09-29",
     "appmetrica": 7,
-    "supabase": 8,
-    "dashboard": 8,
+    "supabase": 7,
+    "dashboard": 7,
     "note": "В дашборде trials = RuStore entitlements (уникальный user_id)."
   }
 }
