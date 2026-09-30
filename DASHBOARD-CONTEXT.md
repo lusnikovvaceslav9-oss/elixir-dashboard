@@ -23,14 +23,15 @@
 | **SkinAI** | baked Meta Ads + Skin admin | `data/skinai-daily.csv` + phi/mauve | **тест**; $; сессии / итог / $39 / почты + LPV; значения квиза |
 | **JGGL** | multi-sheet CSV + Sheets | Upload CSV → iOS/Android + Waitlist/Redirect | Сплит по `android` в названии кампании |
 | **Qlosophy** | multi-sheet CSV | Upload → «Лист 1» / Web | `Лист1` ≡ `Main` |
-| **Quadcode** | monthly sheets + CSV | Upload → месяц по датам CSV | Не склеивать листы месяцев |
+| **Quadcode** | baked Meta Ads + Google | `data/quadcode-daily.csv` + Игры/Сайт/Discord; Google sheet отдельно | DiscordJoin внутри карточки; лендинг(игры) vs прямой сайт; **не** мержить spend Google в Meta итог |
 | Прочие | Google Sheets | sheetSources / monthlySheets | Как раньше |
 
 Определение типа проекта (по `id` / `name`):
 
 - `isJgglProject`, `isQlosophyProject`, `isQuadcodeProject`, `isPlantoAutoFeed` в `elixir.html`
 - `isBakedCsvHupp` — Экономик / Тьюторплейс / Пилюльница / Бездна / SkinAI: фиды из `data/*.csv`, **не** Metrika+Direct merge (`isHuppCsvOnly` = false)
-- Обзор: фильтр Все / Пролив / Тесты (`kind` live|test). Пересборка: `scripts/import-ekonomik-tutor.py`, `scripts/import-tablet.py`, `scripts/import-bezdna.py`, `scripts/import-skinai.py`
+- `isBakedCsvQuadcode` — Quadcode: Meta ad-set CSV, карточка Итог + Игры/Сайт/Discord (+ Google). Обзор берёт `total`, не сумму листов
+- Обзор: фильтр Все / Пролив / Тесты (`kind` live|test). Пересборка: `scripts/import-ekonomik-tutor.py`, `scripts/import-tablet.py`, `scripts/import-bezdna.py`, `scripts/import-skinai.py`, `scripts/import-quadcode.py`
 
 ---
 
@@ -126,9 +127,10 @@ projects[]  →  cache[projId] = { sources: [ { id, label, url, rows[], ... } ] 
 
 ## 6. Quadcode
 
-- CSV/XLSX upload → лист месяца по **доминирующей дате** в файле (`__auto_month__`).
-- Не склеивать все месячные листы в один flat dataset.
-- Month switcher синхронизирует выбранный source (`syncSourceIndexToMonth` OK здесь).
+- Карточка одна. Внутри листы: **Итог** / **Игры · лендинг** (`game - lead`) / **Сайт** (`no game - lead`) / **Discord** (`join`) / **Google** (продуктовый sheet, без Meta spend).
+- `regs` = website complete_registration; `qregs` = DiscordJoin. Дубли ad set (active + not_delivering) суммируются. JGGL `new pack *` пропускаются.
+- Обзор и KPI карточки — только лист `total`. Клик по разрезу не сбрасывается `syncSourceIndexToMonth`.
+- Пересборка: `scripts/import-quadcode.py` из Meta Ads CSV (ad sets). Старый upload «месяц по датам» для baked-фида не нужен.
 
 ---
 

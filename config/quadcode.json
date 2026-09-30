@@ -1,0 +1,24 @@
+{
+  "id": "quadcode",
+  "name": "Quadcode AI",
+  "kind": "live",
+  "anchor": "2026-09-17",
+  "currency": "USD",
+  "source": "Meta Ads · ad sets + Google Sheets",
+  "primary_goal": {
+    "id": "website_reg",
+    "key": "regs",
+    "label": "Регистрации на сайте"
+  },
+  "adsets": [
+    { "id": "games", "name": "Игры · лендинг" },
+    { "id": "site", "name": "Сайт" },
+    { "id": "discord", "name": "Discord" }
+  ],
+  "goals": [
+    { "id": "website_reg", "key": "regs", "label": "Regs · сайт", "csv": "regs", "costLabel": "Cost / Reg" },
+    { "id": "discord_join", "key": "qregs", "label": "Discord join", "csv": "qregs", "costLabel": "Cost / Discord" }
+  ],
+  "daily_csv": "data/quadcode-daily.csv",
+  "meta_json": "data/quadcode-meta.json"
+}

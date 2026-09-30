@@ -1587,6 +1587,24 @@ function kelpieFeedOf(proj) {
   return KELPIE_FEEDS[id] || null;
 }
 
+const QUADCODE_GOOGLE_URL = 'https://docs.google.com/spreadsheets/d/1GRLgK6CnvH4innf7n4k8K_bhQ9nsTl2Q/export?format=csv';
+const QUADCODE_FEED = {
+  daily: 'data/quadcode-daily.csv',
+  meta: 'data/quadcode-meta.json',
+  name: 'Quadcode AI',
+  icon: '💻',
+  currency: '$',
+  kind: 'live',
+  google: QUADCODE_GOOGLE_URL,
+  sheets: [
+    { id: 'total', label: 'Итог', url: 'data/quadcode-daily.csv' },
+    { id: 'games', label: 'Игры · лендинг', url: 'data/quadcode-games.csv' },
+    { id: 'site', label: 'Сайт', url: 'data/quadcode-site.csv' },
+    { id: 'discord', label: 'Discord', url: 'data/quadcode-discord.csv' },
+    { id: 'google', label: 'Google', url: QUADCODE_GOOGLE_URL },
+  ],
+};
+
 const HUPP_START_SEED_FLAG = 'hupp_csv_start_seeded_v1';
 const HUPP_DIRECT_KEYS = ['spend', 'clicks', 'impressions'];
 const HUPP_FEED_WORKFLOW = 'hupp-feed.yml';
@@ -1641,7 +1659,7 @@ const DEFAULT_PROJECTS = [
   { id: 'kelpie',   name: 'Kelpie',      icon: '🌊', currency: '$', type: 'kelpie', status: 'run',
     urls: [KELPIE_DATA_URL], dataSource: 'csv' },
   { id: 'quadcode', name: 'Quadcode AI', icon: '💻', currency: '$', type: 'quadcode', status: 'run',
-    urls: ['https://docs.google.com/spreadsheets/d/1GRLgK6CnvH4innf7n4k8K_bhQ9nsTl2Q/export?format=csv'] },
+    urls: ['data/quadcode-daily.csv'], dataSource: 'csv' },
   { id: 'streamfi', name: 'StreamFi',    icon: '📡', currency: '$', type: 'streamfi', status: 'run',
     urls: ['https://docs.google.com/spreadsheets/d/1j3HKzBOB_4vejxNNgMGTFTnAana1Xoqo/export?format=csv'] },
 ];
@@ -1866,7 +1884,7 @@ const TYPE_TEMPLATES = [
   { id: 'planto',   icon: '🌱', name: 'Planto',   desc: 'Installs, Trials, FB' },
   { id: 'hupp',     icon: '🟣', name: 'Hupp',     desc: 'Metrika visits + payment funnel' },
   { id: 'kelpie',   icon: '🌊', name: 'Kelpie',   desc: 'PostHog funnel + Meta Ads spend' },
-  { id: 'quadcode', icon: '💻', name: 'Quadcode', desc: 'Regs, Installs, Purchases' },
+  { id: 'quadcode', icon: '💻', name: 'Quadcode', desc: 'Regs, Discord, Installs, Purchases' },
   { id: 'generic',  icon: '📊', name: 'Generic',  desc: 'Только Spend' },
 ];
 
@@ -2275,6 +2293,36 @@ function isMultiSheetCsvProject(p) {
 
 function isQuadcodeProject(p) {
   return !!(p && (/quadcode/i.test(p.id || '') || /quadcode/i.test(p.name || '')));
+}
+
+function isBakedCsvQuadcode(proj) {
+  return isQuadcodeProject(proj);
+}
+
+function applyQuadcodeAutoSource(list) {
+  const withBuiltin = [...(list || [])];
+  if (!withBuiltin.some(p => isQuadcodeProject(p))) {
+    const def = DEFAULT_PROJECTS.find(p => p.id === 'quadcode');
+    if (def) withBuiltin.push(JSON.parse(JSON.stringify(def)));
+  }
+  return withBuiltin.map(p => {
+    if (!isQuadcodeProject(p)) return p;
+    const feed = QUADCODE_FEED;
+    const sheetSources = (feed.sheets || []).map(s => ({ id: s.id, label: s.label, url: s.url }));
+    return normalizeProject({
+      ...p,
+      name: p.name || feed.name,
+      icon: p.icon || feed.icon,
+      currency: feed.currency || p.currency || '$',
+      type: 'quadcode',
+      status: p.status || 'run',
+      kind: p.kind || feed.kind || 'live',
+      urls: sheetSources.map(s => s.url),
+      dataSource: 'csv',
+      sheetSources,
+      monthlySheets: [],
+    });
+  });
 }
 
 function isHuppProject(p) {
@@ -3161,8 +3209,8 @@ function findBestSourceIdxForMonth(pack, monthKey) {
 function syncSourceIndexToMonth(projId, pack, monthKey) {
   if (!pack?.sources?.length || !monthKey) return;
   const p = projects.find(x => x.id === projId);
-  // JGGL: листы — iOS/Android/Waitlist, не месяцы. Не перебиваем клик пользователя.
-  if (isJgglProject(p) && !sourcesAreMonthPartitioned(pack)) return;
+  // JGGL / baked Quadcode: листы — платформы и разрезы, не месяцы. Не перебиваем клик.
+  if ((isJgglProject(p) || isBakedCsvQuadcode(p)) && !sourcesAreMonthPartitioned(pack)) return;
   if (!sourcesAreMonthPartitioned(pack) && !isQuadcodeProject(p) && !isQlosophyProject(p)) return;
   sourceIndexByProject[projId] = findBestSourceIdxForMonth(pack, monthKey);
 }
@@ -3252,6 +3300,7 @@ function expandJgglUploadedByPlatform(uploaded) {
 
 /** Раскладывает загрузки по месяцам по датам строк (не только по label). */
 function expandUploadedSourcesByMonth(uploaded, proj) {
+  if (isBakedCsvQuadcode(proj)) return [];
   if (isJgglProject(proj)) return expandJgglUploadedByPlatform(uploaded);
 
   const useMonthSplit = isQuadcodeProject(proj)
@@ -4043,7 +4092,8 @@ function manualEntryFieldsForProject(proj) {
       ['sold', 'Yearly'], ['fb', 'Оплаты'], ['impressions', 'Показы'], ['clicks', 'Клики'],
     ],
     quadcode: [
-      ['spend', 'Расход'], ['regs', 'Регистрации'], ['installs', 'Инсталлы'], ['purchases', 'Покупки'],
+      ['spend', 'Расход'], ['regs', 'Регистрации'], ['qregs', 'Discord'], ['installs', 'Инсталлы'], ['purchases', 'Покупки'],
+      ['impressions', 'Показы'], ['clicks', 'Клики'],
     ],
     campaign: [
       ['spend', 'Расход'], ['impressions', 'Показы'], ['clicks', 'Клики'], ['qregs', 'Целевые'],
@@ -4737,7 +4787,7 @@ function applyJgglSourceDefault(list) {
 }
 
 function applyProjectDefaults(list) {
-  return applyJgglSourceDefault(applyLocalCsvSources(applyKelpieAutoSource(applyHuppAutoSource(applyPlantoAutoSource(list)))));
+  return applyJgglSourceDefault(applyQuadcodeAutoSource(applyLocalCsvSources(applyKelpieAutoSource(applyHuppAutoSource(applyPlantoAutoSource(list))))));
 }
 
 async function loadLocalCsvManifest(dir) {
@@ -5053,18 +5103,20 @@ function findQuadcodeColumns(headerRow) {
     dateCol: findDateCol(headers),
     spendCol: findSpendCol(headers),
     regCol: findRegColumn(headers),
+    qregCol: findCol(headers, ['qreg', 'discord'], ['cost', 'цена', '/']),
     installCol: findCol(headers, ['instal', 'install', 'inst'], ['cost', 'цена', '/']),
     purchCol: findCol(headers, ['purchase', 'purch'], ['cost', 'цена', '/']),
+    clicksCol: findCol(headers, ['click', 'клик'], ['ctr', 'цена', 'cpc', 'ср.']),
+    impressionsCol: findCol(headers, ['impression', 'impress', 'показ', 'imps'], ['доля', 'share', '%']),
   };
 }
 
 function parseQuadcodeRows(rows) {
   if (!rows.length) return [];
   const cols = findQuadcodeColumns(rows[0]);
+  const baked = cols.qregCol >= 0;
   const sc = cols.spendCol >= 0 ? cols.spendCol : 1;
   const rc = cols.regCol >= 0 ? cols.regCol : 2;
-  const ic = cols.installCol >= 0 ? cols.installCol : 3;
-  const pc = cols.purchCol >= 0 ? cols.purchCol : 6;
   return rows.slice(1).map(r => {
     const dateStr = (r[cols.dateCol] || '').trim();
     if (/итого|total/i.test(dateStr) || !dateStr) return null;
@@ -5074,9 +5126,14 @@ function parseQuadcodeRows(rows) {
       date: dt, dateStr: fmtDateStr(dt),
       spend: parseNum(r[sc]),
       regs: parseNum(r[rc]),
-      installs: parseNum(r[ic]),
-      purchases: parseNum(r[pc]),
     };
+    if (cols.qregCol >= 0) obj.qregs = parseNum(r[cols.qregCol]);
+    if (cols.clicksCol >= 0) obj.clicks = parseNum(r[cols.clicksCol]);
+    if (cols.impressionsCol >= 0) obj.impressions = parseNum(r[cols.impressionsCol]);
+    if (cols.installCol >= 0) obj.installs = parseNum(r[cols.installCol]);
+    else if (!baked) obj.installs = parseNum(r[3]);
+    if (cols.purchCol >= 0) obj.purchases = parseNum(r[cols.purchCol]);
+    else if (!baked) obj.purchases = parseNum(r[6]);
     return hasData(obj) ? obj : null;
   }).filter(Boolean);
 }
@@ -5109,6 +5166,10 @@ function detectSheetType(headerRow) {
   const hasImpressions = findCol(headers, ['impression', 'impress', 'показ', 'imps'], ['доля', 'share', '%']) >= 0;
   const hasClicks = findCol(headers, ['click', 'клик'], ['ctr', 'цена', 'cpc', 'ср.']) >= 0;
   const hasCampaign = findCol(headers, ['campaign name', 'campaign', 'кампани'], []) >= 0;
+  const hasQregs = headers.some(h => h === 'qregs' || h === 'discord');
+  const hasExactRegs = headers.some(h => h === 'regs' || h === 'reg');
+  // Baked Quadcode: date,spend,regs,qregs[,clicks,impressions]. До campaign, иначе ads-колонки уводят в Meta export.
+  if (hasQregs && hasExactRegs) return 'quadcode';
   // Meta Ads export: Amount spent + Impressions/Clicks/Campaign
   if (hasSpend && (hasImpressions || hasClicks || hasCampaign)) return 'campaign';
   // Quadcode: Reg + Instal + Purch — до широкого match по install/inst
@@ -6121,6 +6182,7 @@ function detectTypeFromRows(rows) {
   if ('purchase' in s || 'contact_info' in s || 'form_submit' in s || 'contact_sent' in s) return 'hupp';
   if ('installs' in s && ('trials' in s || 'fb' in s)) return 'planto';
   if ('installs' in s && !('regs' in s) && !('qregs' in s)) return 'planto';
+  if ('qregs' in s && 'regs' in s) return 'quadcode';
   if ('impressions' in s || 'clicks' in s) return 'campaign';
   if (s.campaign && s.campaign !== '—') return 'campaign';
   if ('purchases' in s && 'installs' in s) return 'quadcode';
@@ -6134,6 +6196,7 @@ function detectTypeFromRows(rows) {
 function getEffectiveType(proj, rows) {
   if (isKelpieProject(proj)) return 'kelpie';
   if (isHuppProject(proj)) return 'hupp';
+  if (isQuadcodeProject(proj)) return 'quadcode';
   if (proj.sheetColumns?.length) return detectSheetType(proj.sheetColumns);
   if (rows?.length) return detectTypeFromRows(rows);
   return proj.type && proj.type !== 'auto' ? proj.type : 'generic';
@@ -8618,10 +8681,17 @@ const METRIC_CATALOG = {
     { key: 'spend', label: 'Total Spend', accent: false },
     { key: 'regs', label: 'Registrations', accent: false },
     { key: 'cost_reg', label: 'Cost / Reg', accent: true },
+    { key: 'qregs', label: 'Discord', accent: false },
+    { key: 'cost_qreg', label: 'Cost / Discord', accent: true },
     { key: 'installs', label: 'Installs', accent: false },
     { key: 'cost_install', label: 'Cost / Install', accent: true },
     { key: 'purchases', label: 'Purchases', accent: false },
     { key: 'cost_purchase', label: 'Cost / Purchase', accent: true },
+    { key: 'impressions', label: 'Impressions', accent: false },
+    { key: 'clicks', label: 'Clicks', accent: false },
+    { key: 'cpc', label: 'CPC', accent: true },
+    { key: 'cpm', label: 'CPM', accent: true },
+    { key: 'ctr', label: 'CTR', accent: false },
   ],
   streamfi: [
     { key: 'spend', label: 'Total Spend', accent: false },
@@ -8675,7 +8745,7 @@ function computeMetricValue(key, type, rows, cur) {
     case 'sold': return fmtInt(sold);
     case 'fb': return fmtInt(fb);
     case 'regs': return fmtInt(regsCount(rows, type));
-    case 'qregs': return fmtInt(regLikeCount(rows));
+    case 'qregs': return fmtInt(type === 'quadcode' ? sum(rows, 'qregs') : regLikeCount(rows));
     case 'purchases': return fmtInt(sum(rows, 'purchases'));
     case 'purchase': return fmtInt(sum(rows, 'purchase'));
     case 'contact_info': return fmtInt(sum(rows, 'contact_info'));
@@ -8699,7 +8769,7 @@ function computeMetricValue(key, type, rows, cur) {
       return v ? fmtMoney(sp / v, cur) : '—';
     }
     case 'cost_qreg': {
-      const v = regLikeCount(rows);
+      const v = type === 'quadcode' ? sum(rows, 'qregs') : regLikeCount(rows);
       return v ? fmtMoney(sp / v, cur) : '—';
     }
     case 'cost_fb': return fb ? fmtMoney(sp / fb, cur) : '—';
@@ -9185,12 +9255,40 @@ function getTableConfig(proj, rows) {
     };
     }
   } else if (type === 'quadcode') {
-    colKeys = ['date', 'spend', 'regs', 'cost_reg', 'installs', 'cost_install', 'purchases', 'cost_purchase'];
+    const hasDiscord = (rows || []).some(r => r && 'qregs' in r);
+    const hasAds = (rows || []).some(r => r && (('clicks' in r) || ('impressions' in r)));
+    const hasInst = (rows || []).some(r => r && 'installs' in r);
+    const hasPurch = (rows || []).some(r => r && 'purchases' in r);
+    colKeys = ['date', 'spend', 'regs', 'cost_reg'];
+    const headers = ['Дата', `Spend (${cur})`, L('regs','Regs'), L('cost_reg','Cost/Reg')];
+    if (hasDiscord) { colKeys.push('qregs', 'cost_qreg'); headers.push(L('qregs','Discord'), L('cost_qreg','Cost/Discord')); }
+    if (hasInst) { colKeys.push('installs', 'cost_install'); headers.push(L('installs','Installs'), L('cost_install','Cost/Install')); }
+    if (hasPurch) { colKeys.push('purchases', 'cost_purchase'); headers.push(L('purchases','Purchases'), L('cost_purchase','Cost/Purchase')); }
+    if (hasAds) { colKeys.push('impressions', 'clicks', 'cpc', 'cpm', 'ctr'); headers.push(L('impressions','Impressions'), L('clicks','Clicks'), L('cpc','CPC'), L('cpm','CPM'), L('ctr','CTR')); }
     tbl = {
-    headers: ['Дата', `Spend (${cur})`, L('regs','Regs'), L('cost_reg','Cost/Reg'), L('installs','Installs'), L('cost_install','Cost/Install'), L('purchases','Purchases'), L('cost_purchase','Cost/Purchase')],
-    row: (r) => [r.dateStr, fmtMoneyFull(r.spend,cur), fmtInt(r.regs), r.regs?fmtMoney(r.spend/r.regs,cur):'—', fmtInt(r.installs), r.installs?fmtMoney(r.spend/r.installs,cur):'—', fmtInt(r.purchases), r.purchases?fmtMoney(r.spend/r.purchases,cur):'—'],
-    total: (rows) => { const sp=sum(rows,'spend'),rg=sum(rows,'regs'),ins=sum(rows,'installs'),pu=sum(rows,'purchases');
-      return ['Итого',fmtMoneyFull(sp,cur),fmtInt(rg),rg?fmtMoney(sp/rg,cur):'—',fmtInt(ins),ins?fmtMoney(sp/ins,cur):'—',fmtInt(pu),pu?fmtMoney(sp/pu,cur):'—']; }
+    headers,
+    row: (r) => {
+      const cells = [r.dateStr, fmtMoneyFull(r.spend,cur), fmtInt(r.regs||0), r.regs?fmtMoney(r.spend/r.regs,cur):'—'];
+      if (hasDiscord) cells.push(fmtInt(r.qregs||0), r.qregs?fmtMoney(r.spend/r.qregs,cur):'—');
+      if (hasInst) cells.push(fmtInt(r.installs||0), r.installs?fmtMoney(r.spend/r.installs,cur):'—');
+      if (hasPurch) cells.push(fmtInt(r.purchases||0), r.purchases?fmtMoney(r.spend/r.purchases,cur):'—');
+      if (hasAds) {
+        const cl = r.clicks || 0, imp = r.impressions || 0;
+        cells.push(fmtInt(imp), fmtInt(cl), cl?fmtMoney(r.spend/cl,cur):'—', imp?fmtMoney(r.spend/imp*1000,cur):'—', imp?fmtPct(cl/imp*100):'—');
+      }
+      return cells;
+    },
+    total: (rows) => {
+      const sp=sum(rows,'spend'), rg=sum(rows,'regs'), dq=sum(rows,'qregs');
+      const ins=sum(rows,'installs'), pu=sum(rows,'purchases');
+      const cl=sum(rows,'clicks'), imp=sum(rows,'impressions');
+      const cells = ['Итого',fmtMoneyFull(sp,cur),fmtInt(rg),rg?fmtMoney(sp/rg,cur):'—'];
+      if (hasDiscord) cells.push(fmtInt(dq), dq?fmtMoney(sp/dq,cur):'—');
+      if (hasInst) cells.push(fmtInt(ins), ins?fmtMoney(sp/ins,cur):'—');
+      if (hasPurch) cells.push(fmtInt(pu), pu?fmtMoney(sp/pu,cur):'—');
+      if (hasAds) cells.push(fmtInt(imp), fmtInt(cl), cl?fmtMoney(sp/cl,cur):'—', imp?fmtMoney(sp/imp*1000,cur):'—', imp?fmtPct(cl/imp*100):'—');
+      return cells;
+    }
     };
   } else if (type === 'campaign') {
     // Колонка Campaign убрана по запросу — данные схлопываются по дате (aggregateByDate).
@@ -9346,7 +9444,7 @@ function selectProjectRows(proj, pack) {
     if (plats.length) return aggregateRowsByDate(plats.flatMap(s => s.rows || []));
   }
 
-  if (isBakedCsvHupp(proj)) {
+  if (isBakedCsvHupp(proj) || isBakedCsvQuadcode(proj)) {
     const total = sources.find(isHuppTotalSource);
     if (total) return total.rows || [];
   }
@@ -9611,8 +9709,15 @@ function computeFunnels(proj, rows) {
   const steps = [];
 
   if (type === 'quadcode') {
-    const rg = sum(rows, 'regs'), ins = sum(rows, 'installs'), pu = sum(rows, 'purchases');
-    if (rg > 0) steps.push({ label: 'Reg → Install', pct: (ins / rg) * 100, count: `${fmtInt(ins)} / ${fmtInt(rg)}` });
+    const rg = sum(rows, 'regs'), ins = sum(rows, 'installs'), pu = sum(rows, 'purchases'), dq = sum(rows, 'qregs');
+    if (dq > 0 || (rg > 0 && (rows || []).some(r => r && 'qregs' in r))) {
+      const tot = rg + dq;
+      if (tot > 0) {
+        steps.push({ label: 'Сайт · regs', pct: (rg / tot) * 100, count: `${fmtInt(rg)} / ${fmtInt(tot)}` });
+        steps.push({ label: 'Discord join', pct: (dq / tot) * 100, count: `${fmtInt(dq)} / ${fmtInt(tot)}` });
+      }
+    }
+    if (rg > 0 && ins > 0) steps.push({ label: 'Reg → Install', pct: (ins / rg) * 100, count: `${fmtInt(ins)} / ${fmtInt(rg)}` });
     if (ins > 0) steps.push({ label: 'Install → Purchase', pct: (pu / ins) * 100, count: `${fmtInt(pu)} / ${fmtInt(ins)}` });
     if (rg > 0 && pu > 0) steps.push({ label: 'Reg → Purchase', pct: (pu / rg) * 100, count: `${fmtInt(pu)} / ${fmtInt(rg)}` });
   } else if (type === 'streamfi') {
@@ -9640,7 +9745,7 @@ function computeFunnels(proj, rows) {
 function getRowPrimaryResult(proj, row) {
   const type = getEffectiveType(proj, [row]);
   if (type === 'streamfi' || type === 'campaign') return regLikeCount([row]);
-  if (type === 'quadcode') return row.regs || 0;
+  if (type === 'quadcode') return (row.regs || 0) + (row.qregs || 0);
   if (type === 'planto') {
     const rk = PLANTO_VIEWS[getPlantoView(proj.id)].resultKey;
     return row[rk] || 0;
@@ -10631,7 +10736,7 @@ document.addEventListener('keydown', e => {
 
 function getPrimaryResult(type, rows) {
   if (type === 'campaign' || type === 'streamfi') return regLikeCount(rows);
-  if (type === 'quadcode') return regLikeCount(rows) || sum(rows, 'regs');
+  if (type === 'quadcode') return sum(rows, 'regs') + sum(rows, 'qregs');
   if (type === 'planto') return installLikeCount(rows);
   if (type === 'hupp') return sum(rows, 'purchase');
   return 0;
@@ -11084,7 +11189,7 @@ let pendingWorkspaceChart = null;
 
 const WORKSPACE_GROUPS = [
   { id: 'ads',    label: 'Реклама',      icon: '📊', keys: ['spend', 'spend_vat', 'impressions', 'clicks', 'cpm', 'cpc', 'ctr'] },
-  { id: 'users',  label: 'Пользователи', icon: '👥', keys: ['installs', 'cost_install', 'regs', 'cost_reg'] },
+  { id: 'users',  label: 'Пользователи', icon: '👥', keys: ['installs', 'cost_install', 'regs', 'cost_reg', 'qregs', 'cost_qreg'] },
   { id: 'funnel', label: 'Воронка',      icon: '🎯', keys: ['trials', 'cost_trial', 'cr_install_trial', 'fb', 'sold', 'cost_sold', 'purchase', 'cost_purchase', 'contact_info', 'form_submit', 'contact_sent', 'cost_app', 'qregs', 'cost_qreg', 'purchases', 'conv_rate'] },
   { id: 'revenue',label: 'Доход',        icon: '💰', keys: ['revenue', 'roas', 'cac'] },
 ];
