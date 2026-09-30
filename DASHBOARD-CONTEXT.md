@@ -16,6 +16,8 @@
 | Проект | Тип данных | Основной ввод | Ключевые особенности |
 |--------|-----------|---------------|----------------------|
 | **Planto** | auto-feed | `data/planto-*.csv/json` + buyer-feed | Триалы AM, bills RuStore (−7д yearly) |
+| **Экономик** | baked Direct CSV | `data/ekonomik-daily.csv` из `~/бублик , счетчик ` (не Desktop/счетчик) | $; подписки + TG; одна РК |
+| **Тьюторплейс** | baked Direct CSV | `data/tutorplace-daily.csv` + 5 ниш | ₽; одна карточка, внутри Итог + Астро/Еда/Пилатес/Танцы/Хиро |
 | **JGGL** | multi-sheet CSV + Sheets | Upload CSV → iOS/Android + Waitlist/Redirect | Сплит по `android` в названии кампании |
 | **Qlosophy** | multi-sheet CSV | Upload → «Лист 1» / Web | `Лист1` ≡ `Main` |
 | **Quadcode** | monthly sheets + CSV | Upload → месяц по датам CSV | Не склеивать листы месяцев |
@@ -24,6 +26,8 @@
 Определение типа проекта (по `id` / `name`):
 
 - `isJgglProject`, `isQlosophyProject`, `isQuadcodeProject`, `isPlantoAutoFeed` в `elixir.html`
+- `isBakedCsvHupp` — Экономик / Тьюторплейс: фиды из `data/*.csv`, **не** Metrika+Direct merge (`isHuppCsvOnly` = false)
+- Обзор: фильтр Все / Пролив / Тесты (`kind` live|test). Пересборка CSV: `scripts/import-ekonomik-tutor.py`
 
 ---
 

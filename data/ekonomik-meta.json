@@ -1,0 +1,46 @@
+{
+  "generated_at": "2026-09-30T16:45:24+0700",
+  "project": "ekonomik",
+  "anchor": "2026-09-08",
+  "until": "2026-09-28",
+  "metric_map": {
+    "trials": "sub_start",
+    "fb": "tg_click",
+    "spend": "direct_csv",
+    "clicks": "direct_csv",
+    "impressions": "direct_csv"
+  },
+  "goals": [
+    {
+      "id": "609953998",
+      "key": "sub_start",
+      "label": "Подписки",
+      "csv": "trials",
+      "costLabel": "CPA sub"
+    },
+    {
+      "id": "609953996",
+      "key": "tg_click",
+      "label": "TG",
+      "csv": "fb",
+      "costLabel": "CPA TG"
+    }
+  ],
+  "sources": {
+    "spend": "direct_csv",
+    "bublik": "/Users/vaceslavlusnikov/бублик , счетчик /data"
+  },
+  "errors": [],
+  "days": 20,
+  "totals": {
+    "spend": 143.77,
+    "trials": 140,
+    "fb": 366,
+    "clicks": 3216,
+    "impressions": 268648
+  },
+  "direct_source": "direct_csv",
+  "currency": "USD",
+  "campaign_id": "714245040",
+  "roas_config": null
+}

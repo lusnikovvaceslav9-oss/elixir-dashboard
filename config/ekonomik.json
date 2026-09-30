@@ -1,0 +1,19 @@
+{
+  "id": "ekonomik",
+  "name": "Экономик",
+  "anchor": "2026-09-08",
+  "currency": "USD",
+  "source": "Яндекс Директ · бублик",
+  "direct_campaign_ids": ["714245040"],
+  "primary_goal": {
+    "id": "609953998",
+    "key": "sub_start",
+    "label": "Подписки / старт бота"
+  },
+  "goals": [
+    {"id": "609953998", "key": "sub_start", "label": "Подписки", "csv": "trials", "costLabel": "CPA sub"},
+    {"id": "609953996", "key": "tg_click", "label": "TG", "csv": "fb", "costLabel": "CPA TG"}
+  ],
+  "daily_csv": "data/ekonomik-daily.csv",
+  "meta_json": "data/ekonomik-meta.json"
+}

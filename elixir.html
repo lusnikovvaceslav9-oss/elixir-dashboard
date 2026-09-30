@@ -298,6 +298,8 @@ body{
 .status-badge.run{color:#166534;background:rgba(22,101,52,0.1);border-color:rgba(22,101,52,0.28)}
 .status-badge.pause{color:#92400e;background:rgba(146,64,14,0.1);border-color:rgba(146,64,14,0.28)}
 .status-badge.stop{color:#991b1b;background:rgba(153,27,27,0.1);border-color:rgba(153,27,27,0.28)}
+.status-badge.test{color:#1e3a8a;background:rgba(30,58,138,0.1);border-color:rgba(30,58,138,0.28)}
+.board-kind-filter{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 16px}
 .status-select{appearance:none;-webkit-appearance:none;border-radius:999px;padding:5px 26px 5px 10px;font-size:11px;font-weight:700;font-family:inherit;letter-spacing:0.03em;text-transform:uppercase;cursor:pointer;border:1px solid transparent;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;outline:none}
 .status-select.run{color:#166534;background-color:rgba(22,101,52,0.1);border-color:rgba(22,101,52,0.28)}
 .status-select.pause{color:#92400e;background-color:rgba(146,64,14,0.1);border-color:rgba(146,64,14,0.28)}
@@ -1022,6 +1024,7 @@ thead tr{background:#f7f7f7}
 .status-badge.run{color:#166534!important;background:rgba(22,101,52,0.1)!important;border-color:rgba(22,101,52,0.28)!important}
 .status-badge.pause{color:#92400e!important;background:rgba(146,64,14,0.1)!important;border-color:rgba(146,64,14,0.28)!important}
 .status-badge.stop{color:#991b1b!important;background:rgba(153,27,27,0.1)!important;border-color:rgba(153,27,27,0.28)!important}
+.status-badge.test{color:#1e3a8a!important;background:rgba(30,58,138,0.1)!important;border-color:rgba(30,58,138,0.28)!important}
 .status-select.run{color:#166534!important}
 .status-select.pause{color:#92400e!important}
 .status-select.stop{color:#991b1b!important}
@@ -1458,6 +1461,8 @@ const HUPP_FEEDS = {
     start: HUPP_START_CSV_URL,
     name: 'Hupp',
     icon: '🟣',
+    currency: '₽',
+    kind: 'live',
   },
   izdaniya: {
     daily: 'data/izdaniya-daily.csv',
@@ -1465,6 +1470,52 @@ const HUPP_FEEDS = {
     start: '',
     name: 'Издания',
     icon: '📰',
+    currency: '₽',
+    kind: 'live',
+  },
+  pled: {
+    daily: 'data/pled-daily.csv',
+    meta: 'data/pled-meta.json',
+    start: '',
+    name: 'Плед',
+    icon: '🧶',
+    currency: '₽',
+    kind: 'live',
+  },
+  ursoul: {
+    daily: 'data/ursoul-daily.csv',
+    meta: 'data/ursoul-meta.json',
+    start: '',
+    name: '4ursoul',
+    icon: '🔮',
+    currency: '₽',
+    kind: 'live',
+  },
+  ekonomik: {
+    daily: 'data/ekonomik-daily.csv',
+    meta: 'data/ekonomik-meta.json',
+    start: '',
+    name: 'Экономик',
+    icon: '🔴',
+    currency: '$',
+    kind: 'live',
+  },
+  tutorplace: {
+    daily: 'data/tutorplace-daily.csv',
+    meta: 'data/tutorplace-meta.json',
+    start: '',
+    name: 'Тьюторплейс',
+    icon: '🎓',
+    currency: '₽',
+    kind: 'live',
+    sheets: [
+      { id: 'total', label: 'Итог', url: 'data/tutorplace-daily.csv' },
+      { id: 'astro', label: 'Астро', url: 'data/tutorplace-astro.csv' },
+      { id: 'food', label: 'Дневник питания', url: 'data/tutorplace-food.csv' },
+      { id: 'pilates', label: 'Пилатес', url: 'data/tutorplace-pilates.csv' },
+      { id: 'dance', label: 'Танцы', url: 'data/tutorplace-dance.csv' },
+      { id: 'hiro', label: 'Хиро', url: 'data/tutorplace-hiro.csv' },
+    ],
   },
 };
 function huppFeedOf(proj) {
@@ -1515,6 +1566,7 @@ const AUTO_FEED_URLS = {
 function isAutoFeedId(id) { return Object.prototype.hasOwnProperty.call(AUTO_FEED_URLS, id); }
 let lastPlantoFeedRefresh = null; // { ok, fresh, message, at }
 let huppMetaCache = null;
+let huppMetaByProject = {};
 let lastHuppFeedRefresh = null;
 let workerConfigCache = null;
 
@@ -1528,6 +1580,14 @@ const DEFAULT_PROJECTS = [
     urls: [HUPP_DATA_URL], dataSource: 'csv' },
   { id: 'izdaniya', name: 'Издания',     icon: '📰', currency: '₽', type: 'hupp', status: 'run',
     urls: ['data/izdaniya-daily.csv'], dataSource: 'csv' },
+  { id: 'pled',     name: 'Плед',        icon: '🧶', currency: '₽', type: 'hupp', status: 'run',
+    urls: ['data/pled-daily.csv'], dataSource: 'csv' },
+  { id: 'ursoul',   name: '4ursoul',     icon: '🔮', currency: '₽', type: 'hupp', status: 'run', kind: 'live',
+    urls: ['data/ursoul-daily.csv'], dataSource: 'csv' },
+  { id: 'ekonomik', name: 'Экономик',    icon: '🔴', currency: '$', type: 'hupp', status: 'run', kind: 'live',
+    urls: ['data/ekonomik-daily.csv'], dataSource: 'csv' },
+  { id: 'tutorplace', name: 'Тьюторплейс', icon: '🎓', currency: '₽', type: 'hupp', status: 'run', kind: 'live',
+    urls: ['data/tutorplace-daily.csv'], dataSource: 'csv' },
   { id: 'kelpie',   name: 'Kelpie',      icon: '🌊', currency: '$', type: 'kelpie', status: 'run',
     urls: [KELPIE_DATA_URL], dataSource: 'csv' },
   { id: 'quadcode', name: 'Quadcode AI', icon: '💻', currency: '$', type: 'quadcode', status: 'run',
@@ -1554,6 +1614,28 @@ function getProjectStatus(proj) {
 function getProjectStatusMeta(status) {
   const id = normalizeProjectStatus(status);
   return PROJECT_STATUSES.find(s => s.id === id) || PROJECT_STATUSES[0];
+}
+
+function getProjectKind(proj) {
+  return String(proj?.kind || 'live').toLowerCase() === 'test' ? 'test' : 'live';
+}
+
+function renderKindBadge(proj) {
+  if (getProjectKind(proj) !== 'test') return '';
+  return `<span class="status-badge test">Тест</span>`;
+}
+
+let boardKindFilter = 'all';
+
+function setBoardKindFilter(kind) {
+  const next = String(kind || 'all').toLowerCase();
+  boardKindFilter = (next === 'live' || next === 'test') ? next : 'all';
+  if (view === 'overview') renderOverview();
+}
+
+function projectMatchesBoardFilter(p) {
+  if (boardKindFilter === 'all') return true;
+  return getProjectKind(p) === boardKindFilter;
 }
 
 function renderStatusBadge(projOrStatus) {
@@ -1768,6 +1850,7 @@ function normalizeProject(p) {
     monthlySheets,
     type: p.type || 'auto',
     status: normalizeProjectStatus(p.status),
+    kind: getProjectKind(p),
     hiddenFromUsers: !!p.hiddenFromUsers,
   };
 }
@@ -1950,8 +2033,14 @@ function mergeCsvUploadStores(local, remote) {
       }
       const prevAt = String(prev.uploadedAt || '');
       const nextAt = String(file.uploadedAt || '');
-      const localRicher = !!(file.text && !prev.text);
-      next[id] = (localRicher || nextAt >= prevAt) ? { ...prev, ...file } : { ...file, ...prev };
+      // Облако новее — берём его целиком: сырой text старой локальной копии не должен
+      // перетирать правки, внесённые в облаке (иначе вкладка откатывает облако назад).
+      if (nextAt < prevAt) {
+        const { text, ...rest } = file;
+        next[id] = { ...rest, ...prev };
+        return;
+      }
+      next[id] = { ...prev, ...file };
     });
     // Битые Meta без text (Spend←Impressions) — выкидываем и из remote, и из local,
     // иначе union-merge после локального delete снова поднимает их из облака.
@@ -1973,7 +2062,9 @@ function uploadsForRemote(all) {
         ? deserializeUploadRows(u.rows)
         : (u.text ? parseSheet(u.text) : []);
       // Не тащим в облако строки, где Campaign = delivery status (сдвиг Source).
-      const cleanRows = rows.filter(r => !looksLikeMetaDeliveryStatus(r.campaign) && !isJgglAdsTotalName(r.campaign));
+      const jggl = isJgglProject({ id: projId });
+      const cleanRows = rows.filter(r => !looksLikeMetaDeliveryStatus(r.campaign) && !isJgglAdsTotalName(r.campaign)
+        && !(jggl && isJgglForeignCampaign(r.campaign)));
       out[projId][id] = {
         label: u.label,
         fileName: u.fileName,
@@ -2092,16 +2183,24 @@ function applyHuppAutoSource(list) {
   return withBuiltin.map(p => {
     const feed = huppFeedOf(p);
     if (!feed) return p;
+    const bakedSheets = Array.isArray(feed.sheets) && feed.sheets.length
+      ? feed.sheets.map(s => ({ id: s.id, label: s.label, url: s.url || s.file }))
+      : null;
+    const sheetSources = bakedSheets
+      || (isBakedCsvHupp(p)
+        ? [{ id: 'csv', url: feed.daily, label: 'Direct' }]
+        : [{ id: 'csv', url: `upload://${p.id}`, label: 'CSV upload' }]);
     return normalizeProject({
       ...p,
       name: p.name || feed.name,
       icon: p.icon || feed.icon,
-      currency: '₽',
+      currency: feed.currency || p.currency || '₽',
       type: 'hupp',
       status: p.status || 'run',
-      urls: [feed.daily],
+      kind: p.kind || feed.kind || 'live',
+      urls: sheetSources.map(s => s.url),
       dataSource: 'csv',
-      sheetSources: [{ id: 'csv', url: `upload://${p.id}`, label: 'CSV upload' }],
+      sheetSources,
       monthlySheets: [],
     });
   });
@@ -2132,9 +2231,19 @@ function isHuppProject(p) {
   return !!(p && (huppFeedOf(p) || p.type === 'hupp' || /^hupp$/i.test(p.id || '') || /^hupp$/i.test(p.name || '')));
 }
 
+function isBakedCsvHupp(proj) {
+  const id = String(proj?.id || '').toLowerCase();
+  return id === 'ekonomik' || id === 'tutorplace';
+}
+
+function isHuppTotalSource(src) {
+  if (!src) return false;
+  return src.id === 'total' || /^итог/i.test(String(src.label || '').trim());
+}
+
 /** Hupp: spend только из CSV Директа; визиты/цели — из Метрики (hupp-daily.csv). */
 function isHuppCsvOnly(proj) {
-  return isHuppProject(proj);
+  return isHuppProject(proj) && !isBakedCsvHupp(proj);
 }
 
 function isKelpieProject(p) {
@@ -2212,6 +2321,11 @@ function resolveUploadLabel(proj, selected, rows) {
 function isJgglAdsTotalName(name) {
   const s = String(name || '').trim();
   return s === '—' || s === '--' || s === '–' || s === '-' || /^total\b/i.test(s);
+}
+
+/** Чужие кампании в общих с JGGL кабинетах (16581: PillAssist) — не спенд JGGL. */
+function isJgglForeignCampaign(name) {
+  return /pillassist/i.test(String(name || ''));
 }
 
 function jgglPlatformFromName(name) {
@@ -2484,7 +2598,8 @@ function aggregateRowsByDate(rows) {
     const ex = map.get(key);
     Object.keys(r).forEach(k => {
       if (k === 'date' || k === 'dateStr' || k === 'campaign' || k === 'campaignId') return;
-      if (typeof r[k] === 'number') ex[k] = (ex[k] || 0) + r[k];
+      const nv = typeof r[k] === 'number' ? r[k] : Number(r[k]);
+      if (Number.isFinite(nv) && k !== 'os') ex[k] = (Number(ex[k]) || 0) + nv;
     });
   });
   return [...map.values()].sort((a, b) => a.date - b.date);
@@ -2511,7 +2626,7 @@ function rowDimKey(r) {
   const geo = r?.geo || (r?.campaign ? geoFromCampaignName(r.campaign) : '');
   const src = r?.source || (r?.campaign ? sourceFromCampaignName(r.campaign) : '');
   const os = jgglRowPlatformLabel(r);
-  return `${geo}|${src}|${os}`;
+  return `${geo}|${src}|${os}|${rowGoal(r)}`;
 }
 
 /** Как aggregateRowsByDate, но НЕ смешивает разные гео/источники в одном дне.
@@ -2530,7 +2645,8 @@ function aggregateRowsByDateDim(rows) {
     const ex = map.get(key);
     Object.keys(r).forEach(k => {
       if (k === 'date' || k === 'dateStr' || k === 'campaign' || k === 'campaignId') return;
-      if (typeof r[k] === 'number') ex[k] = (ex[k] || 0) + r[k];
+      const nv = typeof r[k] === 'number' ? r[k] : Number(r[k]);
+      if (Number.isFinite(nv) && k !== 'os') ex[k] = (Number(ex[k]) || 0) + nv;
     });
   });
   return [...map.values()].sort((a, b) => a.date - b.date);
@@ -3365,6 +3481,9 @@ function buildUploadedSource(projId, id, upload) {
   const csvRows = text.trim() ? parseCSV(text) : [sheetColumns];
   if (!sheetColumns.length) sheetColumns = (csvRows[0] || []).map(h => (h || '').trim());
   rows = (rows || []).filter(r => !isJgglAdsTotalName(r?.campaign));
+  if (isJgglProject(projects.find(x => x.id === projId))) {
+    rows = rows.filter(r => !isJgglForeignCampaign(r?.campaign)).map(normalizeJgglResultRow);
+  }
   return {
     id: `upload_${id}`,
     storageId: id,
@@ -3521,7 +3640,8 @@ function parseJgglContractorTab(csvText) {
     const cabMatch = String(row[1] || '').match(/#(\d+)/);
     if (cabMatch && JGGL_CONTRACTOR_SHEET.excludeCabinets.has(cabMatch[1])) continue;
     const iso = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
-    const cnt = parseInt((row[4] || '').replace(/[^\d-]/g, ''), 10) || 0;
+    // Как деньги: «434.00» → 434. parseInt + вырезание точки давало 43400 и CPA $0.94.
+    const cnt = Math.round(contractorMoneyToNum(row[4]) || 0);
     const key = `${iso}|${os}`;
     const d = daily.get(key) || { iso, os, spend: 0, cnt: 0 };
     d.spend += spend;
@@ -3677,8 +3797,10 @@ function applyJgglContractorOverrideOS(projId, os, rows) {
         day[0].spend = o.spend;
       }
       const qTarget = Number(o.qregs) || 0;
-      if (qTarget > 0) {
-        const qsum = day.reduce((a, r) => a + (Number(r.qregs) || 0), 0);
+      const qsum = day.reduce((a, r) => a + (Number(r.qregs) || 0), 0);
+      // Старый парсер «434.00»→43400. Не подменяем CSV, если свод явно сломан.
+      const qregsPlausible = qTarget > 0 && (qsum <= 0 || (qTarget <= qsum * 4 && qTarget >= qsum / 4));
+      if (qregsPlausible) {
         if (qsum > 0) {
           day.forEach(r => { r.qregs = Math.round((Number(r.qregs) || 0) / qsum * qTarget); });
         } else {
@@ -4320,7 +4442,7 @@ function rebuildJgglPlatformCsvText(originalText, platform) {
     const adset = extra.adsetCol >= 0 ? String(r[extra.adsetCol] || '').trim() : '';
     const ad = extra.adCol >= 0 ? String(r[extra.adCol] || '').trim() : '';
     const name = [campaign, adset, ad].filter(Boolean).join(' ');
-    if (!name || isJgglAdsTotalName(campaign) || isJgglAdsTotalName(name)) return;
+    if (!name || isJgglAdsTotalName(campaign) || isJgglAdsTotalName(name) || isJgglForeignCampaign(name)) return;
     const plat = jgglPlatformFromName(name);
     if (plat !== platform) return;
     out.push(r);
@@ -4832,10 +4954,13 @@ function findPlantoColumns(headerRow) {
     soldCol: findCol(headers, ['sold', 'продан', 'pay_submit'], ['cost', 'цена', '/']),
     fbCol: findCol(headers, ['fb', 'view_pay'], ['cost', 'цена', '/', 'trial']),
     paidNetCol: findCol(headers, ['paid_net', 'revenue', 'доход', 'выручка'], ['cost', 'цена', '/', 'arpu', 'roas']),
+    rebillNetCol: headers.findIndex(h => h === 'rebill_net'),
+    polzaCol: headers.findIndex(h => h === 'polza_spend' || h === 'polza'),
     purchaseCol: findCol(headers, ['purchase'], ['cost', 'цена', '/']),
     contactInfoCol: findCol(headers, ['contact_info'], ['cost', 'цена', '/']),
     formSubmitCol: findCol(headers, ['form_submit'], ['cost', 'цена', '/']),
     contactSentCol: findCol(headers, ['contact_sent'], ['cost', 'цена', '/']),
+    regsCol: headers.findIndex(h => h === 'regs' || h === 'reg'),
     clicksCol: findCol(headers, ['click', 'клик'], ['ctr', 'цена', 'cpc', 'ср.']),
     impressionsCol: findCol(headers, ['impression', 'impress', 'показ', 'imps'], ['доля', 'share', '%']),
   };
@@ -4858,7 +4983,10 @@ function parsePlantoRows(rows) {
       sold: cols.soldCol >= 0 ? parseNum(r[cols.soldCol]) : 0,
       fb: cols.fbCol >= 0 ? parseNum(r[cols.fbCol]) : 0,
     };
+    if (cols.regsCol >= 0) obj.regs = parseNum(r[cols.regsCol]);
     if (cols.paidNetCol >= 0) obj.paid_net = parseNum(r[cols.paidNetCol]);
+    if (cols.rebillNetCol >= 0) obj.rebill_net = parseNum(r[cols.rebillNetCol]);
+    if (cols.polzaCol >= 0) obj.polza_spend = parseNum(r[cols.polzaCol]);
     if (cols.purchaseCol >= 0) obj.purchase = parseNum(r[cols.purchaseCol]);
     if (cols.contactInfoCol >= 0) obj.contact_info = parseNum(r[cols.contactInfoCol]);
     if (cols.formSubmitCol >= 0) obj.form_submit = parseNum(r[cols.formSubmitCol]);
@@ -4925,7 +5053,7 @@ function isPlantoSheet(headers) {
 
 function detectSheetType(headerRow) {
   const headers = (headerRow || []).map(h => (h || '').toLowerCase().trim());
-  if (findCol(headers, ['reach_pay', 'view_pay', 'pay_submit', 'contact_info', 'contact_sent'], []) >= 0) return 'hupp';
+  if (findCol(headers, ['reach_pay', 'view_pay', 'pay_submit', 'contact_info', 'contact_sent', 'trials'], []) >= 0) return 'hupp';
   if (isPlantoSheet(headers)) return 'planto';
   const hasSpend = findSpendCol(headers) >= 0;
   const hasImpressions = findCol(headers, ['impression', 'impress', 'показ', 'imps'], ['доля', 'share', '%']) >= 0;
@@ -4954,7 +5082,7 @@ function isAdMetricHeader(h) {
 function findRegColumn(headers) {
   for (let i = 0; i < headers.length; i++) {
     const h = (headers[i] || '').toLowerCase().trim();
-    if (isCostHeader(h) || /cost|цена|cpa|cpc|cpm/.test(h)) continue;
+    if (isCostHeader(h) || /cost|цена|cpa|cpc|cpm|value/.test(h)) continue;
     if (h === 'reg' || h === 'regs') return i;
     if (/^reg\b/.test(h) && !/^registr/.test(h)) return i;
     if (h.includes('регистрац') || h.includes('registration')) return i;
@@ -5050,6 +5178,9 @@ function findCampaignExtraColumns(headerRow) {
   if (sourceCol < 0) sourceCol = -1;
   return {
     campaignCol,
+    // Meta: что именно лежит в Results (установка / регистрация) и отдельная колонка установок.
+    indicatorCol: headers.findIndex(h => h === 'result indicator'),
+    appInstallsCol: headers.findIndex(h => h === 'mobile app installs'),
     adsetCol: findCol(headers, ['ad set name', 'ad set', 'adset', 'группу объяв', 'группа объяв'], ['budget', 'budget type', 'delivery']),
     adCol: findCol(headers, ['ad name', 'объявлен'], ['ad set', 'adset']),
     impressionsCol: findCol(headers, ['impression', 'impress', 'показ', 'imps', 'impr'], ['доля', 'share', '%', 'cost']),
@@ -5228,6 +5359,41 @@ function sourceLabel(code) {
   return SOURCE_LABELS[code] || code;
 }
 
+// ── ЦЕЛЬ КАМПАНИИ (рег / инстал) ────────────────────────────────
+const GOAL_LABELS = { reg: 'Рег', install: 'Инстал' };
+
+function goalFromResultIndicator(raw) {
+  const s = String(raw || '').toLowerCase();
+  if (/registration/.test(s)) return 'reg';
+  if (/install/.test(s)) return 'install';
+  return '';
+}
+
+function goalFromCampaignName(name) {
+  return /(^|[\s\/_\-|])reg([\s\/_\-|]|$)|registr/i.test(String(name || '')) ? 'reg' : '';
+}
+
+/** Цель строки: Result indicator из выгрузки → «reg» в названии → установки. */
+function rowGoal(r, fallback = '') {
+  if (!r) return '';
+  if (r.goal) return r.goal;
+  return goalFromCampaignName(r.campaign) || fallback || 'install';
+}
+
+function goalLabel(code) {
+  return GOAL_LABELS[code] || code || 'Без цели';
+}
+
+/** JGGL Meta: Results — событие оптимизации кампании (установка ИЛИ регистрация).
+ *  Юзеры (qregs) всегда = установки, регистрации — отдельное поле regs. */
+function normalizeJgglResultRow(r) {
+  if (!r) return r;
+  const out = { ...r };
+  if (rowGoal(out) === 'reg' && out.regs == null) out.regs = Number(out.qregs) || 0;
+  if (out.app_installs != null) out.qregs = Number(out.app_installs) || 0;
+  return out;
+}
+
 /** Источник строки: явное поле → токен в названии кампании → умолчание проекта. */
 function rowSource(r, fallback = '') {
   if (!r) return '';
@@ -5242,7 +5408,43 @@ const DIMS = {
     hint: 'Разрез берётся из выгрузки: колонка Country, иначе — гео в названии кампании. Для строк без разметки действует «гео по умолчанию» проекта.' },
   source: { key: 'source', title: 'Источник', of: rowSource, label: sourceLabel, defField: 'defaultSource',
     hint: 'Facebook / Google Ads: по формату CSV (Meta vs Google) или по названию кампании (App promotion → Google). У JGGL без разметки по умолчанию Facebook.' },
+  goal: { key: 'goal', title: 'Цель', of: rowGoal, label: goalLabel, defField: 'defaultGoal',
+    hint: 'Что считать целевым действием. Инстал — установки со всех кампаний, Рег — регистрации со всех кампаний, где они есть в выгрузке (spend тоже только этих кампаний; Google регистраций не отдаёт). «Все» — установки и регистрации рядом.' },
 };
+
+/** JGGL «Цель» — не фильтр кампаний, а выбор события: целевое действие = установка или регистрация. */
+function jgglGoalLens(proj) {
+  return isJgglProject(proj) ? getProjectDim(proj.id, 'goal') : '';
+}
+
+function applyGoalLens(proj, rows) {
+  const goal = jgglGoalLens(proj);
+  if (!goal) return rows || [];
+  if (goal === 'reg') {
+    return (rows || []).filter(r => r && 'regs' in r)
+      .map(({ regs, ...o }) => ({ ...o, qregs: Number(regs) || 0 }));
+  }
+  return (rows || []).map(r => { if (!r) return r; const { regs, ...o } = r; return o; });
+}
+
+function renderGoalLensFilter(proj, rows) {
+  const regRows = (rows || []).filter(r => r && 'regs' in r);
+  if (!regRows.length) return '';
+  const cur = getProjectDim(proj.id, 'goal');
+  const chip = (value, label, n) => `<button type="button" class="geo-chip${cur === value ? ' active' : ''}" onclick="setProjectDim('${escHtml(proj.id)}','goal','${value}')">
+      <span class="geo-chip-name">${escHtml(label)}</span>
+      <span class="geo-chip-val">${fmtInt(n)}</span>
+    </button>`;
+  return `<div class="geo-filter">
+    <div class="geo-filter-head">
+      <span class="geo-filter-label">${escHtml(DIMS.goal.title)}</span>
+      <button type="button" class="geo-chip${cur ? '' : ' active'}" onclick="setProjectDim('${escHtml(proj.id)}','goal','')">Все</button>
+      ${chip('install', GOAL_LABELS.install, sum(rows, 'qregs'))}
+      ${chip('reg', GOAL_LABELS.reg, sum(regRows, 'regs'))}
+    </div>
+    <div class="geo-filter-hint">${escHtml(DIMS.goal.hint)}</div>
+  </div>`;
+}
 
 function dimFallback(proj, dim) { return proj?.[DIMS[dim].defField] || ''; }
 
@@ -5295,11 +5497,11 @@ function filterRowsByDims(proj, rows) {
   let out = rows || [];
   for (const dim of Object.keys(DIMS)) {
     const sel = getProjectDim(proj.id, dim);
-    if (!sel) continue;
+    if (!sel || (dim === 'goal' && isJgglProject(proj))) continue;
     const fb = dimFallback(proj, dim);
     out = out.filter(r => DIMS[dim].of(r, fb) === sel);
   }
-  return out;
+  return applyGoalLens(proj, out);
 }
 function hasActiveDim(proj) {
   return Object.keys(DIMS).some(d => getProjectDim(proj.id, d));
@@ -5339,7 +5541,8 @@ function renderDimFilter(proj, rows, dim) {
 function renderGeoFilter(proj, rows) {
   return renderDimFilter(proj, rows, 'geo')
     + renderJgglGeoUnitBlocks(proj, rows)
-    + renderDimFilter(proj, rows, 'source');
+    + renderDimFilter(proj, rows, 'source')
+    + (isJgglProject(proj) ? renderGoalLensFilter(proj, rows) : '');
 }
 
 /** JGGL: фильтр ОС на вкладке «Общее» (не уходим на iOS/Android — свод обновляется здесь). */
@@ -5402,7 +5605,7 @@ function jgglGeoUnitRows(proj, periodRows) {
   const curSrc = getProjectDim(proj.id, 'source');
   const srcFb = dimFallback(proj, 'source');
   if (curSrc) rows = rows.filter(r => rowSource(r, srcFb) === curSrc);
-  return rows || [];
+  return applyGoalLens(proj, rows);
 }
 
 /** Последний день в наборе строк (по date / dateStr). */
@@ -5480,6 +5683,22 @@ function renderJgglGeoUnitCard(proj, entries, { title, hint, dayPickerHtml = '',
   if (!entries.length && !allowEmpty) return '';
   const curGeo = getProjectDim(proj.id, 'geo');
   const cur$ = proj.currency || '$';
+  const totSpend = entries.reduce((a, [, v]) => a + (v.spend || 0), 0);
+  const totUsers = entries.reduce((a, [, v]) => a + (v.users || 0), 0);
+  const totCpa = totUsers > 0 ? totSpend / totUsers : null;
+  const metricChips = (spend, users, cpa) => `
+          <span class="geo-chip geo-metric">
+            <span class="geo-metric-label">Spend</span>
+            <span class="geo-chip-val">${fmtMoneyFull(spend, cur$)}</span>
+          </span>
+          <span class="geo-chip geo-metric">
+            <span class="geo-metric-label">Юзеры</span>
+            <span class="geo-chip-val">${fmtInt(users)}</span>
+          </span>
+          <span class="geo-chip geo-metric">
+            <span class="geo-metric-label">Цена / юзер</span>
+            <span class="geo-chip-val">${cpa != null ? fmtMoney(cpa, cur$) : '—'}</span>
+          </span>`;
   const blocks = entries.length
     ? entries.map(([g, v]) => {
       const cpa = v.users > 0 ? v.spend / v.users : null;
@@ -5487,21 +5706,15 @@ function renderJgglGeoUnitCard(proj, entries, { title, hint, dayPickerHtml = '',
       return `<div class="geo-os-row${active ? ' active' : ''}">
         <button type="button" class="geo-os-row-btn" title="Фильтр по ${escHtml(geoLabel(g))}" onclick="setProjectDim('${escHtml(proj.id)}','geo','${escHtml(g)}')">
           <span class="geo-os-geo">${escHtml(geoLabel(g))}</span>
-          <span class="geo-chip geo-metric">
-            <span class="geo-metric-label">Spend</span>
-            <span class="geo-chip-val">${fmtMoney(v.spend, cur$)}</span>
-          </span>
-          <span class="geo-chip geo-metric">
-            <span class="geo-metric-label">Юзеры</span>
-            <span class="geo-chip-val">${fmtInt(v.users)}</span>
-          </span>
-          <span class="geo-chip geo-metric">
-            <span class="geo-metric-label">Цена / юзер</span>
-            <span class="geo-chip-val">${cpa != null ? fmtMoney(cpa, cur$) : '—'}</span>
-          </span>
+          ${metricChips(v.spend, v.users, cpa)}
         </button>
       </div>`;
-    }).join('')
+    }).join('') + (entries.length > 1 ? `<div class="geo-os-row" style="opacity:0.85">
+        <div class="geo-os-row-btn" style="cursor:default">
+          <span class="geo-os-geo">Итого</span>
+          ${metricChips(totSpend, totUsers, totCpa)}
+        </div>
+      </div>` : '')
     : `<div class="geo-unit-empty">Нет данных за выбранный день</div>`;
   return `<div class="geo-os-split">
     <div class="geo-filter-head" style="margin-bottom:0">
@@ -5609,6 +5822,9 @@ function parseCampaignRows(rows) {
     if (adset) obj.adset = adset;
     if (ad) obj.ad = ad;
     if (rc >= 0) obj.regs = regs;
+    const goal = extra.indicatorCol >= 0 ? goalFromResultIndicator(r[extra.indicatorCol]) : '';
+    if (goal) obj.goal = goal;
+    if (extra.appInstallsCol >= 0) obj.app_installs = parseNum(r[extra.appInstallsCol]);
     // Гео: колонка страны (FB Breakdown → Country) важнее, иначе — токен из названия кампании.
     const geo = extra.geoCol >= 0
       ? normalizeGeoValue(r[extra.geoCol])
@@ -5899,6 +6115,7 @@ function isLocalDashboard() {
 
 let plantoFeedRef = PLANTO_GH_BRANCH;
 let huppFeedRef = PLANTO_GH_BRANCH;
+let huppFeedRefByProject = {};
 let kelpieFeedRef = PLANTO_GH_BRANCH;
 
 async function refreshGitFeedRef(path, setter, label) {
@@ -5934,7 +6151,13 @@ async function refreshPlantoFeedRef() {
 }
 
 async function refreshHuppFeedRef() {
-  await refreshGitFeedRef('data/hupp-meta.json', sha => { huppFeedRef = sha; }, 'Hupp');
+  await Promise.allSettled(Object.entries(HUPP_FEEDS).map(([id, f]) => {
+    if (!f.meta) return Promise.resolve();
+    return refreshGitFeedRef(f.meta, sha => {
+      huppFeedRefByProject[id] = sha;
+      if (id === 'hupp') huppFeedRef = sha;
+    }, f.name || id);
+  }));
 }
 
 async function refreshKelpieFeedRef() {
@@ -5962,10 +6185,21 @@ function resolvePlantoFeedUrl(localPath) {
   return `https://raw.githubusercontent.com/${PLANTO_GH_REPO}/${feedRefFor(feedProjectForPath(rel))}/${rel}`;
 }
 
+function huppFeedIdForPath(rel) {
+  const path = String(rel || '');
+  for (const [id, f] of Object.entries(HUPP_FEEDS)) {
+    const files = [f.daily, f.meta, f.start, ...(f.sheets || []).map(s => s.url || s.file)];
+    if (files.some(u => u && path.endsWith(String(u).split('/').pop()))) return id;
+  }
+  return 'hupp';
+}
+
 function resolveHuppFeedUrl(localPath) {
   if (isLocalDashboard()) return localPath;
   const rel = String(localPath || '').replace(/^\//, '');
-  return `https://raw.githubusercontent.com/${PLANTO_GH_REPO}/${huppFeedRef}/${rel}`;
+  const id = huppFeedIdForPath(rel);
+  const ref = huppFeedRefByProject[id] || huppFeedRef;
+  return `https://raw.githubusercontent.com/${PLANTO_GH_REPO}/${ref}/${rel}`;
 }
 
 function bustFeedUrl(url) {
@@ -5984,6 +6218,10 @@ function resolveFeedFetchUrl(url) {
     if (feed.daily && (url === feed.daily || String(url).includes(feed.daily.split('/').pop()))) return resolveHuppFeedUrl(feed.daily);
     if (feed.meta && (url === feed.meta || String(url).includes(feed.meta.split('/').pop()))) return resolveHuppFeedUrl(feed.meta);
     if (feed.start && (url === feed.start || String(url).includes(feed.start.split('/').pop()))) return resolveHuppFeedUrl(feed.start);
+    for (const s of (feed.sheets || [])) {
+      const su = s.url || s.file;
+      if (su && (url === su || String(url).includes(String(su).split('/').pop()))) return resolveHuppFeedUrl(su);
+    }
   }
   for (const feed of Object.values(KELPIE_FEEDS)) {
     if (feed.daily && (url === feed.daily || String(url).includes(feed.daily.split('/').pop()))) return resolveKelpieFeedUrl(feed.daily);
@@ -6193,7 +6431,8 @@ async function fetchProject(proj) {
     ]);
     let metaRows = collectKelpieMetaRows(proj);
     const feed = kelpieFeedOf(proj) || KELPIE_FEEDS.kelpie;
-    if (!metaRows.length && feed.spendSeed) {
+    const funnelHasSpend = (funnelRows || []).some(r => (Number(r.spend) || 0) > 0);
+    if (!metaRows.length && feed.spendSeed && !funnelHasSpend) {
       try {
         const text = await Promise.race([
           fetchWithFallback(feed.spendSeed),
@@ -6216,7 +6455,7 @@ async function fetchProject(proj) {
     return {
       sources: [{
         id: 'csv',
-        label: 'PostHog + Meta Ads',
+        label: funnelHasSpend ? 'Kelpie dash' : 'PostHog + Meta Ads',
         url: feed.daily,
         rows,
         sheetColumns: [
@@ -6395,9 +6634,11 @@ function fetchPlantoMeta(projId = 'planto') { return fetchFeedJson(AUTO_FEED_URL
 function fetchPlantoProduct(projId = 'planto') { return fetchFeedJson(AUTO_FEED_URLS[projId].product); }
 function fetchPlantoCohort(projId = 'planto') { return fetchFeedJson(AUTO_FEED_URLS[projId].cohort); }
 
-async function fetchHuppMeta() {
+async function fetchHuppMeta(projId = 'hupp') {
+  const feed = HUPP_FEEDS[projId] || HUPP_FEEDS.hupp;
+  if (!feed?.meta) return null;
   try {
-    const resp = await fetch(bustFeedUrl(resolveHuppFeedUrl(HUPP_META_URL)), { cache: 'no-store' });
+    const resp = await fetch(bustFeedUrl(resolveHuppFeedUrl(feed.meta)), { cache: 'no-store' });
     if (!resp.ok) return null;
     return await resp.json();
   } catch (e) { return null; }
@@ -6628,6 +6869,24 @@ function cohortRowMonthKey(r) {
   return s.length >= 7 ? s.slice(0, 7) : '';
 }
 
+function cohortOverlapsDateFilter(r) {
+  if (!dateFilter) return true;
+  const start = r.start || '';
+  const end = r.end || start;
+  return !!start && start <= dateFilter.end && end >= dateFilter.start;
+}
+
+function syncMonthFromDateFilter() {
+  if (!dateFilter) return;
+  const ms = String(dateFilter.start || '').slice(0, 7);
+  const me = String(dateFilter.end || '').slice(0, 7);
+  if (ms.length === 7 && ms === me) {
+    currentMonth = ms;
+    monthUserChosen = true;
+    if (view && view !== 'overview' && view !== 'library') tileMonths[view] = ms;
+  }
+}
+
 function sumCohortRows(rows, key, fb = 0) {
   return rows.reduce((a, r) => a + (Number(r[key]) || fb), 0);
 }
@@ -6647,7 +6906,7 @@ function isCohortEarly(r) {
 function enrichCohortRow(r) {
   const spend = Number(r.spend) || 0;
   const inst = Number(r.installs_am) || 0;
-  const trials = Number(r.trials_am != null ? r.trials_am : r.trials_sb) || 0;
+  const trials = Number(r.trials_sb != null ? r.trials_sb : r.trials_am) || 0;
   const sold = Number(r.sold) || 0;
   const bills = Number(r.bills != null ? r.bills : sold) || 0;
   const paid = Number(r.paid_net) || 0;
@@ -6684,19 +6943,25 @@ function renderPlantoCohortSection(monthKey) {
   const meta = feedMeta();
   const updated = meta?.generated_at ? new Date(meta.generated_at).toLocaleString('ru-RU') : '';
   const allRows = c.rows.map(enrichCohortRow);
-  const visible = monthKey
-    ? allRows.filter(r => cohortRowMonthKey(r) === monthKey)
-    : allRows;
+  // Календарь важнее выбранного месяца: иначе «04.08–31.08» показывает Сен,
+  // потому что currentMonth сам прыгает на последний месяц с данными.
+  let visible = allRows.filter(cohortOverlapsDateFilter);
+  if (!dateFilter && monthKey) {
+    visible = visible.filter(r => cohortRowMonthKey(r) === monthKey);
+  }
+  const periodTitle = dateFilter
+    ? dateFilterLabel()
+    : (monthKey ? formatMonthKey(monthKey) : '');
   if (!visible.length) {
     return `<div class="cohort-card">
-      <div class="card-title">Когорты${monthKey ? ' — ' + escHtml(formatMonthKey(monthKey)) : ''}</div>
-      <div class="cohort-meta">Нет корзин за этот месяц · якорь ${escHtml(c.anchor || '2026-06-05')}</div>
+      <div class="card-title">Когорты${periodTitle ? ' — ' + escHtml(periodTitle) : ''}</div>
+      <div class="cohort-meta">Нет корзин за этот период · якорь ${escHtml(c.anchor || '2026-06-05')}</div>
     </div>`;
   }
   let rows = visible.map(r => {
     const pnlText = formatCohortPnl(r);
     const pnlCls = isCohortEarly(r) ? 'pnl-early' : (r.pnl != null && r.pnl >= 0 ? 'pnl-pos' : 'pnl-neg');
-    const trials = r.trials_am != null ? r.trials_am : r.trials_sb;
+    const trials = r.trials_sb != null ? r.trials_sb : r.trials_am;
     const bills = r.bills != null ? r.bills : (r.sold || 0);
     return `<tr>
       <td><strong>${escHtml(r.cohort)}</strong></td>
@@ -6716,32 +6981,46 @@ function renderPlantoCohortSection(monthKey) {
   }).join('');
   const tSpend = sumCohortRows(visible, 'spend');
   const tInst = sumCohortRows(visible, 'installs_am');
-  const tTrials = sumCohortRows(visible, 'trials_am') || sumCohortRows(visible, 'trials_sb');
+  const tTrials = sumCohortRows(visible, 'trials_sb') || sumCohortRows(visible, 'trials_am');
   const tSold = sumCohortRows(visible, 'sold');
   const tBills = sumCohortRows(visible, 'bills') || tSold;
   const tPaid = sumCohortRows(visible, 'paid_net');
   const maturePnl = visible.filter(r => r.mature && r.pnl != null).reduce((a, r) => a + r.pnl, 0);
   const immature = visible.filter(r => !r.mature).length;
   const tCrInst = tInst ? (tTrials / tInst * 100) : null;
-  const tCrPaid = tTrials ? (tBills / tTrials * 100) : null;
+  const matureRows = visible.filter(r => r.mature);
+  const mTrials = sumCohortRows(matureRows, 'trials_sb') || sumCohortRows(matureRows, 'trials_am');
+  const mBills = sumCohortRows(matureRows, 'bills') || sumCohortRows(matureRows, 'sold');
+  const mSpend = sumCohortRows(matureRows, 'spend');
+  const mPaid = sumCohortRows(matureRows, 'paid_net');
+  const tCrPaid = mTrials ? (mBills / mTrials * 100) : null;
   const tCac = tBills ? tSpend / tBills : null;
-  const tRoas = tSpend ? (tPaid / tSpend * 100) : null;
+  const tRoas = mSpend ? (mPaid / mSpend * 100) : null;
+  const tCpi = tInst ? tSpend / tInst : null;
+  const tCpt = tTrials ? tSpend / tTrials : null;
+  const allEarly = !matureRows.length;
+  const footerLabel = dateFilter ? dateFilterLabel() : (monthKey ? formatMonthKey(monthKey) : '');
   rows += `<tr class="total-row">
-    <td><strong>Итого${monthKey ? ' · ' + escHtml(formatMonthKey(monthKey)) : ''}</strong></td>
+    <td><strong>Итого${footerLabel ? ' · ' + escHtml(footerLabel) : ''}</strong></td>
     <td>${fmtRub(tSpend)}</td>
     <td>${fmtN(tInst)}</td>
     <td>${fmtN(tTrials)}</td>
     <td>${fmtN(tBills)}</td>
-    <td>${tRoas != null ? fmtPct(tRoas) : '—'}</td>
+    <td>${tCpi != null ? fmtRub(tCpi) : '—'}</td>
+    <td>${tCpt != null ? fmtRub(tCpt) : '—'}</td>
+    <td>${tCrInst != null ? fmtPct(tCrInst) : '—'}</td>
+    <td>${allEarly ? 'рано' : (tCrPaid != null ? fmtPct(tCrPaid) : '—')}</td>
+    <td>${tCac != null ? fmtRub(tCac) : '—'}</td>
+    <td>${allEarly ? 'рано' : (tRoas != null ? fmtPct(tRoas) : '—')}</td>
     <td>${fmtRub(tPaid)}</td>
-    <td>${fmtRub(maturePnl)}${immature ? ` (+${immature} рано)` : ''}</td>
+    <td>${allEarly ? `Рано${immature ? ` · ${immature}` : ''}` : `${fmtRub(maturePnl)}${immature ? ` (+${immature} рано)` : ''}`}</td>
   </tr>`;
   const attr = 'Установки — AppMetrica · Триалы — Supabase · Trial→Paid и ROAS — только зрелые когорты';
-  const monthHint = monthKey && allRows.length > visible.length
-    ? ` · ${formatMonthKey(monthKey)} (${visible.length} из ${allRows.length})`
+  const monthHint = allRows.length > visible.length
+    ? ` · ${periodTitle} (${visible.length} из ${allRows.length})`
     : '';
-  const title = monthKey
-    ? `Когорты — ${formatMonthKey(monthKey)}`
+  const title = periodTitle
+    ? `Когорты — ${periodTitle}`
     : `Когорты (от ${c.anchor || '2026-06-05'})`;
   return `<div class="cohort-card">
     <div class="card-title">${escHtml(title)}</div>
@@ -6773,7 +7052,13 @@ async function loadAll() {
   } catch (e) {
     console.warn('Hupp seed skipped:', e.message || e);
   }
-  const feedJobs = [fetchHuppMeta().then(m => { huppMetaCache = m; })];
+  const feedJobs = Object.keys(HUPP_FEEDS).map(id =>
+    fetchHuppMeta(id).then(m => {
+      if (!m) return;
+      huppMetaByProject[id] = m;
+      if (id === 'hupp') huppMetaCache = m;
+    })
+  );
   Object.keys(AUTO_FEED_URLS).forEach(fid => {
     feedJobs.push(fetchPlantoMeta(fid).then(m => { feedOf(fid).meta = m; }));
     feedJobs.push(fetchPlantoCohort(fid).then(m => { feedOf(fid).cohort = m; }));
@@ -6901,7 +7186,7 @@ document.addEventListener('visibilitychange', () => {
 // METRICS / TABLE / CHART CONFIG PER TYPE
 // ═══════════════════════════════════════════════════════════════
 const PLANTO_VIEWS = {
-  summary:  { label: 'Все',      resultKey: 'installs', costKey: 'cost_install', keys: ['spend', 'installs', 'cost_install', 'impressions', 'clicks', 'cpc', 'cpm', 'ctr', 'trials', 'cost_trial', 'cr_install_trial', 'fb', 'cost_fb', 'sold', 'revenue', 'cac', 'cr_trial_paid', 'roas'] },
+  summary:  { label: 'Все',      resultKey: 'installs', costKey: 'cost_install', keys: ['spend', 'spend_vat', 'installs', 'cost_install', 'impressions', 'clicks', 'cpc', 'cpm', 'ctr', 'trials', 'cost_trial', 'cr_install_trial', 'fb', 'cost_fb', 'sold', 'revenue', 'cac', 'cr_trial_paid', 'roas'] },
   installs: { label: 'Installs', resultKey: 'installs', costKey: 'cost_install', keys: ['spend', 'installs', 'cost_install', 'impressions', 'clicks', 'cpc', 'cpm', 'ctr'] },
   trials:   { label: 'Trials',   resultKey: 'trials',   costKey: 'cost_trial',  keys: ['spend', 'trials', 'cost_trial', 'cr_install_trial'] },
   fb:       { label: 'Оплаты',   resultKey: 'fb',       costKey: 'cost_fb',     keys: ['spend', 'fb', 'cost_fb', 'sold', 'revenue', 'cac', 'roas'] },
@@ -6998,7 +7283,8 @@ function projectHasPlanFilter(proj) {
   const meta = feedMeta(proj?.id);
   const plans = meta?.plans || {};
   const pay = meta?.payments_by_plan;
-  return !!(plans.week || plans.month || plans.year || pay?.weekly || pay?.monthly || pay?.yearly);
+  const sku = meta?.payments_by_sku || meta?.sku_catalog;
+  return !!(plans.week || plans.month || plans.year || pay?.weekly || pay?.monthly || pay?.yearly || (sku && Object.keys(sku).length));
 }
 
 function applyPlanFilterToRows(proj, rows) {
@@ -7056,37 +7342,51 @@ function renderPlanFilter(proj) {
   const plans = meta.plans || {};
   const pay = meta.payments_by_plan || {};
   const cur = getPlanFilter(proj.id);
-  const trialPlan = String(meta.trial_plan || '').toLowerCase();
-  const trialDays = Number(meta.trial_days) || 0;
-  const grace = meta.grace_days != null ? Number(meta.grace_days) : null;
-  const hold = meta.hold_days != null ? Number(meta.hold_days) : null;
-  const chips = PLAN_FILTER_OPTS.map(opt => {
+  const skuEntries = skuChipEntries(meta);
+  const catalog = meta.sku_catalog || {};
+  const chips = skuEntries.length
+    ? skuEntries.map(([code, cell]) => {
+        const trialMark = Number(cell.trial_days) > 0 ? ` · триал ${fmtInt(cell.trial_days)}д` : '';
+        return `<span class="geo-chip" title="${escHtml(code)}"><span class="geo-chip-name">${escHtml(skuChipText(cell))}</span><span class="geo-chip-val">${escHtml(trialMark.replace(/^ · /, '') || '')}</span></span>`;
+      }).join('')
+    : PLAN_FILTER_OPTS.map(opt => {
     const price = plans[opt.priceKey];
     const cnt = pay[opt.metaKey]?.count;
     const pricePart = price != null ? ` ${fmtInt(price)} ₽` : '';
     const cntPart = cnt != null ? ` · ${fmtInt(cnt)}` : '';
-    const trialMark = (trialPlan === 'week' || trialPlan === 'weekly') && opt.id === 'weekly' && trialDays
-      ? ` · триал ${trialDays}д`
-      : '';
+    const trialMark = '';
     return `<button type="button" class="geo-chip${cur === opt.id ? ' active' : ''}" onclick="setPlanFilter('${escHtml(proj.id)}','${opt.id}')">
       <span class="geo-chip-name">${escHtml(opt.label)}${escHtml(pricePart)}</span>
       <span class="geo-chip-val">${escHtml(String(cntPart + trialMark).replace(/^ · /, '') || '—')}</span>
     </button>`;
   }).join('');
-  let hint = 'Фильтр оплат по тарифу · CAC = spend / оплаты выбранного плана';
-  if (trialPlan === 'week' || trialPlan === 'weekly') {
-    const parts = [`триал ${trialDays || 3}д только на неделе`];
+  let hint = skuEntries.length
+    ? 'Чип = SKU из paywall_offers · MAIN / trial без склейки недели 199 и 399'
+    : 'Фильтр оплат по тарифу · CAC = spend / оплаты выбранного плана';
+  if (!skuEntries.length && (String(meta.trial_plan || '').toLowerCase() === 'week' || String(meta.trial_plan || '').toLowerCase() === 'weekly')) {
+    const grace = meta.grace_days != null ? Number(meta.grace_days) : null;
+    const hold = meta.hold_days != null ? Number(meta.hold_days) : null;
+    const parts = [];
     if (grace != null) parts.push(`грейс ${grace}д`);
     if (hold != null) parts.push(`холд ${hold}д`);
-    hint += ` · ${parts.join(' · ')}`;
+    if (parts.length) hint += ` · ${parts.join(' · ')}`;
+  }
+  if (Object.keys(catalog).some(k => Number(catalog[k]?.trial_days) > 0)) {
+    const bits = Object.entries(catalog)
+      .filter(([, o]) => Number(o.trial_days) > 0)
+      .map(([code, o]) => `${code} ${o.trial_days}д`);
+    if (bits.length && skuEntries.length) hint += ` · триал: ${bits.join(', ')}`;
   }
   if (cur && !meta.payments_by_plan_by_day?.[cur]) {
     hint += ' · по дням появится после обновления feed';
   }
+  const allBtn = skuEntries.length
+    ? ''
+    : `<button type="button" class="geo-chip${cur ? '' : ' active'}" onclick="setPlanFilter('${escHtml(proj.id)}','')">Все</button>`;
   return `<div class="geo-filter">
     <div class="geo-filter-head">
-      <span class="geo-filter-label">Подписка</span>
-      <button type="button" class="geo-chip${cur ? '' : ' active'}" onclick="setPlanFilter('${escHtml(proj.id)}','')">Все</button>
+      <span class="geo-filter-label">${skuEntries.length ? 'SKU' : 'Подписка'}</span>
+      ${allBtn}
       ${chips}
     </div>
     <div class="geo-filter-hint">${escHtml(hint)}</div>
@@ -7129,7 +7429,14 @@ function renderPlantoBreakdownCard(proj, rows) {
     const pay = meta?.payments_by_plan;
     const plans = meta?.plans || {};
     const curPlan = getPlanFilter(proj.id);
-    const payHtml = pay && pay.total?.count
+    const skuHtml = skuChipEntries(meta).length
+      ? `<div class="income-chips-row">` +
+        skuChipEntries(meta).map(([code, cell]) =>
+          `<span class="income-chip" title="${escHtml(code)}">${escHtml(skuChipText(cell))}</span>`
+        ).join('') +
+        `</div>`
+      : '';
+    const payHtml = skuHtml || (pay && pay.total?.count
       ? `<div class="income-chips-row">` +
         `<button type="button" class="income-chip btn${curPlan === 'yearly' ? ' active' : ''}" onclick="setPlanFilter('${escHtml(proj.id)}','yearly')">Год ${plans.year != null ? fmtInt(plans.year) + ' ₽' : ''}&nbsp;<b>${pay.yearly?.count || 0}</b>&nbsp;· ${fmtInt(pay.yearly?.rub || 0)} ₽</button>` +
         `<button type="button" class="income-chip btn${curPlan === 'monthly' ? ' active' : ''}" onclick="setPlanFilter('${escHtml(proj.id)}','monthly')">Месяц ${plans.month != null ? fmtInt(plans.month) + ' ₽' : ''}&nbsp;<b>${pay.monthly?.count || 0}</b>&nbsp;· ${fmtInt(pay.monthly?.rub || 0)} ₽</button>` +
@@ -7138,7 +7445,7 @@ function renderPlantoBreakdownCard(proj, rows) {
           : '') +
         `<button type="button" class="income-chip btn${!curPlan ? ' active' : ''}" onclick="setPlanFilter('${escHtml(proj.id)}','')">Все&nbsp;<b>${fmtInt(pay.total.rub || 0)} ₽</b></button>` +
         `</div>`
-      : '';
+      : '');
     return `<div class="analytics-card planto-breakdown-card">
       <div class="analytics-card-title">Auto feed <span class="feed-badge">live</span></div>
       ${payHtml}${refreshHint}${warnHtml}
@@ -7530,7 +7837,7 @@ function tilePeriodHasIso(proj, data, iso) {
 }
 
 function metricsFromTileRows(proj, rows, subHint) {
-  if (isHuppProject(proj) && rows.length === 1) {
+  if (isHuppProject(proj) && rows.length === 1 && proj.id !== 'pled' && proj.id !== 'ursoul' && !isBakedCsvHupp(proj)) {
     const r = rows[0];
     const cur = proj.currency || '₽';
     const spend = r.spend || 0;
@@ -7575,10 +7882,11 @@ function metricsFromTileRows(proj, rows, subHint) {
     const soldLabel = feedMeta(proj?.id)?.sold_label || 'yearly';
     const metrics = [
       { key: 'today_spend', label: 'Расход', value: fmtMoney(spend, cur), live: true, sub: dateLabel },
+      { key: 'today_spend_vat', label: 'Спенд +22% НДС', value: fmtMoney(spend * 1.22, cur), live: true, sub: 'с НДС' },
       { key: 'today_installs', label: 'Установки', value: fmtInt(installs), live: true, sub: subHint || 'за день' },
       { key: 'today_cpi', label: 'CPI', value: cpi != null ? fmtMoney(cpi, cur) : '—', accent: true, live: true, sub: 'цена установки' },
-      { key: 'today_trials', label: 'Триалы', value: fmtInt(trials), live: true, sub: 'старты' },
-      { key: 'today_cpt', label: 'CPT', value: cpt != null ? fmtMoney(cpt, cur) : '—', accent: true, live: true, sub: 'цена триала' },
+      { key: 'today_trials', label: 'Триалы', value: fmtInt(trials), live: true, sub: trialMetricSub(proj, 'старты') },
+      { key: 'today_cpt', label: 'CPT', value: cpt != null ? fmtMoney(cpt, cur) : '—', accent: true, live: true, sub: trialMetricSub(proj, 'цена триала') },
       { key: 'today_bills', label: 'Оплаты', value: fmtInt(bills), live: true, sub: sold ? `из них ${soldLabel}: ${fmtInt(sold)}` : 'bills' },
       { key: 'today_cac', label: 'CAC', value: cac != null ? fmtMoney(cac, cur) : '—', accent: true, live: true, sub: 'spend / оплаты' },
     ];
@@ -7608,7 +7916,7 @@ function pickOverviewSourceRows(pack, proj) {
 
 /** Приоритет unit-economics на плитках overview (spend → результат → цены → трафик). */
 const OVERVIEW_METRIC_PRIORITY = [
-  'spend',
+  'spend', 'spend_vat',
   'installs', 'regs', 'qregs', 'trials', 'purchase', 'purchases', 'fb', 'sold', 'revenue',
   'cost_install', 'cost_trial', 'cost_reg', 'cost_qreg', 'cost_purchase', 'cost_fb', 'cost_sold',
   'cpc', 'cpm', 'ctr',
@@ -7639,7 +7947,7 @@ function getOverviewDailyMetrics(proj, data) {
   const multi = rows.length > 1;
   const subHint = multi ? 'за период' : 'за день';
   let note = label;
-  if (isHuppProject(proj) && !multi) {
+  if (isHuppProject(proj) && !multi && !isBakedCsvHupp(proj)) {
     note = `${label} · Direct + Метрика`;
   }
   if ((proj?.id === 'planto' || isPlantoAutoFeed(proj)) && period.mode === 'today') {
@@ -7705,6 +8013,51 @@ function getMatureCohortMetrics(monthKey) {
   };
 }
 
+function trialMetricSub(proj, fallback) {
+  const meta = feedMeta(proj?.id) || {};
+  const src = String(meta.sources?.trials || '');
+  if (src.includes('supabase')) return 'RuStore entitlements';
+  return fallback || 'старты';
+}
+
+function skuPeriodLabel(period) {
+  const p = String(period || '').toLowerCase();
+  if (p === 'weekly' || p === 'week') return 'неделя';
+  if (p === 'yearly' || p === 'year') return 'год';
+  if (p === 'monthly' || p === 'month') return 'месяц';
+  return p || 'тариф';
+}
+
+function skuChipText(cell) {
+  const price = fmtInt(cell.price);
+  const period = skuPeriodLabel(cell.period);
+  return `${price} ₽ · ${period} · MAIN ${fmtInt(cell.main || 0)} / trial ${fmtInt(cell.trial || 0)}`;
+}
+
+function skuChipEntries(meta) {
+  const sku = meta?.payments_by_sku;
+  if (!sku) return [];
+  return Object.entries(sku)
+    .filter(([, c]) => (Number(c.main) || 0) || (Number(c.trial) || 0))
+    .sort((a, b) => Number(b[1].rub || 0) - Number(a[1].rub || 0) || String(a[0]).localeCompare(b[0]));
+}
+
+function allTimeRoas(proj) {
+  const meta = feedMeta(proj?.id) || {};
+  const ue = meta.unit_economics || {};
+  const spend = Number(ue.spend_total);
+  const cash = Number(meta.cash_period?.total != null ? meta.cash_period.total : ue.revenue_total);
+  const sp = Number.isFinite(spend) && spend > 0 ? spend : sum(getPlantoDailyRows(proj?.id), 'spend');
+  const kassa = Number.isFinite(cash) && cash > 0 ? cash : getPeriodCash(getPlantoDailyRows(proj?.id)).kassa;
+  return sp ? (kassa / sp * 100) : null;
+}
+
+function getPeriodCash(rows) {
+  const kassa = (rows || []).reduce((a, r) => a + (Number(r.paid_net) || 0), 0);
+  const rebills = (rows || []).reduce((a, r) => a + (Number(r.rebill_net) || 0), 0);
+  return { first: kassa - rebills, rebills, kassa };
+}
+
 function getPlantoUnitEconomics(projId) {
   return feedProduct(projId)?.unit_economics || feedMeta(projId)?.unit_economics || null;
 }
@@ -7760,10 +8113,11 @@ function renderPlantoTodayBlock(proj, allRows) {
       primary: true,
       sub: estimated ? 'оценочный (Direct ещё не отдал)' : dateLabel,
     }),
+    plantoKpiCell('Спенд +22% НДС', fmtMoney(spend * 1.22, cur), { sub: 'с НДС' }),
     plantoKpiCell('Установки', fmtInt(installs), { sub: 'за день' }),
     plantoKpiCell('CPI', cpi != null ? fmtMoney(cpi, cur) : '—', { accent: true, sub: 'цена установки' }),
-    plantoKpiCell('Триалы', fmtInt(trials), { sub: cr != null ? `CR ${fmtPct(cr)}` : 'старты за день' }),
-    plantoKpiCell('CPT', cpt != null ? fmtMoney(cpt, cur) : '—', { accent: true, sub: 'цена триала' }),
+    plantoKpiCell('Триалы', fmtInt(trials), { sub: cr != null ? `CR ${fmtPct(cr)} · ${trialMetricSub(proj)}` : trialMetricSub(proj, 'старты за день') }),
+    plantoKpiCell('CPT', cpt != null ? fmtMoney(cpt, cur) : '—', { accent: true, sub: trialMetricSub(proj, 'цена триала') }),
     plantoKpiCell('Оплаты', fmtInt(bills), {
       sub: sold
         ? `из них yearly: ${fmtInt(sold)}`
@@ -7833,9 +8187,7 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
   const installToTrial = ins ? (tr / ins * 100) : null;
   const trialToPaid = mature?.trialToPaid != null
     ? mature.trialToPaid
-    : (activePlan && activePlan !== 'weekly'
-      ? null  // триал только на неделе — для month/year CR не считаем
-      : (tr ? (fb / tr * 100) : null));
+    : (tr ? (fb / tr * 100) : null);
   const ctr = (hasAds && impressions) ? (clicks / impressions * 100) : null;
   const cpm = (hasAds && impressions) ? (sp / impressions * 1000) : null;
   const cpi = ins ? (sp / ins) : null;
@@ -7843,14 +8195,16 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
   const cpc = (hasAds && clicks) ? (sp / clicks) : null;
   // CAC = spend / bills (fb). sold — только yearly-подмножество, не знаменатель.
   const cac = fb ? (sp / fb) : null;
-  const roasD7 = mature?.roasD7 != null
-    ? mature.roasD7
-    : (sp && paidNet != null ? (paidNet / sp * 100) : null);
+  const periodRoas = (sp && paidNet != null) ? (paidNet / sp * 100) : null;
+  const totalRoas = allTimeRoas(proj);
   const roasD14 = unit?.roas_d14 ?? mature?.roasD14 ?? null;
   const roasD30 = unit?.roas_d30 ?? mature?.roasD30 ?? null;
+  const polzaPeriod = sum(rows, 'polza_spend');
+  const burnPeriod = sp + polzaPeriod;
 
   const acquisition = [
     plantoKpiCell('Расход', fmtMoney(sp, cur), { primary: true, sub: 'рекламный spend' }),
+    plantoKpiCell('Спенд +22% НДС', fmtMoney(sp * 1.22, cur), { sub: 'с НДС' }),
     plantoKpiCell('Установки', fmtInt(ins), { sub: 'AppMetrica' }),
     plantoKpiCell('CPI', cpi != null ? fmtMoney(cpi, cur) : '—', { accent: true, sub: 'стоимость установки' }),
     hasAds
@@ -7870,8 +8224,8 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
   ].join('');
 
   const trialsBlock = [
-    plantoKpiCell('Старты триала', fmtInt(tr), { primary: true, sub: 'начали пробный период' }),
-    plantoKpiCell('CPT', cpt != null ? fmtMoney(cpt, cur) : '—', { accent: true, sub: 'стоимость триала' }),
+    plantoKpiCell('Старты триала', fmtInt(tr), { primary: true, sub: trialMetricSub(proj, 'начали пробный период') }),
+    plantoKpiCell('CPT', cpt != null ? fmtMoney(cpt, cur) : '—', { accent: true, sub: trialMetricSub(proj, 'стоимость триала') }),
     plantoKpiCell('Install → Trial', installToTrial != null ? fmtPct(installToTrial) : '—', {
       sub: 'конверсия в триал',
       bar: installToTrial != null ? { pct: Math.min(installToTrial * 12, 100) } : null,
@@ -7884,37 +8238,32 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
       : plantoKpiCell('Отмены триала', 'нет данных', { pending: true, sub: 'подтянем из Supabase' }),
     plantoKpiCell('Trial → Paid', trialToPaid != null ? fmtPct(trialToPaid) : '—', {
       accent: true,
-      sub: activePlan && activePlan !== 'weekly'
-        ? 'триал только на неделе'
-        : (mature?.trialToPaid != null
+      sub: mature?.trialToPaid != null
           ? `зрелые когорты · лаг 7+ дн.`
-          : 'по дням оплаты · когорты зреют'),
+          : 'по дням оплаты · когорты зреют',
       bar: trialToPaid != null ? { pct: Math.min(trialToPaid * 2, 100) } : null,
     }),
   ].join('');
 
-  // Полный burn = реклама + ИИ (Polza). Показываем только когда ключ настроен и
-  // спенд реально пришёл — иначе не засоряем блок пустыми карточками.
-  const ai = feedMeta(proj?.id)?.ai_spend;
-  const aiCards = ai?.total != null ? [
-    plantoKpiCell('AI spend (Polza)', fmtMoney(ai.total, cur), {
-      sub: ai.generations ? `${fmtInt(ai.generations)} генераций` : 'списания по ключам',
+  const aiMeta = feedMeta(proj?.id)?.ai_spend;
+  const hasPolza = polzaPeriod > 0 || aiMeta?.total != null;
+  const cash = getPeriodCash(rows);
+  const aiCards = hasPolza ? [
+    plantoKpiCell('AI spend (Polza)', fmtMoney(polzaPeriod, cur), {
+      sub: 'за период' + (aiMeta?.total != null && Math.abs(aiMeta.total - polzaPeriod) > 1
+        ? ` · всё время ${fmtMoney(aiMeta.total, cur)}` : ''),
     }),
-    ai.total_burn != null
-      ? plantoKpiCell('Total burn', fmtMoney(ai.total_burn, cur), { accent: true, sub: 'реклама + ИИ' })
-      : '',
-    ai.per_install != null
-      ? plantoKpiCell('AI / install', fmtMoney(ai.per_install, cur), { sub: 'ИИ на установку' })
-      : '',
-    ai.per_trial != null
-      ? plantoKpiCell('AI / trial', fmtMoney(ai.per_trial, cur), { sub: 'ИИ на триал' })
-      : '',
+    plantoKpiCell('Total burn', fmtMoney(burnPeriod, cur), {
+      accent: true,
+      sub: 'реклама + ИИ за период' + (aiMeta?.total_burn != null && Math.abs(aiMeta.total_burn - burnPeriod) > 1
+        ? ` · всё время ${fmtMoney(aiMeta.total_burn, cur)}` : ''),
+    }),
   ].join('') : '';
 
   const soldLabel = feedMeta(proj?.id)?.sold_label || 'yearly';
   const byPlan = feedMeta(proj?.id)?.payments_by_plan;
   const planLabel = PLAN_FILTER_OPTS.find(p => p.id === activePlan)?.label;
-  let billsSub = 'новые + ребиллы';
+  let billsSub = 'первые MAIN';
   if (activePlan && planLabel) {
     const priceKey = { weekly: 'week', monthly: 'month', yearly: 'year' }[activePlan];
     const price = feedMeta(proj?.id)?.plans?.[priceKey];
@@ -7934,9 +8283,16 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
       primary: true,
       sub: billsSub,
     }),
-    plantoKpiCell('Доход', paidNet != null ? fmtMoney(paidNet, cur) : '—', {
+    plantoKpiCell('Доход first', fmtMoney(cash.first, cur), {
       primary: true,
-      sub: activePlan ? 'за период · выбранный тариф' : 'за период · по дням',
+      sub: 'первые MAIN за период',
+    }),
+    cash.rebills
+      ? plantoKpiCell('Ребиллы', fmtMoney(cash.rebills, cur), { sub: 'недельные продления' })
+      : '',
+    plantoKpiCell('Касса', fmtMoney(cash.kassa, cur), {
+      primary: true,
+      sub: activePlan ? 'first + ребиллы · тариф' : 'first + ребиллы · период',
     }),
     aiCards,
     plantoKpiCell('CAC', cac != null ? fmtMoney(cac, cur) : '—', { accent: true, sub: 'spend / оплаты' }),
@@ -7949,17 +8305,21 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
     unit?.ltv != null
       ? plantoKpiCell('LTV', fmtMoneyOrDash(unit.ltv, cur), { accent: true, sub: 'оценка с учётом ребиллов' })
       : plantoKpiCell('LTV', 'нет данных', { pending: true, sub: 'нужна кривая ребиллов' }),
-    plantoKpiCell('ROAS D7', roasD7 != null ? fmtPct(roasD7) : '—', {
+    plantoKpiCell('ROAS', totalRoas != null ? fmtPct(totalRoas) : '—', {
       accent: true,
-      tone: roasD7 != null && roasD7 >= 100 ? 'good' : (roasD7 != null && roasD7 < 40 ? 'warn' : ''),
-      sub: 'окупаемость к 7 дню',
-      bar: roasD7 != null ? { pct: Math.min(roasD7, 100), warn: roasD7 < 40 } : null,
+      tone: totalRoas != null && totalRoas >= 100 ? 'good' : (totalRoas != null && totalRoas < 40 ? 'warn' : ''),
+      sub: 'всё время · касса / spend',
+      bar: totalRoas != null ? { pct: Math.min(totalRoas, 100), warn: totalRoas < 40 } : null,
+    }),
+    plantoKpiCell('ROAS периода', periodRoas != null ? fmtPct(periodRoas) : '—', {
+      accent: true,
+      sub: 'касса / spend за выбранные дни',
     }),
     roasD14 != null
-      ? plantoKpiCell('ROAS D14', fmtPct(roasD14), { sub: 'зрелые корзины ≥14 дн.' })
+      ? plantoKpiCell('ROAS D14', fmtPct(roasD14), { sub: 'всё время · когорты ≥14 дн.' })
       : plantoKpiCell('ROAS D14', 'рано', { pending: true, sub: 'мало зрелых когорт' }),
     roasD30 != null
-      ? plantoKpiCell('ROAS D30', fmtPct(roasD30), { sub: 'зрелые корзины ≥30 дн.' })
+      ? plantoKpiCell('ROAS D30', fmtPct(roasD30), { sub: 'всё время · когорты ≥30 дн.' })
       : plantoKpiCell('ROAS D30', 'рано', { pending: true, sub: 'мало зрелых когорт' }),
   ].join('');
 
@@ -8045,14 +8405,18 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
   const trialPlan = String(meta?.trial_plan || '').toLowerCase();
   const graceDays = meta?.grace_days != null ? Number(meta.grace_days) : null;
   const holdDays = meta?.hold_days != null ? Number(meta.hold_days) : null;
-  let trialsDesc = `Из-за ${trialDays}-дневного триала смотрим конверсии и отмены, а не только день-в-день.`;
-  let trialsHint = `лаг ${trialLag} дн.`;
-  if (trialPlan === 'week' || trialPlan === 'weekly') {
-    const bits = [`триал ${trialDays}д только на неделе 199 ₽`];
+  const catalog = meta?.sku_catalog || {};
+  const trialSkus = Object.entries(catalog).filter(([, o]) => Number(o.trial_days) > 0);
+  let trialsDesc = trialSkus.length
+    ? ('Триал из paywall_offers: ' + trialSkus.map(([code, o]) => `${code} ${o.trial_days}д`).join(', ') + '.')
+    : `Из-за ${trialDays}-дневного триала смотрим конверсии и отмены, а не только день-в-день.`;
+  let trialsHint = trialSkus.length ? 'каталог SKU' : `лаг ${trialLag} дн.`;
+  if (!trialSkus.length && (trialPlan === 'week' || trialPlan === 'weekly')) {
+    const bits = [];
     if (graceDays != null) bits.push(`грейс ${graceDays}д`);
     if (holdDays != null) bits.push(`холд ${holdDays}д`);
-    trialsDesc = bits.join(' · ') + '. Месяц 399 ₽ и год 2490 ₽ — без триала.';
-    trialsHint = `триал → week`;
+    if (bits.length) trialsDesc += ' ' + bits.join(' · ') + '.';
+    trialsHint = `лаг ${trialLag} дн.`;
   }
   const productSubtitle = product?.subtitle
     || 'Дошёл ли пользователь до ценности — сад, пейволл, уход и ключевые фичи.';
@@ -8068,9 +8432,73 @@ function renderPlantoMetricBlocks(proj, rows, monthKey) {
   </div>`;
 }
 
+function getHuppGoals(proj) {
+  const goals = getProjectRoasMeta(proj)?.goals;
+  return Array.isArray(goals) ? goals.filter(g => g && g.csv) : [];
+}
+
+function huppGoalCountLabel(goal) {
+  if (!goal) return '';
+  if (goal.csv === 'regs' || goal.key === 'signup') return 'Регистрации';
+  return goal.label || goal.key || goal.csv;
+}
+
+function huppGoalCostLabel(goal) {
+  if (goal?.csv === 'regs' || goal?.key === 'signup') return 'Cost / рега';
+  return 'Cost / ' + huppGoalCountLabel(goal);
+}
+
+function catalogForHuppProject(proj) {
+  const goals = getHuppGoals(proj);
+  if (!goals.length) return METRIC_CATALOG.hupp;
+  const base = [
+    { key: 'spend', label: 'Spend', accent: false },
+    { key: 'impressions', label: 'Показы', accent: false },
+    { key: 'clicks', label: 'Клики', accent: false },
+    { key: 'cpc', label: 'CPC', accent: true },
+    { key: 'cpm', label: 'CPM', accent: true },
+    { key: 'ctr', label: 'CTR', accent: false },
+    { key: 'installs', label: 'Визиты', accent: false },
+    { key: 'cost_install', label: 'Cost / визит', accent: true },
+  ];
+  const extras = [];
+  goals.forEach(g => {
+    const field = g.csv;
+    extras.push({ key: field, label: huppGoalCountLabel(g), accent: false });
+    extras.push({
+      key: field === 'regs' ? 'cost_reg' : `cost_${field}`,
+      label: g.costLabel || huppGoalCostLabel(g),
+      accent: true,
+    });
+  });
+  let catalog = [...base, ...extras];
+  const id = String(proj?.id || '').toLowerCase();
+  if (id === 'ekonomik' || id === 'tutorplace') {
+    catalog = catalog.filter(m => m.key !== 'installs' && m.key !== 'cost_install');
+  }
+  if (id === 'tutorplace') {
+    catalog = catalog.filter(m => m.key !== 'impressions' && m.key !== 'cpm');
+  }
+  return catalog;
+}
+
+function countFieldForCostKey(key, type) {
+  if (key === 'cost_install') return 'installs';
+  if (key === 'cost_trial') return 'trials';
+  if (key === 'cost_reg') return 'regs';
+  if (key === 'cost_qreg') return 'qregs';
+  if (key === 'cost_sold') return 'sold';
+  if (key === 'cost_fb') return 'fb';
+  if (key === 'cost_app') return 'contact_sent';
+  if (key === 'cost_purchase') return (type === 'hupp' || type === 'kelpie') ? 'purchase' : 'purchases';
+  if (String(key || '').startsWith('cost_')) return key.slice(5);
+  return null;
+}
+
 const METRIC_CATALOG = {
   planto: [
     { key: 'spend', label: 'Spend', accent: false },
+    { key: 'spend_vat', label: 'Спенд +22% НДС', accent: false },
     { key: 'installs', label: 'Installs', accent: false },
     { key: 'cost_install', label: 'CPI', accent: true },
     { key: 'clicks', label: 'Clicks', accent: false },
@@ -8087,7 +8515,7 @@ const METRIC_CATALOG = {
     { key: 'revenue', label: 'Доход', accent: false },
     { key: 'cac', label: 'CAC', accent: true },
     { key: 'cr_trial_paid', label: 'Trial → Paid', accent: false },
-    { key: 'roas', label: 'ROAS', accent: true },
+    { key: 'roas', label: 'ROAS периода', accent: true },
   ],
   hupp: [
     { key: 'spend', label: 'Spend', accent: false },
@@ -8184,12 +8612,13 @@ function computeMetricValue(key, type, rows, cur) {
   const paidNet = getPlantoPaidNetForRows(rows);
   switch (key) {
     case 'spend': return fmtMoney(sp, cur);
+    case 'spend_vat': return fmtMoney(sp * 1.22, cur);
     case 'installs': return fmtInt(ins);
     case 'trials': return fmtInt(tr);
     case 'sold': return fmtInt(sold);
     case 'fb': return fmtInt(fb);
-    case 'regs': return fmtInt(regLikeCount(rows));
-    case 'qregs': return fmtInt(sum(rows, 'qregs') || sum(rows, 'regs'));
+    case 'regs': return fmtInt(regsCount(rows, type));
+    case 'qregs': return fmtInt(regLikeCount(rows));
     case 'purchases': return fmtInt(sum(rows, 'purchases'));
     case 'purchase': return fmtInt(sum(rows, 'purchase'));
     case 'contact_info': return fmtInt(sum(rows, 'contact_info'));
@@ -8200,7 +8629,7 @@ function computeMetricValue(key, type, rows, cur) {
     case 'cost_install': return ins ? fmtMoney(sp / ins, cur) : '—';
     case 'cost_trial': return tr ? fmtMoney(sp / tr, cur) : '—';
     case 'cost_reg': {
-      const v = regLikeCount(rows);
+      const v = regsCount(rows, type);
       return v ? fmtMoney(sp / v, cur) : '—';
     }
     case 'cost_purchase': {
@@ -8213,7 +8642,7 @@ function computeMetricValue(key, type, rows, cur) {
       return v ? fmtMoney(sp / v, cur) : '—';
     }
     case 'cost_qreg': {
-      const v = regLikeCount(rows) || sum(rows, 'qregs');
+      const v = regLikeCount(rows);
       return v ? fmtMoney(sp / v, cur) : '—';
     }
     case 'cost_fb': return fb ? fmtMoney(sp / fb, cur) : '—';
@@ -8235,7 +8664,15 @@ function computeMetricValue(key, type, rows, cur) {
       const rg = sum(rows, 'regs'), qg = sum(rows, 'qregs');
       return rg ? ((qg / rg * 100).toFixed(1) + '%') : '—';
     }
-    default: return '—';
+    default: {
+      if (String(key || '').startsWith('cost_')) {
+        const f = countFieldForCostKey(key, type);
+        const v = f ? sum(rows, f) : 0;
+        return v ? fmtMoney(sp / v, cur) : '—';
+      }
+      if (key && rows.some(r => key in r)) return fmtInt(sum(rows, key));
+      return '—';
+    }
   }
 }
 
@@ -8352,7 +8789,7 @@ function typeLabel(type) {
 }
 
 function isMetricRelevant(key, rows) {
-  if (key === 'spend') return true;
+  if (key === 'spend' || key === 'spend_vat') return true;
   const field = {
     installs: 'installs', trials: 'trials', fb: 'fb', sold: 'sold', regs: 'regs', qregs: 'qregs',
     purchases: 'purchases', purchase: 'purchase', contact_info: 'contact_info',
@@ -8364,6 +8801,10 @@ function isMetricRelevant(key, rows) {
   }[key];
   if (key === 'conv_rate') return rows.some(r => 'regs' in r && 'qregs' in r);
   if (key === 'cost_purchase') return rows.some(r => 'purchase' in r || 'purchases' in r);
+  if (String(key || '').startsWith('cost_')) {
+    const f = countFieldForCostKey(key, 'hupp');
+    return f ? rows.some(r => f in r) : true;
+  }
   if (key === 'cr_install_trial') return rows.some(r => 'installs' in r && 'trials' in r);
   if (key === 'cr_trial_paid') return rows.some(r => 'trials' in r && ('sold' in r || 'fb' in r));
   if (key === 'cac') return rows.some(r => 'sold' in r || 'fb' in r);
@@ -8377,13 +8818,29 @@ function isMetricRelevant(key, rows) {
 function getMetricsCatalogForProj(proj, rows) {
   const type = getEffectiveType(proj, rows);
   let catalog = METRIC_CATALOG[type] || METRIC_CATALOG.generic;
+  if (type === 'hupp' && isHuppProject(proj) && getHuppGoals(proj).length) {
+    catalog = catalogForHuppProject(proj);
+  }
   // sold_label — подпись yearly-подмножества (не переименовывает Оплаты/fb).
   const soldLabel = feedMeta(proj?.id)?.sold_label;
   if (soldLabel && type === 'planto') {
     catalog = catalog.map(m => (m.key === 'sold' ? { ...m, label: soldLabel } : m));
   }
+  if (type === 'planto' && !isAutoFeedId(proj?.id)) {
+    catalog = catalog.filter(m => m.key !== 'spend_vat');
+  }
   if (type === 'streamfi' && !sheetHasRegs(proj, rows)) {
     catalog = catalog.filter(m => m.key !== 'regs' && m.key !== 'conv_rate');
+  }
+  if (type === 'campaign' && isJgglProject(proj)) {
+    const at = catalog.findIndex(m => m.key === 'cost_qreg');
+    const regCards = [
+      { key: 'regs', label: 'Регистрации', accent: false },
+      { key: 'cost_reg', label: 'Cost / Reg', accent: true },
+    ];
+    catalog = at >= 0
+      ? [...catalog.slice(0, at + 1), ...regCards, ...catalog.slice(at + 1)]
+      : [...catalog, ...regCards];
   }
   if (rows?.length) {
     catalog = catalog.filter(m => isMetricRelevant(m.key, rows));
@@ -8407,12 +8864,31 @@ function getProjectMetricsConfig(proj, rows) {
       };
     });
   }
-  return mergeMetricsConfig(type, proj.metrics, catalog);
+  const merged = mergeMetricsConfig(type, proj.metrics, catalog);
+  if (isJgglProject(proj)) {
+    const savedKeys = new Set((proj.metrics || []).map(m => m.key));
+    const fresh = merged.filter(m => (m.key === 'regs' || m.key === 'cost_reg') && !savedKeys.has(m.key));
+    const at = merged.findIndex(m => m.key === 'cost_qreg');
+    if (fresh.length && at >= 0) {
+      const rest = merged.filter(m => !fresh.includes(m));
+      const pos = rest.findIndex(m => m.key === 'cost_qreg') + 1;
+      return [...rest.slice(0, pos), ...fresh, ...rest.slice(pos)];
+    }
+  }
+  return merged;
 }
 
 function getMetricLabel(proj, key, fallback, rows) {
   const cfg = getProjectMetricsConfig(proj, rows).find(m => m.key === key);
   return cfg ? cfg.label : fallback;
+}
+
+function greenHuppKeys(p) {
+  if (p?.id === 'pled') return new Set(['spend', 'regs', 'cost_reg']);
+  if (p?.id === 'ursoul') return new Set(['spend', 'trials', 'cost_trial', 'purchase', 'cost_purchase']);
+  if (p?.id === 'ekonomik') return new Set(['spend', 'trials', 'cost_trial', 'fb', 'cost_fb']);
+  if (p?.id === 'tutorplace') return new Set(['spend', 'trials', 'cost_trial']);
+  return new Set(['spend', 'purchase', 'cost_purchase']);
 }
 
 function getMetrics(proj, rows) {
@@ -8422,7 +8898,7 @@ function getMetrics(proj, rows) {
     const allowed = new Set(getPlantoMetricKeys(getPlantoView(proj.id), rows));
     config = config.filter(m => allowed.has(m.key));
   }
-  const GREEN_HUPP = new Set(['spend', 'purchase', 'cost_purchase']);
+  const GREEN_HUPP = greenHuppKeys(p);
   const GREEN_KELPIE = new Set(['spend', 'sold', 'cost_sold']);
   return config.map(m => ({
       label: m.label,
@@ -8476,7 +8952,10 @@ function getTableConfig(proj, rows) {
       pushCol('spend', `Spend (${cur})`, r => fmtMoneyFull(r.spend || 0, cur), rs => fmtMoneyFull(sum(rs, 'spend'), cur));
     }
     if (hasAds) {
-      pushCol('impressions', 'Показы', r => fmtInt(r.impressions), rs => fmtInt(sum(rs, 'impressions')));
+      const hasImp = rows?.some(r => (r.impressions || 0) > 0);
+      if (hasImp) {
+        pushCol('impressions', 'Показы', r => fmtInt(r.impressions), rs => fmtInt(sum(rs, 'impressions')));
+      }
       pushCol('clicks', 'Клики', r => fmtInt(r.clicks), rs => fmtInt(sum(rs, 'clicks')));
       pushCol(
         'cpc',
@@ -8484,20 +8963,49 @@ function getTableConfig(proj, rows) {
         r => r.clicks ? fmtMoney(r.spend / r.clicks, cur) : '—',
         rs => { const sp = sum(rs, 'spend'), cl = sum(rs, 'clicks'); return cl ? fmtMoney(sp / cl, cur) : '—'; },
       );
-      pushCol(
-        'cpm',
-        'CPM',
-        r => r.impressions ? fmtMoney(r.spend / r.impressions * 1000, cur) : '—',
-        rs => { const sp = sum(rs, 'spend'), imp = sum(rs, 'impressions'); return imp ? fmtMoney(sp / imp * 1000, cur) : '—'; },
-      );
-      pushCol(
-        'ctr',
-        'CTR',
-        r => r.impressions ? fmtPct(r.clicks / r.impressions * 100) : '—',
-        rs => { const imp = sum(rs, 'impressions'), cl = sum(rs, 'clicks'); return imp ? fmtPct(cl / imp * 100) : '—'; },
-      );
+      if (hasImp) {
+        pushCol(
+          'cpm',
+          'CPM',
+          r => r.impressions ? fmtMoney(r.spend / r.impressions * 1000, cur) : '—',
+          rs => { const sp = sum(rs, 'spend'), imp = sum(rs, 'impressions'); return imp ? fmtMoney(sp / imp * 1000, cur) : '—'; },
+        );
+        pushCol(
+          'ctr',
+          'CTR',
+          r => r.impressions ? fmtPct(r.clicks / r.impressions * 100) : '—',
+          rs => { const imp = sum(rs, 'impressions'), cl = sum(rs, 'clicks'); return imp ? fmtPct(cl / imp * 100) : '—'; },
+        );
+      }
     }
-    pushCol('installs', 'Visits', r => fmtInt(r.installs), rs => fmtInt(sum(rs, 'installs')));
+    if (!isBakedCsvHupp(p)) {
+      pushCol('installs', 'Visits', r => fmtInt(r.installs), rs => fmtInt(sum(rs, 'installs')));
+    }
+    const huppGoals = type === 'hupp' ? getHuppGoals(p) : [];
+    if (huppGoals.length) {
+      if (hasSpend && !isBakedCsvHupp(p)) {
+        pushCol(
+          'cost_install',
+          'Cost / визит',
+          r => r.installs ? fmtMoney(r.spend / r.installs, cur) : '—',
+          rs => { const sp = sum(rs, 'spend'), n = sum(rs, 'installs'); return n ? fmtMoney(sp / n, cur) : '—'; },
+        );
+      }
+      huppGoals.forEach(g => {
+        const field = g.csv;
+        const label = huppGoalCountLabel(g);
+        pushCol(field, label, r => fmtInt(r[field] || 0), rs => fmtInt(sum(rs, field)));
+        if (hasSpend) {
+          const costKey = field === 'regs' ? 'cost_reg' : `cost_${field}`;
+          pushCol(
+            costKey,
+            g.costLabel || huppGoalCostLabel(g),
+            r => r[field] ? fmtMoney(r.spend / r[field], cur) : '—',
+            rs => { const sp = sum(rs, 'spend'), n = sum(rs, field); return n ? fmtMoney(sp / n, cur) : '—'; },
+          );
+        }
+      });
+    } else {
     pushCol('trials', 'Reach pay', r => fmtInt(r.trials), rs => fmtInt(sum(rs, 'trials')));
     pushCol('fb', 'View pay', r => fmtInt(r.fb), rs => fmtInt(sum(rs, 'fb')));
     pushCol('sold', 'Pay submit', r => fmtInt(r.sold), rs => fmtInt(sum(rs, 'sold')));
@@ -8510,11 +9018,14 @@ function getTableConfig(proj, rows) {
         rs => { const sp = sum(rs, 'spend'), pu = sum(rs, 'purchase'); return pu ? fmtMoney(sp / pu, cur) : '—'; },
       );
     }
+    }
+    if (!huppGoals.length) {
     if (type !== 'kelpie') {
       pushCol('contact_info', 'Contact info', r => fmtInt(r.contact_info), rs => fmtInt(sum(rs, 'contact_info')));
       pushCol('form_submit', 'Form submit', r => fmtInt(r.form_submit), rs => fmtInt(sum(rs, 'form_submit')));
     }
     pushCol('contact_sent', type === 'kelpie' ? 'App Store' : 'Contact sent', r => fmtInt(r.contact_sent), rs => fmtInt(sum(rs, 'contact_sent')));
+    }
     tbl = {
       headers,
       row: (r) => rowCells.map(fn => fn(r)),
@@ -8623,8 +9134,12 @@ function getTableConfig(proj, rows) {
     };
   } else if (type === 'campaign') {
     // Колонка Campaign убрана по запросу — данные схлопываются по дате (aggregateByDate).
-    colKeys = ['date', 'spend', 'qregs', 'cost_qreg', 'impressions', 'clicks', 'cpc', 'cpm', 'ctr'];
-    const rowReg = (r) => regLikeCount([r]);
+    // JGGL: qregs = установки, регистрации — отдельные колонки (не max(qregs, regs)).
+    const hasRegs = isJgglProject(p) && (rows || []).some(r => r && 'regs' in r);
+    colKeys = ['date', 'spend', 'qregs', 'cost_qreg', ...(hasRegs ? ['regs', 'cost_reg'] : []),
+      'impressions', 'clicks', 'cpc', 'cpm', 'ctr'];
+    const rowReg = (r) => (hasRegs ? (Number(r.qregs) || 0) : regLikeCount([r]));
+    const regCells = (sp, n) => (hasRegs ? [fmtInt(n), n ? fmtMoney(sp / n, cur) : '—'] : []);
     // «—» когда метрики нет в выгрузке вообще (часть агентств шлёт FB-экспорт без
     // Link clicks / Impressions), «0» — когда она есть и реально равна нулю.
     const hasCl = (r) => r.clicks != null;
@@ -8635,19 +9150,22 @@ function getTableConfig(proj, rows) {
     tbl = {
     aggregateByDate: true,
     headers: ['Дата', `Spend (${cur})`, L('qregs','Reg'), L('cost_qreg','Cost/Reg'),
+      ...(hasRegs ? [L('regs', 'Регистрации'), L('cost_reg', 'Cost / Reg')] : []),
       L('impressions','Impressions'), L('clicks','Clicks'), L('cpc','CPC'), L('cpm','CPM'), L('ctr','CTR')],
     row: (r) => {
       const rg = rowReg(r);
       return [r.dateStr, fmtMoneyFull(r.spend,cur), fmtInt(rg),
         rg ? fmtMoney(r.spend/rg,cur) : '—',
+        ...regCells(r.spend || 0, Number(r.regs) || 0),
         hasImp(r) ? fmtInt(r.impressions) : '—',
         hasCl(r) ? fmtInt(r.clicks) : '—',
         rowCpc(r), rowCpm(r), rowCtr(r)];
     },
     total: (rows) => {
       const agg = aggregateRowsByDate(rows);
-      const sp=sum(agg,'spend'), qg=regLikeCount(agg), imp=sum(agg,'impressions'), cl=sum(agg,'clicks');
+      const sp=sum(agg,'spend'), qg=hasRegs ? sum(agg,'qregs') : regLikeCount(agg), imp=sum(agg,'impressions'), cl=sum(agg,'clicks');
       return ['Итого',fmtMoneyFull(sp,cur),fmtInt(qg),qg?fmtMoney(sp/qg,cur):'—',
+        ...regCells(sp, sum(agg, 'regs')),
         fmtInt(imp),fmtInt(cl),cl?fmtMoney(sp/cl,cur):'—',imp?fmtMoney(sp/imp*1000,cur):'—',imp?fmtPct(cl/imp*100):'—'];
     }
     };
@@ -8768,6 +9286,11 @@ function selectProjectRows(proj, pack) {
     if (plats.length) return aggregateRowsByDate(plats.flatMap(s => s.rows || []));
   }
 
+  if (isBakedCsvHupp(proj)) {
+    const total = sources.find(isHuppTotalSource);
+    if (total) return total.rows || [];
+  }
+
   const months = sources.filter(isMonthLikeSource);
   const others = sources.filter(s => !isMonthLikeSource(s));
   if (months.length && others.length) return mergeMonthAndGapRows(sources);
@@ -8780,6 +9303,12 @@ function selectProjectRows(proj, pack) {
     return primary?.rows || [];
   }
   return sources.flatMap(s => s.rows || []);
+}
+
+/** Регистрации: если поле regs есть в выгрузке — только оно (0 = 0, а не подмена установками). */
+function regsCount(rows, type) {
+  if (type === 'hupp' || (rows || []).some(r => r && 'regs' in r)) return sum(rows, 'regs');
+  return regLikeCount(rows);
 }
 
 function regLikeCount(rows) {
@@ -9042,7 +9571,7 @@ function computeFunnels(proj, rows) {
 
 function getRowPrimaryResult(proj, row) {
   const type = getEffectiveType(proj, [row]);
-  if (type === 'streamfi') return row.qregs || 0;
+  if (type === 'streamfi' || type === 'campaign') return regLikeCount([row]);
   if (type === 'quadcode') return row.regs || 0;
   if (type === 'planto') {
     const rk = PLANTO_VIEWS[getPlantoView(proj.id)].resultKey;
@@ -9066,12 +9595,16 @@ function computeDayInsights(proj, rows) {
   const worstSpend = [...withResult].sort((a, b) => b.spend - a.spend)[0];
   const zeroResult = withResult.filter(r => r.result === 0);
   const avgDailySpend = sum(withResult, 'spend') / withResult.length;
+  const totSpend = sum(withResult, 'spend');
+  const totRes = withResult.reduce((a, r) => a + (r.result || 0), 0);
+  const avgCpa = totRes > 0 ? totSpend / totRes : null;
 
   return {
     best: best ? { date: best.dateStr, value: fmtMoney(best.cpa, p.currency) } : null,
     topSpend: worstSpend ? { date: worstSpend.dateStr, value: fmtMoney(worstSpend.spend, p.currency) } : null,
     zeroDays: zeroResult.length,
     avgDailySpend: fmtMoney(avgDailySpend, p.currency),
+    avgCpa: avgCpa != null ? fmtMoney(avgCpa, p.currency) : null,
   };
 }
 
@@ -9195,34 +9728,38 @@ function renderBudgetCard(proj, allData, compact) {
 function renderTileIncome(proj) {
   const cur = proj?.currency || '₽';
   const rows = enrichRowsWithDailyRevenue(proj, getPlantoDailyRows(proj?.id));
-  const periodRev = getPlantoPaidNetForRows(rows, proj?.id);
-  const rev = Math.round(periodRev != null ? periodRev : (feedMeta(proj?.id)?.unit_economics?.revenue_total || 0));
-  return `<div class="tile-income"><span class="tile-income-label">Доход</span><span class="tile-income-value">${fmtMoney(rev, cur)}</span></div>`;
+  const cash = getPeriodCash(rows);
+  const periodRev = cash.kassa || getPlantoPaidNetForRows(rows, proj?.id);
+  const rev = Math.round(periodRev != null ? periodRev : (feedMeta(proj?.id)?.cash_period?.total || feedMeta(proj?.id)?.unit_economics?.revenue_total || 0));
+  return `<div class="tile-income"><span class="tile-income-label">Касса</span><span class="tile-income-value">${fmtMoney(rev, cur)}</span></div>`;
 }
 
-// Карточка дохода: за выбранный период (сумма paid_net по дням), не только all-time total.
+// Карточка дохода: first + ребиллы + касса за выбранный период.
 function renderGlobalIncomeCard(proj, rows) {
   const cur = proj?.currency || '₽';
   const meta = feedMeta(proj?.id);
   const enriched = enrichRowsWithDailyRevenue(proj, rows || getPlantoDailyRows(proj?.id));
-  const periodRev = getPlantoPaidNetForRows(enriched, proj?.id);
-  const allTime = Math.round(meta?.unit_economics?.revenue_total || 0);
-  const rev = Math.round(periodRev != null ? periodRev : allTime);
-  const fmt = fmtMoney(rev, cur);
-  const label = proj?.name || AUTO_FEED_URLS[proj?.id]?.name || 'Доход';
-  const updated = meta?.generated_at ? new Date(meta.generated_at).toLocaleString('ru-RU') : '';
+  const cash = getPeriodCash(enriched);
+  const allTime = meta?.cash_period || null;
+  const allKassa = Math.round(allTime?.total || meta?.unit_economics?.revenue_total || 0);
   const days = enriched?.length || 0;
+  const cashFrom = meta?.cash_from || allTime?.from;
   const periodHint = days
-    ? `по дню оплаты · ${days} дн.${allTime && Math.abs(allTime - rev) > 1 ? ` · всё время ${fmtMoney(allTime, cur)}` : ''}`
-    : 'весь срез · по дню оплаты';
+    ? `по дню оплаты · ${days} дн.${cashFrom ? ` · касса с ${cashFrom}` : ''}`
+    : (cashFrom ? `касса с ${cashFrom}` : 'весь срез · по дню оплаты');
   return `<div class="analytics-card income-card">
-    <div class="analytics-card-title">Доход · ${escHtml(label)}</div>
-    <div class="income-total-box"><span class="income-total-value">${fmt}</span></div>
+    <div class="analytics-card-title">Касса · ${escHtml(proj?.name || AUTO_FEED_URLS[proj?.id]?.name || 'Доход')}</div>
+    <div class="income-total-box"><span class="income-total-value">${fmtMoney(cash.kassa, cur)}</span></div>
     <div class="income-breakdown">
-      <span class="income-chip"><i class="income-chip-dot"></i>Период&nbsp;<b>${fmt}</b></span>
-      ${allTime && Math.abs(allTime - rev) > 1 ? `<span class="income-chip">Всё время&nbsp;<b>${fmtMoney(allTime, cur)}</b></span>` : ''}
+      <span class="income-chip"><i class="income-chip-dot"></i>First&nbsp;<b>${fmtMoney(cash.first, cur)}</b></span>
+      <span class="income-chip">Ребиллы&nbsp;<b>${fmtMoney(cash.rebills, cur)}</b></span>
+      <span class="income-chip">Период&nbsp;<b>${fmtMoney(cash.kassa, cur)}</b></span>
+      ${allKassa && Math.abs(allKassa - cash.kassa) > 1 ? `<span class="income-chip">Всё время&nbsp;<b>${fmtMoney(allKassa, cur)}</b></span>` : ''}
+      ${skuChipEntries(meta).map(([code, cell]) =>
+        `<span class="income-chip" title="${escHtml(code)}">${escHtml(skuChipText(cell))}</span>`
+      ).join('')}
     </div>
-    <div class="budget-hint">${escHtml(periodHint)}${updated ? ` · данные на ${escHtml(updated)}` : ''}</div>
+    <div class="budget-hint">${escHtml(periodHint)}${meta?.generated_at ? ` · данные на ${escHtml(new Date(meta.generated_at).toLocaleString('ru-RU'))}` : ''}</div>
   </div>`;
 }
 
@@ -9268,7 +9805,8 @@ function renderAnalyticsSection(proj, allData, rows, monthKey, opts = {}) {
     insightsHtml = `<div class="analytics-card">
       <div class="analytics-card-title">Инсайты за период</div>
       <div class="insights-list">
-        ${insights.best ? `<div class="insight-row best"><span>Лучший CPA</span><span>${insights.best.date} · ${insights.best.value}</span></div>` : ''}
+        ${insights.avgCpa ? `<div class="insight-row best"><span>Средний CPA</span><span>${insights.avgCpa}</span></div>` : ''}
+        ${insights.best ? `<div class="insight-row"><span>Лучший день (CPA)</span><span>${insights.best.date} · ${insights.best.value}</span></div>` : ''}
         ${insights.topSpend ? `<div class="insight-row"><span>Макс. spend за день</span><span>${insights.topSpend.date} · ${insights.topSpend.value}</span></div>` : ''}
         <div class="insight-row"><span>Средний spend / день</span><span>${insights.avgDailySpend}</span></div>
         ${insights.zeroDays ? `<div class="insight-row worst"><span>Дней без результата</span><span>${insights.zeroDays}</span></div>` : ''}
@@ -9701,6 +10239,7 @@ function applyDateFilter() {
   const e = document.getElementById('df-end')?.value;
   if (!s || !e) return;
   dateFilter = s <= e ? { start: s, end: e } : { start: e, end: s };
+  syncMonthFromDateFilter();
   renderContent();
 }
 function clearDateFilter() {
@@ -9715,6 +10254,7 @@ function setDateAll() {
   const max = endEl.max || endEl.value;
   if (!min || !max) return;
   dateFilter = { start: min, end: max };
+  syncMonthFromDateFilter();
   renderContent();
 }
 function setDatePreset(days) {
@@ -9729,6 +10269,7 @@ function setDatePreset(days) {
   let sIso = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
   if (startEl.min && sIso < startEl.min) sIso = startEl.min;
   dateFilter = { start: sIso, end: maxIso };
+  syncMonthFromDateFilter();
   renderContent();
 }
 
@@ -10018,7 +10559,7 @@ function getSourceIdx(projId, pack) {
   const max = Math.max(0, sources.length - 1);
   let idx = sourceIndexByProject[projId];
   if (idx == null || idx < 0 || idx > max) {
-    const totalIdx = sources.findIndex(s => s.id === 'jggl_total' || isJgglTotalLabel(s.label));
+    const totalIdx = sources.findIndex(s => s.id === 'jggl_total' || isJgglTotalLabel(s.label) || isHuppTotalSource(s));
     idx = totalIdx >= 0 ? totalIdx : 0;
     sourceIndexByProject[projId] = idx;
   }
@@ -10065,13 +10606,19 @@ function switchSource(idx) {
 const ROAS_CONFIG_FALLBACK = {
   planto: { revenue_source: 'actual', ltv_metric: 'arppu', fixed_ltv_value: null, mature_cohort_days: 30, predict_horizon_days: 180 },
   hupp:   { revenue_source: 'proxy_events', ltv_metric: 'fixed', assumed_avg_check: 499, funnel: ['reach_pay', 'pay_submit', 'purchase'], predict_horizon_days: 180 },
+  pled:   { revenue_source: 'proxy_events', ltv_metric: 'fixed', assumed_avg_check: null, funnel: ['signup', 'pay_start', 'purchase'], predict_horizon_days: 180 },
+  ursoul: { revenue_source: 'proxy_events', ltv_metric: 'fixed', assumed_avg_check: null, funnel: ['start_quiz', 'pay_start', 'pay_success'], predict_horizon_days: 180 },
 };
 // Цель воронки Hupp (config.funnel key) → колонка в данных
-const HUPP_FUNNEL_KEY_TO_COL = { reach_pay: 'trials', view_pay: 'fb', pay_submit: 'sold', purchase: 'purchase' };
+const HUPP_FUNNEL_KEY_TO_COL = {
+  reach_pay: 'trials', view_pay: 'fb', pay_submit: 'sold', purchase: 'purchase',
+  signup: 'trials', pay_start: 'sold', activate: 'fb',
+  start_quiz: 'trials', quiz_complete: 'fb', pay_success: 'purchase',
+};
 
 function getProjectRoasMeta(proj) {
   if (isPlantoAutoFeed(proj)) return feedMeta(proj.id);
-  if (isHuppProject(proj)) return huppMetaCache;
+  if (isHuppProject(proj)) return huppMetaByProject[proj.id] || (proj.id === 'hupp' ? huppMetaCache : null);
   return null;
 }
 
@@ -10187,7 +10734,11 @@ function computeProxyProductRoas(proj, cfg) {
   const totals = meta?.totals || {};
   const funnel = (Array.isArray(cfg.funnel) && cfg.funnel.length) ? cfg.funnel : ['reach_pay', 'pay_submit', 'purchase'];
   const endpointKey = funnel[funnel.length - 1];
-  const colOf = k => HUPP_FUNNEL_KEY_TO_COL[k] || k;
+  const colOf = k => {
+    const g = (getHuppGoals(proj) || []).find(x => x.key === k);
+    if (g?.csv) return g.csv;
+    return HUPP_FUNNEL_KEY_TO_COL[k] || k;
+  };
   const funnelCounts = funnel.map(k => ({ key: k, col: colOf(k), count: Number(totals[colOf(k)]) || 0 }));
   const purchases = Number(totals[colOf(endpointKey)]) || 0;
   const avgCheck = Number(cfg.assumed_avg_check) || 0;
@@ -10315,9 +10866,17 @@ function renderOverview() {
   let html = '';
   if (isAdmin()) html += renderAdminPanel();
 
+  const kindChip = (id, label) =>
+    `<button type="button" class="global-period-chip${boardKindFilter === id ? ' active' : ''}" onclick="setBoardKindFilter('${id}')">${label}</button>`;
+  html += `<div class="board-kind-filter">
+    ${kindChip('all', 'Все')}
+    ${kindChip('live', 'Пролив')}
+    ${kindChip('test', 'Тесты')}
+  </div>`;
+
   html += '<div class="overview-grid">';
 
-  listProjectsForUi().forEach(p => {
+  listProjectsForUi().filter(projectMatchesBoardFilter).forEach(p => {
     const data = cache[p.id];
     const isLoading = data === 'loading';
     const isError = data === null;
@@ -10336,6 +10895,7 @@ function renderOverview() {
             <div class="tile-name"><span class="tile-icon-wrap">${escHtml(p.icon)}</span>${escHtml(p.name)}</div>
             <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
               ${hiddenBadge}
+              ${renderKindBadge(p)}
               ${statusCtrl}
               <span class="tile-badge">${p.currency}</span>
             </div>
@@ -10354,6 +10914,7 @@ function renderOverview() {
             <div class="tile-name"><span class="tile-icon-wrap">${escHtml(p.icon)}</span>${escHtml(p.name)}</div>
             <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
               ${hiddenBadge}
+              ${renderKindBadge(p)}
               ${statusCtrl}
               <span class="tile-badge">${p.currency}</span>
             </div>
@@ -10384,6 +10945,7 @@ function renderOverview() {
           <div class="tile-name"><span class="tile-icon-wrap">${escHtml(p.icon)}</span>${escHtml(p.name)}${isMulti ? `<span style="font-size:10px;color:var(--text-dim);margin-left:6px">${pack.sources.length} листа</span>` : ''}</div>
           <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
             ${hiddenBadge}
+            ${renderKindBadge(p)}
             ${statusCtrl}
             <span class="tile-badge">${p.currency}</span>
           </div>
@@ -10422,16 +10984,16 @@ let sectionByProject = {};
 let pendingWorkspaceChart = null;
 
 const WORKSPACE_GROUPS = [
-  { id: 'ads',    label: 'Реклама',      icon: '📊', keys: ['spend', 'impressions', 'clicks', 'cpm', 'cpc', 'ctr'] },
+  { id: 'ads',    label: 'Реклама',      icon: '📊', keys: ['spend', 'spend_vat', 'impressions', 'clicks', 'cpm', 'cpc', 'ctr'] },
   { id: 'users',  label: 'Пользователи', icon: '👥', keys: ['installs', 'cost_install', 'regs', 'cost_reg'] },
   { id: 'funnel', label: 'Воронка',      icon: '🎯', keys: ['trials', 'cost_trial', 'cr_install_trial', 'fb', 'sold', 'cost_sold', 'purchase', 'cost_purchase', 'contact_info', 'form_submit', 'contact_sent', 'cost_app', 'qregs', 'cost_qreg', 'purchases', 'conv_rate'] },
   { id: 'revenue',label: 'Доход',        icon: '💰', keys: ['revenue', 'roas', 'cac'] },
 ];
 
-const WS_NONCHART_KEYS = new Set(['cpc', 'cpm', 'ctr', 'roas', 'cac', 'conv_rate', 'cr_install_trial', 'cr_trial_paid']);
+const WS_NONCHART_KEYS = new Set(['cpc', 'cpm', 'ctr', 'roas', 'cac', 'conv_rate', 'cr_install_trial', 'cr_trial_paid', 'spend_vat']);
 function wsChartableKey(k) { return !k.startsWith('cost_') && !WS_NONCHART_KEYS.has(k); }
 // Денежные ключи (для раздела «Доход»): spend, любые стоимостные и CPC/CPM.
-const WS_MONEY_KEYS = new Set(['spend', 'cpc', 'cpm', 'cac', 'revenue', 'arppu', 'ltv']);
+const WS_MONEY_KEYS = new Set(['spend', 'spend_vat', 'cpc', 'cpm', 'cac', 'revenue', 'arppu', 'ltv']);
 function isMoneyKey(k) { return WS_MONEY_KEYS.has(k) || k.startsWith('cost'); }
 
 // Аккуратные линейные иконки разделов (без эмодзи — чище и профессиональнее).
@@ -10534,7 +11096,7 @@ function renderWorkspaceKpis(proj, rows, keys) {
   const p = withEffectiveType(proj, rows);
   const cur = p.currency;
   const accentMap = Object.fromEntries(getMetricsCatalogForProj(p, rows).map(m => [m.key, m.accent]));
-  const GREEN_HUPP = new Set(['spend', 'purchase', 'cost_purchase']);
+  const GREEN_HUPP = greenHuppKeys(p);
   const GREEN_KELPIE = new Set(['spend', 'sold', 'cost_sold']);
   return `<div class="ws-kpis">${keys.map(k => {
     const label = getMetricLabel(p, k, k, rows);
@@ -10629,31 +11191,38 @@ document.addEventListener('click', () => {
   document.querySelectorAll('.info-wrap.open').forEach(w => w.classList.remove('open'));
 });
 
-/** Доп. карточки выручки для full-тира (Planto/ColorStylist unit_economics + AI spend). */
-function renderRevenueExtras(proj) {
+/** Доп. карточки выручки: только выбранный период, all-time — подписью. */
+function renderRevenueExtras(proj, rows) {
   if (getProjectTier(proj) !== 'full') return '';
   const meta = feedMeta(proj?.id);
   const ue = meta?.unit_economics;
-  if (!ue && !(meta?.ai_spend?.total != null)) return '';
+  const periodRows = enrichRowsWithDailyRevenue(proj, rows || getPlantoDailyRows(proj?.id));
+  const cash = getPeriodCash(periodRows);
+  const spend = sum(periodRows, 'spend');
+  const polza = sum(periodRows, 'polza_spend');
+  const burn = spend + polza;
+  const periodRoas = spend ? (cash.kassa / spend * 100) : null;
+  if (!ue && !(meta?.ai_spend?.total != null) && !periodRows.length) return '';
   const cur = proj.currency || '₽';
   const LTV_INFO = 'Косвенно — значение не измерено по факту, а рассчитано косвенным способом. LTV здесь оценивается от ARPPU с поправкой на ребиллы (ARPPU × (1 + renewals/payers)), потому что полной кривой повторных списаний пока нет. Как только накопим фактические ребиллы, заменим на измеренный LTV.';
-  const cards = [];
+  const allCash = meta?.cash_period;
+  const cards = [
+    { label: 'Доход first', value: fmtMoney(cash.first, cur), accent: false, sub: 'период' },
+    { label: 'Ребиллы', value: fmtMoney(cash.rebills, cur), accent: false, sub: 'неделя' },
+    { label: 'Касса', value: fmtMoney(cash.kassa, cur), accent: true, sub: allCash?.total != null && Math.abs(allCash.total - cash.kassa) > 1 ? `всё время ${fmtMoney(allCash.total, cur)}` : 'first + ребиллы' },
+    { label: 'ROAS', value: allTimeRoas(proj) != null ? fmtPct(allTimeRoas(proj)) : '—', accent: true, sub: 'всё время' },
+    { label: 'ROAS периода', value: periodRoas != null ? fmtPct(periodRoas) : '—', accent: true, sub: 'касса / spend' },
+  ];
   if (ue) {
     cards.push(
-      { label: 'Выручка всего', value: fmtMoney(ue.revenue_total, cur), accent: false },
-      { label: 'ARPPU', value: fmtMoney(ue.arppu, cur), accent: true },
-      { label: 'LTV (косвенно)', value: fmtMoney(ue.ltv, cur), accent: true, info: LTV_INFO },
-      { label: 'ROAS D7', value: ue.roas_d7 != null ? ue.roas_d7 + '%' : '—', accent: true },
-      { label: 'ROAS D30', value: ue.roas_d30 != null ? ue.roas_d30 + '%' : '—', accent: true },
+      { label: 'ARPPU', value: fmtMoney(ue.arppu, cur), accent: true, sub: 'всё время' },
+      { label: 'LTV (косвенно)', value: fmtMoney(ue.ltv, cur), accent: true, info: LTV_INFO, sub: 'всё время' },
     );
   }
-  const ai = meta?.ai_spend;
-  if (ai?.total != null) {
+  if (polza > 0 || meta?.ai_spend?.total != null) {
     cards.push(
-      { label: 'AI spend (Polza)', value: fmtMoney(ai.total, cur), accent: false, sub: ai.generations ? `${fmtInt(ai.generations)} ген.` : '' },
-      { label: 'Total burn', value: fmtMoney(ai.total_burn != null ? ai.total_burn : ai.total, cur), accent: true, sub: 'реклама + ИИ' },
-      { label: 'AI / install', value: ai.per_install != null ? fmtMoney(ai.per_install, cur) : '—', accent: false },
-      { label: 'AI / trial', value: ai.per_trial != null ? fmtMoney(ai.per_trial, cur) : '—', accent: false },
+      { label: 'AI spend (Polza)', value: fmtMoney(polza, cur), accent: false, sub: 'за период' },
+      { label: 'Total burn', value: fmtMoney(burn, cur), accent: true, sub: 'реклама + ИИ за период' },
     );
   }
   if (!cards.length) return '';
@@ -10709,9 +11278,14 @@ function renderWorkspaceBody(p, srcProj, rows, monthKey, titleSuffix = '', opts 
   if (sections.length > 1) html += renderSectionNav(p.id, sections, section.id);
   html += `<div class="ws-section">`;
   if (section.id === 'summary') {
-    const dayRows = enrichRowsWithDailyRevenue(srcProj, rows);
+    let dayRows = enrichRowsWithDailyRevenue(srcProj, rows);
+    // Campaign/JGGL: KPI и заголовок «N строк» должны быть по дням, как таблица,
+    // иначе cost_* считается по 200+ кускам кампаний и расходится с Итого.
+    if (getTableConfig(srcProj, dayRows).aggregateByDate) {
+      dayRows = aggregateRowsByDate(dayRows);
+    }
     const keys = section.keys.length ? section.keys : getSummaryMetricKeys(srcProj, dayRows);
-    if (getProjectTier(srcProj) === 'full') html += renderRevenueExtras(srcProj);
+    if (getProjectTier(srcProj) === 'full') html += renderRevenueExtras(srcProj, dayRows);
     if (keys.length) html += renderWorkspaceKpis(srcProj, dayRows, keys);
     const CHART_PREF = ['spend', 'revenue', 'installs', 'trials', 'regs', 'qregs', 'purchase', 'purchases', 'clicks', 'impressions', 'fb'];
     const chartKeys = CHART_PREF.filter(k => keys.includes(k) && wsChartableKey(k));
@@ -10739,7 +11313,7 @@ function renderWorkspaceBody(p, srcProj, rows, monthKey, titleSuffix = '', opts 
     html += renderPlantoMetricBlocks(p, rows, monthKey);
   } else {
     // Реклама / Пользователи / Воронка / Доход — узкий срез колонок как раньше
-    if (section.id === 'revenue') html += renderRevenueExtras(srcProj);
+    if (section.id === 'revenue') html += renderRevenueExtras(srcProj, rows);
     html += renderWorkspaceKpis(srcProj, rows, section.keys);
     const chartKeys = section.keys.filter(wsChartableKey);
     if (rows.length && chartKeys.length) {
@@ -10792,9 +11366,9 @@ function renderProjectDetail(projId) {
   const pack = normalizeCacheData(data);
   const months = getMonths(data, p);
   // По умолчанию — последний месяц с данными. Сохранённый/устаревший месяц
-  // (напр. июль, когда уже есть август) уважаем только если пользователь сам
-  // выбрал его в этой сессии; иначе всегда показываем свежий месяц.
-  if (!currentMonth || !months.includes(currentMonth) || !monthUserChosen) {
+  // уважаем, если пользователь выбрал его или если стоит календарный фильтр
+  // (иначе «Показать 04.08–31.08» перетирается сентябрём на каждом рендере).
+  if (!dateFilter && (!currentMonth || !months.includes(currentMonth) || !monthUserChosen)) {
     currentMonth = months[months.length - 1] || null;
   }
   if (pack && pack !== 'loading' && pack !== null && currentMonth) {

@@ -1,0 +1,30 @@
+{
+  "id": "tutorplace",
+  "name": "Тьюторплейс",
+  "anchor": "2026-09-18",
+  "currency": "RUB",
+  "direct_client_login": "doxmediagroup",
+  "source": "Яндекс Директ · поиск",
+  "primary_goal": {
+    "id": "632612615",
+    "key": "tryConv",
+    "label": "Заполнили данные для оплаты"
+  },
+  "projects": [
+    { "id": "astro", "name": "Астро", "campaignId": "714559787", "icon": "✦" },
+    { "id": "food", "name": "Дневник питания", "campaignId": "714559866", "icon": "◉" },
+    { "id": "pilates", "name": "Пилатес", "campaignId": "714559844", "icon": "○" },
+    { "id": "dance", "name": "Танцы", "campaignId": "714559807", "icon": "△" },
+    { "id": "hiro", "name": "Хиро", "campaignId": "714559825", "icon": "◇" }
+  ],
+  "goals": [
+    { "id": "632612615", "key": "tryConv", "label": "Заполнили данные для оплаты", "csv": "trials", "costLabel": "Cost / tryConv" },
+    { "id": "632571942", "key": "trialPay", "label": "Оплата триала", "csv": "sold" },
+    { "id": "640536982", "key": "contact_info", "label": "Заполнил контактные данные", "csv": "contact_info" },
+    { "id": "640536984", "key": "contacts", "label": "Отправил контактные данные", "csv": "contact_sent" },
+    { "id": "640536980", "key": "fileDownload", "label": "Скачивание файла", "csv": "form_submit" },
+    { "id": "640536983", "key": "social", "label": "Переход в соцсеть", "csv": "fb" }
+  ],
+  "daily_csv": "data/tutorplace-daily.csv",
+  "meta_json": "data/tutorplace-meta.json"
+}
