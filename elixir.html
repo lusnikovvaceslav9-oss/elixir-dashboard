@@ -1543,8 +1543,8 @@ const HUPP_FEEDS = {
     kind: 'test',
     sheets: [
       { id: 'total', label: 'Итог', url: 'data/bezdna-daily.csv' },
-      { id: 'leads', label: 'Leads 29/09', url: 'data/bezdna-leads.csv' },
-      { id: 'reg', label: 'Reg 30/09', url: 'data/bezdna-reg.csv' },
+      { id: 'leads', label: '«Играть» · 29/09', url: 'data/bezdna-leads.csv' },
+      { id: 'reg', label: 'Аккаунт · 30/09', url: 'data/bezdna-reg.csv' },
     ],
   },
   skinai: {
@@ -9001,9 +9001,10 @@ function getProjectMetricsConfig(proj, rows) {
     const savedMap = Object.fromEntries((proj.metrics || []).map(m => [m.key, m]));
     return catalog.map(base => {
       const s = savedMap[base.key];
+      const preferCatalog = String(proj?.id || '').toLowerCase() === 'bezdna';
       return {
         key: base.key,
-        label: (s?.label && !/^impressions$/i.test(s.label) ? s.label : base.label),
+        label: preferCatalog ? base.label : (s?.label && !/^impressions$/i.test(s.label) ? s.label : base.label),
         accent: base.accent,
         enabled: s?.enabled !== false,
       };
@@ -9034,7 +9035,7 @@ function greenHuppKeys(p) {
   if (p?.id === 'ekonomik') return new Set(['spend', 'trials', 'cost_trial', 'fb', 'cost_fb']);
   if (p?.id === 'tutorplace') return new Set(['spend', 'trials', 'cost_trial']);
   if (p?.id === 'tablet') return new Set(['spend', 'trials', 'cost_trial']);
-  if (p?.id === 'bezdna') return new Set(['spend', 'trials', 'cost_trial']);
+  if (p?.id === 'bezdna') return new Set(['spend', 'trials', 'cost_trial', 'sold', 'cost_sold']);
   if (p?.id === 'skinai') return new Set(['spend', 'trials', 'cost_trial']);
   return new Set(['spend', 'purchase', 'cost_purchase']);
 }
@@ -9753,6 +9754,12 @@ function computeFunnels(proj, rows) {
     if (ins > 0) steps.push({ label: 'Install → Trial', pct: (tr / ins) * 100, count: `${fmtInt(tr)} / ${fmtInt(ins)}` });
     if (tr > 0) steps.push({ label: 'Trial → Paid', pct: (fb / tr) * 100, count: `${fmtInt(fb)} / ${fmtInt(tr)}` });
     if (ins > 0 && fb > 0) steps.push({ label: 'Install → Paid', pct: (fb / ins) * 100, count: `${fmtInt(fb)} / ${fmtInt(ins)}` });
+  } else if (String(proj?.id || '').toLowerCase() === 'bezdna') {
+    const views = sum(rows, 'fb');
+    const play = sum(rows, 'trials');
+    const acc = sum(rows, 'sold');
+    if (views > 0) steps.push({ label: 'Сайт → «Играть»', pct: (play / views) * 100, count: `${fmtInt(play)} / ${fmtInt(views)}` });
+    if (play > 0) steps.push({ label: '«Играть» → аккаунт', pct: (acc / play) * 100, count: `${fmtInt(acc)} / ${fmtInt(play)}` });
   } else if (String(proj?.id || '').toLowerCase() === 'skinai') {
     const sessions = sum(rows, 'installs');
     const done = sum(rows, 'trials');
@@ -9773,6 +9780,7 @@ function getRowPrimaryResult(proj, row) {
     const rk = PLANTO_VIEWS[getPlantoView(proj.id)].resultKey;
     return row[rk] || 0;
   }
+  if (String(proj?.id || '').toLowerCase() === 'bezdna') return row.sold || 0;
   if (String(proj?.id || '').toLowerCase() === 'skinai') return row.trials || 0;
   return 0;
 }

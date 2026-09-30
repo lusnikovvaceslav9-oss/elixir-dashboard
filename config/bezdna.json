@@ -8,16 +8,16 @@
   "primary_goal": {
     "id": "website_lead",
     "key": "lead",
-    "label": "Website leads"
+    "label": "Нажал «Играть»"
   },
   "campaigns": [
-    { "id": "leads", "name": "Leads 29/09", "campaign": "bezdna - US - 29/09" },
-    { "id": "reg", "name": "Reg 30/09", "campaign": "bezdna - US - 30/09 - reg" }
+    { "id": "leads", "name": "«Играть» · 29/09", "campaign": "bezdna - US - 29/09" },
+    { "id": "reg", "name": "Аккаунт · 30/09", "campaign": "bezdna - US - 30/09 - reg" }
   ],
   "goals": [
-    { "id": "website_lead", "key": "lead", "label": "Leads", "csv": "trials", "costLabel": "CPL" },
-    { "id": "registration", "key": "reg", "label": "Regs", "csv": "sold", "costLabel": "Cost / reg" },
-    { "id": "landing_page_view", "key": "lpv", "label": "LPV", "csv": "fb", "costLabel": "Cost / LPV" }
+    { "id": "landing_page_view", "key": "lpv", "label": "Открыл сайт", "csv": "fb", "costLabel": "Cost / открытие" },
+    { "id": "website_lead", "key": "lead", "label": "Нажал «Играть»", "csv": "trials", "costLabel": "Cost / «Играть»" },
+    { "id": "registration", "key": "reg", "label": "Создал аккаунт", "csv": "sold", "costLabel": "Cost / аккаунт" }
   ],
   "daily_csv": "data/bezdna-daily.csv",
   "meta_json": "data/bezdna-meta.json"

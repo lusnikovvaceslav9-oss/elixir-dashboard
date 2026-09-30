@@ -1,50 +1,50 @@
 {
-  "generated_at": "2026-09-30T17:20:59+0700",
+  "generated_at": "2026-09-30T19:49:56+0700",
   "project": "bezdna",
   "kind": "test",
   "name": "Бездна",
   "anchor": "2026-09-29",
   "until": "2026-09-30",
   "metric_map": {
-    "trials": "website_leads",
-    "sold": "registrations_completed",
-    "fb": "landing_page_views",
+    "fb": "page_view",
+    "trials": "lead_play_click",
+    "sold": "complete_registration",
     "spend": "meta_ads",
     "clicks": "link_clicks",
     "impressions": "impressions"
   },
   "goals": [
     {
+      "id": "landing_page_view",
+      "key": "lpv",
+      "label": "Открыл сайт",
+      "csv": "fb",
+      "costLabel": "Cost / открытие"
+    },
+    {
       "id": "website_lead",
       "key": "lead",
-      "label": "Leads",
+      "label": "Нажал «Играть»",
       "csv": "trials",
-      "costLabel": "CPL"
+      "costLabel": "Cost / «Играть»"
     },
     {
       "id": "registration",
       "key": "reg",
-      "label": "Regs",
+      "label": "Создал аккаунт",
       "csv": "sold",
-      "costLabel": "Cost / reg"
-    },
-    {
-      "id": "landing_page_view",
-      "key": "lpv",
-      "label": "LPV",
-      "csv": "fb",
-      "costLabel": "Cost / LPV"
+      "costLabel": "Cost / аккаунт"
     }
   ],
   "niches": [
     {
       "id": "leads",
-      "name": "Leads 29/09",
+      "name": "«Играть» · 29/09",
       "campaign": "bezdna - US - 29/09"
     },
     {
       "id": "reg",
-      "name": "Reg 30/09",
+      "name": "Аккаунт · 30/09",
       "campaign": "bezdna - US - 30/09 - reg"
     }
   ],
@@ -64,7 +64,7 @@
   },
   "niche_days": {
     "leads": {
-      "name": "Leads 29/09",
+      "name": "«Играть» · 29/09",
       "campaign": "bezdna - US - 29/09",
       "days": 2,
       "spend": 88.96,
@@ -72,7 +72,7 @@
       "regs": 3
     },
     "reg": {
-      "name": "Reg 30/09",
+      "name": "Аккаунт · 30/09",
       "campaign": "bezdna - US - 30/09 - reg",
       "days": 1,
       "spend": 2.29,

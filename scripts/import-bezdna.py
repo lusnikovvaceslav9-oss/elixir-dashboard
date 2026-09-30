@@ -12,8 +12,8 @@ MSK = timezone(timedelta(hours=7))
 DASH = Path("/Users/vaceslavlusnikov/Desktop/дашборд")
 SRC = Path("/Users/vaceslavlusnikov/Downloads/-_16581_-ELIXIR_adskill_-3_A-Campaigns-27-Sep-2026-30-Sep-2026.csv")
 CAMPAIGNS = [
-    ("leads", "Leads 29/09", "bezdna - US - 29/09"),
-    ("reg", "Reg 30/09", "bezdna - US - 30/09 - reg"),
+    ("leads", "«Играть» · 29/09", "bezdna - US - 29/09"),
+    ("reg", "Аккаунт · 30/09", "bezdna - US - 30/09 - reg"),
 ]
 
 
@@ -132,17 +132,17 @@ def main() -> None:
         "anchor": "2026-09-29",
         "until": max(dates).strftime("%Y-%m-%d") if dates else None,
         "metric_map": {
-            "trials": "website_leads",
-            "sold": "registrations_completed",
-            "fb": "landing_page_views",
+            "fb": "page_view",
+            "trials": "lead_play_click",
+            "sold": "complete_registration",
             "spend": "meta_ads",
             "clicks": "link_clicks",
             "impressions": "impressions",
         },
         "goals": [
-            {"id": "website_lead", "key": "lead", "label": "Leads", "csv": "trials", "costLabel": "CPL"},
-            {"id": "registration", "key": "reg", "label": "Regs", "csv": "sold", "costLabel": "Cost / reg"},
-            {"id": "landing_page_view", "key": "lpv", "label": "LPV", "csv": "fb", "costLabel": "Cost / LPV"},
+            {"id": "landing_page_view", "key": "lpv", "label": "Открыл сайт", "csv": "fb", "costLabel": "Cost / открытие"},
+            {"id": "website_lead", "key": "lead", "label": "Нажал «Играть»", "csv": "trials", "costLabel": "Cost / «Играть»"},
+            {"id": "registration", "key": "reg", "label": "Создал аккаунт", "csv": "sold", "costLabel": "Cost / аккаунт"},
         ],
         "niches": [{"id": nid, "name": label, "campaign": src} for nid, label, src in CAMPAIGNS],
         "unknown_campaigns": unknown,
