@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-09-30T18:42:55+00:00",
+  "generated_at": "2026-09-30T22:43:56+00:00",
   "anchor": "2026-06-05",
-  "until": "2026-09-30",
-  "window_start": "2026-09-21",
+  "until": "2026-10-01",
+  "window_start": "2026-09-22",
   "trial_attribution": "supabase_trial_start",
   "ai_spend": null,
   "trial_days": 7,
@@ -30,29 +30,29 @@
     "product": "appmetrica_reporting"
   },
   "errors": [],
-  "days": 118,
+  "days": 119,
   "reconcile_diff": {
-    "trials_total_old_csv": 545,
-    "trials_total_new": 546,
+    "trials_total_old_csv": 546,
+    "trials_total_new": 547,
     "delta": 1
   },
   "unit_economics": {
     "revenue_total": 305045,
-    "spend_total": 445432.33,
-    "active_users": 19553,
+    "spend_total": 446136.21,
+    "active_users": 19569,
     "active_payers": 121,
-    "plus_active_users": 189,
-    "trial_cancellations": 11,
+    "plus_active_users": 190,
+    "trial_cancellations": 13,
     "trial_cancellations_by_day": {
       "2026-09-25": 2,
       "2026-09-26": 1,
       "2026-09-27": 2,
       "2026-09-28": 3,
       "2026-09-29": 1,
-      "2026-09-30": 2
+      "2026-09-30": 4
     },
     "renewals": 78,
-    "arpu": 15.6,
+    "arpu": 15.59,
     "arppu": 2521.03,
     "ltv": 4146.16,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
@@ -70,14 +70,14 @@
     "predict_horizon_days": 180
   },
   "product": {
-    "garden_activation_pct": 30.33,
+    "garden_activation_pct": 30.34,
     "garden_avg_plants": 2.22,
     "garden_depth_icp_pct": null,
-    "paywall_cta_pct": 40.34,
-    "care_engagement_pct": 6.11,
+    "paywall_cta_pct": 40.33,
+    "care_engagement_pct": 6.12,
     "feature_activation": {
       "scan_pct": 33.97,
-      "watering_pct": 3.78,
+      "watering_pct": 3.8,
       "ai_pct": 28.52
     },
     "retention": {
@@ -100,7 +100,7 @@
   },
   "cash_period": {
     "from": "2026-06-05",
-    "until": "2026-09-30",
+    "until": "2026-10-01",
     "first": 297065,
     "rebills": 7980,
     "total": 305045
@@ -612,7 +612,8 @@
     "2026-09-27": 5980,
     "2026-09-28": 399,
     "2026-09-29": 2490,
-    "2026-09-30": 4288
+    "2026-09-30": 4288,
+    "2026-10-01": 0
   },
   "paid_net_by_cohort_day": {
     "2026-06-25": 399,
@@ -682,7 +683,7 @@
     "2026-09-23": 4288,
     "2026-09-30": 798
   },
-  "trials_sb_crosscheck_total": 546,
+  "trials_sb_crosscheck_total": 547,
   "trials_sb_crosscheck_by_day": {
     "2026-06-07": 1,
     "2026-06-08": 1,
@@ -794,9 +795,9 @@
     "2026-09-27": 11,
     "2026-09-28": 5,
     "2026-09-29": 7,
-    "2026-09-30": 6
+    "2026-09-30": 7
   },
-  "trials_am_crosscheck_total": 528,
+  "trials_am_crosscheck_total": 529,
   "trials_am_crosscheck_by_day": {
     "2026-06-05": 2,
     "2026-06-07": 1,
@@ -908,11 +909,11 @@
     "2026-09-27": 9,
     "2026-09-28": 5,
     "2026-09-29": 7,
-    "2026-09-30": 3
+    "2026-09-30": 4
   },
   "trials_crosscheck_yesterday": {
-    "day": "2026-09-29",
-    "appmetrica": 7,
+    "day": "2026-09-30",
+    "appmetrica": 4,
     "supabase": 7,
     "dashboard": 7,
     "note": "В дашборде trials = RuStore entitlements (уникальный user_id)."
