@@ -2299,6 +2299,21 @@ function isBakedCsvQuadcode(proj) {
   return isQuadcodeProject(proj);
 }
 
+function currentQuadcodeSource(proj) {
+  if (!isQuadcodeProject(proj)) return null;
+  const pack = typeof cache !== 'undefined' ? normalizeCacheData(cache[proj.id]) : null;
+  if (!pack || pack === 'loading' || pack === null || !pack.sources?.length) return null;
+  return pack.sources[getSourceIdx(proj.id, pack)] || null;
+}
+
+/** Лист Discord: только join, без website Registrations / Cost / Reg. */
+function isQuadcodeDiscordSheet(proj) {
+  if (!isQuadcodeProject(proj)) return false;
+  if (typeof view === 'string' && view !== proj.id) return false;
+  const src = currentQuadcodeSource(proj);
+  return !!(src && (src.id === 'discord' || /^discord$/i.test(String(src.label || '').trim())));
+}
+
 function applyQuadcodeAutoSource(list) {
   const withBuiltin = [...(list || [])];
   if (!withBuiltin.some(p => isQuadcodeProject(p))) {
@@ -8959,6 +8974,9 @@ function getMetricsCatalogForProj(proj, rows) {
   if (type === 'streamfi' && !sheetHasRegs(proj, rows)) {
     catalog = catalog.filter(m => m.key !== 'regs' && m.key !== 'conv_rate');
   }
+  if (type === 'quadcode' && isQuadcodeDiscordSheet(proj)) {
+    catalog = catalog.filter(m => m.key !== 'regs' && m.key !== 'cost_reg');
+  }
   if (type === 'campaign' && isJgglProject(proj)) {
     const at = catalog.findIndex(m => m.key === 'cost_qreg');
     const regCards = [
@@ -9255,12 +9273,15 @@ function getTableConfig(proj, rows) {
     };
     }
   } else if (type === 'quadcode') {
+    const discordSheet = isQuadcodeDiscordSheet(p);
+    const hasWebRegs = !discordSheet;
     const hasDiscord = (rows || []).some(r => r && 'qregs' in r);
     const hasAds = (rows || []).some(r => r && (('clicks' in r) || ('impressions' in r)));
     const hasInst = (rows || []).some(r => r && 'installs' in r);
     const hasPurch = (rows || []).some(r => r && 'purchases' in r);
-    colKeys = ['date', 'spend', 'regs', 'cost_reg'];
-    const headers = ['Дата', `Spend (${cur})`, L('regs','Regs'), L('cost_reg','Cost/Reg')];
+    colKeys = ['date', 'spend'];
+    const headers = ['Дата', `Spend (${cur})`];
+    if (hasWebRegs) { colKeys.push('regs', 'cost_reg'); headers.push(L('regs','Regs'), L('cost_reg','Cost/Reg')); }
     if (hasDiscord) { colKeys.push('qregs', 'cost_qreg'); headers.push(L('qregs','Discord'), L('cost_qreg','Cost/Discord')); }
     if (hasInst) { colKeys.push('installs', 'cost_install'); headers.push(L('installs','Installs'), L('cost_install','Cost/Install')); }
     if (hasPurch) { colKeys.push('purchases', 'cost_purchase'); headers.push(L('purchases','Purchases'), L('cost_purchase','Cost/Purchase')); }
@@ -9268,7 +9289,8 @@ function getTableConfig(proj, rows) {
     tbl = {
     headers,
     row: (r) => {
-      const cells = [r.dateStr, fmtMoneyFull(r.spend,cur), fmtInt(r.regs||0), r.regs?fmtMoney(r.spend/r.regs,cur):'—'];
+      const cells = [r.dateStr, fmtMoneyFull(r.spend,cur)];
+      if (hasWebRegs) cells.push(fmtInt(r.regs||0), r.regs?fmtMoney(r.spend/r.regs,cur):'—');
       if (hasDiscord) cells.push(fmtInt(r.qregs||0), r.qregs?fmtMoney(r.spend/r.qregs,cur):'—');
       if (hasInst) cells.push(fmtInt(r.installs||0), r.installs?fmtMoney(r.spend/r.installs,cur):'—');
       if (hasPurch) cells.push(fmtInt(r.purchases||0), r.purchases?fmtMoney(r.spend/r.purchases,cur):'—');
@@ -9282,7 +9304,8 @@ function getTableConfig(proj, rows) {
       const sp=sum(rows,'spend'), rg=sum(rows,'regs'), dq=sum(rows,'qregs');
       const ins=sum(rows,'installs'), pu=sum(rows,'purchases');
       const cl=sum(rows,'clicks'), imp=sum(rows,'impressions');
-      const cells = ['Итого',fmtMoneyFull(sp,cur),fmtInt(rg),rg?fmtMoney(sp/rg,cur):'—'];
+      const cells = ['Итого',fmtMoneyFull(sp,cur)];
+      if (hasWebRegs) cells.push(fmtInt(rg), rg?fmtMoney(sp/rg,cur):'—');
       if (hasDiscord) cells.push(fmtInt(dq), dq?fmtMoney(sp/dq,cur):'—');
       if (hasInst) cells.push(fmtInt(ins), ins?fmtMoney(sp/ins,cur):'—');
       if (hasPurch) cells.push(fmtInt(pu), pu?fmtMoney(sp/pu,cur):'—');
@@ -9710,7 +9733,7 @@ function computeFunnels(proj, rows) {
 
   if (type === 'quadcode') {
     const rg = sum(rows, 'regs'), ins = sum(rows, 'installs'), pu = sum(rows, 'purchases'), dq = sum(rows, 'qregs');
-    if (dq > 0 || (rg > 0 && (rows || []).some(r => r && 'qregs' in r))) {
+    if (!isQuadcodeDiscordSheet(proj) && (dq > 0 || (rg > 0 && (rows || []).some(r => r && 'qregs' in r)))) {
       const tot = rg + dq;
       if (tot > 0) {
         steps.push({ label: 'Сайт · regs', pct: (rg / tot) * 100, count: `${fmtInt(rg)} / ${fmtInt(tot)}` });
@@ -9745,7 +9768,7 @@ function computeFunnels(proj, rows) {
 function getRowPrimaryResult(proj, row) {
   const type = getEffectiveType(proj, [row]);
   if (type === 'streamfi' || type === 'campaign') return regLikeCount([row]);
-  if (type === 'quadcode') return (row.regs || 0) + (row.qregs || 0);
+  if (type === 'quadcode') return isQuadcodeDiscordSheet(proj) ? (row.qregs || 0) : ((row.regs || 0) + (row.qregs || 0));
   if (type === 'planto') {
     const rk = PLANTO_VIEWS[getPlantoView(proj.id)].resultKey;
     return row[rk] || 0;
