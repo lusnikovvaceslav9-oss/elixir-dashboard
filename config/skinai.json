@@ -2,21 +2,25 @@
   "id": "skinai",
   "name": "SkinAI",
   "kind": "test",
-  "anchor": "2026-09-29",
+  "anchor": "2026-09-28",
   "currency": "USD",
-  "source": "Meta Ads · ad sets",
+  "source": "Meta Ads · Skin admin quiz",
+  "admin_url": "https://skin-snowy-phi.vercel.app/admin",
   "primary_goal": {
-    "id": "landing_page_view",
-    "key": "lpv",
-    "label": "Landing page views"
+    "id": "quiz_complete",
+    "key": "completed",
+    "label": "Дошли до итога"
   },
   "adsets": [
-    { "id": "phi", "name": "phi" },
-    { "id": "mauve", "name": "mauve" }
+    { "id": "phi", "name": "phi · impact" },
+    { "id": "mauve", "name": "mauve · routine" }
   ],
   "goals": [
-    { "id": "landing_page_view", "key": "lpv", "label": "LPV", "csv": "fb", "costLabel": "Cost / LPV" },
-    { "id": "content_view", "key": "content_view", "label": "Content views", "csv": "trials", "costLabel": "Cost / view" }
+    { "id": "quiz_session", "key": "session", "label": "Сессии", "csv": "installs", "costLabel": "Cost / сессия" },
+    { "id": "quiz_complete", "key": "completed", "label": "Дошли до итога", "csv": "trials", "costLabel": "CPA итог" },
+    { "id": "offer_click", "key": "offer", "label": "$39 клик", "csv": "sold", "costLabel": "Cost / $39" },
+    { "id": "email", "key": "email", "label": "Почты", "csv": "contact_sent", "costLabel": "Cost / почта" },
+    { "id": "landing_page_view", "key": "lpv", "label": "LPV", "csv": "fb", "costLabel": "Cost / LPV" }
   ],
   "daily_csv": "data/skinai-daily.csv",
   "meta_json": "data/skinai-meta.json"

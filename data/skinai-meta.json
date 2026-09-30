@@ -1,12 +1,15 @@
 {
-  "generated_at": "2026-09-30T17:28:37+0700",
+  "generated_at": "2026-09-30T18:19:25+0700",
   "project": "skinai",
   "kind": "test",
   "name": "SkinAI",
-  "anchor": "2026-09-29",
+  "anchor": "2026-09-28",
   "until": "2026-09-30",
   "metric_map": {
-    "trials": "content_views",
+    "installs": "quiz_sessions",
+    "trials": "quiz_completed",
+    "sold": "offer_39_clicks",
+    "contact_sent": "emails",
     "fb": "landing_page_views",
     "spend": "meta_ads",
     "clicks": "link_clicks",
@@ -14,57 +17,147 @@
   },
   "goals": [
     {
+      "id": "quiz_session",
+      "key": "session",
+      "label": "Сессии",
+      "csv": "installs",
+      "costLabel": "Cost / сессия"
+    },
+    {
+      "id": "quiz_complete",
+      "key": "completed",
+      "label": "Дошли до итога",
+      "csv": "trials",
+      "costLabel": "CPA итог"
+    },
+    {
+      "id": "offer_click",
+      "key": "offer",
+      "label": "$39 клик",
+      "csv": "sold",
+      "costLabel": "Cost / $39"
+    },
+    {
+      "id": "email",
+      "key": "email",
+      "label": "Почты",
+      "csv": "contact_sent",
+      "costLabel": "Cost / почта"
+    },
+    {
       "id": "landing_page_view",
       "key": "lpv",
       "label": "LPV",
       "csv": "fb",
       "costLabel": "Cost / LPV"
-    },
-    {
-      "id": "content_view",
-      "key": "content_view",
-      "label": "Content views",
-      "csv": "trials",
-      "costLabel": "Cost / view"
     }
   ],
   "niches": [
     {
       "id": "phi",
-      "name": "phi"
+      "name": "phi · impact"
     },
     {
       "id": "mauve",
-      "name": "mauve"
+      "name": "mauve · routine"
     }
   ],
   "unknown_adsets": [],
   "sources": {
     "spend": "meta_ads_csv",
-    "file": "菏泽安荧网络-1-Ad-sets-Sep-29-2026-Sep-30-2026 (2).csv"
+    "file": "菏泽安荧网络-1-Ad-sets-Sep-29-2026-Sep-30-2026 (2).csv",
+    "quiz": "https://skin-snowy-phi.vercel.app/admin"
   },
-  "days": 2,
+  "quiz": {
+    "impact": {
+      "sessions": 71,
+      "completed": 3,
+      "offers": 2,
+      "emails": 1,
+      "first_step_drop": 67,
+      "pay": {
+        "clear_skin": 1,
+        "serum": 1,
+        "stop": 0
+      },
+      "median_score": 20.0,
+      "score_max": 39.0,
+      "scores_n": 3,
+      "label": "Насколько мешает",
+      "sheet": "phi"
+    },
+    "routine": {
+      "sessions": 63,
+      "completed": 9,
+      "offers": 5,
+      "emails": 3,
+      "first_step_drop": 53,
+      "pay": {
+        "clear_skin": 4,
+        "serum": 1,
+        "stop": 3
+      },
+      "label": "Как у конкурентов",
+      "sheet": "mauve",
+      "age": {
+        "25": 4,
+        "40": 1,
+        "18": 2,
+        "u18": 1
+      },
+      "skin_type": {
+        "dry": 1,
+        "combo": 5,
+        "oily": 2
+      }
+    },
+    "all": {
+      "sessions": 134,
+      "completed": 12,
+      "offers": 7,
+      "emails": 4,
+      "first_step_drop": 120,
+      "pay": {
+        "clear_skin": 5,
+        "serum": 2,
+        "stop": 3
+      },
+      "median_score": 20.0,
+      "score_max": 39.0,
+      "scores_n": 3
+    }
+  },
+  "days": 3,
   "totals": {
     "spend": 37.13,
-    "trials": 3,
+    "installs": 134,
+    "trials": 12,
+    "sold": 7,
     "fb": 31,
+    "contact_sent": 4,
     "clicks": 37,
     "impressions": 561
   },
   "niche_days": {
     "phi": {
-      "name": "phi",
-      "days": 2,
+      "name": "phi · impact",
+      "days": 3,
       "spend": 14.27,
-      "lpv": 18,
-      "content_views": 0
+      "sessions": 71,
+      "completed": 3,
+      "offers": 2,
+      "emails": 1,
+      "lpv": 18
     },
     "mauve": {
-      "name": "mauve",
-      "days": 2,
+      "name": "mauve · routine",
+      "days": 3,
       "spend": 22.86,
-      "lpv": 13,
-      "content_views": 3
+      "sessions": 63,
+      "completed": 9,
+      "offers": 5,
+      "emails": 3,
+      "lpv": 13
     }
   },
   "currency": "USD",

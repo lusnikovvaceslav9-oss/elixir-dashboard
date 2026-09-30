@@ -1557,8 +1557,8 @@ const HUPP_FEEDS = {
     kind: 'test',
     sheets: [
       { id: 'total', label: 'Итог', url: 'data/skinai-daily.csv' },
-      { id: 'phi', label: 'phi', url: 'data/skinai-phi.csv' },
-      { id: 'mauve', label: 'mauve', url: 'data/skinai-mauve.csv' },
+      { id: 'phi', label: 'phi · impact', url: 'data/skinai-phi.csv' },
+      { id: 'mauve', label: 'mauve · routine', url: 'data/skinai-mauve.csv' },
     ],
   },
 };
@@ -8523,8 +8523,15 @@ function catalogForHuppProject(proj) {
   });
   let catalog = [...base, ...extras];
   const id = String(proj?.id || '').toLowerCase();
-  if (id === 'ekonomik' || id === 'tutorplace' || id === 'tablet' || id === 'bezdna' || id === 'skinai') {
+  if (id === 'ekonomik' || id === 'tutorplace' || id === 'tablet' || id === 'bezdna') {
     catalog = catalog.filter(m => m.key !== 'installs' && m.key !== 'cost_install');
+  }
+  if (id === 'skinai') {
+    catalog = catalog.filter(m => {
+      if (m.key === 'installs' && m.label === 'Визиты') return false;
+      if (m.key === 'cost_install' && m.label === 'Cost / визит') return false;
+      return true;
+    });
   }
   if (id === 'tutorplace') {
     catalog = catalog.filter(m => m.key !== 'impressions' && m.key !== 'cpm');
@@ -8940,7 +8947,7 @@ function greenHuppKeys(p) {
   if (p?.id === 'tutorplace') return new Set(['spend', 'trials', 'cost_trial']);
   if (p?.id === 'tablet') return new Set(['spend', 'trials', 'cost_trial']);
   if (p?.id === 'bezdna') return new Set(['spend', 'trials', 'cost_trial']);
-  if (p?.id === 'skinai') return new Set(['spend', 'fb', 'cost_fb']);
+  if (p?.id === 'skinai') return new Set(['spend', 'trials', 'cost_trial']);
   return new Set(['spend', 'purchase', 'cost_purchase']);
 }
 
@@ -9618,6 +9625,14 @@ function computeFunnels(proj, rows) {
     if (ins > 0) steps.push({ label: 'Install → Trial', pct: (tr / ins) * 100, count: `${fmtInt(tr)} / ${fmtInt(ins)}` });
     if (tr > 0) steps.push({ label: 'Trial → Paid', pct: (fb / tr) * 100, count: `${fmtInt(fb)} / ${fmtInt(tr)}` });
     if (ins > 0 && fb > 0) steps.push({ label: 'Install → Paid', pct: (fb / ins) * 100, count: `${fmtInt(fb)} / ${fmtInt(ins)}` });
+  } else if (String(proj?.id || '').toLowerCase() === 'skinai') {
+    const sessions = sum(rows, 'installs');
+    const done = sum(rows, 'trials');
+    const offers = sum(rows, 'sold');
+    const emails = sum(rows, 'contact_sent');
+    if (sessions > 0) steps.push({ label: 'Сессия → итог', pct: (done / sessions) * 100, count: `${fmtInt(done)} / ${fmtInt(sessions)}` });
+    if (done > 0) steps.push({ label: 'Итог → $39', pct: (offers / done) * 100, count: `${fmtInt(offers)} / ${fmtInt(done)}` });
+    if (offers > 0) steps.push({ label: '$39 → почта', pct: (emails / offers) * 100, count: `${fmtInt(emails)} / ${fmtInt(offers)}` });
   }
   return steps;
 }
@@ -9630,6 +9645,7 @@ function getRowPrimaryResult(proj, row) {
     const rk = PLANTO_VIEWS[getPlantoView(proj.id)].resultKey;
     return row[rk] || 0;
   }
+  if (String(proj?.id || '').toLowerCase() === 'skinai') return row.trials || 0;
   return 0;
 }
 
@@ -9816,10 +9832,39 @@ function renderGlobalIncomeCard(proj, rows) {
   </div>`;
 }
 
+function renderSkinaiQuizCard(proj) {
+  if (String(proj?.id || '').toLowerCase() !== 'skinai') return '';
+  const quiz = getProjectRoasMeta(proj)?.quiz;
+  if (!quiz) return '';
+  const payLine = (pay) => {
+    if (!pay) return '—';
+    return `план ${pay.clear_skin || 0} · сыворотка ${pay.serum || 0} · стоп ${pay.stop || 0}`;
+  };
+  const doorBlock = (key, door) => {
+    if (!door) return '';
+    const score = door.median_score != null
+      ? `медиана балла ${door.median_score} / ${door.score_max || '—'}`
+      : '';
+    return `<div class="insight-row"><span>${escHtml(door.label || key)}</span><span>${fmtInt(door.completed)} / ${fmtInt(door.sessions)} дошли</span></div>
+      <div class="insight-row"><span>$39 / почта</span><span>${fmtInt(door.offers)} / ${fmtInt(door.emails)}</span></div>
+      <div class="insight-row"><span>Что хотят</span><span>${escHtml(payLine(door.pay))}</span></div>
+      ${score ? `<div class="insight-row"><span>Балл</span><span>${escHtml(score)}</span></div>` : ''}`;
+  };
+  return `<div class="analytics-card">
+    <div class="analytics-card-title">Квиз · значения</div>
+    <div class="insights-list">
+      ${doorBlock('impact', quiz.impact)}
+      ${doorBlock('routine', quiz.routine)}
+    </div>
+    <div class="budget-hint">impact = phi · routine = mauve · без почт в сырье</div>
+  </div>`;
+}
+
 function renderAnalyticsSection(proj, allData, rows, monthKey, opts = {}) {
   const compare = computePeriodComparison(proj, allData, monthKey);
   const funnels = computeFunnels(proj, rows);
   const insights = computeDayInsights(proj, rows);
+  const quizHtml = renderSkinaiQuizCard(proj);
   const budgetHtml = renderBudgetCard(proj, allData, false);
   const plantoBreakdown = isPlantoProject(proj, rows) ? renderPlantoBreakdownCard(proj, rows) : '';
   const incomeHtml = isPlantoProject(proj, rows) ? renderGlobalIncomeCard(proj, rows) : '';
@@ -9867,7 +9912,7 @@ function renderAnalyticsSection(proj, allData, rows, monthKey, opts = {}) {
     </div>`;
   }
 
-  if (!budgetHtml && !compareHtml && !funnelHtml && !insightsHtml && !plantoBreakdown && !incomeHtml) {
+  if (!budgetHtml && !compareHtml && !funnelHtml && !insightsHtml && !plantoBreakdown && !incomeHtml && !quizHtml) {
     return opts.bare ? `<div class="table-card"><div class="error-state">Нет аналитических данных за период</div></div>` : '';
   }
 
@@ -9877,6 +9922,7 @@ function renderAnalyticsSection(proj, allData, rows, monthKey, opts = {}) {
       ${plantoBreakdown}
       ${compareHtml}
       ${funnelHtml}
+      ${quizHtml}
       ${insightsHtml}
     </div>`;
 

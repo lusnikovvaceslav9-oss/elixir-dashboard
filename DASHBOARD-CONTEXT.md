@@ -20,7 +20,7 @@
 | **Тьюторплейс** | baked Direct CSV | `data/tutorplace-daily.csv` + 5 ниш | ₽; одна карточка, внутри Итог + Астро/Еда/Пилатес/Танцы/Хиро |
 | **Пилюльница** | baked Meta Ads CSV | `data/tablet-daily.csv` + H1–H4 | **тест**; $; checkout + LPV; фильтр «Тесты» |
 | **Бездна** | baked Meta Ads CSV | `data/bezdna-daily.csv` + Leads/Reg | **тест**; $; website leads + regs |
-| **SkinAI** | baked Meta Ads CSV | `data/skinai-daily.csv` + phi/mauve | **тест**; $; LPV + content views (Results пустые) |
+| **SkinAI** | baked Meta Ads + Skin admin | `data/skinai-daily.csv` + phi/mauve | **тест**; $; сессии / итог / $39 / почты + LPV; значения квиза |
 | **JGGL** | multi-sheet CSV + Sheets | Upload CSV → iOS/Android + Waitlist/Redirect | Сплит по `android` в названии кампании |
 | **Qlosophy** | multi-sheet CSV | Upload → «Лист 1» / Web | `Лист1` ≡ `Main` |
 | **Quadcode** | monthly sheets + CSV | Upload → месяц по датам CSV | Не склеивать листы месяцев |
