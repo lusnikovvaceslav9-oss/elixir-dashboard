@@ -1,8 +1,8 @@
-name: Kelpie data feed
+name: Pled + 4ursoul data feed
 
 on:
   schedule:
-    - cron: "25 * * * *"
+    - cron: "40 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -24,26 +24,28 @@ jobs:
           python-version: "3.12"
 
       - name: Install feed dependencies
-        run: pip install -r scripts/kelpie-feed/requirements.txt
+        run: pip install -r scripts/hupp-feed/requirements.txt
 
-      - name: Run Kelpie feed (kelpie-dash)
+      - name: Run Pled and 4ursoul feeds (Metrika + Direct)
         env:
-          KELPIE_DASH_URL: https://kelpie-dash.vercel.app
-          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
-          POSTHOG_PROJECT_ID: ${{ secrets.POSTHOG_PROJECT_ID }}
-          POSTHOG_HOST: ${{ secrets.POSTHOG_HOST }}
-        run: python scripts/kelpie-feed/__main__.py --work-dir .
-
-      - name: Commit updated Kelpie data
+          HUPP_METRIKA_OAUTH_TOKEN: ${{ secrets.HUPP_METRIKA_OAUTH_TOKEN }}
+          HUPP_DIRECT_OAUTH_TOKEN: ${{ secrets.HUPP_DIRECT_OAUTH_TOKEN }}
+          DIRECT_OAUTH_TOKEN: ${{ secrets.DIRECT_OAUTH_TOKEN }}
+          DIRECT_CLIENT_LOGIN: doxmediagroup
         run: |
-          git config user.name "Kelpie Feed Bot"
+          python scripts/hupp-feed/__main__.py --work-dir . --config config/pled.json
+          python scripts/hupp-feed/__main__.py --work-dir . --config config/ursoul.json
+
+      - name: Commit updated data
+        run: |
+          git config user.name "Pled Ursoul Feed Bot"
           git config user.email "feed-bot@users.noreply.github.com"
-          git add data/kelpie-daily.csv data/kelpie-meta.json
+          git add data/pled-daily.csv data/pled-meta.json data/ursoul-daily.csv data/ursoul-meta.json
           if git diff --staged --quiet; then
-            echo "No Kelpie data changes"
+            echo "No Pled/4ursoul data changes"
             exit 0
           fi
-          git commit -m "chore: auto-update Kelpie feed data"
+          git commit -m "chore: auto-update Pled and 4ursoul feed data"
           for i in 1 2 3 4 5; do
             if git push origin HEAD:main; then
               exit 0
@@ -51,7 +53,7 @@ jobs:
             echo "push conflict, rebase attempt $i"
             git pull --rebase origin main
           done
-          echo "::error::Failed to push Kelpie feed after retries"
+          echo "::error::Failed to push Pled/4ursoul feed after retries"
           exit 1
 
   deploy-pages:

@@ -44,6 +44,7 @@ def fetch_direct_by_day(
     date_until: date,
     campaign_ids: list[str] | None = None,
     exclude_campaign_ids: list[str] | None = None,
+    campaign_name_includes: list[str] | None = None,
 ) -> dict[str, dict[str, float]]:
     """Day → {spend, clicks, impressions}, агрегировано по дате.
 
@@ -51,13 +52,16 @@ def fetch_direct_by_day(
     - ``campaign_ids`` — тянуть ТОЛЬКО эти кампании (include);
     - ``exclude_campaign_ids`` — тянуть все, кроме этих (проект без своего
       include исключает кампании, заявленные другими проектами);
-    - ни то, ни другое — все кампании логина (прежнее поведение Planto).
+    - ``campaign_name_includes`` — если нет include по ID: только кампании,
+      в названии которых есть любая из подстрок (Planto не должен забирать
+      чужие РК того же логина);
+    - ни фильтров — все кампании логина.
 
-    Разбивка по кампаниям делается на нашей стороне (в отчёт добавлен CampaignId),
-    поэтому фильтры работают одинаково независимо от поддержки операторов в API.
+    Разбивка по кампаниям делается на нашей стороне (CampaignId + CampaignName).
     """
     include = {str(c) for c in (campaign_ids or [])}
     exclude = {str(c) for c in (exclude_campaign_ids or [])}
+    name_needles = [str(n).lower() for n in (campaign_name_includes or []) if str(n).strip()]
     selection: dict = {
         "DateFrom": date_since.isoformat(),
         "DateTo": date_until.isoformat(),
@@ -65,7 +69,7 @@ def fetch_direct_by_day(
     payload = {
         "params": {
             "SelectionCriteria": selection,
-            "FieldNames": ["Date", "CampaignId", "Impressions", "Clicks", "Cost"],
+            "FieldNames": ["Date", "CampaignId", "CampaignName", "Impressions", "Clicks", "Cost"],
             "OrderBy": [{"Field": "Date"}],
             "ReportName": f"BuyerCamp_{date_since.isoformat()}_{date_until.isoformat()}",
             "ReportType": "CAMPAIGN_PERFORMANCE_REPORT",
@@ -106,7 +110,7 @@ def fetch_direct_by_day(
     else:
         raise RuntimeError("Direct report timeout")
 
-    return _parse_tsv(text, include, exclude)
+    return _parse_tsv(text, include, exclude, name_needles)
 
 
 def _parse_num(raw: str) -> float:
@@ -120,10 +124,11 @@ def _parse_tsv(
     text: str,
     include: set[str] | None = None,
     exclude: set[str] | None = None,
+    name_needles: list[str] | None = None,
 ) -> dict[str, dict[str, float]]:
-    """Колонки: Date, CampaignId, Impressions, Clicks, Cost. Фильтр по кампании,
-    затем агрегация по дате."""
+    """Колонки: Date, CampaignId, [CampaignName], Impressions, Clicks, Cost."""
     out: dict[str, dict[str, float]] = {}
+    needles = [n for n in (name_needles or []) if n]
     reader = csv.reader(io.StringIO(text), delimiter="\t")
     for row in reader:
         if len(row) < 5:
@@ -135,13 +140,25 @@ def _parse_tsv(
         if len(day) != 10 or day[4] != "-":
             continue
         camp = str(row[1]).strip()
+        has_name = len(row) >= 6
+        name = str(row[2]).strip() if has_name else ""
         if include and camp not in include:
             continue
         if exclude and camp in exclude:
             continue
-        impressions = _parse_num(row[2])
-        clicks = _parse_num(row[3])
-        cost = _parse_num(row[4])
+        # Name filter only when there is no include-ID list (Planto: не тащить
+        # соседние приложения с того же Direct-логина).
+        if needles and not include:
+            if not name or not any(n in name.lower() for n in needles):
+                continue
+        if has_name:
+            impressions = _parse_num(row[3])
+            clicks = _parse_num(row[4])
+            cost = _parse_num(row[5])
+        else:
+            impressions = _parse_num(row[2])
+            clicks = _parse_num(row[3])
+            cost = _parse_num(row[4])
         prev = out.get(day) or {"spend": 0.0, "clicks": 0.0, "impressions": 0.0}
         prev["spend"] = round(prev["spend"] + cost, 2)
         prev["clicks"] = round(prev["clicks"] + clicks, 0)

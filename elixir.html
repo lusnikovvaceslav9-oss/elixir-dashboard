@@ -1517,6 +1517,20 @@ const HUPP_FEEDS = {
       { id: 'hiro', label: 'Хиро', url: 'data/tutorplace-hiro.csv' },
     ],
   },
+  pled: {
+    daily: 'data/pled-daily.csv',
+    meta: 'data/pled-meta.json',
+    start: '',
+    name: 'Плед',
+    icon: '🧶',
+  },
+  ursoul: {
+    daily: 'data/ursoul-daily.csv',
+    meta: 'data/ursoul-meta.json',
+    start: '',
+    name: '4ursoul',
+    icon: '🔮',
+  },
 };
 function huppFeedOf(proj) {
   const id = String(proj?.id || '').toLowerCase();

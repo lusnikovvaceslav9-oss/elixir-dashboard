@@ -126,21 +126,31 @@ def fmt_checkpoint(d: date) -> str:
 
 
 def count_trial_starts_in_bucket(trial_starts: list, start: date, end: date) -> int:
-    """Distinct user_id with trial_start in [start, end]."""
-    best: dict[str, date] = {}
+    """Distinct user (fallback purchase) with trial_start in [start, end]."""
+    seen: set[str] = set()
     for row in trial_starts:
-        uid = getattr(row, "user_id", None) or row.get("user_id")
-        ts = getattr(row, "trial_start", None) or row.get("trial_start")
-        if not uid or not ts:
+        uid = getattr(row, "purchase_id", None) or (row.get("purchase_id") if isinstance(row, dict) else None)
+        user = getattr(row, "user_id", None) or (row.get("user_id") if isinstance(row, dict) else None)
+        ts = getattr(row, "trial_start", None) or (row.get("trial_start") if isinstance(row, dict) else None)
+        if not ts:
             continue
         if isinstance(ts, str):
             ts = parse_day(ts)
-        if ts is None:
+        if ts is None or not (start <= ts <= end):
             continue
-        prev = best.get(uid)
-        if prev is None or ts < prev:
-            best[uid] = ts
-    return sum(1 for ts in best.values() if start <= ts <= end)
+        seen.add(str(user or uid))
+    return len(seen)
+
+
+def _sum_metric_in_bucket(by_day: dict[str, int] | None, start: date, end: date) -> int:
+    if not by_day:
+        return 0
+    n = 0
+    d = start
+    while d <= end:
+        n += int(by_day.get(d.isoformat()) or 0)
+        d += timedelta(days=1)
+    return n
 
 
 def analyze_cohort_from_daily(
@@ -153,6 +163,7 @@ def analyze_cohort_from_daily(
     sold_by_cohort_day: dict[str, int] | None = None,
     bills_by_cohort_day: dict[str, int] | None = None,
     trial_starts: list | None = None,
+    trials_am_by_day: dict[str, int] | None = None,
 ) -> dict:
     report_date = report_date or until
     sold_by_cohort_day = sold_by_cohort_day or {}
@@ -190,6 +201,9 @@ def analyze_cohort_from_daily(
                 row = daily.get(key) or {}
                 trial_n += int(row.get("trials") or 0)
                 d += timedelta(days=1)
+        trial_am = _sum_metric_in_bucket(trials_am_by_day, b.start, b.end)
+        if not trial_am:
+            trial_am = trial_n
 
         paid = 0
         sold = 0
@@ -251,7 +265,7 @@ def analyze_cohort_from_daily(
                 "spend": round(spend),
                 "installs_am": inst_n,
                 "trials_sb": trial_n,
-                "trials_am": trial_n,
+                "trials_am": trial_am,
                 "cpi": round(cpi) if cpi is not None else None,
                 "cpt": round(cpt) if cpt is not None else None,
                 "install_to_trial_cr": round(install_to_trial_cr, 2) if install_to_trial_cr is not None else None,
