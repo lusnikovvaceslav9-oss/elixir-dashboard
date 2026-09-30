@@ -1,0 +1,89 @@
+{
+  "generated_at": "2026-09-30T17:14:29+0700",
+  "project": "tablet",
+  "kind": "test",
+  "name": "Пилюльница",
+  "anchor": "2026-09-18",
+  "until": "2026-09-26",
+  "metric_map": {
+    "trials": "initiate_checkout",
+    "fb": "landing_page_views",
+    "spend": "meta_ads",
+    "clicks": "link_clicks",
+    "impressions": "impressions"
+  },
+  "goals": [
+    {
+      "id": "initiate_checkout",
+      "key": "checkout",
+      "label": "Checkout",
+      "csv": "trials",
+      "costLabel": "CPA checkout"
+    },
+    {
+      "id": "landing_page_view",
+      "key": "lpv",
+      "label": "LPV",
+      "csv": "fb",
+      "costLabel": "Cost / LPV"
+    }
+  ],
+  "niches": [
+    {
+      "id": "h1",
+      "name": "H1"
+    },
+    {
+      "id": "h2",
+      "name": "H2"
+    },
+    {
+      "id": "h3",
+      "name": "H3"
+    },
+    {
+      "id": "h4",
+      "name": "H4"
+    }
+  ],
+  "sources": {
+    "spend": "meta_ads_csv",
+    "file": "16581-_Elixir-_-JGGL-_-1_A$-Ad-sets-31-Aug-2026-29-Sep-2026.csv"
+  },
+  "days": 8,
+  "totals": {
+    "spend": 281.19,
+    "trials": 12,
+    "fb": 216,
+    "clicks": 275,
+    "impressions": 2866
+  },
+  "niche_days": {
+    "h1": {
+      "name": "H1",
+      "days": 6,
+      "spend": 89.17,
+      "checkout": 2
+    },
+    "h2": {
+      "name": "H2",
+      "days": 6,
+      "spend": 86.9,
+      "checkout": 2
+    },
+    "h3": {
+      "name": "H3",
+      "days": 4,
+      "spend": 50.37,
+      "checkout": 6
+    },
+    "h4": {
+      "name": "H4",
+      "days": 4,
+      "spend": 54.75,
+      "checkout": 2
+    }
+  },
+  "currency": "USD",
+  "roas_config": null
+}

@@ -1517,19 +1517,49 @@ const HUPP_FEEDS = {
       { id: 'hiro', label: 'Хиро', url: 'data/tutorplace-hiro.csv' },
     ],
   },
-  pled: {
-    daily: 'data/pled-daily.csv',
-    meta: 'data/pled-meta.json',
+  tablet: {
+    daily: 'data/tablet-daily.csv',
+    meta: 'data/tablet-meta.json',
     start: '',
-    name: 'Плед',
-    icon: '🧶',
+    name: 'Пилюльница',
+    icon: '💊',
+    currency: '$',
+    kind: 'test',
+    sheets: [
+      { id: 'total', label: 'Итог', url: 'data/tablet-daily.csv' },
+      { id: 'h1', label: 'H1', url: 'data/tablet-h1.csv' },
+      { id: 'h2', label: 'H2', url: 'data/tablet-h2.csv' },
+      { id: 'h3', label: 'H3', url: 'data/tablet-h3.csv' },
+      { id: 'h4', label: 'H4', url: 'data/tablet-h4.csv' },
+    ],
   },
-  ursoul: {
-    daily: 'data/ursoul-daily.csv',
-    meta: 'data/ursoul-meta.json',
+  bezdna: {
+    daily: 'data/bezdna-daily.csv',
+    meta: 'data/bezdna-meta.json',
     start: '',
-    name: '4ursoul',
-    icon: '🔮',
+    name: 'Бездна',
+    icon: '🌑',
+    currency: '$',
+    kind: 'test',
+    sheets: [
+      { id: 'total', label: 'Итог', url: 'data/bezdna-daily.csv' },
+      { id: 'leads', label: 'Leads 29/09', url: 'data/bezdna-leads.csv' },
+      { id: 'reg', label: 'Reg 30/09', url: 'data/bezdna-reg.csv' },
+    ],
+  },
+  skinai: {
+    daily: 'data/skinai-daily.csv',
+    meta: 'data/skinai-meta.json',
+    start: '',
+    name: 'SkinAI',
+    icon: '🧴',
+    currency: '$',
+    kind: 'test',
+    sheets: [
+      { id: 'total', label: 'Итог', url: 'data/skinai-daily.csv' },
+      { id: 'phi', label: 'phi', url: 'data/skinai-phi.csv' },
+      { id: 'mauve', label: 'mauve', url: 'data/skinai-mauve.csv' },
+    ],
   },
 };
 function huppFeedOf(proj) {
@@ -1602,6 +1632,12 @@ const DEFAULT_PROJECTS = [
     urls: ['data/ekonomik-daily.csv'], dataSource: 'csv' },
   { id: 'tutorplace', name: 'Тьюторплейс', icon: '🎓', currency: '₽', type: 'hupp', status: 'run', kind: 'live',
     urls: ['data/tutorplace-daily.csv'], dataSource: 'csv' },
+  { id: 'tablet', name: 'Пилюльница', icon: '💊', currency: '$', type: 'hupp', status: 'run', kind: 'test',
+    urls: ['data/tablet-daily.csv'], dataSource: 'csv' },
+  { id: 'bezdna', name: 'Бездна', icon: '🌑', currency: '$', type: 'hupp', status: 'run', kind: 'test',
+    urls: ['data/bezdna-daily.csv'], dataSource: 'csv' },
+  { id: 'skinai', name: 'SkinAI', icon: '🧴', currency: '$', type: 'hupp', status: 'run', kind: 'test',
+    urls: ['data/skinai-daily.csv'], dataSource: 'csv' },
   { id: 'kelpie',   name: 'Kelpie',      icon: '🌊', currency: '$', type: 'kelpie', status: 'run',
     urls: [KELPIE_DATA_URL], dataSource: 'csv' },
   { id: 'quadcode', name: 'Quadcode AI', icon: '💻', currency: '$', type: 'quadcode', status: 'run',
@@ -2247,7 +2283,7 @@ function isHuppProject(p) {
 
 function isBakedCsvHupp(proj) {
   const id = String(proj?.id || '').toLowerCase();
-  return id === 'ekonomik' || id === 'tutorplace';
+  return id === 'ekonomik' || id === 'tutorplace' || id === 'tablet' || id === 'bezdna' || id === 'skinai';
 }
 
 function isHuppTotalSource(src) {
@@ -8487,7 +8523,7 @@ function catalogForHuppProject(proj) {
   });
   let catalog = [...base, ...extras];
   const id = String(proj?.id || '').toLowerCase();
-  if (id === 'ekonomik' || id === 'tutorplace') {
+  if (id === 'ekonomik' || id === 'tutorplace' || id === 'tablet' || id === 'bezdna' || id === 'skinai') {
     catalog = catalog.filter(m => m.key !== 'installs' && m.key !== 'cost_install');
   }
   if (id === 'tutorplace') {
@@ -8902,6 +8938,9 @@ function greenHuppKeys(p) {
   if (p?.id === 'ursoul') return new Set(['spend', 'trials', 'cost_trial', 'purchase', 'cost_purchase']);
   if (p?.id === 'ekonomik') return new Set(['spend', 'trials', 'cost_trial', 'fb', 'cost_fb']);
   if (p?.id === 'tutorplace') return new Set(['spend', 'trials', 'cost_trial']);
+  if (p?.id === 'tablet') return new Set(['spend', 'trials', 'cost_trial']);
+  if (p?.id === 'bezdna') return new Set(['spend', 'trials', 'cost_trial']);
+  if (p?.id === 'skinai') return new Set(['spend', 'fb', 'cost_fb']);
   return new Set(['spend', 'purchase', 'cost_purchase']);
 }
 

@@ -1,0 +1,25 @@
+{
+  "id": "tablet",
+  "name": "Пилюльница",
+  "kind": "test",
+  "anchor": "2026-09-18",
+  "currency": "USD",
+  "source": "Meta Ads · ad sets",
+  "primary_goal": {
+    "id": "initiate_checkout",
+    "key": "checkout",
+    "label": "Initiate checkout"
+  },
+  "hypotheses": [
+    { "id": "h1", "name": "H1" },
+    { "id": "h2", "name": "H2" },
+    { "id": "h3", "name": "H3" },
+    { "id": "h4", "name": "H4" }
+  ],
+  "goals": [
+    { "id": "initiate_checkout", "key": "checkout", "label": "Checkout", "csv": "trials", "costLabel": "CPA checkout" },
+    { "id": "landing_page_view", "key": "lpv", "label": "LPV", "csv": "fb", "costLabel": "Cost / LPV" }
+  ],
+  "daily_csv": "data/tablet-daily.csv",
+  "meta_json": "data/tablet-meta.json"
+}

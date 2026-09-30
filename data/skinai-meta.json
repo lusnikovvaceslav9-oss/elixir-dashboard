@@ -1,0 +1,72 @@
+{
+  "generated_at": "2026-09-30T17:28:37+0700",
+  "project": "skinai",
+  "kind": "test",
+  "name": "SkinAI",
+  "anchor": "2026-09-29",
+  "until": "2026-09-30",
+  "metric_map": {
+    "trials": "content_views",
+    "fb": "landing_page_views",
+    "spend": "meta_ads",
+    "clicks": "link_clicks",
+    "impressions": "impressions"
+  },
+  "goals": [
+    {
+      "id": "landing_page_view",
+      "key": "lpv",
+      "label": "LPV",
+      "csv": "fb",
+      "costLabel": "Cost / LPV"
+    },
+    {
+      "id": "content_view",
+      "key": "content_view",
+      "label": "Content views",
+      "csv": "trials",
+      "costLabel": "Cost / view"
+    }
+  ],
+  "niches": [
+    {
+      "id": "phi",
+      "name": "phi"
+    },
+    {
+      "id": "mauve",
+      "name": "mauve"
+    }
+  ],
+  "unknown_adsets": [],
+  "sources": {
+    "spend": "meta_ads_csv",
+    "file": "菏泽安荧网络-1-Ad-sets-Sep-29-2026-Sep-30-2026 (2).csv"
+  },
+  "days": 2,
+  "totals": {
+    "spend": 37.13,
+    "trials": 3,
+    "fb": 31,
+    "clicks": 37,
+    "impressions": 561
+  },
+  "niche_days": {
+    "phi": {
+      "name": "phi",
+      "days": 2,
+      "spend": 14.27,
+      "lpv": 18,
+      "content_views": 0
+    },
+    "mauve": {
+      "name": "mauve",
+      "days": 2,
+      "spend": 22.86,
+      "lpv": 13,
+      "content_views": 3
+    }
+  },
+  "currency": "USD",
+  "roas_config": null
+}

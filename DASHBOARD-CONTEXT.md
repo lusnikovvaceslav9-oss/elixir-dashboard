@@ -18,6 +18,9 @@
 | **Planto** | auto-feed | `data/planto-*.csv/json` + buyer-feed | Триалы AM, bills RuStore (−7д yearly) |
 | **Экономик** | baked Direct CSV | `data/ekonomik-daily.csv` из `~/бублик , счетчик ` (не Desktop/счетчик) | $; подписки + TG; одна РК |
 | **Тьюторплейс** | baked Direct CSV | `data/tutorplace-daily.csv` + 5 ниш | ₽; одна карточка, внутри Итог + Астро/Еда/Пилатес/Танцы/Хиро |
+| **Пилюльница** | baked Meta Ads CSV | `data/tablet-daily.csv` + H1–H4 | **тест**; $; checkout + LPV; фильтр «Тесты» |
+| **Бездна** | baked Meta Ads CSV | `data/bezdna-daily.csv` + Leads/Reg | **тест**; $; website leads + regs |
+| **SkinAI** | baked Meta Ads CSV | `data/skinai-daily.csv` + phi/mauve | **тест**; $; LPV + content views (Results пустые) |
 | **JGGL** | multi-sheet CSV + Sheets | Upload CSV → iOS/Android + Waitlist/Redirect | Сплит по `android` в названии кампании |
 | **Qlosophy** | multi-sheet CSV | Upload → «Лист 1» / Web | `Лист1` ≡ `Main` |
 | **Quadcode** | monthly sheets + CSV | Upload → месяц по датам CSV | Не склеивать листы месяцев |
@@ -26,8 +29,8 @@
 Определение типа проекта (по `id` / `name`):
 
 - `isJgglProject`, `isQlosophyProject`, `isQuadcodeProject`, `isPlantoAutoFeed` в `elixir.html`
-- `isBakedCsvHupp` — Экономик / Тьюторплейс: фиды из `data/*.csv`, **не** Metrika+Direct merge (`isHuppCsvOnly` = false)
-- Обзор: фильтр Все / Пролив / Тесты (`kind` live|test). Пересборка CSV: `scripts/import-ekonomik-tutor.py`
+- `isBakedCsvHupp` — Экономик / Тьюторплейс / Пилюльница / Бездна / SkinAI: фиды из `data/*.csv`, **не** Metrika+Direct merge (`isHuppCsvOnly` = false)
+- Обзор: фильтр Все / Пролив / Тесты (`kind` live|test). Пересборка: `scripts/import-ekonomik-tutor.py`, `scripts/import-tablet.py`, `scripts/import-bezdna.py`, `scripts/import-skinai.py`
 
 ---
 

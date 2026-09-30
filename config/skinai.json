@@ -1,0 +1,23 @@
+{
+  "id": "skinai",
+  "name": "SkinAI",
+  "kind": "test",
+  "anchor": "2026-09-29",
+  "currency": "USD",
+  "source": "Meta Ads · ad sets",
+  "primary_goal": {
+    "id": "landing_page_view",
+    "key": "lpv",
+    "label": "Landing page views"
+  },
+  "adsets": [
+    { "id": "phi", "name": "phi" },
+    { "id": "mauve", "name": "mauve" }
+  ],
+  "goals": [
+    { "id": "landing_page_view", "key": "lpv", "label": "LPV", "csv": "fb", "costLabel": "Cost / LPV" },
+    { "id": "content_view", "key": "content_view", "label": "Content views", "csv": "trials", "costLabel": "Cost / view" }
+  ],
+  "daily_csv": "data/skinai-daily.csv",
+  "meta_json": "data/skinai-meta.json"
+}
