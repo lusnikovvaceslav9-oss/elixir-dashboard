@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-09-30T18:19:25+0700",
+  "generated_at": "2026-10-01T14:01:03+0700",
   "project": "skinai",
   "kind": "test",
   "name": "SkinAI",
   "anchor": "2026-09-28",
-  "until": "2026-09-30",
+  "until": "2026-10-01",
   "metric_map": {
     "installs": "quiz_sessions",
     "trials": "quiz_completed",
@@ -65,99 +65,100 @@
   "unknown_adsets": [],
   "sources": {
     "spend": "meta_ads_csv",
-    "file": "菏泽安荧网络-1-Ad-sets-Sep-29-2026-Sep-30-2026 (2).csv",
+    "file": "菏泽安荧网络-1-Ad-sets-Oct-1-2026-Oct-1-2026.csv",
     "quiz": "https://skin-snowy-phi.vercel.app/admin"
   },
   "quiz": {
     "impact": {
-      "sessions": 71,
-      "completed": 3,
+      "sessions": 106,
+      "completed": 4,
       "offers": 2,
       "emails": 1,
-      "first_step_drop": 67,
+      "first_step_drop": 99,
       "pay": {
         "clear_skin": 1,
         "serum": 1,
-        "stop": 0
+        "stop": 1
       },
-      "median_score": 20.0,
+      "median_score": 21.0,
       "score_max": 39.0,
-      "scores_n": 3,
+      "scores_n": 4,
       "label": "Насколько мешает",
       "sheet": "phi"
     },
     "routine": {
-      "sessions": 63,
-      "completed": 9,
+      "sessions": 101,
+      "completed": 13,
       "offers": 5,
       "emails": 3,
-      "first_step_drop": 53,
+      "first_step_drop": 82,
       "pay": {
-        "clear_skin": 4,
-        "serum": 1,
+        "clear_skin": 7,
+        "serum": 2,
         "stop": 3
       },
       "label": "Как у конкурентов",
       "sheet": "mauve",
       "age": {
-        "25": 4,
-        "40": 1,
+        "40": 4,
+        "25": 5,
         "18": 2,
         "u18": 1
       },
       "skin_type": {
-        "dry": 1,
-        "combo": 5,
+        "dry": 2,
+        "calm": 2,
+        "combo": 6,
         "oily": 2
       }
     },
     "all": {
-      "sessions": 134,
-      "completed": 12,
+      "sessions": 207,
+      "completed": 17,
       "offers": 7,
       "emails": 4,
-      "first_step_drop": 120,
+      "first_step_drop": 181,
       "pay": {
-        "clear_skin": 5,
-        "serum": 2,
-        "stop": 3
+        "clear_skin": 8,
+        "serum": 3,
+        "stop": 4
       },
-      "median_score": 20.0,
+      "median_score": 21.0,
       "score_max": 39.0,
-      "scores_n": 3
+      "scores_n": 4
     }
   },
-  "days": 3,
+  "days": 4,
   "totals": {
-    "spend": 37.13,
-    "installs": 134,
-    "trials": 12,
+    "spend": 94.34,
+    "installs": 207,
+    "trials": 17,
     "sold": 7,
-    "fb": 31,
+    "fb": 73,
     "contact_sent": 4,
-    "clicks": 37,
-    "impressions": 561
+    "clicks": 85,
+    "impressions": 1146
   },
   "niche_days": {
     "phi": {
       "name": "phi · impact",
-      "days": 3,
-      "spend": 14.27,
-      "sessions": 71,
-      "completed": 3,
+      "days": 4,
+      "spend": 38.31,
+      "sessions": 106,
+      "completed": 4,
       "offers": 2,
       "emails": 1,
-      "lpv": 18
+      "lpv": 35
     },
     "mauve": {
       "name": "mauve · routine",
-      "days": 3,
-      "spend": 22.86,
-      "sessions": 63,
-      "completed": 9,
+      "days": 4,
+      "spend": 56.03,
+      "sessions": 101,
+      "completed": 13,
       "offers": 5,
       "emails": 3,
-      "lpv": 13
+      "lpv": 38
     }
   },
   "currency": "USD",

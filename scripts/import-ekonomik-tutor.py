@@ -29,6 +29,57 @@ TUTOR_NICHES = [
     ("hiro", "Хиро", "714559825"),
 ]
 TUTOR_BY_CID = {cid: (nid, name) for nid, name, cid in TUTOR_NICHES}
+OFFER_NICHE = [
+    ("танц", "dance"),
+    ("пилат", "pilates"),
+    ("питани", "food"),
+    ("астро", "astro"),
+    ("хиро", "hiro"),
+]
+
+
+def niche_from_offer(name: str) -> str | None:
+    n = str(name or "").lower()
+    for needle, nid in OFFER_NICHE:
+        if needle in n:
+            return nid
+    return None
+
+
+def apply_offerrum_bills(recs: list[dict]) -> list[dict]:
+    """Overlay CPA bills from offerrum-YYYY-MM-DD.csv onto matching Direct days."""
+    bills: dict[tuple[str, str], int] = {}
+    for path in TUTOR.glob("offerrum-*.csv"):
+        stamp = file_stamp(path)
+        try:
+            date = datetime.strptime(stamp, "%Y-%m-%d").strftime("%d.%m.%Y")
+        except ValueError:
+            continue
+        rows = read_csv(path)
+        if not rows:
+            continue
+        headers = [h.strip() for h in rows[0]]
+        name_i = next((i for i, h in enumerate(headers) if "оффер" in h.lower()), 0)
+        bills_i = next((i for i, h in enumerate(headers) if "билл" in h.lower()), -1)
+        if bills_i < 0:
+            continue
+        for row in rows[1:]:
+            if not row:
+                continue
+            nid = niche_from_offer(row[name_i] if name_i < len(row) else "")
+            if not nid:
+                continue
+            n = int(round(parse_num(row[bills_i] if bills_i < len(row) else 0)))
+            key = (date, nid)
+            bills[key] = max(bills.get(key, 0), n)
+    if not bills:
+        return recs
+    out = [dict(r) for r in recs]
+    for rec in out:
+        extra = bills.get((rec["date"], rec["niche"]))
+        if extra:
+            rec["sold"] = max(rec.get("sold") or 0, extra)
+    return out
 
 GOAL_TRIALS = "632612615"
 GOAL_SOLD = "632571942"
@@ -253,7 +304,7 @@ def aggregate_days(recs: list[dict]) -> list[dict]:
 
 def build_tutor() -> dict:
     files = sorted(
-        [p for p in TUTOR.glob("direct-2026-09-*.csv")],
+        [p for p in TUTOR.glob("direct-2026-*.csv")],
         key=lambda p: (file_stamp(p), p.name),
     )
     if not files:
@@ -275,6 +326,7 @@ def build_tutor() -> dict:
             if prev is None or stamp >= prev[0]:
                 by_key[key] = (stamp, rec)
     recs = [v[1] for v in by_key.values()]
+    recs = apply_offerrum_bills(recs)
     fields = ["spend", "trials", "sold", "fb", "contact_info", "form_submit", "contact_sent", "clicks"]
     total_daily = aggregate_days(recs)
     write_elixir_csv(DASH / "data" / "tutorplace-daily.csv", total_daily, fields)

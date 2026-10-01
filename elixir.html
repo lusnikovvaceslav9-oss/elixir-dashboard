@@ -1646,11 +1646,11 @@ const DEFAULT_PROJECTS = [
     urls: ['data/pled-daily.csv'], dataSource: 'csv' },
   { id: 'ursoul',   name: '4ursoul',     icon: '🔮', currency: '₽', type: 'hupp', status: 'run', kind: 'live',
     urls: ['data/ursoul-daily.csv'], dataSource: 'csv' },
-  { id: 'ekonomik', name: 'Экономик',    icon: '🔴', currency: '$', type: 'hupp', status: 'run', kind: 'live',
+  { id: 'ekonomik', name: 'Экономик',    icon: '🔴', currency: '$', type: 'hupp', status: 'pause', kind: 'live',
     urls: ['data/ekonomik-daily.csv'], dataSource: 'csv' },
   { id: 'tutorplace', name: 'Тьюторплейс', icon: '🎓', currency: '₽', type: 'hupp', status: 'run', kind: 'live',
     urls: ['data/tutorplace-daily.csv'], dataSource: 'csv' },
-  { id: 'tablet', name: 'Пилюльница', icon: '💊', currency: '$', type: 'hupp', status: 'run', kind: 'test',
+  { id: 'tablet', name: 'Пилюльница', icon: '💊', currency: '$', type: 'hupp', status: 'pause', kind: 'test',
     urls: ['data/tablet-daily.csv'], dataSource: 'csv' },
   { id: 'bezdna', name: 'Бездна', icon: '🌑', currency: '$', type: 'hupp', status: 'run', kind: 'test',
     urls: ['data/bezdna-daily.csv'], dataSource: 'csv' },
@@ -5535,10 +5535,14 @@ const DIMS = {
   source: { key: 'source', title: 'Источник', of: rowSource, label: sourceLabel, defField: 'defaultSource',
     hint: 'Facebook / Google Ads: по формату CSV (Meta vs Google) или по названию кампании (App promotion → Google). У JGGL без разметки по умолчанию Facebook.' },
   goal: { key: 'goal', title: 'Цель', of: rowGoal, label: goalLabel, defField: 'defaultGoal',
-    hint: 'Что считать целевым действием. Инстал — установки со всех кампаний, Рег — регистрации со всех кампаний, где они есть в выгрузке (spend тоже только этих кампаний; Google регистраций не отдаёт). «Все» — установки и регистрации рядом.' },
+    hint: 'Инстал — spend и установки кампаний на инстал. Рег — spend и регистрации кампаний на рег. «Все» — сумма обоих (установки и регистрации рядом). Google регистраций не отдаёт.' },
 };
 
-/** JGGL «Цель» — не фильтр кампаний, а выбор события: целевое действие = установка или регистрация. */
+function isJgglRegRow(r) {
+  return !!r && rowGoal(r) === 'reg';
+}
+
+/** JGGL «Цель»: Все = инстал + рег; Инстал/Рег режут кампании, не только поле события. */
 function jgglGoalLens(proj) {
   return isJgglProject(proj) ? getProjectDim(proj.id, 'goal') : '';
 }
@@ -5547,14 +5551,16 @@ function applyGoalLens(proj, rows) {
   const goal = jgglGoalLens(proj);
   if (!goal) return rows || [];
   if (goal === 'reg') {
-    return (rows || []).filter(r => r && 'regs' in r)
+    return (rows || []).filter(isJgglRegRow)
       .map(({ regs, ...o }) => ({ ...o, qregs: Number(regs) || 0 }));
   }
-  return (rows || []).map(r => { if (!r) return r; const { regs, ...o } = r; return o; });
+  return (rows || []).filter(r => r && !isJgglRegRow(r))
+    .map(r => { const { regs, ...o } = r; return o; });
 }
 
 function renderGoalLensFilter(proj, rows) {
-  const regRows = (rows || []).filter(r => r && 'regs' in r);
+  const installRows = (rows || []).filter(r => r && !isJgglRegRow(r));
+  const regRows = (rows || []).filter(isJgglRegRow);
   if (!regRows.length) return '';
   const cur = getProjectDim(proj.id, 'goal');
   const chip = (value, label, n) => `<button type="button" class="geo-chip${cur === value ? ' active' : ''}" onclick="setProjectDim('${escHtml(proj.id)}','goal','${value}')">
@@ -5565,7 +5571,7 @@ function renderGoalLensFilter(proj, rows) {
     <div class="geo-filter-head">
       <span class="geo-filter-label">${escHtml(DIMS.goal.title)}</span>
       <button type="button" class="geo-chip${cur ? '' : ' active'}" onclick="setProjectDim('${escHtml(proj.id)}','goal','')">Все</button>
-      ${chip('install', GOAL_LABELS.install, sum(rows, 'qregs'))}
+      ${chip('install', GOAL_LABELS.install, sum(installRows, 'qregs'))}
       ${chip('reg', GOAL_LABELS.reg, sum(regRows, 'regs'))}
     </div>
     <div class="geo-filter-hint">${escHtml(DIMS.goal.hint)}</div>

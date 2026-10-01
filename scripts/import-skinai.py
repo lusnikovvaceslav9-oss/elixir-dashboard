@@ -17,9 +17,14 @@ from zoneinfo import ZoneInfo
 GEN_TZ = timezone(timedelta(hours=7))
 QUIZ_TZ = ZoneInfo("Europe/Moscow")
 DASH = Path("/Users/vaceslavlusnikov/Desktop/дашборд")
-SRC = Path("/Users/vaceslavlusnikov/Downloads/菏泽安荧网络-1-Ad-sets-Sep-29-2026-Sep-30-2026 (2).csv")
+SRC = Path("/Users/vaceslavlusnikov/Downloads/菏泽安荧网络-1-Ad-sets-Oct-1-2026-Oct-1-2026.csv")
 ADMIN_DEFAULT = "https://skin-snowy-phi.vercel.app"
 ADSETS = [("phi", "phi · impact"), ("mauve", "mauve · routine")]
+ADS_FILES = [
+    Path("/Users/vaceslavlusnikov/Downloads/菏泽安荧网络-1-Ad-sets-Sep-29-2026-Sep-30-2026 (2).csv"),
+    Path("/Users/vaceslavlusnikov/Downloads/菏泽安荧网络-1-Ad-sets-Sep-30-2026-Sep-30-2026.csv"),
+    SRC,
+]
 FIELDS = ["spend", "installs", "trials", "sold", "fb", "contact_sent", "clicks", "impressions"]
 SPEND_KEYS = ("spend", "fb", "clicks", "impressions")
 QUIZ_KEYS = ("installs", "trials", "sold", "contact_sent")
@@ -214,13 +219,21 @@ def quiz_values(sessions: list[dict]) -> dict:
     return {"impact": impact, "routine": routine, "all": stats(sessions)}
 
 
-def parse_meta_ads() -> tuple[list[dict], list[str]]:
-    if not SRC.exists():
-        raise SystemExit(f"Missing source CSV: {SRC}")
-    shutil.copyfile(SRC, DASH / "data" / "skinai-meta-ads.csv")
-    rows = list(csv.reader(SRC.read_text(encoding="utf-8-sig").splitlines()))
+def adset_sheet(name: str) -> str | None:
+    n = str(name or "").strip().lower()
+    if n in ("phi", "mauve", "creo5"):
+        return n
+    if "creo 5" in n:
+        return "creo5"
+    return None
+
+
+def parse_ads_file(path: Path) -> list[dict]:
+    if not path.exists():
+        return []
+    rows = list(csv.reader(path.read_text(encoding="utf-8-sig").splitlines()))
     if not rows:
-        raise SystemExit("Empty Meta CSV")
+        return []
     headers = rows[0]
     idx = {h: i for i, h in enumerate(headers)}
 
@@ -249,6 +262,23 @@ def parse_meta_ads() -> tuple[list[dict], list[str]]:
             "clicks": parse_num(row[clicks_i] if 0 <= clicks_i < len(row) else 0),
             "impressions": parse_num(row[imps_i] if 0 <= imps_i < len(row) else 0),
         })
+    return recs
+
+
+def parse_meta_ads() -> tuple[list[dict], list[str]]:
+    dest = DASH / "data" / "skinai-meta-ads.csv"
+    by: dict[tuple[str, str], dict] = {}
+    latest = None
+    for path in ADS_FILES:
+        if not path.exists():
+            continue
+        latest = path
+        for rec in parse_ads_file(path):
+            by[(rec["date"], rec["adset"])] = rec
+    if not latest:
+        raise SystemExit("Missing SkinAI Meta CSV")
+    shutil.copyfile(latest, dest)
+    recs = [r for r in by.values() if "creo 5" not in r["adset"]]
     known = {nid for nid, _ in ADSETS}
     unknown = sorted({r["adset"] for r in recs} - known)
     return recs, unknown
@@ -262,15 +292,17 @@ def main() -> None:
     admin = (os.environ.get("SKIN_ADMIN_URL") or secrets.get("SKIN_ADMIN_URL") or ADMIN_DEFAULT).rstrip("/")
     ads, unknown = parse_meta_ads()
     sessions = fetch_sessions(admin, password)
-    by: dict[str, dict[str, dict]] = {"total": {}, "phi": {}, "mauve": {}}
+    by: dict[str, dict[str, dict]] = {nid: {} for nid, _ in ADSETS}
+    by["total"] = {}
 
     def slot(sheet: str, date: str) -> dict:
         return by[sheet].setdefault(date, empty_slot(date))
 
     for rec in ads:
         add_into(slot("total", rec["date"]), rec, SPEND_KEYS)
-        if rec["adset"] in ("phi", "mauve"):
-            add_into(slot(rec["adset"], rec["date"]), rec, SPEND_KEYS)
+        sheet = adset_sheet(rec["adset"])
+        if sheet:
+            add_into(slot(sheet, rec["date"]), rec, SPEND_KEYS)
     for row in sessions:
         date = session_day(row)
         if not date:

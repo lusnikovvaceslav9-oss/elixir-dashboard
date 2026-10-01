@@ -11,7 +11,7 @@ from pathlib import Path
 MSK = timezone(timedelta(hours=7))
 DASH = Path("/Users/vaceslavlusnikov/Desktop/дашборд")
 SRC = Path(
-    "/Users/vaceslavlusnikov/Downloads/_-_-YL-50137-3-Ad-sets-Sep-17-2026-Sep-30-2026.csv"
+    "/Users/vaceslavlusnikov/Downloads/_-_-YL-50137-3-Ad-sets-Sep-30-2026-Sep-30-2026.csv"
 )
 CAMPAIGNS = Path(
     "/Users/vaceslavlusnikov/Downloads/_-_-YL-50137-3-Campaigns-Sep-17-2026-Sep-30-2026.csv"
@@ -84,6 +84,28 @@ def aggregate(recs: list[dict]) -> list[dict]:
     return [v for v in by_date.values() if any(v[k] for k in FIELDS)]
 
 
+def read_daily(path: Path) -> list[dict]:
+    if not path.exists():
+        return []
+    rows = list(csv.DictReader(path.read_text(encoding="utf-8").splitlines()))
+    out = []
+    for r in rows:
+        rec = {"date": r.get("date") or ""}
+        if not rec["date"]:
+            continue
+        for k in FIELDS:
+            rec[k] = parse_num(r.get(k))
+        out.append(rec)
+    return out
+
+
+def merge_daily(old: list[dict], new: list[dict]) -> list[dict]:
+    by = {r["date"]: r for r in old}
+    for r in new:
+        by[r["date"]] = r
+    return [v for v in by.values() if any(v.get(k) for k in FIELDS)]
+
+
 def col_idx(headers: list[str], *names: str) -> int:
     idx = {h: i for i, h in enumerate(headers)}
     for n in names:
@@ -153,12 +175,15 @@ def main() -> None:
         shutil.copyfile(CAMPAIGNS, DASH / "data" / "quadcode-meta-campaigns.csv")
 
     recs, unknown = parse_adsets(SRC)
-    total = aggregate(recs)
+    total = merge_daily(read_daily(DASH / "data" / "quadcode-daily.csv"), aggregate(recs))
     write_elixir_csv(DASH / "data" / "quadcode-daily.csv", total)
 
     niches: dict[str, dict] = {}
     for nid, label in SHEETS:
-        daily = aggregate([r for r in recs if r["kind"] == nid])
+        daily = merge_daily(
+            read_daily(DASH / "data" / f"quadcode-{nid}.csv"),
+            aggregate([r for r in recs if r["kind"] == nid]),
+        )
         write_elixir_csv(DASH / "data" / f"quadcode-{nid}.csv", daily)
         niches[nid] = {
             "name": label,

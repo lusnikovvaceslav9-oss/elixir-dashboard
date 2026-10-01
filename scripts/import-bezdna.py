@@ -10,7 +10,7 @@ from pathlib import Path
 
 MSK = timezone(timedelta(hours=7))
 DASH = Path("/Users/vaceslavlusnikov/Desktop/дашборд")
-SRC = Path("/Users/vaceslavlusnikov/Downloads/-_16581_-ELIXIR_adskill_-3_A-Campaigns-27-Sep-2026-30-Sep-2026.csv")
+SRC = Path("/Users/vaceslavlusnikov/Downloads/-_16581_-ELIXIR_adskill_-3_A-Campaigns-29-Sep-2026-1-Oct-2026.csv")
 CAMPAIGNS = [
     ("leads", "«Играть» · 29/09", "bezdna - US - 29/09"),
     ("reg", "Аккаунт · 30/09", "bezdna - US - 30/09 - reg"),
@@ -53,14 +53,38 @@ def write_elixir_csv(path: Path, rows: list[dict], fields: list[str]) -> None:
             w.writerow(out)
 
 
+FIELDS = ["spend", "trials", "sold", "fb", "clicks", "impressions"]
+
+
 def aggregate(recs: list[dict]) -> list[dict]:
-    keys = ["spend", "trials", "sold", "fb", "clicks", "impressions"]
     by_date: dict[str, dict] = {}
     for rec in recs:
-        slot = by_date.setdefault(rec["date"], {k: 0.0 for k in keys} | {"date": rec["date"]})
-        for k in keys:
+        slot = by_date.setdefault(rec["date"], {k: 0.0 for k in FIELDS} | {"date": rec["date"]})
+        for k in FIELDS:
             slot[k] += rec.get(k, 0) or 0
-    return [v for v in by_date.values() if any(v[k] for k in keys)]
+    return [v for v in by_date.values() if any(v[k] for k in FIELDS)]
+
+
+def read_daily(path: Path) -> list[dict]:
+    if not path.exists():
+        return []
+    rows = list(csv.DictReader(path.read_text(encoding="utf-8").splitlines()))
+    out = []
+    for r in rows:
+        rec = {"date": r.get("date") or ""}
+        if not rec["date"]:
+            continue
+        for k in FIELDS:
+            rec[k] = parse_num(r.get(k))
+        out.append(rec)
+    return out
+
+
+def merge_daily(old: list[dict], new: list[dict]) -> list[dict]:
+    by = {r["date"]: r for r in old}
+    for r in new:
+        by[r["date"]] = r
+    return [v for v in by.values() if any(v.get(k) for k in FIELDS)]
 
 
 def col(idx: dict, *names: str) -> int:
@@ -80,13 +104,15 @@ def main() -> None:
     headers = rows[0]
     idx = {h: i for i, h in enumerate(headers)}
     date_i = col(idx, "Reporting starts")
-    name_i = col(idx, "Campaign name")
+    name_i = col(idx, "Campaign name", "Ad set name")
     spend_i = col(idx, "Amount spent (USD)")
     leads_i = col(idx, "Website leads", "Leads")
     regs_i = col(idx, "Registrations completed")
-    clicks_i = col(idx, "Link clicks")
+    clicks_i = col(idx, "Link clicks", "Clicks (all)")
     imps_i = col(idx, "Impressions")
     lpv_i = col(idx, "Landing page views")
+    res_i = col(idx, "Results")
+    ind_i = col(idx, "Result indicator")
     recs = []
     for row in rows[1:]:
         if not row or name_i >= len(row):
@@ -95,23 +121,32 @@ def main() -> None:
         date = iso_to_ru(row[date_i] if date_i >= 0 else "")
         if not date or not name:
             continue
+        indicator = str(row[ind_i] if 0 <= ind_i < len(row) else "").lower()
+        results = parse_num(row[res_i] if 0 <= res_i < len(row) else 0)
+        leads = parse_num(row[leads_i] if 0 <= leads_i < len(row) else 0)
+        regs = parse_num(row[regs_i] if 0 <= regs_i < len(row) else 0)
+        if "complete_registration" in indicator:
+            regs = max(regs, results)
+        elif "lead" in indicator:
+            leads = max(leads, results)
         recs.append({
             "date": date,
             "campaign": name,
             "spend": parse_num(row[spend_i] if 0 <= spend_i < len(row) else 0),
-            "trials": parse_num(row[leads_i] if 0 <= leads_i < len(row) else 0),
-            "sold": parse_num(row[regs_i] if 0 <= regs_i < len(row) else 0),
+            "trials": leads,
+            "sold": regs,
             "fb": parse_num(row[lpv_i] if 0 <= lpv_i < len(row) else 0),
             "clicks": parse_num(row[clicks_i] if 0 <= clicks_i < len(row) else 0),
             "impressions": parse_num(row[imps_i] if 0 <= imps_i < len(row) else 0),
         })
-    fields = ["spend", "trials", "sold", "fb", "clicks", "impressions"]
-    total = aggregate(recs)
+    fields = FIELDS
+    total = merge_daily(read_daily(DASH / "data" / "bezdna-daily.csv"), aggregate(recs))
     write_elixir_csv(DASH / "data" / "bezdna-daily.csv", total, fields)
     niches = {}
     by_name = {src: (nid, label) for nid, label, src in CAMPAIGNS}
     for nid, label, src in CAMPAIGNS:
-        daily = aggregate([r for r in recs if r["campaign"] == src])
+        matched = [r for r in recs if r["campaign"] == src]
+        daily = merge_daily(read_daily(DASH / "data" / f"bezdna-{nid}.csv"), aggregate(matched))
         write_elixir_csv(DASH / "data" / f"bezdna-{nid}.csv", daily, fields)
         niches[nid] = {
             "name": label,
