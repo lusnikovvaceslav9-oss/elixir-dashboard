@@ -1,83 +1,83 @@
 {
-  "generated_at": "2026-10-01T15:14:52+00:00",
+  "generated_at": "2026-10-01T20:41:49+00:00",
   "anchor": "2026-06-05",
   "until": "2026-10-01",
   "product": {
     "from": "2026-06-05",
     "to": "2026-10-01",
-    "installs": 19273,
-    "active_users": 19541,
+    "installs": 19297,
+    "active_users": 19551,
     "events": {
       "plant_added": {
-        "users": 5850,
-        "events": 12994,
-        "vs_install_pct": 30.35,
-        "avg_per_user": 2.22
+        "users": 0,
+        "events": 0,
+        "vs_install_pct": null,
+        "avg_per_user": null
       },
       "paywall_shown": {
-        "users": 14861,
-        "events": 29502,
-        "vs_install_pct": 77.11,
+        "users": 14872,
+        "events": 29539,
+        "vs_install_pct": 77.07,
         "avg_per_user": 1.99
       },
       "paywall_cta_clicked": {
-        "users": 5991,
-        "events": 8768,
-        "vs_install_pct": 31.08,
+        "users": 6000,
+        "events": 8787,
+        "vs_install_pct": 31.09,
         "avg_per_user": 1.46
       },
       "user_score5": {
-        "users": 1183,
-        "events": 1191,
-        "vs_install_pct": 6.14,
+        "users": 1179,
+        "events": 1187,
+        "vs_install_pct": 6.11,
         "avg_per_user": 1.01
       },
       "chat_message_sent": {
         "users": 715,
-        "events": 2110,
+        "events": 2086,
         "vs_install_pct": 3.71,
-        "avg_per_user": 2.95
+        "avg_per_user": 2.92
       },
       "watering_configured": {
-        "users": 733,
-        "events": 1906,
-        "vs_install_pct": 3.8,
-        "avg_per_user": 2.6
+        "users": 728,
+        "events": 1868,
+        "vs_install_pct": 3.77,
+        "avg_per_user": 2.57
       },
       "watering_marked": {
-        "users": 328,
-        "events": 3452,
-        "vs_install_pct": 1.7,
-        "avg_per_user": 10.52
+        "users": 325,
+        "events": 3417,
+        "vs_install_pct": 1.68,
+        "avg_per_user": 10.51
       },
       "ai_route": {
-        "users": 5500,
-        "events": 47296,
+        "users": 5507,
+        "events": 47232,
         "vs_install_pct": 28.54,
-        "avg_per_user": 8.6
+        "avg_per_user": 8.58
       },
       "scan_success": {
-        "users": 6548,
-        "events": 22077,
-        "vs_install_pct": 33.97,
+        "users": 6557,
+        "events": 22070,
+        "vs_install_pct": 33.98,
         "avg_per_user": 3.37
       },
       "user_activated": {
-        "users": 16424,
-        "events": 21946,
-        "vs_install_pct": 85.22,
+        "users": 16437,
+        "events": 21964,
+        "vs_install_pct": 85.18,
         "avg_per_user": 1.34
       }
     },
-    "garden_activation_pct": 30.35,
-    "garden_avg_plants": 2.22,
+    "garden_activation_pct": 0.0,
+    "garden_avg_plants": null,
     "garden_depth_icp_pct": null,
-    "paywall_cta_pct": 40.31,
-    "care_engagement_pct": 6.14,
-    "chat_per_plant_pct": 12.22,
+    "paywall_cta_pct": 40.34,
+    "care_engagement_pct": 6.11,
+    "chat_per_plant_pct": null,
     "feature_activation": {
-      "scan_pct": 33.97,
-      "watering_pct": 3.8,
+      "scan_pct": 33.98,
+      "watering_pct": 3.77,
       "ai_pct": 28.54
     },
     "retention": {
@@ -86,17 +86,19 @@
       "d7": null,
       "note": "AppMetrica Reporting API не отдаёт D1/D3/D7 без Logs/Retention export"
     },
-    "errors": []
+    "errors": [
+      "plant_added: AppMetrica HTTP 400: {\"errors\":[{\"error_type\":\"query_error\",\"message\":\"Query is too complicated. Please reduce the date interval or sampling.\"}],\"code\":400,\"message\":\"Query is too complicated. Please reduce the date interval or sampling.\"}"
+    ]
   },
   "unit_economics": {
-    "revenue_total": 305045,
-    "spend_total": 448302.21,
-    "active_users": 19541,
-    "active_payers": 121,
-    "plus_active_users": 191,
-    "trial_cancellations": 16,
+    "revenue_total": 311025,
+    "spend_total": 448868.22,
+    "active_users": 19551,
+    "active_payers": 123,
+    "plus_active_users": 190,
+    "trial_cancellations": 15,
     "trial_cancellations_by_day": {
-      "2026-09-25": 2,
+      "2026-09-25": 1,
       "2026-09-26": 1,
       "2026-09-27": 2,
       "2026-09-28": 3,
@@ -104,12 +106,12 @@
       "2026-09-30": 3,
       "2026-10-01": 4
     },
-    "renewals": 77,
-    "arpu": 15.61,
-    "arppu": 2521.03,
-    "ltv": 4125.32,
+    "renewals": 79,
+    "arpu": 15.91,
+    "arppu": 2528.66,
+    "ltv": 4152.76,
     "ltv_note": "прокси: ARPPU × (1 + renewals/payers), пока нет полной кривой ребиллов",
-    "roas_d7": 71.4,
+    "roas_d7": 72.3,
     "roas_d14": 70.2,
     "roas_d30": 66.8
   }
