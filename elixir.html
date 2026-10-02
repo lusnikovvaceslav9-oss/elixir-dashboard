@@ -6310,13 +6310,15 @@ function feedProjectForPath(rel) {
   for (const [fid, f] of Object.entries(AUTO_FEED_URLS)) {
     if ([f.daily, f.cohort, f.meta, f.product].some(u => u && path.endsWith(u.split('/').pop()))) return fid;
   }
-  return 'planto';
+  return null;
 }
 
 function resolvePlantoFeedUrl(localPath) {
   if (isLocalDashboard()) return localPath;
   const rel = String(localPath || '').replace(/^\//, '');
-  return `https://raw.githubusercontent.com/${PLANTO_GH_REPO}/${feedRefFor(feedProjectForPath(rel))}/${rel}`;
+  const fid = feedProjectForPath(rel);
+  const ref = fid ? feedRefFor(fid) : PLANTO_GH_BRANCH;
+  return `https://raw.githubusercontent.com/${PLANTO_GH_REPO}/${ref}/${rel}`;
 }
 
 function huppFeedIdForPath(rel) {
@@ -6362,7 +6364,12 @@ function resolveFeedFetchUrl(url) {
     if (feed.meta && (url === feed.meta || String(url).includes(feed.meta.split('/').pop()))) return resolveKelpieFeedUrl(feed.meta);
     if (feed.spendSeed && (url === feed.spendSeed || String(url).includes(feed.spendSeed.split('/').pop()))) return resolveKelpieFeedUrl(feed.spendSeed);
   }
-  if (isRepoDataUrl(url)) return resolvePlantoFeedUrl(url.trim());
+  if (isRepoDataUrl(url)) {
+    const rel = url.trim();
+    // Quadcode / baked CSV must not pin to Planto's SHA — that hid Oct 1 after deploy.
+    if (feedProjectForPath(rel)) return resolvePlantoFeedUrl(rel);
+    return rel;
+  }
   if (url === PLANTO_DATA_URL || String(url).includes('planto-daily.csv')) return resolvePlantoFeedUrl(PLANTO_DATA_URL);
   if (url === PLANTO_META_URL || String(url).includes('planto-meta.json')) return resolvePlantoFeedUrl(PLANTO_META_URL);
   if (url === PLANTO_COHORT_URL || String(url).includes('planto-cohort.json')) return resolvePlantoFeedUrl(PLANTO_COHORT_URL);
