@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-10-02T18:49:30+00:00",
+  "generated_at": "2026-10-02T22:42:15+00:00",
   "anchor": "2026-06-05",
-  "until": "2026-10-02",
-  "window_start": "2026-09-23",
+  "until": "2026-10-03",
+  "window_start": "2026-09-24",
   "trial_attribution": "supabase_trial_start",
   "ai_spend": null,
   "trial_days": 7,
@@ -30,7 +30,7 @@
     "product": "appmetrica_reporting"
   },
   "errors": [],
-  "days": 120,
+  "days": 121,
   "reconcile_diff": {
     "trials_total_old_csv": 550,
     "trials_total_new": 550,
@@ -38,7 +38,7 @@
   },
   "unit_economics": {
     "revenue_total": 311424,
-    "spend_total": 450494.75,
+    "spend_total": 450607.37,
     "active_users": 0,
     "active_payers": 123,
     "plus_active_users": 190,
@@ -71,11 +71,11 @@
     "predict_horizon_days": 180
   },
   "product": {
-    "garden_activation_pct": 30.34,
+    "garden_activation_pct": 30.33,
     "garden_avg_plants": 2.23,
     "garden_depth_icp_pct": null,
-    "paywall_cta_pct": 40.36,
-    "care_engagement_pct": 6.14,
+    "paywall_cta_pct": 40.37,
+    "care_engagement_pct": 6.15,
     "feature_activation": {
       "scan_pct": 33.95,
       "watering_pct": 3.79,
@@ -101,7 +101,7 @@
   },
   "cash_period": {
     "from": "2026-06-05",
-    "until": "2026-10-02",
+    "until": "2026-10-03",
     "first": 303045,
     "rebills": 8379,
     "total": 311424
@@ -623,7 +623,8 @@
     "2026-09-29": 2490,
     "2026-09-30": 3889,
     "2026-10-01": 2490,
-    "2026-10-02": 798
+    "2026-10-02": 798,
+    "2026-10-03": 0
   },
   "paid_net_by_cohort_day": {
     "2026-06-25": 399,
@@ -928,7 +929,7 @@
     "2026-10-02": 2
   },
   "trials_crosscheck_yesterday": {
-    "day": "2026-10-01",
+    "day": "2026-10-02",
     "appmetrica": 2,
     "supabase": 2,
     "dashboard": 2,
