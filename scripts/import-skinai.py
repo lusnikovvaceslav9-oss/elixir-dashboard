@@ -17,12 +17,13 @@ from zoneinfo import ZoneInfo
 GEN_TZ = timezone(timedelta(hours=7))
 QUIZ_TZ = ZoneInfo("Europe/Moscow")
 DASH = Path("/Users/vaceslavlusnikov/Desktop/дашборд")
-SRC = Path("/Users/vaceslavlusnikov/Downloads/菏泽安荧网络-1-Ad-sets-Oct-1-2026-Oct-1-2026.csv")
+SRC = Path("/Users/vaceslavlusnikov/Downloads/菏泽安荧网络-1-Ad-sets-Oct-1-2026-Oct-2-2026.csv")
 ADMIN_DEFAULT = "https://skin-snowy-phi.vercel.app"
 ADSETS = [("phi", "phi · impact"), ("mauve", "mauve · routine")]
 ADS_FILES = [
     Path("/Users/vaceslavlusnikov/Downloads/菏泽安荧网络-1-Ad-sets-Sep-29-2026-Sep-30-2026 (2).csv"),
     Path("/Users/vaceslavlusnikov/Downloads/菏泽安荧网络-1-Ad-sets-Sep-30-2026-Sep-30-2026.csv"),
+    Path("/Users/vaceslavlusnikov/Downloads/菏泽安荧网络-1-Ad-sets-Oct-1-2026-Oct-1-2026.csv"),
     SRC,
 ]
 FIELDS = ["spend", "installs", "trials", "sold", "fb", "contact_sent", "clicks", "impressions"]

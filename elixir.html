@@ -7546,58 +7546,39 @@ function plantoFeedHealth(projId) {
 }
 
 function renderPlantoBreakdownCard(proj, rows) {
+  const sel = getPlantoView(proj.id);
+  const cur = proj.currency;
+  const views = Object.entries(PLANTO_VIEWS).filter(([id]) => isPlantoAutoFeed(proj) || id !== 'summary');
+  const grid = `<div class="planto-view-grid">${views.map(([id, cfg]) => {
+    const count = sum(rows, cfg.resultKey);
+    const cost = count ? fmtMoney(sum(rows, 'spend') / count, cur) : '—';
+    return `<button type="button" class="planto-view-btn ${id === sel ? 'active' : ''}" onclick="switchPlantoView('${id}')">
+      <span class="planto-view-name">${escHtml(cfg.label)}</span>
+      <span class="planto-view-stat">${fmtInt(count)}</span>
+      <span class="planto-view-cost">${cost}</span>
+    </button>`;
+  }).join('')}</div>`;
+
+  let feedExtra = '';
   if (isPlantoAutoFeed(proj)) {
     const meta = feedMeta(proj.id);
     const health = plantoFeedHealth(proj.id);
     const warnHtml = (health && (!health.ok || health.staleVsToday))
       ? `<div class="budget-hint feed-warn">⚠ данные могли устареть — нажми «Обновить» (запустит feed)</div>`
       : '';
-    // lastPlantoFeedRefresh относится только к Planto-фиду — на карточке другого
-    // проекта он показывал чужое «Planto обновлён». Остальным — их же срез.
     const refreshMsg = proj.id === 'planto' ? lastPlantoFeedRefresh?.message : null;
     const refreshHint = refreshMsg
       ? `<div class="budget-hint">${escHtml(refreshMsg)}</div>`
       : (meta?.generated_at
         ? `<div class="budget-hint">срез · ${escHtml(String(meta.generated_at).replace('T', ' ').replace(/\+\d{2}:\d{2}$/, ' UTC').slice(0, 19))}</div>`
         : '');
-    const pay = meta?.payments_by_plan;
-    const plans = meta?.plans || {};
-    const curPlan = getPlanFilter(proj.id);
-    const skuHtml = skuChipEntries(meta).length
-      ? `<div class="income-chips-row">` +
-        skuChipEntries(meta).map(([code, cell]) =>
-          `<span class="income-chip" title="${escHtml(code)}">${escHtml(skuChipText(cell))}</span>`
-        ).join('') +
-        `</div>`
-      : '';
-    const payHtml = skuHtml || (pay && pay.total?.count
-      ? `<div class="income-chips-row">` +
-        `<button type="button" class="income-chip btn${curPlan === 'yearly' ? ' active' : ''}" onclick="setPlanFilter('${escHtml(proj.id)}','yearly')">Год ${plans.year != null ? fmtInt(plans.year) + ' ₽' : ''}&nbsp;<b>${pay.yearly?.count || 0}</b>&nbsp;· ${fmtInt(pay.yearly?.rub || 0)} ₽</button>` +
-        `<button type="button" class="income-chip btn${curPlan === 'monthly' ? ' active' : ''}" onclick="setPlanFilter('${escHtml(proj.id)}','monthly')">Месяц ${plans.month != null ? fmtInt(plans.month) + ' ₽' : ''}&nbsp;<b>${pay.monthly?.count || 0}</b>&nbsp;· ${fmtInt(pay.monthly?.rub || 0)} ₽</button>` +
-        (pay.weekly || plans.week != null
-          ? `<button type="button" class="income-chip btn${curPlan === 'weekly' ? ' active' : ''}" onclick="setPlanFilter('${escHtml(proj.id)}','weekly')">Неделя ${plans.week != null ? fmtInt(plans.week) + ' ₽' : ''}&nbsp;<b>${pay.weekly?.count || 0}</b>&nbsp;· ${fmtInt(pay.weekly?.rub || 0)} ₽</button>`
-          : '') +
-        `<button type="button" class="income-chip btn${!curPlan ? ' active' : ''}" onclick="setPlanFilter('${escHtml(proj.id)}','')">Все&nbsp;<b>${fmtInt(pay.total.rub || 0)} ₽</b></button>` +
-        `</div>`
-      : '');
-    return `<div class="analytics-card planto-breakdown-card">
-      <div class="analytics-card-title">Auto feed <span class="feed-badge">live</span></div>
-      ${payHtml}${refreshHint}${warnHtml}
-    </div>`;
+    feedExtra = `${refreshHint}${warnHtml}`;
   }
-  const sel = getPlantoView(proj.id);
-  const cur = proj.currency;
+
   return `<div class="analytics-card planto-breakdown-card">
     <div class="analytics-card-title">Разбивка</div>
-    <div class="planto-view-grid">${Object.entries(PLANTO_VIEWS).filter(([id]) => id !== 'summary').map(([id, cfg]) => {
-      const count = sum(rows, cfg.resultKey);
-      const cost = count ? fmtMoney(sum(rows, 'spend') / count, cur) : '—';
-      return `<button type="button" class="planto-view-btn ${id === sel ? 'active' : ''}" onclick="switchPlantoView('${id}')">
-        <span class="planto-view-name">${escHtml(cfg.label)}</span>
-        <span class="planto-view-stat">${fmtInt(count)}</span>
-        <span class="planto-view-cost">${cost}</span>
-      </button>`;
-    }).join('')}</div>
+    ${grid}
+    ${feedExtra}
     <div class="budget-hint" style="margin-top:10px">Выберите этап — ниже обновятся метрики, график и таблица</div>
   </div>`;
 }
@@ -9188,7 +9169,7 @@ function getTableConfig(proj, rows) {
     };
     return { ...tbl, columnKeys: colKeys, colKeys };
   } else if (type === 'planto') {
-    if (isPlantoAutoFeed(proj)) {
+    if (isPlantoAutoFeed(proj) && getPlantoView(proj.id) === 'summary') {
       const hasAds = rows?.some(r => (r.clicks || 0) > 0 || (r.impressions || 0) > 0);
       // Доход сразу после Spend — иначе колонка теряется в горизонтальном скролле.
       colKeys = ['date', 'spend', 'revenue', 'roas', 'fb', 'cost_fb', 'installs', 'cost_install', 'trials', 'cost_trial', 'sold'];
