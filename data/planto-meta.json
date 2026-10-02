@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-02T13:22:09+00:00",
+  "generated_at": "2026-10-02T18:49:30+00:00",
   "anchor": "2026-06-05",
   "until": "2026-10-02",
   "window_start": "2026-09-23",
@@ -32,19 +32,18 @@
   "errors": [],
   "days": 120,
   "reconcile_diff": {
-    "trials_total_old_csv": 549,
+    "trials_total_old_csv": 550,
     "trials_total_new": 550,
-    "delta": 1
+    "delta": 0
   },
   "unit_economics": {
     "revenue_total": 311424,
-    "spend_total": 450208.09,
+    "spend_total": 450494.75,
     "active_users": 0,
     "active_payers": 123,
-    "plus_active_users": 191,
-    "trial_cancellations": 17,
+    "plus_active_users": 190,
+    "trial_cancellations": 16,
     "trial_cancellations_by_day": {
-      "2026-09-25": 1,
       "2026-09-26": 1,
       "2026-09-27": 2,
       "2026-09-28": 3,
@@ -72,15 +71,15 @@
     "predict_horizon_days": 180
   },
   "product": {
-    "garden_activation_pct": 30.35,
-    "garden_avg_plants": 2.21,
+    "garden_activation_pct": 30.34,
+    "garden_avg_plants": 2.23,
     "garden_depth_icp_pct": null,
-    "paywall_cta_pct": 40.37,
-    "care_engagement_pct": 6.1,
+    "paywall_cta_pct": 40.36,
+    "care_engagement_pct": 6.14,
     "feature_activation": {
       "scan_pct": 33.95,
-      "watering_pct": 3.75,
-      "ai_pct": 28.51
+      "watering_pct": 3.79,
+      "ai_pct": 28.54
     },
     "retention": {
       "d1": null,
@@ -838,7 +837,7 @@
     "2026-07-01": 6,
     "2026-07-02": 2,
     "2026-07-03": 8,
-    "2026-07-04": 3,
+    "2026-07-04": 4,
     "2026-07-05": 13,
     "2026-07-06": 1,
     "2026-07-07": 9,
@@ -870,7 +869,7 @@
     "2026-08-04": 2,
     "2026-08-05": 6,
     "2026-08-06": 5,
-    "2026-08-07": 8,
+    "2026-08-07": 7,
     "2026-08-08": 7,
     "2026-08-09": 5,
     "2026-08-10": 5,
@@ -888,10 +887,10 @@
     "2026-08-22": 6,
     "2026-08-23": 7,
     "2026-08-24": 9,
-    "2026-08-25": 18,
+    "2026-08-25": 17,
     "2026-08-26": 9,
     "2026-08-27": 8,
-    "2026-08-28": 7,
+    "2026-08-28": 8,
     "2026-08-29": 7,
     "2026-08-30": 4,
     "2026-08-31": 5,
