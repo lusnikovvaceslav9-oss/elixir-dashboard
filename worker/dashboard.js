@@ -61,11 +61,26 @@ export async function replaceAllRecords(env, records) {
     });
   }
 
-  const toDelete = [...existingIds].filter(id => !incomingIds.has(id));
+  const toDelete = [...existingIds].filter(id => !incomingIds.has(id) && !String(id).startsWith('_days_'));
   if (toDelete.length) {
     await sbFetch(env, `dashboard_records?id=in.(${toDelete.map(encodeURIComponent).join(',')})`, {
       method: 'DELETE',
       headers: { Prefer: 'return=minimal' },
     });
   }
+}
+
+export async function getRecord(env, id) {
+  const rows = await sbFetch(env, `dashboard_records?id=eq.${encodeURIComponent(id)}&select=id,data`);
+  return rows?.[0]?.data || null;
+}
+
+export async function upsertRecord(env, record) {
+  if (!record?.id) throw new Error('record_id_required');
+  await sbFetch(env, 'dashboard_records', {
+    method: 'POST',
+    headers: { Prefer: 'return=minimal,resolution=merge-duplicates' },
+    body: JSON.stringify([{ id: record.id, data: record }]),
+  });
+  return record;
 }

@@ -227,6 +227,11 @@ def main() -> None:
     (DASH / "data" / "quadcode-meta.json").write_text(
         json.dumps(meta, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
+    try:
+        from project_days import push_project
+        print(json.dumps(push_project("quadcode"), ensure_ascii=False))
+    except Exception as e:
+        print(json.dumps({"supabase": False, "error": str(e)}, ensure_ascii=False))
     print(json.dumps({
         "days": len(total),
         "spend": round(totals["spend"], 2),

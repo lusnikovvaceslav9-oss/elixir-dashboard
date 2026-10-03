@@ -32,3 +32,17 @@ create trigger set_updated_at before update on dashboard_records
 
 -- RLS stays disabled: only reached through the Cloudflare Worker's
 -- service-role key (worker/dashboard.js), never directly from the browser.
+
+-- Baked daily rows (Beznda / Quadcode / SkinAI / Tablet) currently live as
+-- dashboard_records rows id='_days_<project>'. A dedicated table can replace
+-- that blob later without changing GET/POST /api/project-days:
+--
+-- create table if not exists project_days (
+--   project_id text not null,
+--   sheet text not null default 'total',
+--   d date not null,
+--   spend numeric not null default 0,
+--   metrics jsonb not null default '{}'::jsonb,
+--   updated_at timestamptz not null default now(),
+--   primary key (project_id, sheet, d)
+-- );

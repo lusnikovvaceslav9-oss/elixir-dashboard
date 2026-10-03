@@ -21,7 +21,7 @@ import { handleTelegramUpdate, sendDigestToAllowed, setupWebhook, notifyBudgetAl
 import { getDashboardState } from './telegram/data.js';
 import { inspectDigest } from './telegram/reports.js';
 import { isLibraryEntity, listLibrary, createLibraryItem, updateLibraryItem, deleteLibraryItem } from './library.js';
-import { listAllRecords, replaceAllRecords } from './dashboard.js';
+import { listAllRecords, replaceAllRecords, getRecord, upsertRecord } from './dashboard.js';
 
 const SESSION_TTL_SEC = 60 * 60 * 8;
 
@@ -132,7 +132,7 @@ export default {
       // ── Dashboard storage: projects[] / _csv_uploads / _worker (Supabase-backed) ──
       if (url.pathname === '/api/projects' && req.method === 'GET') {
         const raw = await listAllRecords(env);
-        const projects = raw.filter(p => p && p.id !== '_worker' && p.id !== '_csv_uploads');
+        const projects = raw.filter(p => p && p.id !== '_worker' && p.id !== '_csv_uploads' && !String(p.id || '').startsWith('_days_'));
         return json(projects, 200, env);
       }
 
@@ -225,6 +225,29 @@ export default {
         } catch (e) {
           return json({ ok: false, error: e.message || String(e) }, 502, env);
         }
+      }
+
+      if (url.pathname === '/api/project-days' && req.method === 'GET') {
+        const project = String(url.searchParams.get('project') || '').trim().toLowerCase();
+        if (!project) return json({ ok: false, error: 'project_required' }, 400, env);
+        const rec = await getRecord(env, `_days_${project}`);
+        return json(rec || { project, sheets: {} }, 200, env);
+      }
+
+      if (url.pathname === '/api/project-days' && req.method === 'POST') {
+        if (!requireDashboardWriteKey(req, env)) return json({ ok: false, error: 'unauthorized' }, 401, env);
+        const body = await req.json().catch(() => null);
+        const project = String(body?.project || '').trim().toLowerCase();
+        const sheets = body?.sheets && typeof body.sheets === 'object' ? body.sheets : null;
+        if (!project || !sheets) return json({ ok: false, error: 'bad_body' }, 400, env);
+        const rec = await upsertRecord(env, {
+          id: `_days_${project}`,
+          project,
+          sheets,
+          columns: body.columns && typeof body.columns === 'object' ? body.columns : {},
+          updatedAt: new Date().toISOString(),
+        });
+        return json({ ok: true, project, sheets: Object.keys(rec.sheets || {}) }, 200, env);
       }
 
       if (url.pathname === '/api/hupp-feed/dispatch' && req.method === 'POST') {

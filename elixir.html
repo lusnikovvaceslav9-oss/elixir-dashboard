@@ -2349,6 +2349,30 @@ function isBakedCsvHupp(proj) {
   return id === 'ekonomik' || id === 'tutorplace' || id === 'tablet' || id === 'bezdna' || id === 'skinai';
 }
 
+function isSupabaseDaysProject(proj) {
+  const id = String(proj?.id || '').toLowerCase();
+  return id === 'tablet' || id === 'bezdna' || id === 'skinai' || isQuadcodeProject(proj);
+}
+
+function deserializeDayRows(rows) {
+  return (rows || []).map(r => {
+    const dt = parseDate(r?.date) || parseDate(r?.dateStr);
+    if (!dt) return null;
+    return { ...r, date: dt, dateStr: r.dateStr || fmtDateStr(dt) };
+  }).filter(Boolean);
+}
+
+async function fetchBakedProjectDays(proj) {
+  const id = String(proj?.id || '').trim().toLowerCase();
+  if (!id) return null;
+  const res = await fetch(`${DASHBOARD_API_BASE}/api/project-days?project=${encodeURIComponent(id)}`);
+  if (!res.ok) return null;
+  const data = await res.json();
+  if (!data?.sheets || typeof data.sheets !== 'object') return null;
+  if (!Object.values(data.sheets).some(rows => Array.isArray(rows) && rows.length)) return null;
+  return data;
+}
+
 function isHuppTotalSource(src) {
   if (!src) return false;
   return src.id === 'total' || /^итог/i.test(String(src.label || '').trim());
@@ -6627,6 +6651,39 @@ async function fetchProject(proj) {
     if (!sources.length) throw new Error('No sheet sources loaded');
     return { sources };
   };
+
+  if (isSupabaseDaysProject(proj)) {
+    const remote = await Promise.race([
+      fetchBakedProjectDays(proj).catch(() => null),
+      sleep(8000).then(() => null),
+    ]);
+    if (remote) {
+      const feed = isQuadcodeProject(proj) ? QUADCODE_FEED : huppFeedOf(proj);
+      const defs = (feed?.sheets || []).filter(s => s.id !== 'google');
+      const sources = defs.map(s => ({
+        id: s.id,
+        label: s.label,
+        url: s.url,
+        rows: deserializeDayRows(remote.sheets?.[s.id] || []),
+        sheetColumns: remote.columns?.[s.id] || Object.keys((remote.sheets?.[s.id] || [])[0] || {}).filter(k => k !== 'dateStr'),
+      }));
+      if (isQuadcodeProject(proj) && QUADCODE_FEED.google) {
+        try {
+          const text = await fetchCsvWithFallback(QUADCODE_FEED.google);
+          sources.push({
+            id: 'google',
+            label: 'Google',
+            url: QUADCODE_FEED.google,
+            rows: parseSheet(text),
+            sheetColumns: (parseCSV(text)[0] || []).map(h => (h || '').trim()),
+          });
+        } catch (e) {
+          console.warn('Quadcode Google sheet:', e.message || e);
+        }
+      }
+      if (sources.some(s => (s.rows || []).length)) return withUploads({ sources });
+    }
+  }
 
   // monthlySheets + sheetSources указывают на одни и те же таблицы →
   // не делаем декартово произведение (оно утраивает спенд).
