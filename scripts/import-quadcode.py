@@ -11,7 +11,7 @@ from pathlib import Path
 MSK = timezone(timedelta(hours=7))
 DASH = Path("/Users/vaceslavlusnikov/Desktop/дашборд")
 SRC = Path(
-    "/Users/vaceslavlusnikov/Downloads/_-_-YL-50137-3-Ad-sets-Oct-1-2026-Oct-1-2026.csv"
+    "/Users/vaceslavlusnikov/Downloads/_-_-YL-50137-3-Ad-sets-Oct-2-2026-Oct-2-2026.csv"
 )
 CAMPAIGNS = Path(
     "/Users/vaceslavlusnikov/Downloads/_-_-YL-50137-3-Campaigns-Sep-17-2026-Sep-30-2026.csv"

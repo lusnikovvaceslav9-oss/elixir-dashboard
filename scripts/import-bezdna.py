@@ -10,7 +10,7 @@ from pathlib import Path
 
 MSK = timezone(timedelta(hours=7))
 DASH = Path("/Users/vaceslavlusnikov/Desktop/дашборд")
-SRC = Path("/Users/vaceslavlusnikov/Downloads/-_16581_-ELIXIR_adskill_-3_A-Campaigns-1-Oct-2026-2-Oct-2026.csv")
+SRC = Path("/Users/vaceslavlusnikov/Downloads/-_16581_-ELIXIR_adskill_-3_A-Campaigns-3-Sep-2026-2-Oct-2026.csv")
 CAMPAIGNS = [
     ("leads", "«Играть» · 29/09", "bezdna - US - 29/09"),
     ("reg", "Аккаунт · 30/09", "bezdna - US - 30/09 - reg"),

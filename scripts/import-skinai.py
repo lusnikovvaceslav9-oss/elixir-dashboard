@@ -17,13 +17,14 @@ from zoneinfo import ZoneInfo
 GEN_TZ = timezone(timedelta(hours=7))
 QUIZ_TZ = ZoneInfo("Europe/Moscow")
 DASH = Path("/Users/vaceslavlusnikov/Desktop/дашборд")
-SRC = Path("/Users/vaceslavlusnikov/Downloads/菏泽安荧网络-1-Ad-sets-Oct-1-2026-Oct-2-2026.csv")
+SRC = Path("/Users/vaceslavlusnikov/Downloads/菏泽安荧网络-1-Campaigns-Oct-2-2026-Oct-2-2026.csv")
 ADMIN_DEFAULT = "https://skin-snowy-phi.vercel.app"
 ADSETS = [("phi", "phi · impact"), ("mauve", "mauve · routine")]
 ADS_FILES = [
     Path("/Users/vaceslavlusnikov/Downloads/菏泽安荧网络-1-Ad-sets-Sep-29-2026-Sep-30-2026 (2).csv"),
     Path("/Users/vaceslavlusnikov/Downloads/菏泽安荧网络-1-Ad-sets-Sep-30-2026-Sep-30-2026.csv"),
     Path("/Users/vaceslavlusnikov/Downloads/菏泽安荧网络-1-Ad-sets-Oct-1-2026-Oct-1-2026.csv"),
+    Path("/Users/vaceslavlusnikov/Downloads/菏泽安荧网络-1-Ad-sets-Oct-1-2026-Oct-2-2026.csv"),
     SRC,
 ]
 FIELDS = ["spend", "installs", "trials", "sold", "fb", "contact_sent", "clicks", "impressions"]
@@ -244,7 +245,7 @@ def parse_ads_file(path: Path) -> list[dict]:
                 return idx[n]
         return -1
 
-    date_i, name_i = col("Reporting starts"), col("Ad set name")
+    date_i, name_i = col("Reporting starts"), col("Ad set name", "Campaign name")
     spend_i, clicks_i = col("Amount spent (USD)"), col("Link clicks")
     imps_i, lpv_i = col("Impressions"), col("Landing page views")
     recs = []
@@ -279,7 +280,10 @@ def parse_meta_ads() -> tuple[list[dict], list[str]]:
     if not latest:
         raise SystemExit("Missing SkinAI Meta CSV")
     shutil.copyfile(latest, dest)
-    recs = [r for r in by.values() if "creo 5" not in r["adset"]]
+    recs = [
+        r for r in by.values()
+        if "creo 5" not in r["adset"] and "jggl" not in r["adset"]
+    ]
     known = {nid for nid, _ in ADSETS}
     unknown = sorted({r["adset"] for r in recs} - known)
     return recs, unknown
@@ -299,9 +303,12 @@ def main() -> None:
     def slot(sheet: str, date: str) -> dict:
         return by[sheet].setdefault(date, empty_slot(date))
 
+    campaign_dates = {r["date"] for r in ads if r["adset"].startswith("skin")}
     for rec in ads:
-        add_into(slot("total", rec["date"]), rec, SPEND_KEYS)
         sheet = adset_sheet(rec["adset"])
+        is_campaign = rec["adset"].startswith("skin")
+        if is_campaign or rec["date"] not in campaign_dates:
+            add_into(slot("total", rec["date"]), rec, SPEND_KEYS)
         if sheet:
             add_into(slot(sheet, rec["date"]), rec, SPEND_KEYS)
     for row in sessions:
